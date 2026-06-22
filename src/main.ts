@@ -15,11 +15,31 @@ const biomeEl = document.getElementById('biome')!;
 const positionEl = document.getElementById('position')!;
 const statusEl = document.getElementById('status')!;
 const warningEl = document.getElementById('seed-warning')!;
+const iframe = document.getElementById('noitamap-frame') as HTMLIFrameElement;
+
+let followPlayer = false;
+let iframeReady = false;
+
+function sendToNoitamap(data: unknown) {
+  if (iframeReady && iframe.contentWindow) {
+    iframe.contentWindow.postMessage(data, '*');
+  }
+}
+
+iframe.addEventListener('load', () => {
+  iframeReady = true;
+  statusEl.textContent = 'Map loaded';
+});
+
+// In case the iframe is already loaded when this script runs.
+if (iframe.contentDocument?.readyState === 'complete') {
+  iframeReady = true;
+}
 
 const ws = new WebSocket('ws://localhost:8080');
 
 ws.addEventListener('open', () => {
-  statusEl.textContent = 'Connected to bridge';
+  statusEl.textContent = iframeReady ? 'Connected to bridge' : 'Connected to bridge, waiting for map…';
 });
 
 ws.addEventListener('message', (event) => {
@@ -37,6 +57,16 @@ ws.addEventListener('message', (event) => {
     } else {
       warningEl.style.display = 'none';
     }
+
+    sendToNoitamap({
+      type: 'noita-live-map:telemetry',
+      x: data.x,
+      y: data.y,
+    });
+
+    if (followPlayer) {
+      sendToNoitamap({ type: 'noita-live-map:pan-to-player' });
+    }
   } catch (err) {
     console.error('Failed to parse telemetry:', err);
   }
@@ -50,3 +80,15 @@ ws.addEventListener('error', (err) => {
   console.error('WebSocket error:', err);
   statusEl.textContent = 'Bridge connection error';
 });
+
+// Follow-player toggle
+const followLabel = document.createElement('label');
+followLabel.style.cssText = 'display: block; margin-top: 8px; font-size: 11px; cursor: pointer; pointer-events: auto;';
+followLabel.innerHTML = '<input type="checkbox" style="margin-right: 4px;"> Follow player';
+followLabel.querySelector('input')!.addEventListener('change', (ev) => {
+  followPlayer = (ev.target as HTMLInputElement).checked;
+  if (followPlayer) {
+    sendToNoitamap({ type: 'noita-live-map:pan-to-player' });
+  }
+});
+document.getElementById('telemetry-overlay')!.appendChild(followLabel);

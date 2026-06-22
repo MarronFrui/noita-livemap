@@ -72,9 +72,9 @@ Then open the Vite URL (usually `http://localhost:5173/`) in your browser.
 ## 🚧 After MVP
 
 ### Live marker on the map
-- [ ] Convert telemetry coordinates to noitamap viewport coordinates
-- [ ] Render a player marker inside the noitamap iframe or overlay
-- [ ] Optionally pan the map to follow the player
+- [x] Convert telemetry coordinates to noitamap viewport coordinates
+- [x] Render a player marker inside the noitamap iframe via `postMessage`
+- [x] Optionally pan the map to follow the player
 
 ### Fungal shift integration
 - [ ] Link to or embed the existing fungus solver
