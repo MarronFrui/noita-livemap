@@ -1,0 +1,22 @@
+{
+  "name": "noita-livemap",
+  "version": "1.0.0",
+  "description": "A project to merge few tools from the noita community",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm run test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MarronFrui/noita-livemap.git"
+  },
+  "keywords": [
+    "noita"
+  ],
+  "author": "Marron",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/MarronFrui/noita-livemap/issues"
+  },
+  "homepage": "https://github.com/MarronFrui/noita-livemap#readme"
+}
