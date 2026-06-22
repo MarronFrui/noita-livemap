@@ -2,6 +2,5 @@
 <Mod
     name="Noita Live Map Telemetry"
     description="Writes player position, biome, and seed to a JSON file for the live map overlay."
-    request_no_api_restrictions="1"
 >
 </Mod>

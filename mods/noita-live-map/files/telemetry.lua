@@ -1,5 +1,5 @@
 -- Noita Live Map Telemetry
--- Reads player state and writes it to a JSON file on disk.
+-- Reads player state and writes it to Noita's sandboxed mod-data file.
 
 local telemetry = {}
 
@@ -7,7 +7,6 @@ local WRITE_INTERVAL = 0.1 -- seconds (~10 Hz)
 local OUTPUT_FILENAME = "noita-live-map-telemetry.json"
 
 local last_write_time = -1
-local output_path = nil
 
 --- Escape a string for safe inclusion in a JSON value.
 local function escape_json_string(s)
@@ -22,27 +21,9 @@ local function escape_json_string(s)
     return s
 end
 
---- Try to determine the best output path.
--- Prefer the Windows LocalLow save folder when available, otherwise fall back
--- to Noita's mod-data directory (ModDataFileSetText).
-local function resolve_output_path()
-    if output_path then
-        return output_path
-    end
-
-    local user_profile = os.getenv("USERPROFILE")
-    if user_profile then
-        output_path = user_profile
-            .. "\\AppData\\LocalLow\\Nolla_Games_Noita\\save00\\"
-            .. OUTPUT_FILENAME
-    else
-        output_path = OUTPUT_FILENAME
-    end
-
-    return output_path
-end
-
 --- Write the telemetry payload as a single-line JSON object.
+-- Uses ModDataFileSetText so the file lives in the sandboxed mod-data folder
+-- (save00/mod_data/<mod_id>/...) and no unrestricted API access is required.
 local function write_telemetry(payload)
     local json = string.format(
         '{"seed":%s,"x":%d,"y":%d,"biome":"%s","ts":%d}',
@@ -53,16 +34,6 @@ local function write_telemetry(payload)
         payload.ts
     )
 
-    local path = resolve_output_path()
-    local file = io.open(path, "w")
-
-    if file then
-        file:write(json)
-        file:close()
-        return
-    end
-
-    -- Fallback to Noita's sandboxed mod data directory if direct I/O fails.
     ModDataFileSetText(OUTPUT_FILENAME, json)
 end
 
