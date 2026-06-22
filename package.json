@@ -1,10 +1,17 @@
 {
   "name": "noita-livemap",
   "version": "1.0.0",
-  "description": "A project to merge few tools from the noita community",
-  "main": "index.js",
+  "description": "A project to merge a few tools from the Noita community",
+  "private": true,
+  "type": "module",
+  "license": "GPL-3.0",
   "scripts": {
-    "test": "npm run test"
+    "copy:noitamap": "node scripts/copy-noitamap.mjs",
+    "dev": "npm run copy:noitamap && vite",
+    "build": "npm run copy:noitamap && vite build",
+    "preview": "vite preview",
+    "dev:bridge": "cd bridge && npm start",
+    "test": "echo 'No tests yet'"
   },
   "repository": {
     "type": "git",
@@ -14,9 +21,11 @@
     "noita"
   ],
   "author": "Marron",
-  "license": "ISC",
   "bugs": {
     "url": "https://github.com/MarronFrui/noita-livemap/issues"
   },
-  "homepage": "https://github.com/MarronFrui/noita-livemap#readme"
+  "homepage": "https://github.com/MarronFrui/noita-livemap#readme",
+  "devDependencies": {
+    "vite": "^8.0.16"
+  }
 }
