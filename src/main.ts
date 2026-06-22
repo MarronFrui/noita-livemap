@@ -1,3 +1,5 @@
+import './style.css';
+
 type Telemetry = {
   seed: number | string;
   x: number;
@@ -167,4 +169,19 @@ followLabel.querySelector('input')!.addEventListener('change', (ev) => {
 });
 controlsContainer.appendChild(followLabel);
 
-document.getElementById('telemetry-overlay')!.appendChild(controlsContainer);
+const telemetryOverlay = document.getElementById('telemetry-overlay')!;
+telemetryOverlay.appendChild(controlsContainer);
+
+// Collapse/expand telemetry panel
+const telemetryToggle = document.getElementById('telemetry-toggle') as HTMLButtonElement;
+let telemetryCollapsed = false;
+
+telemetryToggle.addEventListener('click', () => {
+  telemetryCollapsed = !telemetryCollapsed;
+  telemetryOverlay.classList.toggle('collapsed', telemetryCollapsed);
+  telemetryToggle.textContent = telemetryCollapsed ? '+' : '−';
+  telemetryToggle.setAttribute(
+    'aria-label',
+    telemetryCollapsed ? 'Expand telemetry' : 'Collapse telemetry'
+  );
+});

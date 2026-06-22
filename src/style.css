@@ -1,0 +1,115 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #111;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+}
+
+#noitamap-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+#telemetry-overlay {
+  display: flex;
+  flex-direction: column;
+  margin-top: 5.5rem;
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 8px;
+  min-width: 220px;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  transition: padding 0.15s ease, min-width 0.15s ease;
+}
+
+#telemetry-overlay.collapsed {
+  min-width: auto;
+  padding: 8px 10px;
+}
+
+#telemetry-overlay.collapsed #telemetry-content {
+  display: none;
+}
+
+#telemetry-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  pointer-events: auto;
+}
+
+#telemetry-overlay h1 {
+  margin: 0;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #aaa;
+}
+
+#telemetry-toggle {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+  transition: background 0.15s ease;
+}
+
+#telemetry-toggle:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+#telemetry-overlay p {
+  margin: 4px 0;
+  font-size: 13px;
+}
+
+#telemetry-overlay .value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: #7ee787;
+}
+
+#telemetry-overlay .warning {
+  color: #f85149;
+  font-weight: 600;
+}
+
+#telemetry-overlay #status {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #888;
+}
