@@ -141,10 +141,17 @@ function readAndBroadcast() {
   }
 }
 
+const isWslMount = TELEMETRY_PATH.startsWith('/mnt/');
+if (isWslMount) {
+  console.log('WSL-mounted Windows path detected; using polling file watcher.');
+}
+
 chokidar
   .watch(TELEMETRY_PATH, {
     persistent: true,
     ignoreInitial: false,
+    usePolling: isWslMount,
+    interval: isWslMount ? 100 : undefined,
     awaitWriteFinish: {
       stabilityThreshold: 50,
       pollInterval: 50,

@@ -72,6 +72,13 @@ function connectWebSocket() {
   ws = new WebSocket(BRIDGE_URL);
   updateStatus();
 
+  window.addEventListener('beforeunload', () => {
+    if (ws) {
+      ws.close();
+      ws = null;
+    }
+  }, { once: true });
+
   ws.addEventListener('open', () => {
     console.log('[noita-live-map] WebSocket connected');
     updateStatus();
