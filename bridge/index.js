@@ -6,30 +6,108 @@ import os from 'os';
 
 const BRIDGE_PORT = Number(process.env.BRIDGE_PORT) || 8080;
 
-function getTelemetryPath() {
+function getCandidatePaths() {
   if (process.env.TELEMETRY_PATH) {
-    return process.env.TELEMETRY_PATH;
+    return [process.env.TELEMETRY_PATH];
   }
 
   const home = os.homedir();
 
   if (process.platform === 'win32') {
-    return path.join(
-      home,
-      'AppData/LocalLow/Nolla_Games_Noita/save00/mod_data/noita-live-map/noita-live-map-telemetry.json'
-    );
+    return [
+      path.join(
+        home,
+        'AppData/LocalLow/Nolla_Games_Noita/save00/noita-live-map-telemetry.json'
+      ),
+    ];
   }
 
-  // Linux/Proton fallback
-  return path.join(
+  const buildPath = (usersDir, user) =>
+    path.join(
+      usersDir,
+      user,
+      'AppData/LocalLow/Nolla_Games_Noita/save00/noita-live-map-telemetry.json'
+    );
+
+  // WSL: Noita runs natively on Windows, but the bridge runs in WSL.
+  // The Windows C: drive is mounted at /mnt/c/.
+  const wslUsersDir = '/mnt/c/Users';
+  const excludedWslUsers = new Set([
+    'Public',
+    'Default',
+    'Default User',
+    'All Users',
+  ]);
+
+  let wslUsers = [];
+  try {
+    wslUsers = fs
+      .readdirSync(wslUsersDir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .filter((name) => !excludedWslUsers.has(name));
+  } catch {
+    // Not running under WSL, or /mnt/c not available.
+  }
+
+  if (wslUsers.length > 0) {
+    return wslUsers.map((user) => buildPath(wslUsersDir, user));
+  }
+
+  // Linux / Proton: the file lives inside the Proton prefix. We scan
+  // drive_c/users/ (the real directory) because Node.js cannot always read
+  // the dosdevices/c: symlink with a colon in its name.
+  const protonPrefix = path.join(
     home,
-    '.local/share/Steam/steamapps/compatdata/881100/pfx/dosdevices/c:/users/steamuser/AppData/LocalLow/Nolla_Games_Noita/save00/mod_data/noita-live-map/noita-live-map-telemetry.json'
+    '.local/share/Steam/steamapps/compatdata/881100/pfx'
   );
+  const protonUsersDir = path.join(protonPrefix, 'drive_c/users');
+  const protonDosdevicesUsersDir = path.join(protonPrefix, 'dosdevices/c:/users');
+
+  let protonUsers = [];
+  try {
+    protonUsers = fs
+      .readdirSync(protonUsersDir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name);
+  } catch {
+    // drive_c/users not readable; fall back to common names below.
+  }
+
+  if (protonUsers.length === 0) {
+    protonUsers = ['steamuser', os.userInfo().username];
+  }
+
+  const candidates = protonUsers.map((user) => buildPath(protonUsersDir, user));
+  try {
+    if (fs.statSync(protonDosdevicesUsersDir).isDirectory()) {
+      for (const user of protonUsers) {
+        candidates.push(buildPath(protonDosdevicesUsersDir, user));
+      }
+    }
+  } catch {
+    // dosdevices/c: not available.
+  }
+
+  return candidates;
 }
 
-const TELEMETRY_PATH = getTelemetryPath();
+function resolveTelemetryPath() {
+  const candidates = getCandidatePaths();
 
-const wss = new WebSocketServer({ port: BRIDGE_PORT });
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  // Fall back to the first candidate and log a warning later.
+  return candidates[0];
+}
+
+const TELEMETRY_PATH = resolveTelemetryPath();
+
+const wss = new WebSocketServer({ port: BRIDGE_PORT, host: '0.0.0.0' });
 
 function broadcast(data) {
   const payload = JSON.stringify(data);
@@ -89,3 +167,7 @@ wss.on('connection', (ws) => {
 
 console.log(`Bridge watching: ${TELEMETRY_PATH}`);
 console.log(`WebSocket server: ws://localhost:${BRIDGE_PORT}`);
+
+if (!fs.existsSync(TELEMETRY_PATH)) {
+  console.log(`Telemetry file not found yet. If the path is wrong, set TELEMETRY_PATH.`);
+}

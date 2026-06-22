@@ -7,6 +7,7 @@ This document tracks the planned milestones and open questions for the project.
 ## ✅ Done
 
 ### Telemetry mod (`mods/noita-live-map/`)
+
 - [x] `mod.xml`, `init.lua`, `files/telemetry.lua`
 - [x] Reads player position, biome, and world seed on every frame
 - [x] Throttled to ~10 Hz writes
@@ -14,28 +15,35 @@ This document tracks the planned milestones and open questions for the project.
 - [x] No unrestricted API access required
 
 Current output:
+
 ```json
-{"seed": 1296487564, "x": -1356, "y": 5630, "biome": "Coal Pits", "ts": 1712345678}
+{ "seed": 1296487564, "x": -1356, "y": 5630, "biome": "Coal Pits", "ts": 1712345678 }
 ```
 
 Default write path:
+
 ```
-%LocalLow%/Nolla_Games_Noita/save00/mod_data/noita-live-map/noita-live-map-telemetry.json
+%LocalLow%/Nolla_Games_Noita/save00/noita-live-map-telemetry.json
 ```
 
+(We initially tried `ModDataFileSetText` for the sandboxed `mod_data/` folder, but that function is not available in all Noita versions. The mod now writes directly to the save folder, which requires `request_no_api_restrictions="1"`.)
+
 ### Node bridge (`bridge/`)
+
 - [x] Watches the telemetry JSON file (`chokidar`)
 - [x] Broadcasts updates over a local WebSocket server (`ws`)
 - [x] Handles missing file gracefully
 - [x] Cross-platform path resolution (Windows + Linux/Proton fallback)
 
 ### Frontend (`index.html`, `src/`)
+
 - [x] Vite dev/build setup
 - [x] Embeds the forked noitamap via iframe
 - [x] Displays live seed, biome, and position
 - [x] Warns when current run seed differs from map capture seed
 
 ### Repository
+
 - [x] License updated to GPL-3.0
 - [x] Forked noitamap added as `vendor/noitamap` submodule
 - [x] Build helper script copies noitamap assets to `public/noitamap/`
@@ -45,10 +53,13 @@ Default write path:
 ## How to run
 
 ### Prerequisites
+
 - Node.js installed
 - Noita with the `noita-live-map` mod enabled
+- Unsafe mods allowed in Noita (the mod writes directly to the save folder)
 
 ### Install
+
 ```bash
 npm install
 cd bridge && npm install
@@ -57,6 +68,7 @@ cd ../..
 ```
 
 ### Start everything
+
 ```bash
 # Terminal 1: bridge
 npm run dev:bridge
@@ -67,20 +79,32 @@ npm run dev
 
 Then open the Vite URL (usually `http://localhost:5173/`) in your browser.
 
----
+The bridge auto-detects the telemetry file location:
+
+- **Windows:** `%LocalLow%/Nolla_Games_Noita/save00/noita-live-map-telemetry.json`
+- **Linux / Proton:** scans `~/.local/share/Steam/steamapps/compatdata/881100/pfx/drive_c/users/` for the active Windows user folder.
+
+If auto-detection fails, override it with:
+
+```bash
+TELEMETRY_PATH=/your/actual/path/noita-live-map-telemetry.json npm run dev:bridge
+```
 
 ## 🚧 After MVP
 
 ### Live marker on the map
+
 - [x] Convert telemetry coordinates to noitamap viewport coordinates
 - [x] Render a player marker inside the noitamap iframe via `postMessage`
 - [x] Optionally pan the map to follow the player
 
 ### Fungal shift integration
+
 - [ ] Link to or embed the existing fungus solver
 - [ ] Later: port noita-tools WASM fungal-shift logic for offline/local use
 
 ### Quality-of-life
+
 - [ ] Configurable telemetry write rate
 - [ ] Configurable bridge port / file path (env vars or config file)
 - [ ] WebSocket reconnect logic
@@ -88,6 +112,7 @@ Then open the Vite URL (usually `http://localhost:5173/`) in your browser.
 - [ ] Remove/copy less of noitamap (currently copies entire `public/` build output)
 
 ### Distribution
+
 - [ ] Package the Node bridge as a single executable or simple `npm start` flow
 - [ ] Publish the mod to Steam Workshop
 - [ ] Decide whether to bundle the map viewer or keep it as a separate local web app
@@ -105,12 +130,12 @@ Then open the Vite URL (usually `http://localhost:5173/`) in your browser.
 
 ## Tech stack recap
 
-| Layer | Tech |
-|---|---|
-| Noita mod | Lua 5.1 |
-| Local bridge | Node.js + `ws` + `chokidar` |
-| Map viewer | Forked noitamap (TypeScript + OpenSeadragon) served inside Vite |
-| Seed predictions | noita-tools WASM / fungus solver (future) |
+| Layer            | Tech                                                            |
+| ---------------- | --------------------------------------------------------------- |
+| Noita mod        | Lua 5.1                                                         |
+| Local bridge     | Node.js + `ws` + `chokidar`                                     |
+| Map viewer       | Forked noitamap (TypeScript + OpenSeadragon) served inside Vite |
+| Seed predictions | noita-tools WASM / fungus solver (future)                       |
 
 ---
 
