@@ -46,7 +46,19 @@ Default write path:
 
 - [x] License updated to GPL-3.0
 - [x] Forked noitamap added as `vendor/noitamap` submodule
+- [x] noita-tools added as `vendor/noita-tools` submodule
 - [x] Build helper script copies noitamap assets to `public/noitamap/`
+
+### Map-Gen Prediction bench (`mapgen/`, 2026-09-03)
+
+- [x] Data.wak extracted; local machine setup documented in `SESSION_CONTEXT.md`
+- [x] WASM harness, biome layout parser (areas match noitool's maps.json), chunk renderer
+- [x] Capture fetcher (noitamap CDN, seed 78633191, DZI→512px chunks, cached)
+- [x] Diff/report pipeline (per-chunk scores, heatmap, side-by-sides, noise-floor calibration)
+- [x] Biome atlas format fully decoded (corner-type herringbone; hidden binary header)
+- [x] JS port of the corner-mode builder with pluggable RNG (`mapgen/lib/wang-js.mjs`)
+- [x] Experiments: transform fit, anchor sweep, positional sweep — all negative; evidence in `ABOUT_MATH.md` §6
+- [x] Tests: determinism, seed sensitivity, golden hash (`npm test`)
 
 ---
 
@@ -118,28 +130,47 @@ TELEMETRY_PATH=/your/actual/path/noita-live-map-telemetry.json npm run dev:bridg
 
 Long-term goal: replace noitamap's pre-captured tiles with tiles generated on demand from any valid Noita seed. This is a reverse-engineering project built on top of [noita-tools](https://github.com/TwoAbove/noita-tools), which has already reconstructed much of Noita's RNG and world-generation logic.
 
-### Phase 0 — Foundation
+> **The math record is `mapgen/ABOUT_MATH.md`** — coordinate systems, PRNG,
+> atlas format, fill algorithm, hypotheses, evidence log, experiment backlog.
+> This section tracks phases; ABOUT_MATH tracks knowledge.
 
-- [ ] Set up Noita dev build and extract `data.wak` via the official modding tools.
-- [ ] Install Ghidra and load `noita.exe` for targeted decompilation.
-- [ ] Study noita-tools' reconstructed code (`noita_random.cpp`, `wang/wang.cpp`, Map InfoProviders).
-- [ ] Build the `noita_random.wasm` module locally.
-- [ ] Generate one Mines biome tile for a known seed and compare it to an in-game capture.
+### Phase 0 — Foundation ✅ (2026-09-03)
+
+- [x] Extract `data.wak` via the official unpacker (`noita.exe -wizard_unpak`); dev build present in the install.
+- [x] Study noita-tools' reconstructed code (`noita_random.cpp`, `wang/wang.cpp`, `stb_hbwang.h`, Map InfoProviders) — fully documented in `ABOUT_MATH.md`.
+- [x] Run noitool's reconstruction headless (prebuilt `noita_random.wasm`; local rebuild via `tools/zig` deferred until patching is needed).
+- [x] Build the diff bench: `mapgen/` (lib + pipeline + dated experiments) — generates wang layers, fetches the capture, scores chunk-by-chunk, HTML report.
+- [x] Validate our wasm usage against noitool's own fixtures (28/28 byte-identical) — a consistency check vs noitool, **not** vs the game.
+- [x] Generate + compare many chunks (not just one Mines tile) — **key finding**: noitool's wang output is statistically unrelated to the game's terrain (below the gen-vs-gen noise floor), and the capture is ~24 pts denser than any raw wang layer (non-wang layers: walls/scenes/edges).
+- [~] Ghidra — deliberately deferred; cheaper oracles first (wang_gen.exe, in-game Lua RNG oracle). Fallback only.
+- [~] Decode the biome atlases — **done** (corner-type herringbone, header in the last 9 RGB bytes of row 0, all 31 configs verified); not an original roadmap item but a major unlock.
+
+### Phase 0.5 — Open the black box (current focus, 2026-09-03 →)
+
+The wang *rules* are solved; the unknown is **how the game picks the corner colors**. Ordered by cost:
+
+- [ ] **`wang_gen.exe`** — Nolla's official generator, shipped in `tools_modding/`. If it emits seed-based maps, it IS the builder. (next up)
+- [ ] **In-game RNG oracle** — the Lua API exposes `ProceduralRandomi(x, y, a, b)`; use the game itself to test vertex-coloring hypotheses against our JS port (`mapgen/lib/wang-js.mjs`) and the capture.
+- [ ] **Read noitool's `MapGen` post-processing** (`finalize`, `fillC0ffee`, `fillBlockedRooms`, `doCoalMineHax`…) — defines what the wasm output actually contains.
+- [ ] **Wang-only ground truth** — quantify the non-wang share of the capture per biome (biome XMLs: PixelScene probabilities, BitmapCaves, edge noise) or probe with the dev build, so the metric stops being confounded.
+- [ ] **Community ask** — pudy248 / kaliuresis / `#mod-development` may already know the fill seeding.
+- [ ] **Tier-2 wasm knobs** (fork noita-tools + `tools/zig`): discarded-rows `k`, RNG skip constant, rep-reduction on/off.
+- [ ] **Ghidra, targeted** — only for the specific function that remains unexplained.
 
 ### Phase 1 — Map Generation Engine
 
 - [x] Add noita-tools as a git submodule (`vendor/noita-tools`).
-- [ ] Build a local tile-generation endpoint (start server-side for easier debugging).
-- [ ] Implement coordinate mapping between Noita world space and tile space.
+- [~] Tile generation — bench-level done (`mapgen/pipeline/2-generate.mjs`, chunk-on-demand by `(seed, biome-map px)`); server endpoint pending until the builder is faithful.
+- [~] Coordinate mapping — implemented + fitted (`mapgen/lib/coords.mjs`); alignment proven **not** to be the blocker; world-px crop semantics correct.
 - [ ] Render a viewport of generated tiles with OpenSeadragon.
 - [ ] Validate generated output live against the game.
 
 ### Phase 2 — Reverse-Engineering Loop
 
-- [ ] Maintain a mismatch database (seed, biome, coords, expected vs actual).
-- [ ] Use Ghidra + AI to decompile the specific Noita functions causing mismatches.
+- [~] Mismatch database — embryonic: `mapgen/out/stats.json` + per-chunk scoring + noise-floor calibration; no persistent DB yet.
+- [ ] Use Ghidra + AI to decompile the specific Noita functions causing mismatches (fallback — see Phase 0.5).
 - [ ] Reconstruct missing logic and validate against the game.
-- [ ] Focus areas: Wang → game-space mapping, pixel-scene placement, biome transitions, terrain-dependent spawns.
+- [ ] Focus areas (updated 2026-09-03): vertex-coloring scheme, non-wang layers (walls/scenes/edges), pre-placement ruleset (`blockedColors`, `coalmine_hax`), terrain-dependent spawns (deprioritized — not needed for visual terrain).
 
 ### Phase 3 — Livemap Integration
 
@@ -167,7 +198,7 @@ Long-term goal: replace noitamap's pre-captured tiles with tiles generated on de
 2. **Map viewer hosting:** Do we want the map viewer to open automatically in a browser window, or run as a standalone Electron/Tauri app later?
 3. **Save slot support:** Noita has multiple save slots (`save00`, `save01`, ...). Should the bridge support switching slots, or hardcode `save00` for the MVP?
 4. **Tile generation hosting:** Should generated tiles run client-side (WASM) or server-side (Node/Python)? Starting server-side for debugging.
-5. **Accuracy tolerance:** What level of mismatch is acceptable before falling back to captured tiles? To be determined after Phase 0.
+5. **Accuracy tolerance:** What level of mismatch is acceptable before falling back to captured tiles? Update 2026-09-03: the bare-wang-vs-capture comparison is confounded by non-wang layers (~24% density gap) — "acceptable mismatch" can only be defined once the full layer stack (wang + walls/scenes/edges) is modeled or a wang-only ground truth exists.
 
 ---
 

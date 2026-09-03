@@ -8,10 +8,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 
-import { findNoitaDataDir, CAPTURE_SEED } from "../paths.mjs";
-import { loadBiomeConfig, biomeAt } from "../biomes.mjs";
-import { loadWang } from "../wang.mjs";
-import { readPng } from "../pngio.mjs";
+import { findNoitaDataDir, CAPTURE_SEED } from "../lib/paths.mjs";
+import { loadBiomeConfig, biomeAt } from "../lib/biomes.mjs";
+import { loadWang } from "../lib/wang-wasm.mjs";
+import { readPng } from "../lib/images.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const goldenPath = path.join(here, "../../mapgen/out/golden.json");

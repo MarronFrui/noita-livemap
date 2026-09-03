@@ -5,7 +5,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { readPng } from "./pngio.mjs";
+import { readPng } from "../lib/images.mjs";
 
 const AIR_THRESHOLD = 24;
 const GRID = 128; // downsampled mask size (4 chunk-px per cell)

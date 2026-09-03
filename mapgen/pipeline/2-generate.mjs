@@ -3,11 +3,11 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { findNoitaDataDir, CAPTURE_SEED } from "./paths.mjs";
-import { loadBiomeConfig, biomeAt } from "./biomes.mjs";
-import { loadWang } from "./wang.mjs";
-import { chunkToBigMapRect } from "./coords.mjs";
-import { readPng, writePng } from "./pngio.mjs";
+import { findNoitaDataDir, CAPTURE_SEED } from "../lib/paths.mjs";
+import { loadBiomeConfig, biomeAt } from "../lib/biomes.mjs";
+import { loadWang } from "../lib/wang-wasm.mjs";
+import { chunkToBigMapRect } from "../lib/coords.mjs";
+import { readPng, writePng } from "../lib/images.mjs";
 
 function arg(name, fallback) {
   const i = process.argv.indexOf(`--${name}`);

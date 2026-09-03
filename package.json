@@ -11,10 +11,10 @@
     "build": "npm run copy:noitamap && vite build",
     "preview": "vite preview",
     "dev:bridge": "cd bridge && npm start",
-    "bench": "node mapgen/render.mjs && node mapgen/reference.mjs && node mapgen/diff.mjs",
-    "bench:gen": "node mapgen/render.mjs",
-    "bench:ref": "node mapgen/reference.mjs",
-    "bench:diff": "node mapgen/diff.mjs",
+    "bench": "node mapgen/pipeline/2-generate.mjs && node mapgen/pipeline/1-fetch-capture.mjs && node mapgen/pipeline/3-compare.mjs",
+    "bench:gen": "node mapgen/pipeline/2-generate.mjs",
+    "bench:ref": "node mapgen/pipeline/1-fetch-capture.mjs",
+    "bench:diff": "node mapgen/pipeline/3-compare.mjs",
     "test": "node --test \"mapgen/test/*.test.mjs\""
   },
   "repository": {

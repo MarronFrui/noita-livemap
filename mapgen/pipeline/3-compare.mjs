@@ -9,7 +9,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { readPng } from "./pngio.mjs";
+import { readPng } from "../lib/images.mjs";
 
 const genDir = "mapgen/out/gen";
 const refDir = "mapgen/out/ref";

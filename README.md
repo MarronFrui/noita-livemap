@@ -56,11 +56,13 @@ Then open `http://localhost:5173/` in your browser.
 ```
 .
 ├── bridge/              # Node bridge: file watcher + WebSocket broadcaster
+├── mapgen/              # Map-gen bench: lib/ + pipeline/ + experiments/ (see mapgen/README.md)
 ├── mods/noita-live-map/ # Noita Lua telemetry mod
 ├── public/noitamap/     # Built noitamap assets (copied from vendor/noitamap/public)
 ├── scripts/             # Build helpers
 ├── src/                 # Vite frontend
 ├── vendor/noitamap/     # Forked noitamap submodule
+├── vendor/noita-tools/  # noitool submodule (PRNG + map-gen recon)
 └── ROADMAP.md           # Planned features and open questions
 ```
 

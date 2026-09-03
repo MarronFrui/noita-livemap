@@ -3,7 +3,11 @@ import path from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
 
-export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+export const repoRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  ".."
+);
 
 export function findNoitaDataDir() {
   if (process.env.NOITA_DATA_DIR) {

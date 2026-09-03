@@ -7,10 +7,10 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { repoRoot, findNoitaDataDir, CAPTURE_SEED } from "./paths.mjs";
-import { loadBiomeConfig, biomeAt } from "./biomes.mjs";
-import { loadWang } from "./wang.mjs";
-import { readPng } from "./pngio.mjs";
+import { repoRoot, findNoitaDataDir, CAPTURE_SEED } from "../lib/paths.mjs";
+import { loadBiomeConfig, biomeAt } from "../lib/biomes.mjs";
+import { loadWang } from "../lib/wang-wasm.mjs";
+import { readPng } from "../lib/images.mjs";
 
 // paramMap from vendor/noita-tools .../Map/index.spec.ts
 const PARAM_MAP = {

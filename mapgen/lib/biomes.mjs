@@ -9,7 +9,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { readPng, rgbToRgbaInt, argbHexToRgbaInt } from "./pngio.mjs";
+import { readPng, rgbToRgbaInt, argbHexToRgbaInt } from "./images.mjs";
 
 function parseAttr(tag, name) {
   const m = tag.match(new RegExp(`${name}\\s*=\\s*"([^"]*)"`));

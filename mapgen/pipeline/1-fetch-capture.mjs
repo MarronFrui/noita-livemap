@@ -7,8 +7,8 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { repoRoot, captureTilesources } from "./paths.mjs";
-import { writePng } from "./pngio.mjs";
+import { repoRoot, captureTilesources } from "../lib/paths.mjs";
+import { writePng } from "../lib/images.mjs";
 
 function arg(name, fallback) {
   const i = process.argv.indexOf(`--${name}`);

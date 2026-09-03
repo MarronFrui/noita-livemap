@@ -40,13 +40,13 @@ npm run copy:noitamap
 npm run dev:bridge   # bridge WebSocket server on :8080
 npm run dev          # Vite dev server on http://localhost:5173/
 
-# Map-gen bench (see mapgen/ and SESSION_CONTEXT.md)
+# Map-gen bench (see mapgen/README.md and mapgen/ABOUT_MATH.md)
 npm run bench        # generate + fetch reference + diff (report in mapgen/out/report.html)
 npm run bench:gen    # seed -> wang-layer chunk PNGs in mapgen/out/gen/
 npm run bench:ref    # fetch capture tiles (seed 78633191) -> mapgen/out/ref/
 npm run bench:diff   # score chunks, write stats.json + report.html
-node mapgen/fit.mjs  # cross-correlate gen vs ref masks (shifts/flips)
-node mapgen/verify.mjs  # validate wasm wrapper against noita-tools fixtures
+node mapgen/experiments/2026-09-03-fit-transform.mjs       # cross-correlate gen vs ref masks
+node mapgen/experiments/2026-09-03-verify-vs-noitool.mjs   # wasm wrapper vs noitool fixtures
 
 # Tests
 npm test             # node:test; determinism + golden hash (needs extracted data)
