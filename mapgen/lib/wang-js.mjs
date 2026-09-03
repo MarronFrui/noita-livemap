@@ -318,3 +318,34 @@ export function generateCorner(ts, w, h, colorSource, choiceSource, repReduce) {
 
   return { width: w, height: h, rgb: out };
 }
+
+// One noitool-model attempt (sequential stream, GetRNG seeding) for a biome
+// area — the JS twin of what noita_random.wasm does per rejection attempt.
+// Output RGB is 1 cell per px; the top 4 rows of the (h+4)-row generation are
+// discarded, mirroring wang.cpp's memcpy skip.
+export function seqAttempt(ts, wCells, hCells, seed) {
+  const rng = new NollaPrng(0);
+  rng.setRandomFromWorldSeed(seed >>> 0);
+  rng.next();
+  // GetRNG's skip: width + world_seed + 11*(width/-11) - 12*(world_seed/12)
+  let iters =
+    wCells + (seed >>> 0) - 11 * Math.trunc(wCells / 11) - 12 * Math.trunc((seed >>> 0) / 12);
+  while (iters > 0) {
+    rng.next();
+    iters--;
+  }
+  const attempt = new NollaPrng(rng.nextU());
+  const res = generateCorner(
+    ts,
+    wCells,
+    hCells + 4,
+    (i, j, p) => attempt.nextU() % ts.numColor[p],
+    (i, j, n) => attempt.nextU() % n,
+    (i, j, p, old) => {
+      const off = 1 + (attempt.nextU() % (ts.numColor[p] - 1));
+      return (old + off) % ts.numColor[p];
+    }
+  );
+  const rgb = res.rgb.subarray(3 * wCells * 4);
+  return { width: wCells, height: hCells, rgb };
+}

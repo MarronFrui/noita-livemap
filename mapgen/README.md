@@ -72,11 +72,17 @@ graduates into `lib/` or `pipeline/`.
 | `2026-09-03-positional-sweep.mjs` | Sweep positional vertex-coloring call shapes/anchors vs capture | Flat 49–52% — hypothesis not confirmed |
 | `2026-09-03-wang-gen-template-diff.mjs` | Does our atlas walk match Nolla's official template generator? | **Yes** — dims, header bytes, 72h+72v enumeration identical; `wang_gen.exe` is template-side only (no fill); found+fixed missing variants loop in our port |
 
+### tools
+
+| File | Purpose |
+| ---- | ------- |
+| `update-golden.mjs` | Re-blesses `out/golden.json` (regression baselines for the wasm output AND the wang-js port). Refuses to overwrite without `--force` — re-goldening is always a deliberate act; log the reason in `ABOUT_MATH.md` §6 |
+
 ### test/
 
 | File | Purpose |
 | ---- | ------- |
-| `bench.test.mjs` | Determinism (same seed → identical output), seed sensitivity, golden hash regression (`out/golden.json`; skipped until first bench run) |
+| `bench.test.mjs` | Determinism (same seed → identical output), seed sensitivity, **two golden hashes**: wasm (noitool model) bigMap + wang-js sequential port (map hash + tileset parse counts). Both skip until `out/golden.json` exists |
 
 ### out/ (gitignored)
 
