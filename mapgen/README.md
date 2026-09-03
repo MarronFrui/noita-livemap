@@ -72,6 +72,8 @@ graduates into `lib/` or `pipeline/`.
 | `2026-09-03-positional-sweep.mjs` | Sweep positional vertex-coloring call shapes/anchors vs capture | Flat 49–52% — hypothesis not confirmed |
 | `2026-09-03-wang-gen-template-diff.mjs` | Does our atlas walk match Nolla's official template generator? | **Yes** — dims, header bytes, 72h+72v enumeration identical; `wang_gen.exe` is template-side only (no fill); found+fixed missing variants loop in our port |
 | `2026-09-03-lua-oracle-crosscheck.mjs` | Does our JS RNG reconstruction match the running game? | **Yes — 100.00% across 4 seeds / 2.1M draws** after fixing a signedness bug (`helper2` missing `>>> 0`); probe mod: `mods/noita-livemap-rng-probe/` |
+| `2026-09-03-fill-sweep.mjs` | Is the wang fill per-vertex position-seeded? (same-seed oracle + capture) | **No** — 1,154 hypotheses (encodings × anchors), all below the noise floor; per-vertex seeding eliminated; next: per-chunk sequential fills (probe v4) |
+| `2026-09-04-chunk-fill-sweep.mjs` | Is the fill sequential per chunk, seeded at its origin? (v4 streams) | **No** — 8 variants, 49.5–52.2%, below noise floor; anchors validated 100%. Caveat: capture paint-layers may mask even a correct fill → spawn-equations (paint-immune) become the primary judge |
 
 ### tools
 

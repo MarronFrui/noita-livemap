@@ -420,6 +420,52 @@ HOW the fill consumes these numbers — which positions get seeded, how many dra
 vertex, in what order. Test B (oracle-driven fill sweep) is armed: dump larger truth
 tables once, then sweep fill hypotheses offline forever.
 
+## 7ter. Fill sweep v1 — per-vertex seeding ELIMINATED (2026-09-03 late night)
+
+Same-seed oracle (user forced seed 78633191 via a seed mod — dump seed == capture seed)
++ `experiments/2026-09-03-fill-sweep.mjs`:
+
+- Hypotheses: vertex color = `ProceduralRandomi(x, y, 0, cc[p]−1)` at {worldPx, cell}
+  encodings, {normal, swapped} axes, anchor delta swept over the full lattice period
+  in the dump's residue class — 1,154 valid hypotheses, 17 scored chunks
+  (coalmine, excavationsite, liquidcave areas).
+- Result: best 56.7%, landscape 53–57% — **below the gen-vs-gen noise floor (60–66%)**,
+  no spike anywhere. **One-draw-per-vertex position-seeded coloring is NOT the game's
+  scheme.**
+- Methodological finds: oracle grid residue vs lattice residue must match exactly
+  (RNG values at ±1 px are unrelated); area anchors at chunk corners have different
+  mod-10 residues → delta must be swept per area.
+- Next hypothesis family: **per-chunk sequential fills** (seed once per chunk at its
+  origin, fill that chunk's lattice sequentially — explains lazy generation + seed
+  determinism; echoes noitool's `+4` rows and `+5/+13` magic). Requires long
+  sequences per chunk origin → probe v4 (8× Random(0,255) anchor + 4088× Randomf()
+  per chunk origin, 24×9 chunk window) deployed, awaiting game run.
+
+## 7quater. Fill sweep v2 — per-chunk sequential fills ELIMINATED (2026-09-04)
+
+Probe v4 (216 chunk-origin streams: 8× Random(0,255) anchors + 4088× Randomf, seed
+78633191 = capture seed) + `experiments/2026-09-04-chunk-fill-sweep.mjs`:
+
+- Anchor validation: **100.00%** (1728 draws) — the game's `SetRandomSeed(chunkOrigin)`
+  streams are exactly our verified RNG; dump integrity confirmed.
+- Hypotheses: per-chunk sequential fills seeded at the chunk origin, 8 variants
+  (tile-choice draws × draw-for-cc1-vertices × the +4-row discard), stbhw scan order,
+  20 same-seed scored chunks.
+- Result: 49.5–52.2%, all below noise floor. **Per-chunk origin-seeded sequential
+  fills eliminated** (within this variant family).
+- Draw-precision note: the 8-bit anchors determine small-range draws exactly for
+  cc=2; cc=3 is ambiguous on 2/256 anchor values (treated as wildcards).
+
+**⚠ Methodological caveat now critical**: eliminations assume a CORRECT fill would
+score ABOVE the 60–66% gen-vs-gen noise floor against the capture. But the capture
+carries ~24 pts of non-wang density (walls/scenes/edges) — the TRUE wang layer vs
+capture might legitimately score below the wang-vs-wang floor. The negatives above
+are therefore "no tested hypothesis beats the noitool baseline", not proof of absence.
+**The decisive scoreboard must be paint-immune: spawn-function equations** (each orb/
+perk/chest position = an exact wang-cell color fact). Priority: fix probe v3 (the
+entity filter came back empty) and make spawn equations the primary judge; geometry
+becomes secondary confirmation.
+
 ## 8. Glossary
 
 - **Wang tile / herringbone**: domino-shaped tiles (2:1) whose edge colors must
