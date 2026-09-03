@@ -1,3 +1,6 @@
 [submodule "vendor/noitamap"]
 	path = vendor/noitamap
 	url = https://github.com/MarronFrui/noitamap
+[submodule "vendor/noita-tools"]
+	path = vendor/noita-tools
+	url = https://github.com/TwoAbove/noita-tools
