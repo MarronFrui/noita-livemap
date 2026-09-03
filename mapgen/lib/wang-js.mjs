@@ -76,7 +76,10 @@ function setRandomSeedHelper2(a, b, ws) {
   v3 = usub(usub(v3, v2), v1) ^ (v1 >>> 5);
   v2 = usub(usub(v2, v1), v3) ^ (v3 >>> 3);
   v1 = usub(usub(v1, v2), v3) ^ u32(v2 << 10);
-  return usub(usub(v3, v2), v1) ^ (v1 >>> 0x0f);
+  // >>> 0 is critical: JS ^ returns a signed i32 — without it, g goes negative
+  // when the high bit is set and every comparison/division downstream takes
+  // the wrong path (found via the Lua RNG oracle crosscheck, 2026-09-03)
+  return u32(usub(usub(v3, v2), v1) ^ (v1 >>> 0x0f));
 }
 
 const DIDDLERS = [0, 4, 6, 25, 12, 39, 52, 9, 21, 64, 78, 92, 104, 118, 18, 32, 44];

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Mod
+    name="Noita RNG Probe"
+    description="Dumps a truth table of the game's RNG functions (SetRandomSeed/Random/ProceduralRandomi) for mapgen reverse engineering."
+    request_no_api_restrictions="1"
+>
+</Mod>

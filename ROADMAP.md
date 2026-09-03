@@ -150,7 +150,7 @@ Long-term goal: replace noitamap's pre-captured tiles with tiles generated on de
 The wang *rules* are solved; the unknown is **how the game picks the corner colors**. Ordered by cost:
 
 - [x] **`wang_gen.exe`** — inspected + template diff (2026-09-03): it's the *template generator* (artist canvas, no seed, no fill). Confirmed library lineage and validated our atlas walk against it (dims/header/72h+72v enumeration identical); found+fixed a missing variants loop in our port. Builder confirmed to live in `noita.exe` → next oracle below.
-- [ ] **In-game RNG oracle** — the Lua API exposes `ProceduralRandomi(x, y, a, b)`; use the game itself to test vertex-coloring hypotheses against our JS port (`mapgen/lib/wang-js.mjs`) and the capture.
+- [x] **In-game RNG oracle** — BUILT + RUN (2026-09-03 night): probe mod dumps truth tables; crosscheck found a signedness bug in our JS port (fixed) and now matches the game **100.00% across 4 seeds / 2.1M draws**. The RNG component is game-verified; remaining unknown = how the fill consumes the numbers (next: oracle-driven fill sweep).
 - [ ] **Read noitool's `MapGen` post-processing** (`finalize`, `fillC0ffee`, `fillBlockedRooms`, `doCoalMineHax`…) — defines what the wasm output actually contains.
 - [ ] **Wang-only ground truth** — quantify the non-wang share of the capture per biome (biome XMLs: PixelScene probabilities, BitmapCaves, edge noise) or probe with the dev build, so the metric stops being confounded.
 - [ ] **Community ask** — pudy248 / kaliuresis / `#mod-development` may already know the fill seeding.

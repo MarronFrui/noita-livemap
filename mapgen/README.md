@@ -71,6 +71,7 @@ graduates into `lib/` or `pipeline/`.
 | `2026-09-03-port-validation.mjs` | Does our JS builder port match the wasm? Does position-seeded coloring help? | ~39% (hasPath re-rolls expected); positional naive test: no signal |
 | `2026-09-03-positional-sweep.mjs` | Sweep positional vertex-coloring call shapes/anchors vs capture | Flat 49–52% — hypothesis not confirmed |
 | `2026-09-03-wang-gen-template-diff.mjs` | Does our atlas walk match Nolla's official template generator? | **Yes** — dims, header bytes, 72h+72v enumeration identical; `wang_gen.exe` is template-side only (no fill); found+fixed missing variants loop in our port |
+| `2026-09-03-lua-oracle-crosscheck.mjs` | Does our JS RNG reconstruction match the running game? | **Yes — 100.00% across 4 seeds / 2.1M draws** after fixing a signedness bug (`helper2` missing `>>> 0`); probe mod: `mods/noita-livemap-rng-probe/` |
 
 ### tools
 

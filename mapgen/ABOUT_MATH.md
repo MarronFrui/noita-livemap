@@ -397,6 +397,29 @@ ground truth (dev-build probe) or to model the full layer stack.
    mod session vs `biomeAt` predictions.
 7. Only then: targeted Ghidra on `noita.exe` for whatever remains unexplained.
 
+## 7bis. RNG ORACLE RESULT (2026-09-03 night) — reconstruction CONFIRMED 🎉
+
+`mods/noita-livemap-rng-probe/` (in-game dump) + `experiments/2026-09-03-lua-oracle-crosscheck.mjs`:
+
+- Probe: 4 world seeds × 66,049 positions × (1× `ProceduralRandomi(x,y,0,255)` + 8×
+  successive `SetRandomSeed(x,y)`/`Random(0,255)` draws) = 528,392 oracle values per seed.
+- First crosscheck: 50.38% of positions matched all 8 draws, the rest matched none —
+  bimodal per-position (no positional correlation, no stream offset) → a branch on an
+  intermediate value.
+- Forensics: brute-force state recovery proved the game's stream IS our LCG + draw
+  function (exactly one 4-draw-consistent state per position); the true seed of a
+  mismatched position (349,458,217) ruled out 24+ formula variants offline.
+- Root cause: our JS `helper2` returned a **signed i32** (JS `^` semantics, missing
+  `>>> 0`) — when the mixer output's high bit was set (~50% of positions), `g` went
+  negative and every comparison/division in the final adjustment misbranched.
+- After the one-line fix: **100.00% match on all 4 seeds (2,113,568 verified draws).**
+
+**Status: the game's RNG (`SetWorldSeed`/`SetRandomSeed`/`Random`/`ProceduralRandomi`)
+is game-verified in JS** (`wang-js.mjs` `seededPrng`). The wang mystery is now purely
+HOW the fill consumes these numbers — which positions get seeded, how many draws per
+vertex, in what order. Test B (oracle-driven fill sweep) is armed: dump larger truth
+tables once, then sweep fill hypotheses offline forever.
+
 ## 8. Glossary
 
 - **Wang tile / herringbone**: domino-shaped tiles (2:1) whose edge colors must
