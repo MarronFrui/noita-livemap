@@ -1,5 +1,3 @@
-import './style.css';
-
 type Telemetry = {
   seed: number | string;
   x: number;
@@ -9,8 +7,8 @@ type Telemetry = {
 };
 
 // Seed used for the regular-main-branch tile capture on noitamap.com.
-// Source: https://github.com/acidflow-noita/noitamap
-const MAP_CAPTURE_SEED = 786433191;
+// Source: vendor/noitamap/src/data/map_definitions.json + tilesources.json
+const MAP_CAPTURE_SEED = 78633191;
 
 const seedEl = document.getElementById('seed')!;
 const biomeEl = document.getElementById('biome')!;
@@ -53,7 +51,9 @@ function updateStatus() {
       statusEl.textContent = 'Connecting to bridge…';
       break;
     case WebSocket.OPEN:
-      statusEl.textContent = iframeReady ? 'Connected to bridge' : 'Connected to bridge, waiting for map…';
+      statusEl.textContent = iframeReady
+        ? 'Connected to bridge'
+        : 'Connected to bridge, waiting for map…';
       break;
     case WebSocket.CLOSING:
     case WebSocket.CLOSED:
@@ -74,12 +74,16 @@ function connectWebSocket() {
   ws = new WebSocket(BRIDGE_URL);
   updateStatus();
 
-  window.addEventListener('beforeunload', () => {
-    if (ws) {
-      ws.close();
-      ws = null;
-    }
-  }, { once: true });
+  window.addEventListener(
+    'beforeunload',
+    () => {
+      if (ws) {
+        ws.close();
+        ws = null;
+      }
+    },
+    { once: true },
+  );
 
   ws.addEventListener('open', () => {
     console.log('[noita-live-map] WebSocket connected');
@@ -159,7 +163,8 @@ controlsContainer.appendChild(centerButton);
 
 const followLabel = document.createElement('label');
 followLabel.style.cssText = 'display: block; margin-top: 6px; font-size: 11px; cursor: pointer;';
-followLabel.innerHTML = '<input type="checkbox" style="margin-right: 4px;"> Follow player (every 2s)';
+followLabel.innerHTML =
+  '<input type="checkbox" style="margin-right: 4px;"> Follow player (every 2s)';
 followLabel.querySelector('input')!.addEventListener('change', (ev) => {
   followPlayer = (ev.target as HTMLInputElement).checked;
   if (followPlayer) {
@@ -182,6 +187,6 @@ telemetryToggle.addEventListener('click', () => {
   telemetryToggle.textContent = telemetryCollapsed ? '+' : '−';
   telemetryToggle.setAttribute(
     'aria-label',
-    telemetryCollapsed ? 'Expand telemetry' : 'Collapse telemetry'
+    telemetryCollapsed ? 'Expand telemetry' : 'Collapse telemetry',
   );
 });

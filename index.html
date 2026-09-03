@@ -1,26 +1,31 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/src/style.css" />
     <title>Noita Live Map</title>
   </head>
   <body>
     <div id="app">
       <iframe id="noitamap-frame" src="/noitamap/index.html"></iframe>
-      <div id="telemetry-overlay">
-        <div id="telemetry-header">
-          <h1>Live Telemetry</h1>
-          <button id="telemetry-toggle" type="button" aria-label="Collapse telemetry">−</button>
+      <section id="container">
+        <div id="telemetry-overlay">
+          <div id="telemetry-header">
+            <h1>Seed infos</h1>
+            <button id="telemetry-toggle" type="button" aria-label="Collapse telemetry">−</button>
+          </div>
+          <div id="telemetry-content">
+            <p>Seed: <span class="value" id="seed">-</span></p>
+            <p>Biome: <span class="value" id="biome">-</span></p>
+            <p>Position: <span class="value" id="position">-</span></p>
+            <p id="seed-warning" class="warning" style="display: none">
+              Current seed differs from map seed
+            </p>
+            <p id="status">Waiting for bridge…</p>
+          </div>
         </div>
-        <div id="telemetry-content">
-          <p>Seed: <span class="value" id="seed">-</span></p>
-          <p>Biome: <span class="value" id="biome">-</span></p>
-          <p>Position: <span class="value" id="position">-</span></p>
-          <p id="seed-warning" class="warning" style="display: none;">Current seed differs from map seed</p>
-          <p id="status">Waiting for bridge…</p>
-        </div>
-      </div>
+      </section>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

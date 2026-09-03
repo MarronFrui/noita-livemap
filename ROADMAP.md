@@ -98,16 +98,11 @@ TELEMETRY_PATH=/your/actual/path/noita-live-map-telemetry.json npm run dev:bridg
 - [x] Render a player marker inside the noitamap iframe via `postMessage`
 - [x] Optionally pan the map to follow the player
 
-### Fungal shift integration
-
-- [ ] Link to or embed the existing fungus solver
-- [ ] Later: port noita-tools WASM fungal-shift logic for offline/local use
-
 ### Quality-of-life
 
 - [ ] Configurable telemetry write rate
-- [ ] Configurable bridge port / file path (env vars or config file)
-- [ ] WebSocket reconnect logic
+- [x] Configurable bridge port / file path (env vars: `BRIDGE_PORT`, `TELEMETRY_PATH`)
+- [x] WebSocket reconnect logic
 - [ ] Better error reporting in the UI when Noita/bridge is not running
 - [ ] Remove/copy less of noitamap (currently copies entire `public/` build output)
 
@@ -119,23 +114,72 @@ TELEMETRY_PATH=/your/actual/path/noita-live-map-telemetry.json npm run dev:bridg
 
 ---
 
+## 🧬 Map Gen Prediction: Procedural Map Generation
+
+Long-term goal: replace noitamap's pre-captured tiles with tiles generated on demand from any valid Noita seed. This is a reverse-engineering project built on top of [noita-tools](https://github.com/TwoAbove/noita-tools), which has already reconstructed much of Noita's RNG and world-generation logic.
+
+### Phase 0 — Foundation
+
+- [ ] Set up Noita dev build and extract `data.wak` via the official modding tools.
+- [ ] Install Ghidra and load `noita.exe` for targeted decompilation.
+- [ ] Study noita-tools' reconstructed code (`noita_random.cpp`, `wang/wang.cpp`, Map InfoProviders).
+- [ ] Build the `noita_random.wasm` module locally.
+- [ ] Generate one Mines biome tile for a known seed and compare it to an in-game capture.
+
+### Phase 1 — Map Generation Engine
+
+- [x] Add noita-tools as a git submodule (`vendor/noita-tools`).
+- [ ] Build a local tile-generation endpoint (start server-side for easier debugging).
+- [ ] Implement coordinate mapping between Noita world space and tile space.
+- [ ] Render a viewport of generated tiles with OpenSeadragon.
+- [ ] Validate generated output live against the game.
+
+### Phase 2 — Reverse-Engineering Loop
+
+- [ ] Maintain a mismatch database (seed, biome, coords, expected vs actual).
+- [ ] Use Ghidra + AI to decompile the specific Noita functions causing mismatches.
+- [ ] Reconstruct missing logic and validate against the game.
+- [ ] Focus areas: Wang → game-space mapping, pixel-scene placement, biome transitions, terrain-dependent spawns.
+
+### Phase 3 — Livemap Integration
+
+- [ ] Use the live seed from mod telemetry as the map seed.
+- [ ] Render the live player position on the generated map.
+- [ ] Add `?seed=...` URL parameter for shareable seed views.
+- [ ] Define fallback behavior for incomplete/failed generation.
+
+### Phase 4 — Seed Prediction Overlays
+
+- [ ] Integrate noita-tools WASM for fungal shifts, shops, perks, LC/AP recipes.
+- [ ] Render prediction markers on the generated map.
+
+### Phase 5 — Scale & Polish
+
+- [ ] Tile caching and incremental generation.
+- [ ] Support additional biomes and game modes if feasible.
+- [ ] Document accuracy limitations and credit sources.
+
+---
+
 ## ❓ Open questions
 
 1. **Workshop mod ID:** When published, the mod-data folder name will be the Workshop ID rather than `noita-live-map`. Should the bridge auto-detect the folder, or should we accept a config value?
 2. **Map viewer hosting:** Do we want the map viewer to open automatically in a browser window, or run as a standalone Electron/Tauri app later?
-3. **Fungal shift solver scope:** Start with a simple linkout, or do we want the solver UI embedded from the beginning?
-4. **Save slot support:** Noita has multiple save slots (`save00`, `save01`, ...). Should the bridge support switching slots, or hardcode `save00` for the MVP?
+3. **Save slot support:** Noita has multiple save slots (`save00`, `save01`, ...). Should the bridge support switching slots, or hardcode `save00` for the MVP?
+4. **Tile generation hosting:** Should generated tiles run client-side (WASM) or server-side (Node/Python)? Starting server-side for debugging.
+5. **Accuracy tolerance:** What level of mismatch is acceptable before falling back to captured tiles? To be determined after Phase 0.
 
 ---
 
 ## Tech stack recap
 
-| Layer            | Tech                                                            |
-| ---------------- | --------------------------------------------------------------- |
-| Noita mod        | Lua 5.1                                                         |
-| Local bridge     | Node.js + `ws` + `chokidar`                                     |
-| Map viewer       | Forked noitamap (TypeScript + OpenSeadragon) served inside Vite |
-| Seed predictions | noita-tools WASM / fungus solver (future)                       |
+| Layer              | Tech                                                                   |
+| ------------------ | ---------------------------------------------------------------------- |
+| Noita mod          | Lua 5.1                                                                |
+| Local bridge       | Node.js + `ws` + `chokidar`                                            |
+| Map viewer         | Forked noitamap (TypeScript + OpenSeadragon) served inside Vite        |
+| Map generation     | noita-tools C++ / WASM, Ghidra for targeted Noita binary decompilation |
+| Seed predictions   | noita-tools WASM / InfoProviders                                       |
 
 ---
 

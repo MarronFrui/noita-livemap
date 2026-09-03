@@ -3,3 +3,7 @@ dist/
 public/noitamap/
 *.log
 .DS_Store
+SESSION_CONTEXT.md
+tools/
+mapgen/out/
+mapgen/noita-data*

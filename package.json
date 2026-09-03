@@ -11,7 +11,11 @@
     "build": "npm run copy:noitamap && vite build",
     "preview": "vite preview",
     "dev:bridge": "cd bridge && npm start",
-    "test": "echo 'No tests yet'"
+    "bench": "node mapgen/render.mjs && node mapgen/reference.mjs && node mapgen/diff.mjs",
+    "bench:gen": "node mapgen/render.mjs",
+    "bench:ref": "node mapgen/reference.mjs",
+    "bench:diff": "node mapgen/diff.mjs",
+    "test": "node --test \"mapgen/test/*.test.mjs\""
   },
   "repository": {
     "type": "git",
@@ -26,6 +30,8 @@
   },
   "homepage": "https://github.com/MarronFrui/noita-livemap#readme",
   "devDependencies": {
+    "pngjs": "^7.0.0",
+    "sharp": "^0.35.4",
     "vite": "^8.0.16"
   }
 }
