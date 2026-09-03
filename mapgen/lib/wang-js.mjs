@@ -167,14 +167,17 @@ export function buildTileset(png) {
   };
 
   // template walk (corner branch of stbhw__process_template)
+  // NOTE: each constraint combo appears `vary` times (color-duplicating
+  // variations with distinct pixel art) — the variants loop is part of the
+  // slot enumeration (found via the wang_gen.exe template diff, 2026-09-03)
   let ypos = 2;
   for (let k = 0; k < numColor[2]; k++)
     for (let j = 0; j < numColor[1]; j++)
       for (let i = 0; i < numColor[0]; i++)
         for (let q = 0; q < varyY; q++) {
-          // process_h_row with a in [0,nc1), b in [0,nc2), c in [0,nc3), d=i, e=j, f=k
+          // process_h_row: variants(vary_x) × c(nc3) × b(nc2) × a(nc1), d=i, e=j, f=k
           let xpos = 0;
-          for (let f = 0; f < 1; f++)
+          for (let v = 0; v < varyX; v++)
             for (let cc = 0; cc < numColor[3]; cc++)
               for (let bb = 0; bb < numColor[2]; bb++)
                 for (let aa = 0; aa < numColor[1]; aa++) {
@@ -188,9 +191,9 @@ export function buildTileset(png) {
     for (let j = 0; j < numColor[0]; j++)
       for (let i = 0; i < numColor[1]; i++)
         for (let q = 0; q < varyX; q++) {
-          // process_v_row with a in [0,nc0), b in [0,nc3), c in [0,nc2), d=i, e=j, f=k
+          // process_v_row: variants(vary_y) × c(nc2) × b(nc3) × a(nc0), d=i, e=j, f=k
           let xpos = 0;
-          for (let f = 0; f < 1; f++)
+          for (let v = 0; v < varyY; v++)
             for (let cc = 0; cc < numColor[2]; cc++)
               for (let bb = 0; bb < numColor[3]; bb++)
                 for (let aa = 0; aa < numColor[0]; aa++) {

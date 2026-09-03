@@ -339,7 +339,23 @@ Open questions specific to this ruleset:
   `fillRandomMaterials`). **The wang-vs-capture metric is confounded by these
   layers; a bare wang layer can never score near 100% against the capture.**
 
-### Where the investigation stands (end of 2026-09-03)
+- **2026-09-03 (late) — wang_gen.exe template diff** (`experiments/2026-09-03-wang-gen-template-diff.mjs`):
+  Nolla's official tool (`tools_modding/wang_gen.exe`) generates blank wang
+  templates from CLI params (`{out} c {sidelen} {c0..c3} [{vx} {vy}]`).
+  Generated the coalmine template (`c 13 1 2 1 2 3 3`) and diffed vs the real
+  atlas: **dims identical (348×448), header bytes byte-identical, and our
+  walk parses both into the identical 72h+72v constraint enumeration**; edge
+  mode round-trips too (winter_caves params → 1206×278).
+  1. Template-layout walk proven against the canonical tool ✅
+  2. Confirms atlas lineage = the same stb_hbwang library we documented.
+  3. `wang_gen.exe` is **template-side only** (artist canvas, no seed, no fill)
+     → the builder remains in `noita.exe` → Lua RNG oracle is next.
+  4. Bug found & fixed in our port: the stbhw **variants loop**
+     (`vary_x`/`vary_y` — every constraint combo appears ×N with distinct
+     pixel art) was missing from `wang-js.mjs` template walk (parsed 24h+24v
+     instead of 72h+72v). The earlier positional experiments ran with a ⅓
+     tile pool — conclusions (no signal) unaffected in direction, but the
+     port is now complete.
 
 Established: atlas format ✅, fill algorithm semantics ✅, PRNG ✅,
 alignment family eliminated ✅, noitool wang ≠ game terrain (statistically) ✅.

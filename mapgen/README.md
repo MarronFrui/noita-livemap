@@ -70,6 +70,7 @@ graduates into `lib/` or `pipeline/`.
 | `2026-09-03-verify-vs-noitool.mjs` | Does our wasm usage reproduce noitool exactly? | **Yes** (28/28 comparable fixtures, RGB-identical) — consistency check vs noitool, not vs the game |
 | `2026-09-03-port-validation.mjs` | Does our JS builder port match the wasm? Does position-seeded coloring help? | ~39% (hasPath re-rolls expected); positional naive test: no signal |
 | `2026-09-03-positional-sweep.mjs` | Sweep positional vertex-coloring call shapes/anchors vs capture | Flat 49–52% — hypothesis not confirmed |
+| `2026-09-03-wang-gen-template-diff.mjs` | Does our atlas walk match Nolla's official template generator? | **Yes** — dims, header bytes, 72h+72v enumeration identical; `wang_gen.exe` is template-side only (no fill); found+fixed missing variants loop in our port |
 
 ### test/
 
