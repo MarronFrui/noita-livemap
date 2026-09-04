@@ -1,6 +1,6 @@
 // Lab vertex-grid recovery (2026-09-04).
 //
-// Input:  save00/noita-wang-lab-tiles-<seed>.csv (marker-pixel callbacks)
+// Input:  mapgen/fixtures/oracle/noita-wang-lab-tiles-<seed>.csv (canonical merged dumps)
 // Method: rasterize fired cells -> connected components = tile placements
 //         (keep only FULL 8x4 h / 4x8 v extents) -> each placement pins its
 //         6 corner vertices -> over-determined vertex grid -> consistency
@@ -12,7 +12,7 @@ import fs from "node:fs";
 import { repoRoot } from "../lib/paths.mjs";
 
 const SEEDS = ["78633191", "78633192", "78633193"];
-const SAVE = "/mnt/c/Users/xan98/AppData/LocalLow/Nolla_Games_Noita/save00/";
+const SAVE = repoRoot + "/mapgen/fixtures/oracle/";
 const S = 4; // lab short side (cells); 1 cell = 1 atlas px = 10 world px
 
 function loadGrid(seed) {
