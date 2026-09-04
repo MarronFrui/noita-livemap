@@ -78,17 +78,19 @@ export class LabSearch {
   resume() { if (this.state === "paused") { this._pause = false; } }
   stop() { this._stop = true; this._pause = false; }
 
-  // walk: depth = informative vertices matched before first mismatch
-  walk(makeRng, draw, dI, dJ, obsAt) {
+  // walk: depth = informative vertices matched. missBudget = tolerated
+  // mismatches (0 = exact-match prefilter; >0 catches schemes like
+  // rep-reduction that legally re-color a minority of vertices)
+  walk(makeRng, draw, dI, dJ, obsAt, missBudget = 0) {
     const rng = makeRng();
-    let depth = 0;
+    let depth = 0, miss = 0;
     for (let idx = 0; idx < this.scanList.length; idx++) {
       const [i, j] = this.scanList[idx];
       const c = draw(rng, NC[classOf(i, j)]);
       const want = obsAt[idx];
       if (want !== undefined) {
-        if (c !== want) return { depth, alive: false };
-        depth++;
+        if (c === want) depth++;
+        else if (++miss > missBudget) return { depth, alive: false };
       }
     }
     return { depth, alive: true };
@@ -113,16 +115,16 @@ export class LabSearch {
           const obsAt = this.scanList.map(([i, j]) => this.obsMap.get(i - dI + "," + (j - dJ)));
           for (let sy = this.area.y0; sy < this.area.y0 + this.dims.H * 10; sy++) {
             for (let sx = this.area.x0; sx < this.area.x0 + this.dims.W * 10; sx++) {
-              const { depth, alive } = this.walk(() => seededPrng(ws, sx, sy), draw, dI, dJ, obsAt);
+              const { depth, alive } = this.walk(() => seededPrng(ws, sx, sy), draw, dI, dJ, obsAt, cfg.missBudget);
               this.scored++;
               if (depth > this.deepest) {
                 this.deepest = depth;
                 this.deepestInfo = { template: "S1", draw: dname, dI, dJ, sx, sy };
                 this.emit({ type: "best", depth, info: this.deepestInfo });
               }
-              if (alive) { this.winner = { template: "S1", draw: dname, dI, dJ, sx, sy }; this.finish("hit"); return; }
+              if (alive && depth >= this.obs.length * 0.9) { this.winner = { template: "S1", draw: dname, dI, dJ, sx, sy, depth }; this.finish("hit"); return; }
               if (this.scored % cfg.batchSize === 0) {
-                this.emit({ type: "progress", scored: this.scored, deepest: this.deepest });
+                this.emit({ type: "progress", scored: this.scored, deepest: this.deepest, accuracy: (100 * this.deepest) / this.obs.length });
                 await yieldToMessages();
                 while (this._pause && !this._stop) await yieldToMessages();
                 if (this._stop) { this.finish("stopped"); return; }
@@ -145,16 +147,16 @@ export class LabSearch {
             // incremental: skip k and k+1 share the base stream — advance one
             // draw per step instead of re-skipping from scratch (O(maxK) total)
             const u = base.nextU();
-            const { depth, alive } = this.walk(() => new NollaPrng(u), draw, dI, dJ, obsAt);
+            const { depth, alive } = this.walk(() => new NollaPrng(u), draw, dI, dJ, obsAt, cfg.missBudget);
             this.scored++;
             if (depth > this.deepest) {
               this.deepest = depth;
               this.deepestInfo = { template: "S2", draw: dname, dI, dJ, k };
               this.emit({ type: "best", depth, info: this.deepestInfo });
             }
-            if (alive) { this.winner = { template: "S2", draw: dname, dI, dJ, k }; this.finish("hit"); return; }
+            if (alive && depth >= this.obs.length * 0.9) { this.winner = { template: "S2", draw: dname, dI, dJ, k, depth }; this.finish("hit"); return; }
             if (this.scored % cfg.batchSize === 0) {
-              this.emit({ type: "progress", scored: this.scored, deepest: this.deepest });
+              this.emit({ type: "progress", scored: this.scored, deepest: this.deepest, accuracy: (100 * this.deepest) / this.obs.length });
               await yieldToMessages();
               while (this._pause && !this._stop) await yieldToMessages();
               if (this._stop) { this.finish("stopped"); return; }
@@ -191,7 +193,7 @@ export class LabSearch {
               }
               if (m === obsList.length) { this.winner = { template: "P", unit, dx, dy, draw: dname }; this.finish("hit"); return; }
               if (this.scored % cfg.batchSize === 0) {
-                this.emit({ type: "progress", scored: this.scored, deepest: this.deepest });
+                this.emit({ type: "progress", scored: this.scored, deepest: this.deepest, accuracy: (100 * this.deepest) / this.obs.length });
                 await yieldToMessages();
                 while (this._pause && !this._stop) await yieldToMessages();
                 if (this._stop) { this.finish("stopped"); return; }
@@ -205,7 +207,7 @@ export class LabSearch {
 
   finish(reason) {
     this.state = reason === "stopped" ? "stopped" : "done";
-    this.emit({ type: "done", reason, winner: this.winner, scored: this.scored, deepest: this.deepest, deepestInfo: this.deepestInfo });
+    this.emit({ type: "done", reason, winner: this.winner, scored: this.scored, deepest: this.deepest, accuracy: (100 * this.deepest) / this.obs.length, deepestInfo: this.deepestInfo });
   }
 }
 

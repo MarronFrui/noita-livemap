@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wang Lab — how it works</title>
+    <style>
+      :root { color-scheme: dark; }
+      body { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; background: #101418; color: #d8dee6; margin: 0; padding: 20px; max-width: 1080px; }
+      h1 { color: #8fd3ff; font-size: 18px; } h2 { color: #9fb3c8; font-size: 14px; margin-top: 28px; border-bottom: 1px solid #232c36; padding-bottom: 4px; }
+      p, li { font-size: 13px; line-height: 1.65; }
+      .ok { color: #7ce38b; } .bad { color: #ff8f8f; } .q { color: #ffd479; font-weight: bold; }
+      .box { background: #171d24; border: 1px solid #232c36; border-radius: 6px; padding: 12px 16px; margin: 12px 0; }
+      svg { background: #0b0e12; border: 1px solid #232c36; border-radius: 6px; display: block; margin: 10px 0; max-width: 100%; }
+      a { color: #8fd3ff; }
+      code { background: #1c242e; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+      table { border-collapse: collapse; font-size: 12px; } td, th { border: 1px solid #232c36; padding: 4px 10px; text-align: left; } th { color: #9fb3c8; }
+    </style>
+  </head>
+  <body>
+    <h1>How the Wang Lab works — and why it revers Noita's map generation</h1>
+    <p><a href="/lab/">← back to the search supervisor</a></p>
+
+    <h2>1 · The mystery: one box is missing</h2>
+    <p>Noita's world is a function of its seed. Everything else in that function is already
+    reconstructed and <b>verified against the running game</b> — except one step:</p>
+
+    <svg viewBox="0 0 980 120" width="100%">
+      <defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6" fill="none" stroke="#9fb3c8"/></marker></defs>
+      <rect x="10" y="35" width="120" height="44" rx="6" fill="#18222c" stroke="#2f4256"/><text x="70" y="54" fill="#d8dee6" font-size="12" text-anchor="middle">world seed</text><text x="70" y="70" fill="#7ce38b" font-size="10" text-anchor="middle">known</text>
+      <line x1="130" y1="57" x2="180" y2="57" stroke="#9fb3c8" marker-end="url(#a)"/>
+      <rect x="182" y="35" width="150" height="44" rx="6" fill="#18222c" stroke="#2f4256"/><text x="257" y="54" fill="#d8dee6" font-size="12" text-anchor="middle">RNG (Lehmer + mixer)</text><text x="257" y="70" fill="#7ce38b" font-size="10" text-anchor="middle">✓ verified, 2.1M draws</text>
+      <line x1="332" y1="57" x2="382" y2="57" stroke="#9fb3c8" marker-end="url(#a)"/>
+      <rect x="384" y="28" width="190" height="58" rx="6" fill="#2a1f16" stroke="#ffd479"/><text x="479" y="50" fill="#ffd479" font-size="12" text-anchor="middle">vertex coloring</text><text x="479" y="66" fill="#ffd479" font-size="10" text-anchor="middle">? THE UNKNOWN ?</text>
+      <line x1="574" y1="57" x2="624" y2="57" stroke="#9fb3c8" marker-end="url(#a)"/>
+      <rect x="626" y="35" width="170" height="44" rx="6" fill="#18222c" stroke="#2f4256"/><text x="711" y="54" fill="#d8dee6" font-size="12" text-anchor="middle">tile placement</text><text x="711" y="70" fill="#7ce38b" font-size="10" text-anchor="middle">✓ algorithm decoded</text>
+      <line x1="796" y1="57" x2="846" y2="57" stroke="#9fb3c8" marker-end="url(#a)"/>
+      <rect x="848" y="35" width="120" height="44" rx="6" fill="#18222c" stroke="#2f4256"/><text x="908" y="54" fill="#d8dee6" font-size="12" text-anchor="middle">the map</text><text x="908" y="70" fill="#7ce38b" font-size="10" text-anchor="middle">ground truth</text>
+    </svg>
+
+    <p>The map is painted with <b>herringbone wang tiles</b>: a lattice of vertices sits over
+    the terrain; each vertex gets a color from a small palette; each placed tile must have its
+    six corner colors match the vertices it covers. The tile-placing algorithm is fully decoded.
+    What nobody knows is <span class="q">how the game decides each vertex's color</span>.
+    That decision is the entire difference between "a Noita-looking cave" and "this exact cave
+    for this exact seed".</p>
+
+    <h2>2 · Why the lab exists: observability</h2>
+    <p>To test a candidate rule you need the <b>correct answer</b> to compare against. Two
+    obvious sources both fail:</p>
+    <table>
+      <tr><th>Source</th><th>Problem</th></tr>
+      <tr><td>Screenshots of the real map</td><td>The rendered world is ~24 points denser than any raw
+        tile layer — walls, pixel scenes and edge fills paint <i>over</i> the wang data. Tile colors are
+        consumed at generation (measured: 0/32 spawn colors visible in captures). Geometry comparisons
+        can never prove or disprove a fill rule.</td></tr>
+      <tr><td>Item / entity positions in real biomes</td><td>Spawn facts are exact but <i>sparse</i>
+        (~40–70 per seed) and only constrain a handful of lattice cells.</td></tr>
+    </table>
+    <p>The lab removes both limits: it injects a <b>custom 16-tile biome</b> into the real game as a
+    5×2-chunk rectangle. Every tile's pixels carry a unique marker color, and the game itself calls
+    our script for every placed pixel. The game therefore <b>writes out its own complete answer key</b>:
+    which of the 16 tiles it placed, at every lattice cell, for any seed we force.</p>
+
+    <svg viewBox="0 0 980 210" width="100%">
+      <rect x="10" y="20" width="200" height="52" rx="6" fill="#18222c" stroke="#2f4256"/><text x="110" y="42" fill="#d8dee6" font-size="12" text-anchor="middle">lab mod injects biome</text><text x="110" y="58" fill="#9fb3c8" font-size="10" text-anchor="middle">BIOME_MAP lua + BiomeMapSetPixel</text>
+      <line x1="210" y1="46" x2="260" y2="46" stroke="#9fb3c8" marker-end="url(#a)"/>
+      <rect x="262" y="20" width="210" height="52" rx="6" fill="#18222c" stroke="#2f4256"/><text x="367" y="42" fill="#d8dee6" font-size="12" text-anchor="middle">Noita generates the lab area</text><text x="367" y="58" fill="#9fb3c8" font-size="10" text-anchor="middle">real engine · real RNG · forced seed</text>
+      <line x1="472" y1="46" x2="522" y2="46" stroke="#9fb3c8" marker-end="url(#a)"/>
+      <rect x="524" y="20" width="200" height="52" rx="6" fill="#18222c" stroke="#2f4256"/><text x="624" y="42" fill="#d8dee6" font-size="12" text-anchor="middle">markers self-report</text><text x="624" y="58" fill="#9fb3c8" font-size="10" text-anchor="middle">spawn callbacks → global store → CSV</text>
+      <line x1="724" y1="46" x2="774" y2="46" stroke="#9fb3c8" marker-end="url(#a)"/>
+      <rect x="776" y="20" width="194" height="52" rx="6" fill="#1d2a1d" stroke="#7ce38b"/><text x="873" y="42" fill="#7ce38b" font-size="12" text-anchor="middle">vertex grid = answer key</text><text x="873" y="58" fill="#9fb3c8" font-size="10" text-anchor="middle">778 vertices, 0 conflicts, per seed</text>
+      <line x1="873" y1="72" x2="873" y2="110" stroke="#9fb3c8" marker-end="url(#a)"/>
+      <rect x="700" y="112" width="270" height="52" rx="6" fill="#2a1f16" stroke="#ffd479"/><text x="835" y="134" fill="#ffd479" font-size="12" text-anchor="middle">optimizer: candidate rules</text><text x="835" y="150" fill="#9fb3c8" font-size="10" text-anchor="middle">each scored by exact match against the key</text>
+      <line x1="700" y1="138" x2="650" y2="138" stroke="#9fb3c8" marker-end="url(#a)"/>
+      <rect x="380" y="112" width="270" height="52" rx="6" fill="#18222c" stroke="#2f4256"/><text x="515" y="134" fill="#d8dee6" font-size="12" text-anchor="middle">outcome A: 100% on seed 91…</text><text x="515" y="150" fill="#7ce38b" font-size="10" text-anchor="middle">…auto-verified on seeds 92 &amp; 93 → rule found</text>
+      <line x1="380" y1="138" x2="330" y2="138" stroke="#9fb3c8" marker-end="url(#a)"/>
+      <rect x="60" y="112" width="270" height="52" rx="6" fill="#18222c" stroke="#2f4256"/><text x="195" y="134" fill="#d8dee6" font-size="12" text-anchor="middle">outcome B: family exhausted</text><text x="195" y="150" fill="#9fb3c8" font-size="10" text-anchor="middle">that whole branch of possibilities is dead</text>
+    </svg>
+
+    <h2>3 · The search: candidates, accuracy, noise</h2>
+    <p>A <b>candidate</b> is a complete story of how the vertex colors are produced. The engine
+    simulates the story with the game-verified RNG and walks the lattice in generation order:</p>
+    <div class="box">
+      <b>S1 — sequential, one-pixel seed.</b> The game seeds one stream at world pixel (sx, sy), then
+      colors vertices by drawing in order. The mixer avalanches, so there is no gradient to climb — the
+      engine enumerates <i>every pixel of the lab area</i> (~2.6M × draw shapes × alignments ≈ 94M candidates).<br />
+      <b>S2 — sequential, world-seed stream.</b> Same, but the stream comes from
+      <code>SetRandomFromWorldSeed</code> after an unknown number of pre-consumed draws (skip 0..200k,
+      advanced incrementally).<br />
+      <b>P — positional.</b> No stream: each vertex's color is hashed directly from its coordinates
+      (the game's own <code>SetRandomSeed(x,y)</code> pattern), across coordinate systems × offsets ×
+      draw shapes × warm-up/multi-draw variants.<br />
+      <b>Miss budget</b> — the S sweeps can tolerate a fraction of mismatches, to catch schemes that
+      legally re-color some vertices (the library's "repetition reduction" pass).
+    </div>
+    <p><b>Accuracy</b> = matched informative vertices ÷ 389. A wrong candidate's accuracy collapses at
+    its first contradiction, so the engine aborts it within a few draws — that is why millions of
+    candidates per minute are possible. The trap this dashboard guards against: over millions of
+    candidates, pure luck produces impressive-looking accuracies (the <i>noise floor</i> — drawn on the
+    trend chart). Only a candidate at or near <b>100%</b> is a discovery; a family finishing below it is
+    a completed <b>elimination</b>.</p>
+
+    <h2>4 · How this actually gets us the map</h2>
+    <ol>
+      <li><b>Elimination is progress.</b> Every exhausted family is a branch of possibilities proven
+        empty (already dead: streams seeded anywhere in the area, world-seed skips ≤200k, direct
+        position hashes in 7 shapes, per-chunk lattices). The space of possible answers is finite and
+        shrinking — and the structural facts learned along the way (global continuous lattice,
+        per-vertex seed-avalanched values, binary class structure) are exactly the constraints a
+        deeper analysis needs.</li>
+      <li><b>A hit is the rule.</b> If a candidate walks all 389 vertices clean on seed 91 and
+        verifies on 92/93, we have the coloring law. We then replay it on real biomes and validate
+        against the spawn-equation judge (paint-immune, seeds 91/92/93).</li>
+      <li><b>If everything cheap is exhausted</b>, the lab has earned the expensive tool: targeted
+        decompilation (Ghidra) of the fill function — with the search rig kept as the instant
+        verification bench for whatever the decompilation reveals.</li>
+      <li><b>End state:</b> vertex rule + decoded tile placement = the world as a pure function of the
+        seed → the livemap renders any seed's terrain live, no captures.</li>
+    </ol>
+
+    <h2>5 · Operating it</h2>
+    <div class="box">
+      <b>Dump sessions</b> (game required): enable <code>noita-wang-lab</code> + your seed mod only;
+      force a seed; new game; the mod auto-visits the lab rect (~35 s); quit. One CSV per seed appears
+      in <code>save00</code>. Repeat per seed. Then run
+      <code>node mapgen/experiments/2026-09-04-lab-vertex-recovery.mjs</code> to rebuild the answer key.<br /><br />
+      <b>Search sessions</b> (no game needed): this dashboard, or headless:
+      <code>node --max-old-space-size=4096 mapgen/experiments/2026-09-04-lab-optimizer.mjs 60</code>.<br /><br />
+      <b>Resources:</b> search RSS ≈ 72 MB, single-thread ~50–300k candidates/s; artifacts on the repo
+      disk (~350 MB, gitignored); the game disk only holds the small CSVs.
+    </div>
+
+    <p class="box"><b>Status snapshot (2026-09-04 night):</b> S1, S2 and P exhausted with accuracies at
+    or below their noise floors (best positional candidate 60.41% = expected luckiest-of-28k). Miss-budget
+    sweeps (rep-reduction tolerance) and further template families are the open queue; targeted
+    decompilation is the sanctioned next escalation if they stay empty.</p>
+
+    <p><a href="/lab/">← back to the search supervisor</a></p>
+  </body>
+</html>

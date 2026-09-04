@@ -39,11 +39,12 @@ function drawChart() {
   ctx.fillStyle = "#0b0e12";
   ctx.fillRect(0, 0, cv.width, cv.height);
   const scoredNow = Number($("scored").textContent.replace(/[^\d]/g, "")) || 1;
-  const noise = Math.min(389, Math.log2(Math.max(scoredNow, 2)) + 2);
+  // two noise references: prefix walks (log2(N) vertices) and full-walk
+  // positional scoring (selection max of a 389-sample binomial ≈ 50% + 4σ)
+  const prefixNoise = (100 * (Math.log2(Math.max(scoredNow, 2)) + 2)) / 389;
+  const fullNoise = 50 + 4 * 100 * Math.sqrt(0.25 / 389);
   const deepestNow = history.length ? history[history.length - 1][1] : 0;
-  // zoom the Y axis to the relevant band — the fixed 0..389 scale squashed
-  // everything onto the bottom edge
-  const yMax = Math.max(24, Math.ceil(noise * 2.2), Math.ceil(deepestNow * 1.4));
+  const yMax = Math.min(100, Math.max(30, Math.ceil(fullNoise * 1.35), Math.ceil(deepestNow * 1.4)));
   const maxT = Math.max(10, history.length ? history[history.length - 1].t : 10);
   const X = (t) => (t / maxT) * (cv.width - 44) + 38;
   const Y = (d) => cv.height - 18 - (d / yMax) * (cv.height - 28);
@@ -68,7 +69,12 @@ function drawChart() {
   ctx.stroke();
   ctx.setLineDash([]);
   ctx.fillStyle = "#c9873a";
-  ctx.fillText(`noise floor ~log2(N) = ${noise.toFixed(1)}`, 42, Y(noise) - 4);
+  ctx.fillText(`prefix noise ${prefixNoise.toFixed(1)}%`, 42, Y(prefixNoise) - 4);
+  ctx.fillText(`full-walk noise ${fullNoise.toFixed(1)}%`, 42, Y(fullNoise) - 4);
+  ctx.strokeStyle = "#c9873a";
+  ctx.setLineDash([2, 4]);
+  ctx.beginPath(); ctx.moveTo(38, Y(fullNoise)); ctx.lineTo(cv.width - 5, Y(fullNoise)); ctx.stroke();
+  ctx.setLineDash([]);
   // data trend
   if (history.length >= 2) {
     ctx.strokeStyle = "#8fd3ff";
@@ -121,11 +127,13 @@ worker.onmessage = (e) => {
   if (evt.type === "progress") {
     $("scored").textContent = evt.scored.toLocaleString("en-US");
     $("deepest").textContent = evt.deepest;
+    const acc = evt.accuracy ?? (100 * evt.deepest) / 389;
+    $("accuracy").textContent = acc.toFixed(2) + "%";
     const elapsed = (Date.now() - startT) / 1000;
     $("rate").textContent = Math.round(evt.scored / Math.max(1, elapsed)).toLocaleString("en-US");
     $("elapsed").textContent = elapsed.toFixed(0) + "s";
-    $("progressFill").style.width = Math.min(100, (evt.deepest / 389) * 100) + "%";
-    history.push([elapsed, evt.deepest]);
+    $("progressFill").style.width = Math.min(100, acc) + "%";
+    history.push([elapsed, evt.accuracy ?? (100 * evt.deepest) / 389]);
     drawChart();
   } else if (evt.type === "best") {
     $("deepest").textContent = evt.depth;

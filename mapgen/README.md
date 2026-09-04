@@ -105,7 +105,7 @@ node mapgen/experiments/2026-09-04-lab-vertex-recovery.mjs
 node --max-old-space-size=4096 mapgen/experiments/2026-09-04-lab-optimizer.mjs 60
 
 # interactive supervision (browser dashboard over the same engine):
-#   npm run dev  →  open http://localhost:5173/lab/
+#   npm run dev  →  open http://localhost:5173/lab/   (docs: /lab/how.html)
 #   live counters, depth trend vs noise floor, event feed, start/pause/stop.
 #   The dashboard runs the search in a Web Worker via lib/lab-search.mjs
 #   (pure ESM, browser-safe — the CLI optimizer is the unattended alternative).
