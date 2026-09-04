@@ -85,20 +85,37 @@ for (const seed of SEEDS) {
   const cells = loadGrid(seed);
   const pls = placements(cells);
   const report = { placements: pls.length, firedCells: cells.size };
+  // fit lattice phase (phiX, phiY): all placement origins must be multiples
+  // of S in output px (fired-cell grid is phase-shifted by the world placement
+  // offset — the +1/+3 px seen between area origin and fired bbox)
+  let phi = { x: 0, y: 0, bad: 1e9 };
+  for (let fx = 0; fx < S; fx++)
+    for (let fy = 0; fy < S; fy++) {
+      let bad = 0;
+      for (const p of pls) if ((p.X + fx) % S !== 0 || (p.Y + fy) % S !== 0) bad++;
+      if (bad < phi.bad) phi = { x: fx, y: fy, bad };
+    }
+  report.phi = phi;
+  if (phi.bad > 0) console.log(seed, "WARN: phase fit leaves", phi.bad, "misaligned placements");
   for (const [name, mapping] of Object.entries(MAPPINGS)) {
-    const grid = new Map(); // "I,J" -> color
+    const grid = new Map(); // "I,J" -> color — INTEGER indices after phase fit
     let conflicts = 0;
-    let classMismatch = 0;
     for (const p of pls) {
-      for (const v of corners(p, mapping)) {
-        const key = v.I + "," + v.J;
+      const X = p.X + phi.x, Y = p.Y + phi.y;
+      const c0 = X / S + 2, r0 = Y / S + 2;
+      const cs = p.isH
+        ? MAPPINGS[name].h
+        : MAPPINGS[name].v;
+      const colors = [p.a, p.b, p.c, p.d, p.e, p.f];
+      for (let i = 0; i < 6; i++) {
+        const I = c0 + cs[i][0], J = r0 + cs[i][1], color = colors[i];
+        const key = I + "," + J;
         const prev = grid.get(key);
-        if (prev === undefined) grid.set(key, v.color);
-        else if (prev !== v.color) conflicts++;
-        if (v.color >= [2, 1, 2, 1][classOf(v.I, v.J)]) classMismatch++;
+        if (prev === undefined) grid.set(key, color);
+        else if (prev !== color) conflicts++;
       }
     }
-    // per-class color counts
+    // per-class color counts (integer indices now)
     const perClass = {};
     for (const [key, color] of grid) {
       const [I, J] = key.split(",").map(Number);
@@ -106,20 +123,28 @@ for (const seed of SEEDS) {
       perClass[cl] ??= {};
       perClass[cl][color] = (perClass[cl][color] || 0) + 1;
     }
-    report[name] = { conflicts, classMismatch, vertices: grid.size, perClass };
+    report[name] = { conflicts, vertices: grid.size, perClass };
   }
   result[seed] = report;
-  console.log(seed, JSON.stringify(report, null, 1));
+  console.log(seed, "placements:", pls.length, "phi:", JSON.stringify(phi), "natural conflicts:", report.natural.conflicts, "vertices:", report.natural.vertices);
 }
 
-// stash the winning mapping's grids for the model search
-const best = "natural"; // confirmed by conflict counts (see output)
+// stash the winning mapping's grids (integer keys) for the model search
+const best = "natural";
 for (const seed of SEEDS) {
   const cells = loadGrid(seed);
   const pls = placements(cells);
+  const phi = result[seed].phi;
   const grid = {};
   for (const p of pls) {
-    for (const v of corners(p, MAPPINGS[best])) grid[v.I + "," + v.J] = v.color;
+    const X = p.X + phi.x, Y = p.Y + phi.y;
+    const c0 = X / S + 2, r0 = Y / S + 2;
+    const cs = MAPPINGS[best][p.isH ? "h" : "v"];
+    const colors = [p.a, p.b, p.c, p.d, p.e, p.f];
+    for (let i = 0; i < 6; i++) {
+      const I = c0 + cs[i][0], J = r0 + cs[i][1];
+      grid[I + "," + J] = colors[i];
+    }
   }
   result[seed].grid = grid;
 }
