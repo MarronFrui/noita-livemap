@@ -1,0 +1,33 @@
+{
+  "name": "run1b",
+  "seed": 78633192,
+  "source": "/mnt/e/Programmes/Steam/steamapps/common/Noita/mods/noita-mapcap/bin/stitch/output.png",
+  "tilesDir": "/mnt/e/Programmes/Steam/steamapps/common/Noita/mods/noita-mapcap/output",
+  "stitchedSize": [
+    11264,
+    6144
+  ],
+  "origin": [
+    3840,
+    2304
+  ],
+  "grid": {
+    "cx": [
+      -6,
+      12
+    ],
+    "cy": [
+      -3,
+      5
+    ],
+    "chunk": 512
+  },
+  "worldRect": [
+    -3072,
+    -1536,
+    6656,
+    3072
+  ],
+  "chunks": 171,
+  "createdAt": "2026-09-04T00:28:58.989Z"
+}

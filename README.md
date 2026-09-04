@@ -57,6 +57,7 @@ Then open `http://localhost:5173/` in your browser.
 .
 ├── bridge/              # Node bridge: file watcher + WebSocket broadcaster
 ├── mapgen/              # Map-gen bench: lib/ + pipeline/ + experiments/ (see mapgen/README.md)
+├── mapcap/              # Capture-based ground truth: noita-mapcap slicing/analysis/diffing (see mapcap/README.md)
 ├── mods/noita-live-map/ # Noita Lua telemetry mod
 ├── public/noitamap/     # Built noitamap assets (copied from vendor/noitamap/public)
 ├── scripts/             # Build helpers

@@ -466,6 +466,52 @@ perk/chest position = an exact wang-cell color fact). Priority: fix probe v3 (th
 entity filter came back empty) and make spawn equations the primary judge; geometry
 becomes secondary confirmation.
 
+## 7quinquies. Seed differential analysis (2026-09-04)
+
+User hypothesis: comparing seed N vs N+1 could reveal the generation math.
+
+- **RNG level (tested, ✅)**: the game's mixing avalanches — across 5 world seeds
+  (4 random + the capture seed), pairwise identical `ProceduralRandomi(x,y,0,255)`
+  values = 0.38–0.41% ≡ the 1/256 chance baseline. **No locality at the value
+  level; seed+1 arithmetic carries no information.**
+- **Structure level (proposed, the real content of the idea)**: comparing two
+  adjacent-seed *worlds* discriminates what our pixel metric cannot:
+  1. **Skeleton test** — lattice vertices with 1-color classes are seed-independent
+     by construction; if adjacent captures share the domino-boundary skeleton and
+     differ only within constraint classes → per-position-independent coloring;
+     if they differ nearly totally → sequential streams.
+  2. **Game-side noise floor** — capture(N) vs capture(N+1) = the true baseline
+     "unrelated real worlds", which our fill eliminations lacked.
+  3. **Fixed-region map** — structures surviving the diff (spawn room, Holy
+     Mountains) are seed-independent and subtractable from comparisons.
+- Needs: a mapcap-style capture of seed 78633192 (user's seed mod + noita-mapcap
+  Area/base-layout mode). The RNG-avalanche result is why the *capture* diff —
+  not a value diff — is the informative artifact.
+
+**RESULTS (2026-09-04, captures done — full detail in `mapcap/README.md`)**:
+
+- Captures: 78633191 = noitamap ref stitch (cached), 78633192 = `run1b`,
+  78633193 = `run2` (both in-game, parallax off, same 19×9 grid). In-game
+  capture pipeline pixel-stable (tile overlaps 99.6–99.7% identical).
+- **Skeleton test**: real 512-grid seams exist — wang generation does NOT blend
+  across chunk boundaries in places (x=2048 4.6×, y=1536 3.6× discontinuity vs
+  interior baseline; identical across independent captures ⇒ content).
+- **Game-side noise floor**: foreground overlap 99.6%+ identical across
+  independent captures; flat-region high-pass RMS 0.16/255.
+- **Fixed regions**: Holy Mountain bands (biome rows j=16, 19, 23, 26, 30, 34 =
+  temple_wall/temple_altar + solid_wall) are ~95% seed-independent (template
+  biomes, no wang). Sky/void above surface is black (background disabled).
+  Full zone table: `mapcap/PREDICTABLE_ZONES.md`.
+- **Adjacent-seed divergence**: 26.45% of foreground px changed (91↔92);
+  92↔93: 83.0% window-identical, 37/171 chunks fully stable. This is the
+  calibration target for any fill hypothesis (L2).
+- **Seed-independence classes** (3-way, 91/92/93): 48.0% of px identical in all
+  pairs; **17.9% two-agree-one-differs with an EVEN split across which seed
+  differs** (5.5/6.5/5.8%) ⇒ small-variant-pool choices, not avalanche RNG —
+  a new RE target (randomMaterials/scene variants?); 6.8% all-distinct (wang
+  detail). A fill model that only produces all-distinct pixels for changed
+  content misses the two-agree class entirely.
+
 ## 8. Glossary
 
 - **Wang tile / herringbone**: domino-shaped tiles (2:1) whose edge colors must

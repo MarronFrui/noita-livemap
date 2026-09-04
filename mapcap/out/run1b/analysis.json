@@ -1,0 +1,11265 @@
+{
+  "tileOverlap": {
+    "pairs": 430,
+    "meanDiff": 0.3119,
+    "identPct": 99.6,
+    "maxDiff": 765,
+    "worstPairs": [
+      {
+        "at": [
+          -3840,
+          -2304
+        ],
+        "mean": 7.0893605550130205,
+        "identPct": 95.44525146484375,
+        "max": 765
+      },
+      {
+        "at": [
+          -3840,
+          -1792
+        ],
+        "mean": 4.263064066569011,
+        "identPct": 96.95472717285156,
+        "max": 765
+      },
+      {
+        "at": [
+          -3328,
+          -1280
+        ],
+        "mean": 2.514080047607422,
+        "identPct": 97.67570495605469,
+        "max": 598
+      },
+      {
+        "at": [
+          -2304,
+          -2304
+        ],
+        "mean": 2.1236673990885415,
+        "identPct": 97.96905517578125,
+        "max": 621
+      },
+      {
+        "at": [
+          -256,
+          1280
+        ],
+        "mean": 1.744855244954427,
+        "identPct": 96.22726440429688,
+        "max": 631
+      }
+    ]
+  },
+  "seams": {
+    "vertical": [
+      {
+        "atWorldX": -2560,
+        "diff": 3.395,
+        "baseline": 2.641,
+        "ratio": 1.285,
+        "shift": -2,
+        "shiftScores": [
+          {
+            "shift": -2,
+            "diff": 2.2
+          },
+          {
+            "shift": 0,
+            "diff": 3.4
+          },
+          {
+            "shift": 1,
+            "diff": 4.51
+          },
+          {
+            "shift": 2,
+            "diff": 4.46
+          },
+          {
+            "shift": 3,
+            "diff": 4.7
+          }
+        ]
+      },
+      {
+        "atWorldX": -2048,
+        "diff": 6.697,
+        "baseline": 4.021,
+        "ratio": 1.665,
+        "shift": -2,
+        "shiftScores": [
+          {
+            "shift": -2,
+            "diff": 3.78
+          },
+          {
+            "shift": 0,
+            "diff": 6.7
+          },
+          {
+            "shift": 1,
+            "diff": 8.19
+          },
+          {
+            "shift": 2,
+            "diff": 9.71
+          },
+          {
+            "shift": 3,
+            "diff": 10.9
+          }
+        ]
+      },
+      {
+        "atWorldX": -1536,
+        "diff": 8.907,
+        "baseline": 5.582,
+        "ratio": 1.596,
+        "shift": -2,
+        "shiftScores": [
+          {
+            "shift": -2,
+            "diff": 6.29
+          },
+          {
+            "shift": 0,
+            "diff": 8.91
+          },
+          {
+            "shift": 1,
+            "diff": 11.75
+          },
+          {
+            "shift": 2,
+            "diff": 13.34
+          },
+          {
+            "shift": 3,
+            "diff": 12.8
+          }
+        ]
+      },
+      {
+        "atWorldX": -1024,
+        "diff": 4.936,
+        "baseline": 3.314,
+        "ratio": 1.489,
+        "shift": -2,
+        "shiftScores": [
+          {
+            "shift": -2,
+            "diff": 3.49
+          },
+          {
+            "shift": 0,
+            "diff": 4.94
+          },
+          {
+            "shift": 1,
+            "diff": 5.5
+          },
+          {
+            "shift": 2,
+            "diff": 5.56
+          },
+          {
+            "shift": 3,
+            "diff": 5.47
+          }
+        ]
+      },
+      {
+        "atWorldX": -512,
+        "diff": 4.935,
+        "baseline": 4.024,
+        "ratio": 1.226,
+        "shift": -2,
+        "shiftScores": [
+          {
+            "shift": -2,
+            "diff": 4.61
+          },
+          {
+            "shift": 0,
+            "diff": 4.93
+          },
+          {
+            "shift": 1,
+            "diff": 5.55
+          },
+          {
+            "shift": 2,
+            "diff": 6.51
+          },
+          {
+            "shift": 3,
+            "diff": 7.48
+          }
+        ]
+      },
+      {
+        "atWorldX": 0,
+        "diff": 6.539,
+        "baseline": 5.276,
+        "ratio": 1.239,
+        "shift": 0,
+        "shiftScores": [
+          {
+            "shift": -2,
+            "diff": 6.89
+          },
+          {
+            "shift": 0,
+            "diff": 6.54
+          },
+          {
+            "shift": 1,
+            "diff": 7.75
+          },
+          {
+            "shift": 2,
+            "diff": 8.82
+          },
+          {
+            "shift": 3,
+            "diff": 9.57
+          }
+        ]
+      },
+      {
+        "atWorldX": 512,
+        "diff": 6.745,
+        "baseline": 4.819,
+        "ratio": 1.4,
+        "shift": -2,
+        "shiftScores": [
+          {
+            "shift": -2,
+            "diff": 5.71
+          },
+          {
+            "shift": 0,
+            "diff": 6.74
+          },
+          {
+            "shift": 1,
+            "diff": 7.83
+          },
+          {
+            "shift": 2,
+            "diff": 8.26
+          },
+          {
+            "shift": 3,
+            "diff": 8.35
+          }
+        ]
+      },
+      {
+        "atWorldX": 1024,
+        "diff": 6.135,
+        "baseline": 4.334,
+        "ratio": 1.415,
+        "shift": -2,
+        "shiftScores": [
+          {
+            "shift": -2,
+            "diff": 5.23
+          },
+          {
+            "shift": 0,
+            "diff": 6.13
+          },
+          {
+            "shift": 1,
+            "diff": 7.32
+          },
+          {
+            "shift": 2,
+            "diff": 8.4
+          },
+          {
+            "shift": 3,
+            "diff": 8.86
+          }
+        ]
+      },
+      {
+        "atWorldX": 1536,
+        "diff": 6.758,
+        "baseline": 4.728,
+        "ratio": 1.429,
+        "shift": 0,
+        "shiftScores": [
+          {
+            "shift": -2,
+            "diff": 7.1
+          },
+          {
+            "shift": 0,
+            "diff": 6.76
+          },
+          {
+            "shift": 1,
+            "diff": 8.53
+          },
+          {
+            "shift": 2,
+            "diff": 9.23
+          },
+          {
+            "shift": 3,
+            "diff": 9.24
+          }
+        ]
+      },
+      {
+        "atWorldX": 2048,
+        "diff": 11.564,
+        "baseline": 2.369,
+        "ratio": 4.881,
+        "shift": -2,
+        "shiftScores": [
+          {
+            "shift": -2,
+            "diff": 1.26
+          },
+          {
+            "shift": 0,
+            "diff": 11.56
+          },
+          {
+            "shift": 1,
+            "diff": 11.86
+          },
+          {
+            "shift": 2,
+            "diff": 12.19
+          },
+          {
+            "shift": 3,
+            "diff": 12.83
+          }
+        ]
+      },
+      {
+        "atWorldX": 2560,
+        "diff": 3.363,
+        "baseline": 2.002,
+        "ratio": 1.68,
+        "shift": -2,
+        "shiftScores": [
+          {
+            "shift": -2,
+            "diff": 2.68
+          },
+          {
+            "shift": 0,
+            "diff": 3.36
+          },
+          {
+            "shift": 1,
+            "diff": 3.49
+          },
+          {
+            "shift": 2,
+            "diff": 4.5
+          },
+          {
+            "shift": 3,
+            "diff": 5.11
+          }
+        ]
+      },
+      {
+        "atWorldX": 3072,
+        "diff": 2.237,
+        "baseline": 1.977,
+        "ratio": 1.132,
+        "shift": -2,
+        "shiftScores": [
+          {
+            "shift": -2,
+            "diff": 2.22
+          },
+          {
+            "shift": 0,
+            "diff": 2.24
+          },
+          {
+            "shift": 1,
+            "diff": 2.74
+          },
+          {
+            "shift": 2,
+            "diff": 3.58
+          },
+          {
+            "shift": 3,
+            "diff": 3.07
+          }
+        ]
+      },
+      {
+        "atWorldX": 3584,
+        "diff": 4.081,
+        "baseline": 2.492,
+        "ratio": 1.637,
+        "shift": -2,
+        "shiftScores": [
+          {
+            "shift": -2,
+            "diff": 1.82
+          },
+          {
+            "shift": 0,
+            "diff": 4.08
+          },
+          {
+            "shift": 1,
+            "diff": 5.28
+          },
+          {
+            "shift": 2,
+            "diff": 5.08
+          },
+          {
+            "shift": 3,
+            "diff": 4.87
+          }
+        ]
+      },
+      {
+        "atWorldX": 4096,
+        "diff": 6.408,
+        "baseline": 2.658,
+        "ratio": 2.411,
+        "shift": -2,
+        "shiftScores": [
+          {
+            "shift": -2,
+            "diff": 3.93
+          },
+          {
+            "shift": 0,
+            "diff": 6.41
+          },
+          {
+            "shift": 1,
+            "diff": 6.54
+          },
+          {
+            "shift": 2,
+            "diff": 6.89
+          },
+          {
+            "shift": 3,
+            "diff": 7.29
+          }
+        ]
+      },
+      {
+        "atWorldX": 4608,
+        "diff": 2.85,
+        "baseline": 3.158,
+        "ratio": 0.902,
+        "shift": 0,
+        "shiftScores": [
+          {
+            "shift": -2,
+            "diff": 4.02
+          },
+          {
+            "shift": 0,
+            "diff": 2.85
+          },
+          {
+            "shift": 1,
+            "diff": 4.32
+          },
+          {
+            "shift": 2,
+            "diff": 5.19
+          },
+          {
+            "shift": 3,
+            "diff": 5.04
+          }
+        ]
+      },
+      {
+        "atWorldX": 5120,
+        "diff": 3.947,
+        "baseline": 3.54,
+        "ratio": 1.115,
+        "shift": -2,
+        "shiftScores": [
+          {
+            "shift": -2,
+            "diff": 3.21
+          },
+          {
+            "shift": 0,
+            "diff": 3.95
+          },
+          {
+            "shift": 1,
+            "diff": 5.03
+          },
+          {
+            "shift": 2,
+            "diff": 4.9
+          },
+          {
+            "shift": 3,
+            "diff": 5.13
+          }
+        ]
+      },
+      {
+        "atWorldX": 5632,
+        "diff": 3.024,
+        "baseline": 2.639,
+        "ratio": 1.146,
+        "shift": 0,
+        "shiftScores": [
+          {
+            "shift": -2,
+            "diff": 3.47
+          },
+          {
+            "shift": 0,
+            "diff": 3.02
+          },
+          {
+            "shift": 1,
+            "diff": 3.27
+          },
+          {
+            "shift": 2,
+            "diff": 3.96
+          },
+          {
+            "shift": 3,
+            "diff": 4.24
+          }
+        ]
+      },
+      {
+        "atWorldX": 6144,
+        "diff": 2.715,
+        "baseline": 2.747,
+        "ratio": 0.988,
+        "shift": 0,
+        "shiftScores": [
+          {
+            "shift": -2,
+            "diff": 3.22
+          },
+          {
+            "shift": 0,
+            "diff": 2.72
+          },
+          {
+            "shift": 1,
+            "diff": 3.62
+          },
+          {
+            "shift": 2,
+            "diff": 3.97
+          },
+          {
+            "shift": 3,
+            "diff": 3.96
+          }
+        ]
+      }
+    ],
+    "horizontal": [
+      {
+        "atWorldY": -1024,
+        "diff": 0.514,
+        "baseline": 0.52,
+        "ratio": 0.989,
+        "shift": 1,
+        "shiftScores": [
+          {
+            "shift": -2,
+            "diff": 0.48
+          },
+          {
+            "shift": 0,
+            "diff": 0.51
+          },
+          {
+            "shift": 1,
+            "diff": 0.19
+          },
+          {
+            "shift": 2,
+            "diff": 0.6
+          },
+          {
+            "shift": 3,
+            "diff": 0.34
+          }
+        ]
+      },
+      {
+        "atWorldY": -512,
+        "diff": 0.894,
+        "baseline": 0.773,
+        "ratio": 1.156,
+        "shift": 1,
+        "shiftScores": [
+          {
+            "shift": -2,
+            "diff": 0.9
+          },
+          {
+            "shift": 0,
+            "diff": 0.89
+          },
+          {
+            "shift": 1,
+            "diff": 0.52
+          },
+          {
+            "shift": 2,
+            "diff": 0.96
+          },
+          {
+            "shift": 3,
+            "diff": 0.81
+          }
+        ]
+      },
+      {
+        "atWorldY": 0,
+        "diff": 5.387,
+        "baseline": 5.226,
+        "ratio": 1.031,
+        "shift": 0,
+        "shiftScores": [
+          {
+            "shift": -2,
+            "diff": 5.54
+          },
+          {
+            "shift": 0,
+            "diff": 5.39
+          },
+          {
+            "shift": 1,
+            "diff": 8.12
+          },
+          {
+            "shift": 2,
+            "diff": 8.63
+          },
+          {
+            "shift": 3,
+            "diff": 9.34
+          }
+        ]
+      },
+      {
+        "atWorldY": 512,
+        "diff": 8.939,
+        "baseline": 6.053,
+        "ratio": 1.477,
+        "shift": -2,
+        "shiftScores": [
+          {
+            "shift": -2,
+            "diff": 5.12
+          },
+          {
+            "shift": 0,
+            "diff": 8.94
+          },
+          {
+            "shift": 1,
+            "diff": 10.77
+          },
+          {
+            "shift": 2,
+            "diff": 11.64
+          },
+          {
+            "shift": 3,
+            "diff": 14.17
+          }
+        ]
+      },
+      {
+        "atWorldY": 1024,
+        "diff": 15.119,
+        "baseline": 4.927,
+        "ratio": 3.068,
+        "shift": -2,
+        "shiftScores": [
+          {
+            "shift": -2,
+            "diff": 6.7
+          },
+          {
+            "shift": 0,
+            "diff": 15.12
+          },
+          {
+            "shift": 1,
+            "diff": 12.8
+          },
+          {
+            "shift": 2,
+            "diff": 15.3
+          },
+          {
+            "shift": 3,
+            "diff": 13.74
+          }
+        ]
+      },
+      {
+        "atWorldY": 1536,
+        "diff": 15.589,
+        "baseline": 4.329,
+        "ratio": 3.601,
+        "shift": -2,
+        "shiftScores": [
+          {
+            "shift": -2,
+            "diff": 12.53
+          },
+          {
+            "shift": 0,
+            "diff": 15.59
+          },
+          {
+            "shift": 1,
+            "diff": 16.36
+          },
+          {
+            "shift": 2,
+            "diff": 17.18
+          },
+          {
+            "shift": 3,
+            "diff": 16.82
+          }
+        ]
+      },
+      {
+        "atWorldY": 2048,
+        "diff": 5.22,
+        "baseline": 4.491,
+        "ratio": 1.162,
+        "shift": 0,
+        "shiftScores": [
+          {
+            "shift": -2,
+            "diff": 5.4
+          },
+          {
+            "shift": 0,
+            "diff": 5.22
+          },
+          {
+            "shift": 1,
+            "diff": 6.83
+          },
+          {
+            "shift": 2,
+            "diff": 7.21
+          },
+          {
+            "shift": 3,
+            "diff": 7.56
+          }
+        ]
+      },
+      {
+        "atWorldY": 2560,
+        "diff": 13.594,
+        "baseline": 4.34,
+        "ratio": 3.132,
+        "shift": -2,
+        "shiftScores": [
+          {
+            "shift": -2,
+            "diff": 5.21
+          },
+          {
+            "shift": 0,
+            "diff": 13.59
+          },
+          {
+            "shift": 1,
+            "diff": 10.61
+          },
+          {
+            "shift": 2,
+            "diff": 13.4
+          },
+          {
+            "shift": 3,
+            "diff": 11.22
+          }
+        ]
+      }
+    ],
+    "globalBaseline": 3.576
+  },
+  "chunks": [
+    {
+      "cx": -6,
+      "cy": -3,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0,
+      "stdLum": 0,
+      "edgeDensity": 0,
+      "straightFrac": 0,
+      "frac": {
+        "black": 1,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 1
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 1
+        }
+      ]
+    },
+    {
+      "cx": -5,
+      "cy": -3,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0,
+      "stdLum": 0,
+      "edgeDensity": 0,
+      "straightFrac": 0,
+      "frac": {
+        "black": 1,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 1
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 1
+        }
+      ]
+    },
+    {
+      "cx": -4,
+      "cy": -3,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 27.65,
+      "stdLum": 28.04,
+      "edgeDensity": 0.0173,
+      "straightFrac": 0.575,
+      "frac": {
+        "black": 0.432,
+        "sky": 0,
+        "water": 0,
+        "ice": 0.001,
+        "lava": 0,
+        "flat": 0.495
+      },
+      "noiseRms": 0.165,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.432
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.115
+        },
+        {
+          "rgb": [
+            56,
+            56,
+            24
+          ],
+          "frac": 0.112
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.109
+        },
+        {
+          "rgb": [
+            24,
+            56,
+            56
+          ],
+          "frac": 0.054
+        },
+        {
+          "rgb": [
+            24,
+            40,
+            40
+          ],
+          "frac": 0.048
+        }
+      ]
+    },
+    {
+      "cx": -3,
+      "cy": -3,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 24.02,
+      "stdLum": 24.81,
+      "edgeDensity": 0.012,
+      "straightFrac": 0.692,
+      "frac": {
+        "black": 0.487,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.535
+      },
+      "noiseRms": 0.206,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.487
+        },
+        {
+          "rgb": [
+            56,
+            56,
+            24
+          ],
+          "frac": 0.127
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.092
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.088
+        },
+        {
+          "rgb": [
+            24,
+            56,
+            56
+          ],
+          "frac": 0.064
+        },
+        {
+          "rgb": [
+            24,
+            40,
+            40
+          ],
+          "frac": 0.061
+        }
+      ]
+    },
+    {
+      "cx": -2,
+      "cy": -3,
+      "label": "void",
+      "conf": 0.99,
+      "meanLum": 1.05,
+      "stdLum": 12.98,
+      "edgeDensity": 0.0038,
+      "straightFrac": 0.559,
+      "frac": {
+        "black": 0.993,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.987
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.993
+        },
+        {
+          "rgb": [
+            88,
+            136,
+            72
+          ],
+          "frac": 0.003
+        },
+        {
+          "rgb": [
+            120,
+            200,
+            120
+          ],
+          "frac": 0.002
+        },
+        {
+          "rgb": [
+            216,
+            232,
+            200
+          ],
+          "frac": 0.001
+        },
+        {
+          "rgb": [
+            104,
+            152,
+            72
+          ],
+          "frac": 0.001
+        },
+        {
+          "rgb": [
+            56,
+            88,
+            56
+          ],
+          "frac": 0
+        }
+      ]
+    },
+    {
+      "cx": -1,
+      "cy": -3,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0,
+      "stdLum": 0,
+      "edgeDensity": 0,
+      "straightFrac": 0,
+      "frac": {
+        "black": 1,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 1
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 1
+        }
+      ]
+    },
+    {
+      "cx": 0,
+      "cy": -3,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0,
+      "stdLum": 0,
+      "edgeDensity": 0,
+      "straightFrac": 0,
+      "frac": {
+        "black": 1,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 1
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 1
+        }
+      ]
+    },
+    {
+      "cx": 1,
+      "cy": -3,
+      "label": "rock",
+      "conf": 0.94,
+      "meanLum": 12.73,
+      "stdLum": 37.59,
+      "edgeDensity": 0.0276,
+      "straightFrac": 0.614,
+      "frac": {
+        "black": 0.875,
+        "sky": 0,
+        "water": 0.004,
+        "ice": 0.029,
+        "lava": 0,
+        "flat": 0.85
+      },
+      "noiseRms": 0.011,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.875
+        },
+        {
+          "rgb": [
+            56,
+            88,
+            120
+          ],
+          "frac": 0.023
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.014
+        },
+        {
+          "rgb": [
+            168,
+            200,
+            216
+          ],
+          "frac": 0.013
+        },
+        {
+          "rgb": [
+            40,
+            88,
+            104
+          ],
+          "frac": 0.009
+        },
+        {
+          "rgb": [
+            88,
+            136,
+            168
+          ],
+          "frac": 0.009
+        }
+      ]
+    },
+    {
+      "cx": 2,
+      "cy": -3,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0,
+      "stdLum": 0,
+      "edgeDensity": 0,
+      "straightFrac": 0,
+      "frac": {
+        "black": 1,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 1
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 1
+        }
+      ]
+    },
+    {
+      "cx": 3,
+      "cy": -3,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0,
+      "stdLum": 0,
+      "edgeDensity": 0,
+      "straightFrac": 0,
+      "frac": {
+        "black": 1,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 1
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 1
+        }
+      ]
+    },
+    {
+      "cx": 4,
+      "cy": -3,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0,
+      "stdLum": 0,
+      "edgeDensity": 0,
+      "straightFrac": 0,
+      "frac": {
+        "black": 1,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 1
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 1
+        }
+      ]
+    },
+    {
+      "cx": 5,
+      "cy": -3,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0,
+      "stdLum": 0,
+      "edgeDensity": 0,
+      "straightFrac": 0,
+      "frac": {
+        "black": 1,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 1
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 1
+        }
+      ]
+    },
+    {
+      "cx": 6,
+      "cy": -3,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0,
+      "stdLum": 0,
+      "edgeDensity": 0,
+      "straightFrac": 0,
+      "frac": {
+        "black": 1,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 1
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 1
+        }
+      ]
+    },
+    {
+      "cx": 7,
+      "cy": -3,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0,
+      "stdLum": 0,
+      "edgeDensity": 0,
+      "straightFrac": 0,
+      "frac": {
+        "black": 1,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 1
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 1
+        }
+      ]
+    },
+    {
+      "cx": 8,
+      "cy": -3,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0,
+      "stdLum": 0,
+      "edgeDensity": 0,
+      "straightFrac": 0,
+      "frac": {
+        "black": 1,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 1
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 1
+        }
+      ]
+    },
+    {
+      "cx": 9,
+      "cy": -3,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0,
+      "stdLum": 0,
+      "edgeDensity": 0,
+      "straightFrac": 0,
+      "frac": {
+        "black": 1,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 1
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 1
+        }
+      ]
+    },
+    {
+      "cx": 10,
+      "cy": -3,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0,
+      "stdLum": 0,
+      "edgeDensity": 0,
+      "straightFrac": 0,
+      "frac": {
+        "black": 1,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 1
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 1
+        }
+      ]
+    },
+    {
+      "cx": 11,
+      "cy": -3,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0,
+      "stdLum": 0,
+      "edgeDensity": 0,
+      "straightFrac": 0,
+      "frac": {
+        "black": 1,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 1
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 1
+        }
+      ]
+    },
+    {
+      "cx": 12,
+      "cy": -3,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0,
+      "stdLum": 0,
+      "edgeDensity": 0,
+      "straightFrac": 0,
+      "frac": {
+        "black": 1,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 1
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 1
+        }
+      ]
+    },
+    {
+      "cx": -6,
+      "cy": -2,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0,
+      "stdLum": 0,
+      "edgeDensity": 0,
+      "straightFrac": 0,
+      "frac": {
+        "black": 1,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 1
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 1
+        }
+      ]
+    },
+    {
+      "cx": -5,
+      "cy": -2,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0,
+      "stdLum": 0,
+      "edgeDensity": 0,
+      "straightFrac": 0,
+      "frac": {
+        "black": 1,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 1
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 1
+        }
+      ]
+    },
+    {
+      "cx": -4,
+      "cy": -2,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 43.16,
+      "stdLum": 23.2,
+      "edgeDensity": 0.0202,
+      "straightFrac": 0.723,
+      "frac": {
+        "black": 0.144,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.264
+      },
+      "noiseRms": 0.228,
+      "topColors": [
+        {
+          "rgb": [
+            56,
+            56,
+            24
+          ],
+          "frac": 0.264
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.255
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.181
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.144
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            8
+          ],
+          "frac": 0.079
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.044
+        }
+      ]
+    },
+    {
+      "cx": -3,
+      "cy": -2,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 35.15,
+      "stdLum": 26.11,
+      "edgeDensity": 0.0148,
+      "straightFrac": 0.652,
+      "frac": {
+        "black": 0.319,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.364
+      },
+      "noiseRms": 0.183,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.319
+        },
+        {
+          "rgb": [
+            56,
+            56,
+            24
+          ],
+          "frac": 0.294
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.2
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.113
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.036
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            8
+          ],
+          "frac": 0.029
+        }
+      ]
+    },
+    {
+      "cx": -2,
+      "cy": -2,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0,
+      "stdLum": 0,
+      "edgeDensity": 0,
+      "straightFrac": 0,
+      "frac": {
+        "black": 1,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 1
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 1
+        }
+      ]
+    },
+    {
+      "cx": -1,
+      "cy": -2,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0,
+      "stdLum": 0,
+      "edgeDensity": 0,
+      "straightFrac": 0,
+      "frac": {
+        "black": 1,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 1
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 1
+        }
+      ]
+    },
+    {
+      "cx": 0,
+      "cy": -2,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0,
+      "stdLum": 0,
+      "edgeDensity": 0,
+      "straightFrac": 0,
+      "frac": {
+        "black": 1,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 1
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 1
+        }
+      ]
+    },
+    {
+      "cx": 1,
+      "cy": -2,
+      "label": "rock",
+      "conf": 0.74,
+      "meanLum": 29.93,
+      "stdLum": 60.78,
+      "edgeDensity": 0.0186,
+      "straightFrac": 0.434,
+      "frac": {
+        "black": 0.726,
+        "sky": 0,
+        "water": 0.058,
+        "ice": 0.13,
+        "lava": 0,
+        "flat": 0.767
+      },
+      "noiseRms": 0.043,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.726
+        },
+        {
+          "rgb": [
+            168,
+            200,
+            216
+          ],
+          "frac": 0.092
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.07
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.051
+        },
+        {
+          "rgb": [
+            104,
+            168,
+            200
+          ],
+          "frac": 0.024
+        },
+        {
+          "rgb": [
+            136,
+            184,
+            216
+          ],
+          "frac": 0.014
+        }
+      ]
+    },
+    {
+      "cx": 2,
+      "cy": -2,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0,
+      "stdLum": 0.21,
+      "edgeDensity": 0,
+      "straightFrac": 1,
+      "frac": {
+        "black": 1,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 1
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 1
+        },
+        {
+          "rgb": [
+            56,
+            88,
+            104
+          ],
+          "frac": 0
+        }
+      ]
+    },
+    {
+      "cx": 3,
+      "cy": -2,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0,
+      "stdLum": 0,
+      "edgeDensity": 0,
+      "straightFrac": 0,
+      "frac": {
+        "black": 1,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 1
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 1
+        }
+      ]
+    },
+    {
+      "cx": 4,
+      "cy": -2,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0,
+      "stdLum": 0,
+      "edgeDensity": 0,
+      "straightFrac": 0,
+      "frac": {
+        "black": 1,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 1
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 1
+        }
+      ]
+    },
+    {
+      "cx": 5,
+      "cy": -2,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0,
+      "stdLum": 0,
+      "edgeDensity": 0,
+      "straightFrac": 0,
+      "frac": {
+        "black": 1,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 1
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 1
+        }
+      ]
+    },
+    {
+      "cx": 6,
+      "cy": -2,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0,
+      "stdLum": 0,
+      "edgeDensity": 0,
+      "straightFrac": 0,
+      "frac": {
+        "black": 1,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 1
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 1
+        }
+      ]
+    },
+    {
+      "cx": 7,
+      "cy": -2,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0,
+      "stdLum": 0,
+      "edgeDensity": 0,
+      "straightFrac": 0,
+      "frac": {
+        "black": 1,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 1
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 1
+        }
+      ]
+    },
+    {
+      "cx": 8,
+      "cy": -2,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0,
+      "stdLum": 0,
+      "edgeDensity": 0,
+      "straightFrac": 0,
+      "frac": {
+        "black": 1,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 1
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 1
+        }
+      ]
+    },
+    {
+      "cx": 9,
+      "cy": -2,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0,
+      "stdLum": 0,
+      "edgeDensity": 0,
+      "straightFrac": 0,
+      "frac": {
+        "black": 1,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 1
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 1
+        }
+      ]
+    },
+    {
+      "cx": 10,
+      "cy": -2,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0,
+      "stdLum": 0,
+      "edgeDensity": 0,
+      "straightFrac": 0,
+      "frac": {
+        "black": 1,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 1
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 1
+        }
+      ]
+    },
+    {
+      "cx": 11,
+      "cy": -2,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0,
+      "stdLum": 0,
+      "edgeDensity": 0,
+      "straightFrac": 0,
+      "frac": {
+        "black": 1,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 1
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 1
+        }
+      ]
+    },
+    {
+      "cx": 12,
+      "cy": -2,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0,
+      "stdLum": 0,
+      "edgeDensity": 0,
+      "straightFrac": 0,
+      "frac": {
+        "black": 1,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 1
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 1
+        }
+      ]
+    },
+    {
+      "cx": -6,
+      "cy": -1,
+      "label": "ice",
+      "conf": 0.64,
+      "meanLum": 60.78,
+      "stdLum": 86.07,
+      "edgeDensity": 0.0159,
+      "straightFrac": 0.661,
+      "frac": {
+        "black": 0.634,
+        "sky": 0,
+        "water": 0.191,
+        "ice": 0.32,
+        "lava": 0,
+        "flat": 0.774
+      },
+      "noiseRms": 0.001,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.634
+        },
+        {
+          "rgb": [
+            168,
+            200,
+            216
+          ],
+          "frac": 0.264
+        },
+        {
+          "rgb": [
+            136,
+            184,
+            216
+          ],
+          "frac": 0.047
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.037
+        },
+        {
+          "rgb": [
+            104,
+            168,
+            200
+          ],
+          "frac": 0.009
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.004
+        }
+      ]
+    },
+    {
+      "cx": -5,
+      "cy": -1,
+      "label": "rock",
+      "conf": 0.46,
+      "meanLum": 50.44,
+      "stdLum": 82.27,
+      "edgeDensity": 0.0119,
+      "straightFrac": 0.655,
+      "frac": {
+        "black": 0.722,
+        "sky": 0,
+        "water": 0.16,
+        "ice": 0.269,
+        "lava": 0,
+        "flat": 0.835
+      },
+      "noiseRms": 0.003,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.722
+        },
+        {
+          "rgb": [
+            168,
+            200,
+            216
+          ],
+          "frac": 0.218
+        },
+        {
+          "rgb": [
+            136,
+            184,
+            216
+          ],
+          "frac": 0.04
+        },
+        {
+          "rgb": [
+            104,
+            168,
+            200
+          ],
+          "frac": 0.008
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.003
+        },
+        {
+          "rgb": [
+            56,
+            56,
+            56
+          ],
+          "frac": 0.002
+        }
+      ]
+    },
+    {
+      "cx": -4,
+      "cy": -1,
+      "label": "rock",
+      "conf": 0.97,
+      "meanLum": 48.37,
+      "stdLum": 25.19,
+      "edgeDensity": 0.0175,
+      "straightFrac": 0.703,
+      "frac": {
+        "black": 0.123,
+        "sky": 0,
+        "water": 0.004,
+        "ice": 0.015,
+        "lava": 0,
+        "flat": 0.197
+      },
+      "noiseRms": 0.311,
+      "topColors": [
+        {
+          "rgb": [
+            56,
+            56,
+            24
+          ],
+          "frac": 0.327
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.292
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.203
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.123
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.033
+        },
+        {
+          "rgb": [
+            168,
+            200,
+            216
+          ],
+          "frac": 0.009
+        }
+      ]
+    },
+    {
+      "cx": -3,
+      "cy": -1,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 30.13,
+      "stdLum": 27.51,
+      "edgeDensity": 0.0158,
+      "straightFrac": 0.577,
+      "frac": {
+        "black": 0.332,
+        "sky": 0,
+        "water": 0,
+        "ice": 0.002,
+        "lava": 0,
+        "flat": 0.456
+      },
+      "noiseRms": 0.219,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.365
+        },
+        {
+          "rgb": [
+            56,
+            56,
+            24
+          ],
+          "frac": 0.176
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.134
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.115
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.071
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            8
+          ],
+          "frac": 0.066
+        }
+      ]
+    },
+    {
+      "cx": -2,
+      "cy": -1,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 15.11,
+      "stdLum": 33.3,
+      "edgeDensity": 0.0169,
+      "straightFrac": 0.393,
+      "frac": {
+        "black": 0.796,
+        "sky": 0,
+        "water": 0.001,
+        "ice": 0.001,
+        "lava": 0,
+        "flat": 0.798
+      },
+      "noiseRms": 0.001,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.796
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.069
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.042
+        },
+        {
+          "rgb": [
+            104,
+            136,
+            56
+          ],
+          "frac": 0.032
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.012
+        },
+        {
+          "rgb": [
+            88,
+            136,
+            72
+          ],
+          "frac": 0.01
+        }
+      ]
+    },
+    {
+      "cx": -1,
+      "cy": -1,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 10.11,
+      "stdLum": 28.23,
+      "edgeDensity": 0.0121,
+      "straightFrac": 0.452,
+      "frac": {
+        "black": 0.866,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.865
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.866
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.045
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.022
+        },
+        {
+          "rgb": [
+            104,
+            136,
+            56
+          ],
+          "frac": 0.019
+        },
+        {
+          "rgb": [
+            88,
+            136,
+            72
+          ],
+          "frac": 0.01
+        },
+        {
+          "rgb": [
+            104,
+            104,
+            56
+          ],
+          "frac": 0.008
+        }
+      ]
+    },
+    {
+      "cx": 0,
+      "cy": -1,
+      "label": "rock",
+      "conf": 0.95,
+      "meanLum": 22.32,
+      "stdLum": 30.94,
+      "edgeDensity": 0.0278,
+      "straightFrac": 0.37,
+      "frac": {
+        "black": 0.554,
+        "sky": 0,
+        "water": 0.023,
+        "ice": 0.005,
+        "lava": 0,
+        "flat": 0.571
+      },
+      "noiseRms": 0.072,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.554
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.246
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.071
+        },
+        {
+          "rgb": [
+            56,
+            72,
+            88
+          ],
+          "frac": 0.037
+        },
+        {
+          "rgb": [
+            8,
+            24,
+            24
+          ],
+          "frac": 0.021
+        },
+        {
+          "rgb": [
+            136,
+            136,
+            152
+          ],
+          "frac": 0.014
+        }
+      ]
+    },
+    {
+      "cx": 1,
+      "cy": -1,
+      "label": "rock",
+      "conf": 0.85,
+      "meanLum": 40.42,
+      "stdLum": 17.5,
+      "edgeDensity": 0.0491,
+      "straightFrac": 0.289,
+      "frac": {
+        "black": 0.005,
+        "sky": 0,
+        "water": 0.077,
+        "ice": 0,
+        "lava": 0.001,
+        "flat": 0.125
+      },
+      "noiseRms": 0.276,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.419
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.249
+        },
+        {
+          "rgb": [
+            56,
+            72,
+            88
+          ],
+          "frac": 0.074
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.064
+        },
+        {
+          "rgb": [
+            8,
+            24,
+            24
+          ],
+          "frac": 0.042
+        },
+        {
+          "rgb": [
+            24,
+            40,
+            40
+          ],
+          "frac": 0.035
+        }
+      ]
+    },
+    {
+      "cx": 2,
+      "cy": -1,
+      "label": "rock",
+      "conf": 0.99,
+      "meanLum": 24.2,
+      "stdLum": 24.65,
+      "edgeDensity": 0.0306,
+      "straightFrac": 0.29,
+      "frac": {
+        "black": 0.456,
+        "sky": 0,
+        "water": 0.006,
+        "ice": 0,
+        "lava": 0.001,
+        "flat": 0.478
+      },
+      "noiseRms": 0.105,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.456
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.29
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.165
+        },
+        {
+          "rgb": [
+            56,
+            72,
+            88
+          ],
+          "frac": 0.05
+        },
+        {
+          "rgb": [
+            104,
+            56,
+            56
+          ],
+          "frac": 0.018
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.007
+        }
+      ]
+    },
+    {
+      "cx": 3,
+      "cy": -1,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 14.95,
+      "stdLum": 36.36,
+      "edgeDensity": 0.0178,
+      "straightFrac": 0.457,
+      "frac": {
+        "black": 0.824,
+        "sky": 0.001,
+        "water": 0,
+        "ice": 0.002,
+        "lava": 0,
+        "flat": 0.826
+      },
+      "noiseRms": 0.025,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.824
+        },
+        {
+          "rgb": [
+            104,
+            136,
+            56
+          ],
+          "frac": 0.047
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.033
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.018
+        },
+        {
+          "rgb": [
+            104,
+            104,
+            56
+          ],
+          "frac": 0.017
+        },
+        {
+          "rgb": [
+            56,
+            56,
+            24
+          ],
+          "frac": 0.011
+        }
+      ]
+    },
+    {
+      "cx": 4,
+      "cy": -1,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 5.93,
+      "stdLum": 24.78,
+      "edgeDensity": 0.008,
+      "straightFrac": 0.549,
+      "frac": {
+        "black": 0.943,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.938
+      },
+      "noiseRms": 0.007,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.943
+        },
+        {
+          "rgb": [
+            104,
+            136,
+            56
+          ],
+          "frac": 0.015
+        },
+        {
+          "rgb": [
+            88,
+            136,
+            72
+          ],
+          "frac": 0.014
+        },
+        {
+          "rgb": [
+            72,
+            88,
+            72
+          ],
+          "frac": 0.009
+        },
+        {
+          "rgb": [
+            104,
+            104,
+            56
+          ],
+          "frac": 0.005
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.003
+        }
+      ]
+    },
+    {
+      "cx": 5,
+      "cy": -1,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0.15,
+      "stdLum": 3.35,
+      "edgeDensity": 0.0006,
+      "straightFrac": 0.362,
+      "frac": {
+        "black": 0.998,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.996
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.998
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.001
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0
+        },
+        {
+          "rgb": [
+            56,
+            72,
+            88
+          ],
+          "frac": 0
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0
+        },
+        {
+          "rgb": [
+            88,
+            104,
+            120
+          ],
+          "frac": 0
+        }
+      ]
+    },
+    {
+      "cx": 6,
+      "cy": -1,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 15.12,
+      "stdLum": 35.67,
+      "edgeDensity": 0.0154,
+      "straightFrac": 0.442,
+      "frac": {
+        "black": 0.821,
+        "sky": 0.001,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.828
+      },
+      "noiseRms": 0.013,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.821
+        },
+        {
+          "rgb": [
+            104,
+            136,
+            56
+          ],
+          "frac": 0.052
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.039
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.027
+        },
+        {
+          "rgb": [
+            104,
+            104,
+            56
+          ],
+          "frac": 0.02
+        },
+        {
+          "rgb": [
+            56,
+            56,
+            24
+          ],
+          "frac": 0.009
+        }
+      ]
+    },
+    {
+      "cx": 7,
+      "cy": -1,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 4.23,
+      "stdLum": 16.26,
+      "edgeDensity": 0.007,
+      "straightFrac": 0.33,
+      "frac": {
+        "black": 0.922,
+        "sky": 0,
+        "water": 0,
+        "ice": 0.001,
+        "lava": 0,
+        "flat": 0.917
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.922
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.027
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.027
+        },
+        {
+          "rgb": [
+            56,
+            56,
+            24
+          ],
+          "frac": 0.009
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.008
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.003
+        }
+      ]
+    },
+    {
+      "cx": 8,
+      "cy": -1,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 3.65,
+      "stdLum": 18.57,
+      "edgeDensity": 0.0089,
+      "straightFrac": 0.571,
+      "frac": {
+        "black": 0.958,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.943
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.958
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.01
+        },
+        {
+          "rgb": [
+            88,
+            136,
+            72
+          ],
+          "frac": 0.01
+        },
+        {
+          "rgb": [
+            72,
+            88,
+            72
+          ],
+          "frac": 0.007
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.004
+        },
+        {
+          "rgb": [
+            72,
+            56,
+            40
+          ],
+          "frac": 0.002
+        }
+      ]
+    },
+    {
+      "cx": 9,
+      "cy": -1,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 16.2,
+      "stdLum": 38.55,
+      "edgeDensity": 0.022,
+      "straightFrac": 0.508,
+      "frac": {
+        "black": 0.83,
+        "sky": 0.001,
+        "water": 0,
+        "ice": 0.001,
+        "lava": 0,
+        "flat": 0.825
+      },
+      "noiseRms": 0.001,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.83
+        },
+        {
+          "rgb": [
+            104,
+            136,
+            56
+          ],
+          "frac": 0.056
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.023
+        },
+        {
+          "rgb": [
+            104,
+            104,
+            56
+          ],
+          "frac": 0.022
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.016
+        },
+        {
+          "rgb": [
+            88,
+            136,
+            72
+          ],
+          "frac": 0.013
+        }
+      ]
+    },
+    {
+      "cx": 10,
+      "cy": -1,
+      "label": "rock",
+      "conf": 0.99,
+      "meanLum": 14.01,
+      "stdLum": 49.98,
+      "edgeDensity": 0.015,
+      "straightFrac": 0.477,
+      "frac": {
+        "black": 0.916,
+        "sky": 0.005,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.901
+      },
+      "noiseRms": 0.003,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.916
+        },
+        {
+          "rgb": [
+            232,
+            216,
+            152
+          ],
+          "frac": 0.008
+        },
+        {
+          "rgb": [
+            248,
+            232,
+            184
+          ],
+          "frac": 0.007
+        },
+        {
+          "rgb": [
+            232,
+            216,
+            136
+          ],
+          "frac": 0.007
+        },
+        {
+          "rgb": [
+            232,
+            200,
+            120
+          ],
+          "frac": 0.005
+        },
+        {
+          "rgb": [
+            104,
+            168,
+            56
+          ],
+          "frac": 0.004
+        }
+      ]
+    },
+    {
+      "cx": 11,
+      "cy": -1,
+      "label": "void",
+      "conf": 0.99,
+      "meanLum": 1.87,
+      "stdLum": 16.43,
+      "edgeDensity": 0.0047,
+      "straightFrac": 0.598,
+      "frac": {
+        "black": 0.986,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.978
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.986
+        },
+        {
+          "rgb": [
+            104,
+            168,
+            56
+          ],
+          "frac": 0.005
+        },
+        {
+          "rgb": [
+            88,
+            136,
+            72
+          ],
+          "frac": 0.003
+        },
+        {
+          "rgb": [
+            56,
+            104,
+            56
+          ],
+          "frac": 0.003
+        },
+        {
+          "rgb": [
+            232,
+            216,
+            152
+          ],
+          "frac": 0
+        },
+        {
+          "rgb": [
+            200,
+            168,
+            136
+          ],
+          "frac": 0
+        }
+      ]
+    },
+    {
+      "cx": 12,
+      "cy": -1,
+      "label": "void",
+      "conf": 1,
+      "meanLum": 0.27,
+      "stdLum": 5.79,
+      "edgeDensity": 0.0009,
+      "straightFrac": 0.582,
+      "frac": {
+        "black": 0.998,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.996
+      },
+      "noiseRms": 0,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.998
+        },
+        {
+          "rgb": [
+            104,
+            168,
+            56
+          ],
+          "frac": 0.001
+        },
+        {
+          "rgb": [
+            56,
+            104,
+            56
+          ],
+          "frac": 0.001
+        },
+        {
+          "rgb": [
+            88,
+            136,
+            72
+          ],
+          "frac": 0.001
+        },
+        {
+          "rgb": [
+            200,
+            168,
+            136
+          ],
+          "frac": 0
+        }
+      ]
+    },
+    {
+      "cx": -6,
+      "cy": 0,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 25.84,
+      "stdLum": 6.27,
+      "edgeDensity": 0.0241,
+      "straightFrac": 0.392,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.09
+      },
+      "noiseRms": 0.104,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.828
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.094
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.05
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.012
+        },
+        {
+          "rgb": [
+            24,
+            40,
+            40
+          ],
+          "frac": 0.009
+        },
+        {
+          "rgb": [
+            104,
+            56,
+            56
+          ],
+          "frac": 0.005
+        }
+      ]
+    },
+    {
+      "cx": -5,
+      "cy": 0,
+      "label": "rock",
+      "conf": 0.92,
+      "meanLum": 32.39,
+      "stdLum": 32.28,
+      "edgeDensity": 0.0259,
+      "straightFrac": 0.524,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.024,
+        "ice": 0.041,
+        "lava": 0,
+        "flat": 0.07
+      },
+      "noiseRms": 0.018,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.863
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.09
+        },
+        {
+          "rgb": [
+            168,
+            200,
+            216
+          ],
+          "frac": 0.035
+        },
+        {
+          "rgb": [
+            136,
+            184,
+            216
+          ],
+          "frac": 0.005
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.003
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.002
+        }
+      ]
+    },
+    {
+      "cx": -4,
+      "cy": 0,
+      "label": "rock",
+      "conf": 0.99,
+      "meanLum": 48.16,
+      "stdLum": 18.98,
+      "edgeDensity": 0.0432,
+      "straightFrac": 0.218,
+      "frac": {
+        "black": 0.003,
+        "sky": 0,
+        "water": 0.006,
+        "ice": 0.003,
+        "lava": 0,
+        "flat": 0.1
+      },
+      "noiseRms": 0.284,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.288
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.215
+        },
+        {
+          "rgb": [
+            56,
+            56,
+            24
+          ],
+          "frac": 0.158
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.102
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.053
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.047
+        }
+      ]
+    },
+    {
+      "cx": -3,
+      "cy": 0,
+      "label": "rock",
+      "conf": 0.99,
+      "meanLum": 45.61,
+      "stdLum": 20.13,
+      "edgeDensity": 0.0321,
+      "straightFrac": 0.224,
+      "frac": {
+        "black": 0.08,
+        "sky": 0,
+        "water": 0.005,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.232
+      },
+      "noiseRms": 0.302,
+      "topColors": [
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.215
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.208
+        },
+        {
+          "rgb": [
+            56,
+            56,
+            24
+          ],
+          "frac": 0.133
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.116
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.086
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.079
+        }
+      ]
+    },
+    {
+      "cx": -2,
+      "cy": 0,
+      "label": "rock",
+      "conf": 0.99,
+      "meanLum": 56.08,
+      "stdLum": 19.7,
+      "edgeDensity": 0.0476,
+      "straightFrac": 0.144,
+      "frac": {
+        "black": 0.039,
+        "sky": 0.001,
+        "water": 0.005,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.065
+      },
+      "noiseRms": 0.043,
+      "topColors": [
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.527
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.269
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.057
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.039
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.037
+        },
+        {
+          "rgb": [
+            56,
+            72,
+            88
+          ],
+          "frac": 0.029
+        }
+      ]
+    },
+    {
+      "cx": -1,
+      "cy": 0,
+      "label": "rock",
+      "conf": 0.94,
+      "meanLum": 53.72,
+      "stdLum": 20.33,
+      "edgeDensity": 0.0509,
+      "straightFrac": 0.161,
+      "frac": {
+        "black": 0.045,
+        "sky": 0,
+        "water": 0.028,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.082
+      },
+      "noiseRms": 0.17,
+      "topColors": [
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.483
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.272
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.052
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.046
+        },
+        {
+          "rgb": [
+            56,
+            72,
+            88
+          ],
+          "frac": 0.041
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.039
+        }
+      ]
+    },
+    {
+      "cx": 0,
+      "cy": 0,
+      "label": "rock",
+      "conf": 0.73,
+      "meanLum": 41.31,
+      "stdLum": 26.26,
+      "edgeDensity": 0.0687,
+      "straightFrac": 0.319,
+      "frac": {
+        "black": 0,
+        "sky": 0.001,
+        "water": 0.133,
+        "ice": 0,
+        "lava": 0.001,
+        "flat": 0.21
+      },
+      "noiseRms": 0.747,
+      "topColors": [
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.281
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.176
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            24
+          ],
+          "frac": 0.115
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.109
+        },
+        {
+          "rgb": [
+            24,
+            40,
+            40
+          ],
+          "frac": 0.047
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.034
+        }
+      ]
+    },
+    {
+      "cx": 1,
+      "cy": 0,
+      "label": "rock",
+      "conf": 0.61,
+      "meanLum": 39.99,
+      "stdLum": 26.13,
+      "edgeDensity": 0.0656,
+      "straightFrac": 0.325,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.195,
+        "ice": 0,
+        "lava": 0.001,
+        "flat": 0.211
+      },
+      "noiseRms": 0.44,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            24
+          ],
+          "frac": 0.214
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.153
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.152
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.102
+        },
+        {
+          "rgb": [
+            24,
+            40,
+            40
+          ],
+          "frac": 0.061
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            40
+          ],
+          "frac": 0.058
+        }
+      ]
+    },
+    {
+      "cx": 2,
+      "cy": 0,
+      "label": "rock",
+      "conf": 0.56,
+      "meanLum": 39.54,
+      "stdLum": 25.82,
+      "edgeDensity": 0.0639,
+      "straightFrac": 0.299,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.222,
+        "ice": 0,
+        "lava": 0.004,
+        "flat": 0.195
+      },
+      "noiseRms": 0.365,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            24
+          ],
+          "frac": 0.217
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.173
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.164
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.131
+        },
+        {
+          "rgb": [
+            24,
+            40,
+            40
+          ],
+          "frac": 0.066
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            40
+          ],
+          "frac": 0.066
+        }
+      ]
+    },
+    {
+      "cx": 3,
+      "cy": 0,
+      "label": "rock",
+      "conf": 0.93,
+      "meanLum": 54.14,
+      "stdLum": 20.15,
+      "edgeDensity": 0.0521,
+      "straightFrac": 0.178,
+      "frac": {
+        "black": 0.025,
+        "sky": 0,
+        "water": 0.034,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.075
+      },
+      "noiseRms": 0.223,
+      "topColors": [
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.502
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.235
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.06
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.04
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            24
+          ],
+          "frac": 0.032
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.029
+        }
+      ]
+    },
+    {
+      "cx": 4,
+      "cy": 0,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 55,
+      "stdLum": 25.08,
+      "edgeDensity": 0.0489,
+      "straightFrac": 0.211,
+      "frac": {
+        "black": 0.095,
+        "sky": 0,
+        "water": 0.001,
+        "ice": 0.001,
+        "lava": 0,
+        "flat": 0.112
+      },
+      "noiseRms": 0.032,
+      "topColors": [
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.561
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.137
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.101
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.064
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.062
+        },
+        {
+          "rgb": [
+            56,
+            56,
+            24
+          ],
+          "frac": 0.021
+        }
+      ]
+    },
+    {
+      "cx": 5,
+      "cy": 0,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 42.84,
+      "stdLum": 28.39,
+      "edgeDensity": 0.0262,
+      "straightFrac": 0.161,
+      "frac": {
+        "black": 0.265,
+        "sky": 0,
+        "water": 0.001,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.476
+      },
+      "noiseRms": 0.25,
+      "topColors": [
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.285
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.265
+        },
+        {
+          "rgb": [
+            40,
+            56,
+            56
+          ],
+          "frac": 0.12
+        },
+        {
+          "rgb": [
+            40,
+            72,
+            72
+          ],
+          "frac": 0.101
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.094
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.064
+        }
+      ]
+    },
+    {
+      "cx": 6,
+      "cy": 0,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 53.25,
+      "stdLum": 23.81,
+      "edgeDensity": 0.0511,
+      "straightFrac": 0.191,
+      "frac": {
+        "black": 0.084,
+        "sky": 0,
+        "water": 0.002,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.107
+      },
+      "noiseRms": 0.032,
+      "topColors": [
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.508
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.216
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.096
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.056
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.048
+        },
+        {
+          "rgb": [
+            56,
+            72,
+            88
+          ],
+          "frac": 0.022
+        }
+      ]
+    },
+    {
+      "cx": 7,
+      "cy": 0,
+      "label": "rock",
+      "conf": 0.99,
+      "meanLum": 52.79,
+      "stdLum": 20.69,
+      "edgeDensity": 0.0476,
+      "straightFrac": 0.132,
+      "frac": {
+        "black": 0.057,
+        "sky": 0,
+        "water": 0.004,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.096
+      },
+      "noiseRms": 0.032,
+      "topColors": [
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.481
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.3
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.074
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.055
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.031
+        },
+        {
+          "rgb": [
+            56,
+            72,
+            88
+          ],
+          "frac": 0.031
+        }
+      ]
+    },
+    {
+      "cx": 8,
+      "cy": 0,
+      "label": "rock",
+      "conf": 0.98,
+      "meanLum": 44.83,
+      "stdLum": 19.56,
+      "edgeDensity": 0.0489,
+      "straightFrac": 0.131,
+      "frac": {
+        "black": 0.079,
+        "sky": 0,
+        "water": 0.011,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.113
+      },
+      "noiseRms": 0.044,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.603
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.191
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.081
+        },
+        {
+          "rgb": [
+            56,
+            72,
+            88
+          ],
+          "frac": 0.063
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.025
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.012
+        }
+      ]
+    },
+    {
+      "cx": 9,
+      "cy": 0,
+      "label": "rock",
+      "conf": 0.98,
+      "meanLum": 45,
+      "stdLum": 18.18,
+      "edgeDensity": 0.0504,
+      "straightFrac": 0.143,
+      "frac": {
+        "black": 0.049,
+        "sky": 0,
+        "water": 0.011,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.083
+      },
+      "noiseRms": 0.129,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.616
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.174
+        },
+        {
+          "rgb": [
+            56,
+            72,
+            88
+          ],
+          "frac": 0.064
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.054
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.031
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.024
+        }
+      ]
+    },
+    {
+      "cx": 10,
+      "cy": 0,
+      "label": "structure",
+      "conf": 0.94,
+      "meanLum": 107.72,
+      "stdLum": 63.2,
+      "edgeDensity": 0.0651,
+      "straightFrac": 0.563,
+      "frac": {
+        "black": 0.027,
+        "sky": 0.151,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.062
+      },
+      "noiseRms": 0.163,
+      "topColors": [
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.39
+        },
+        {
+          "rgb": [
+            120,
+            104,
+            72
+          ],
+          "frac": 0.246
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.042
+        },
+        {
+          "rgb": [
+            232,
+            216,
+            136
+          ],
+          "frac": 0.039
+        },
+        {
+          "rgb": [
+            232,
+            216,
+            152
+          ],
+          "frac": 0.037
+        },
+        {
+          "rgb": [
+            248,
+            232,
+            184
+          ],
+          "frac": 0.029
+        }
+      ]
+    },
+    {
+      "cx": 11,
+      "cy": 0,
+      "label": "rock",
+      "conf": 0.64,
+      "meanLum": 119.34,
+      "stdLum": 65.62,
+      "edgeDensity": 0.0544,
+      "straightFrac": 0.546,
+      "frac": {
+        "black": 0.016,
+        "sky": 0.182,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.047
+      },
+      "noiseRms": 0.01,
+      "topColors": [
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.357
+        },
+        {
+          "rgb": [
+            120,
+            104,
+            72
+          ],
+          "frac": 0.243
+        },
+        {
+          "rgb": [
+            232,
+            216,
+            136
+          ],
+          "frac": 0.049
+        },
+        {
+          "rgb": [
+            232,
+            216,
+            152
+          ],
+          "frac": 0.048
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.039
+        },
+        {
+          "rgb": [
+            248,
+            232,
+            184
+          ],
+          "frac": 0.039
+        }
+      ]
+    },
+    {
+      "cx": 12,
+      "cy": 0,
+      "label": "rock",
+      "conf": 0.56,
+      "meanLum": 129.53,
+      "stdLum": 70.75,
+      "edgeDensity": 0.0583,
+      "straightFrac": 0.597,
+      "frac": {
+        "black": 0.06,
+        "sky": 0.22,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.086
+      },
+      "noiseRms": 0.112,
+      "topColors": [
+        {
+          "rgb": [
+            120,
+            104,
+            72
+          ],
+          "frac": 0.299
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.214
+        },
+        {
+          "rgb": [
+            232,
+            216,
+            152
+          ],
+          "frac": 0.061
+        },
+        {
+          "rgb": [
+            232,
+            216,
+            136
+          ],
+          "frac": 0.06
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.06
+        },
+        {
+          "rgb": [
+            248,
+            232,
+            184
+          ],
+          "frac": 0.048
+        }
+      ]
+    },
+    {
+      "cx": -6,
+      "cy": 1,
+      "label": "rock",
+      "conf": 0.99,
+      "meanLum": 39.29,
+      "stdLum": 26.09,
+      "edgeDensity": 0.0535,
+      "straightFrac": 0.289,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.003,
+        "ice": 0,
+        "lava": 0.002,
+        "flat": 0.326
+      },
+      "noiseRms": 0.156,
+      "topColors": [
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.244
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.21
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.136
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.115
+        },
+        {
+          "rgb": [
+            24,
+            40,
+            40
+          ],
+          "frac": 0.05
+        },
+        {
+          "rgb": [
+            56,
+            56,
+            40
+          ],
+          "frac": 0.029
+        }
+      ]
+    },
+    {
+      "cx": -5,
+      "cy": 1,
+      "label": "rock",
+      "conf": 0.98,
+      "meanLum": 39.04,
+      "stdLum": 26.05,
+      "edgeDensity": 0.0503,
+      "straightFrac": 0.288,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.009,
+        "ice": 0,
+        "lava": 0.001,
+        "flat": 0.348
+      },
+      "noiseRms": 0.149,
+      "topColors": [
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.277
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.192
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.141
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.106
+        },
+        {
+          "rgb": [
+            24,
+            40,
+            40
+          ],
+          "frac": 0.053
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.035
+        }
+      ]
+    },
+    {
+      "cx": -4,
+      "cy": 1,
+      "label": "rock",
+      "conf": 0.98,
+      "meanLum": 45.94,
+      "stdLum": 18,
+      "edgeDensity": 0.0438,
+      "straightFrac": 0.233,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.009,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.312
+      },
+      "noiseRms": 0.587,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.493
+        },
+        {
+          "rgb": [
+            40,
+            72,
+            72
+          ],
+          "frac": 0.138
+        },
+        {
+          "rgb": [
+            40,
+            72,
+            56
+          ],
+          "frac": 0.098
+        },
+        {
+          "rgb": [
+            56,
+            72,
+            88
+          ],
+          "frac": 0.085
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.081
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.066
+        }
+      ]
+    },
+    {
+      "cx": -3,
+      "cy": 1,
+      "label": "rock",
+      "conf": 0.7,
+      "meanLum": 41.64,
+      "stdLum": 27.78,
+      "edgeDensity": 0.0704,
+      "straightFrac": 0.309,
+      "frac": {
+        "black": 0,
+        "sky": 0.003,
+        "water": 0.151,
+        "ice": 0,
+        "lava": 0.002,
+        "flat": 0.191
+      },
+      "noiseRms": 0.318,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            24
+          ],
+          "frac": 0.183
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.174
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.139
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.138
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            40
+          ],
+          "frac": 0.051
+        },
+        {
+          "rgb": [
+            24,
+            40,
+            40
+          ],
+          "frac": 0.047
+        }
+      ]
+    },
+    {
+      "cx": -2,
+      "cy": 1,
+      "label": "rock",
+      "conf": 0.7,
+      "meanLum": 42.91,
+      "stdLum": 27.57,
+      "edgeDensity": 0.0703,
+      "straightFrac": 0.292,
+      "frac": {
+        "black": 0,
+        "sky": 0.005,
+        "water": 0.152,
+        "ice": 0,
+        "lava": 0.002,
+        "flat": 0.195
+      },
+      "noiseRms": 0.436,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.219
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            24
+          ],
+          "frac": 0.196
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.143
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.131
+        },
+        {
+          "rgb": [
+            24,
+            40,
+            40
+          ],
+          "frac": 0.049
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            40
+          ],
+          "frac": 0.047
+        }
+      ]
+    },
+    {
+      "cx": -1,
+      "cy": 1,
+      "label": "rock",
+      "conf": 0.58,
+      "meanLum": 38.79,
+      "stdLum": 26.65,
+      "edgeDensity": 0.0655,
+      "straightFrac": 0.342,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.209,
+        "ice": 0,
+        "lava": 0.005,
+        "flat": 0.203
+      },
+      "noiseRms": 0.334,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            24
+          ],
+          "frac": 0.236
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.159
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.14
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.098
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            40
+          ],
+          "frac": 0.066
+        },
+        {
+          "rgb": [
+            24,
+            40,
+            40
+          ],
+          "frac": 0.06
+        }
+      ]
+    },
+    {
+      "cx": 0,
+      "cy": 1,
+      "label": "rock",
+      "conf": 0.61,
+      "meanLum": 41.19,
+      "stdLum": 28.14,
+      "edgeDensity": 0.0705,
+      "straightFrac": 0.331,
+      "frac": {
+        "black": 0,
+        "sky": 0.001,
+        "water": 0.193,
+        "ice": 0,
+        "lava": 0.002,
+        "flat": 0.199
+      },
+      "noiseRms": 0.364,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            24
+          ],
+          "frac": 0.22
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.154
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.15
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.111
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            40
+          ],
+          "frac": 0.06
+        },
+        {
+          "rgb": [
+            24,
+            40,
+            40
+          ],
+          "frac": 0.052
+        }
+      ]
+    },
+    {
+      "cx": 1,
+      "cy": 1,
+      "label": "rock",
+      "conf": 0.58,
+      "meanLum": 40.59,
+      "stdLum": 27.6,
+      "edgeDensity": 0.065,
+      "straightFrac": 0.32,
+      "frac": {
+        "black": 0,
+        "sky": 0.001,
+        "water": 0.208,
+        "ice": 0,
+        "lava": 0.009,
+        "flat": 0.222
+      },
+      "noiseRms": 0.455,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            24
+          ],
+          "frac": 0.225
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.162
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.129
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.106
+        },
+        {
+          "rgb": [
+            24,
+            40,
+            40
+          ],
+          "frac": 0.061
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            40
+          ],
+          "frac": 0.061
+        }
+      ]
+    },
+    {
+      "cx": 2,
+      "cy": 1,
+      "label": "rock",
+      "conf": 0.67,
+      "meanLum": 42.28,
+      "stdLum": 28.07,
+      "edgeDensity": 0.0757,
+      "straightFrac": 0.306,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.164,
+        "ice": 0,
+        "lava": 0.003,
+        "flat": 0.169
+      },
+      "noiseRms": 0.304,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            24
+          ],
+          "frac": 0.211
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.176
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.14
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.132
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            40
+          ],
+          "frac": 0.054
+        },
+        {
+          "rgb": [
+            24,
+            40,
+            40
+          ],
+          "frac": 0.047
+        }
+      ]
+    },
+    {
+      "cx": 3,
+      "cy": 1,
+      "label": "rock",
+      "conf": 0.61,
+      "meanLum": 39.75,
+      "stdLum": 26.98,
+      "edgeDensity": 0.0665,
+      "straightFrac": 0.337,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.193,
+        "ice": 0,
+        "lava": 0.004,
+        "flat": 0.204
+      },
+      "noiseRms": 0.325,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            24
+          ],
+          "frac": 0.231
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.161
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.13
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.104
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            40
+          ],
+          "frac": 0.064
+        },
+        {
+          "rgb": [
+            24,
+            40,
+            40
+          ],
+          "frac": 0.053
+        }
+      ]
+    },
+    {
+      "cx": 4,
+      "cy": 1,
+      "label": "rock",
+      "conf": 0.92,
+      "meanLum": 30.59,
+      "stdLum": 22.31,
+      "edgeDensity": 0.0284,
+      "straightFrac": 0.273,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.034,
+        "ice": 0,
+        "lava": 0.041,
+        "flat": 0.342
+      },
+      "noiseRms": 0.157,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.259
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.236
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.179
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.158
+        },
+        {
+          "rgb": [
+            24,
+            40,
+            40
+          ],
+          "frac": 0.045
+        },
+        {
+          "rgb": [
+            248,
+            104,
+            8
+          ],
+          "frac": 0.041
+        }
+      ]
+    },
+    {
+      "cx": 5,
+      "cy": 1,
+      "label": "lava",
+      "conf": 0.78,
+      "meanLum": 53.91,
+      "stdLum": 46.93,
+      "edgeDensity": 0.013,
+      "straightFrac": 0.416,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0.311,
+        "flat": 0.665
+      },
+      "noiseRms": 0.078,
+      "topColors": [
+        {
+          "rgb": [
+            248,
+            104,
+            8
+          ],
+          "frac": 0.31
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.284
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.201
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.078
+        },
+        {
+          "rgb": [
+            24,
+            40,
+            40
+          ],
+          "frac": 0.055
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.052
+        }
+      ]
+    },
+    {
+      "cx": 6,
+      "cy": 1,
+      "label": "rock",
+      "conf": 0.85,
+      "meanLum": 34.73,
+      "stdLum": 27.43,
+      "edgeDensity": 0.0299,
+      "straightFrac": 0.279,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0.076,
+        "flat": 0.325
+      },
+      "noiseRms": 0.093,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.291
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.2
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.199
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.137
+        },
+        {
+          "rgb": [
+            248,
+            104,
+            8
+          ],
+          "frac": 0.076
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.035
+        }
+      ]
+    },
+    {
+      "cx": 7,
+      "cy": 1,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 24.73,
+      "stdLum": 10.8,
+      "edgeDensity": 0.0242,
+      "straightFrac": 0.278,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.404
+      },
+      "noiseRms": 0.104,
+      "topColors": [
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.311
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.248
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.197
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.124
+        },
+        {
+          "rgb": [
+            24,
+            40,
+            40
+          ],
+          "frac": 0.068
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.025
+        }
+      ]
+    },
+    {
+      "cx": 8,
+      "cy": 1,
+      "label": "structure",
+      "conf": 0.84,
+      "meanLum": 37.49,
+      "stdLum": 27.63,
+      "edgeDensity": 0.061,
+      "straightFrac": 0.503,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0.002,
+        "lava": 0,
+        "flat": 0.279
+      },
+      "noiseRms": 0.287,
+      "topColors": [
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.244
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.192
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.077
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            72
+          ],
+          "frac": 0.048
+        },
+        {
+          "rgb": [
+            72,
+            56,
+            56
+          ],
+          "frac": 0.047
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.032
+        }
+      ]
+    },
+    {
+      "cx": 9,
+      "cy": 1,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 27.93,
+      "stdLum": 9.25,
+      "edgeDensity": 0.027,
+      "straightFrac": 0.27,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.054
+      },
+      "noiseRms": 0.226,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.805
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.085
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.068
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.015
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.009
+        },
+        {
+          "rgb": [
+            104,
+            56,
+            56
+          ],
+          "frac": 0.009
+        }
+      ]
+    },
+    {
+      "cx": 10,
+      "cy": 1,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 48.19,
+      "stdLum": 24.06,
+      "edgeDensity": 0.0444,
+      "straightFrac": 0.263,
+      "frac": {
+        "black": 0,
+        "sky": 0.001,
+        "water": 0.002,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.24
+      },
+      "noiseRms": 0.557,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.346
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.336
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.123
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.065
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.053
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.033
+        }
+      ]
+    },
+    {
+      "cx": 11,
+      "cy": 1,
+      "label": "rock",
+      "conf": 0.98,
+      "meanLum": 47.52,
+      "stdLum": 21.58,
+      "edgeDensity": 0.0488,
+      "straightFrac": 0.204,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.009,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.143
+      },
+      "noiseRms": 0.483,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.442
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.216
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.183
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.047
+        },
+        {
+          "rgb": [
+            56,
+            72,
+            88
+          ],
+          "frac": 0.046
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.028
+        }
+      ]
+    },
+    {
+      "cx": 12,
+      "cy": 1,
+      "label": "rock",
+      "conf": 0.99,
+      "meanLum": 53.72,
+      "stdLum": 23.87,
+      "edgeDensity": 0.052,
+      "straightFrac": 0.239,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.005,
+        "ice": 0,
+        "lava": 0.001,
+        "flat": 0.124
+      },
+      "noiseRms": 0.511,
+      "topColors": [
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.411
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.253
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.168
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.07
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.027
+        },
+        {
+          "rgb": [
+            56,
+            72,
+            88
+          ],
+          "frac": 0.027
+        }
+      ]
+    },
+    {
+      "cx": -6,
+      "cy": 2,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 29.29,
+      "stdLum": 10.75,
+      "edgeDensity": 0.0332,
+      "straightFrac": 0.291,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.044
+      },
+      "noiseRms": 0.182,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.685
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.18
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.075
+        },
+        {
+          "rgb": [
+            104,
+            56,
+            56
+          ],
+          "frac": 0.022
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.016
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            24
+          ],
+          "frac": 0.012
+        }
+      ]
+    },
+    {
+      "cx": -5,
+      "cy": 2,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 27.1,
+      "stdLum": 7.39,
+      "edgeDensity": 0.0273,
+      "straightFrac": 0.304,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.065
+      },
+      "noiseRms": 0.065,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.782
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.086
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.078
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.03
+        },
+        {
+          "rgb": [
+            104,
+            56,
+            56
+          ],
+          "frac": 0.011
+        },
+        {
+          "rgb": [
+            24,
+            40,
+            40
+          ],
+          "frac": 0.006
+        }
+      ]
+    },
+    {
+      "cx": -4,
+      "cy": 2,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 31.37,
+      "stdLum": 10.56,
+      "edgeDensity": 0.0336,
+      "straightFrac": 0.175,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.002,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.054
+      },
+      "noiseRms": 0.204,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.564
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.205
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.11
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.06
+        },
+        {
+          "rgb": [
+            104,
+            56,
+            56
+          ],
+          "frac": 0.026
+        },
+        {
+          "rgb": [
+            56,
+            72,
+            88
+          ],
+          "frac": 0.012
+        }
+      ]
+    },
+    {
+      "cx": -3,
+      "cy": 2,
+      "label": "rock",
+      "conf": 0.91,
+      "meanLum": 67.73,
+      "stdLum": 15.44,
+      "edgeDensity": 0.0484,
+      "straightFrac": 0.12,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.045,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.045
+      },
+      "noiseRms": 0.49,
+      "topColors": [
+        {
+          "rgb": [
+            88,
+            72,
+            56
+          ],
+          "frac": 0.47
+        },
+        {
+          "rgb": [
+            72,
+            56,
+            40
+          ],
+          "frac": 0.272
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.13
+        },
+        {
+          "rgb": [
+            8,
+            24,
+            24
+          ],
+          "frac": 0.034
+        },
+        {
+          "rgb": [
+            104,
+            88,
+            56
+          ],
+          "frac": 0.031
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.014
+        }
+      ]
+    },
+    {
+      "cx": -2,
+      "cy": 2,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 63.57,
+      "stdLum": 20.37,
+      "edgeDensity": 0.0497,
+      "straightFrac": 0.293,
+      "frac": {
+        "black": 0.011,
+        "sky": 0.001,
+        "water": 0.001,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.084
+      },
+      "noiseRms": 0.839,
+      "topColors": [
+        {
+          "rgb": [
+            88,
+            72,
+            56
+          ],
+          "frac": 0.387
+        },
+        {
+          "rgb": [
+            72,
+            56,
+            40
+          ],
+          "frac": 0.231
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.109
+        },
+        {
+          "rgb": [
+            88,
+            8,
+            8
+          ],
+          "frac": 0.052
+        },
+        {
+          "rgb": [
+            104,
+            88,
+            56
+          ],
+          "frac": 0.035
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.032
+        }
+      ]
+    },
+    {
+      "cx": -1,
+      "cy": 2,
+      "label": "rock",
+      "conf": 0.91,
+      "meanLum": 60.61,
+      "stdLum": 25.86,
+      "edgeDensity": 0.0581,
+      "straightFrac": 0.414,
+      "frac": {
+        "black": 0.014,
+        "sky": 0,
+        "water": 0.045,
+        "ice": 0.001,
+        "lava": 0,
+        "flat": 0.067
+      },
+      "noiseRms": 0.73,
+      "topColors": [
+        {
+          "rgb": [
+            88,
+            72,
+            56
+          ],
+          "frac": 0.311
+        },
+        {
+          "rgb": [
+            72,
+            56,
+            40
+          ],
+          "frac": 0.201
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.088
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.058
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.045
+        },
+        {
+          "rgb": [
+            104,
+            88,
+            56
+          ],
+          "frac": 0.039
+        }
+      ]
+    },
+    {
+      "cx": 0,
+      "cy": 2,
+      "label": "rock",
+      "conf": 0.91,
+      "meanLum": 63.8,
+      "stdLum": 21.33,
+      "edgeDensity": 0.0507,
+      "straightFrac": 0.317,
+      "frac": {
+        "black": 0.012,
+        "sky": 0.001,
+        "water": 0.045,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.058
+      },
+      "noiseRms": 0.498,
+      "topColors": [
+        {
+          "rgb": [
+            88,
+            72,
+            56
+          ],
+          "frac": 0.397
+        },
+        {
+          "rgb": [
+            72,
+            56,
+            40
+          ],
+          "frac": 0.235
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.111
+        },
+        {
+          "rgb": [
+            104,
+            88,
+            56
+          ],
+          "frac": 0.038
+        },
+        {
+          "rgb": [
+            8,
+            24,
+            24
+          ],
+          "frac": 0.034
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.034
+        }
+      ]
+    },
+    {
+      "cx": 1,
+      "cy": 2,
+      "label": "rock",
+      "conf": 0.94,
+      "meanLum": 67.92,
+      "stdLum": 14.91,
+      "edgeDensity": 0.0491,
+      "straightFrac": 0.134,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.03,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.033
+      },
+      "noiseRms": 0.57,
+      "topColors": [
+        {
+          "rgb": [
+            88,
+            72,
+            56
+          ],
+          "frac": 0.47
+        },
+        {
+          "rgb": [
+            72,
+            56,
+            40
+          ],
+          "frac": 0.272
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.13
+        },
+        {
+          "rgb": [
+            104,
+            88,
+            56
+          ],
+          "frac": 0.031
+        },
+        {
+          "rgb": [
+            8,
+            24,
+            24
+          ],
+          "frac": 0.026
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.014
+        }
+      ]
+    },
+    {
+      "cx": 2,
+      "cy": 2,
+      "label": "rock",
+      "conf": 0.91,
+      "meanLum": 67.69,
+      "stdLum": 15.45,
+      "edgeDensity": 0.0483,
+      "straightFrac": 0.135,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.045,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.044
+      },
+      "noiseRms": 0.493,
+      "topColors": [
+        {
+          "rgb": [
+            88,
+            72,
+            56
+          ],
+          "frac": 0.471
+        },
+        {
+          "rgb": [
+            72,
+            56,
+            40
+          ],
+          "frac": 0.27
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.13
+        },
+        {
+          "rgb": [
+            8,
+            24,
+            24
+          ],
+          "frac": 0.034
+        },
+        {
+          "rgb": [
+            104,
+            88,
+            56
+          ],
+          "frac": 0.032
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.014
+        }
+      ]
+    },
+    {
+      "cx": 3,
+      "cy": 2,
+      "label": "rock",
+      "conf": 0.91,
+      "meanLum": 67.73,
+      "stdLum": 15.42,
+      "edgeDensity": 0.0481,
+      "straightFrac": 0.108,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.045,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.046
+      },
+      "noiseRms": 0.485,
+      "topColors": [
+        {
+          "rgb": [
+            88,
+            72,
+            56
+          ],
+          "frac": 0.472
+        },
+        {
+          "rgb": [
+            72,
+            56,
+            40
+          ],
+          "frac": 0.271
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.131
+        },
+        {
+          "rgb": [
+            8,
+            24,
+            24
+          ],
+          "frac": 0.034
+        },
+        {
+          "rgb": [
+            104,
+            88,
+            56
+          ],
+          "frac": 0.029
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.014
+        }
+      ]
+    },
+    {
+      "cx": 4,
+      "cy": 2,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 26.56,
+      "stdLum": 6.24,
+      "edgeDensity": 0.0242,
+      "straightFrac": 0.202,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.052
+      },
+      "noiseRms": 0.002,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.853
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.089
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.052
+        },
+        {
+          "rgb": [
+            104,
+            56,
+            56
+          ],
+          "frac": 0.006
+        }
+      ]
+    },
+    {
+      "cx": 5,
+      "cy": 2,
+      "label": "lava",
+      "conf": 1,
+      "meanLum": 116.15,
+      "stdLum": 23.77,
+      "edgeDensity": 0.0052,
+      "straightFrac": 0.345,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0.924,
+        "flat": 0.921
+      },
+      "noiseRms": 0.001,
+      "topColors": [
+        {
+          "rgb": [
+            248,
+            104,
+            8
+          ],
+          "frac": 0.924
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.038
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.026
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.006
+        },
+        {
+          "rgb": [
+            104,
+            56,
+            56
+          ],
+          "frac": 0.005
+        },
+        {
+          "rgb": [
+            120,
+            72,
+            56
+          ],
+          "frac": 0.001
+        }
+      ]
+    },
+    {
+      "cx": 6,
+      "cy": 2,
+      "label": "rock",
+      "conf": 0.75,
+      "meanLum": 43.65,
+      "stdLum": 31.69,
+      "edgeDensity": 0.0382,
+      "straightFrac": 0.232,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0.127,
+        "flat": 0.139
+      },
+      "noiseRms": 0.007,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.46
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.327
+        },
+        {
+          "rgb": [
+            248,
+            104,
+            8
+          ],
+          "frac": 0.127
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.049
+        },
+        {
+          "rgb": [
+            104,
+            56,
+            56
+          ],
+          "frac": 0.036
+        },
+        {
+          "rgb": [
+            120,
+            72,
+            56
+          ],
+          "frac": 0.001
+        }
+      ]
+    },
+    {
+      "cx": 7,
+      "cy": 2,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 22.26,
+      "stdLum": 9.47,
+      "edgeDensity": 0.0166,
+      "straightFrac": 0.271,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.544
+      },
+      "noiseRms": 0.109,
+      "topColors": [
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.412
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.33
+        },
+        {
+          "rgb": [
+            24,
+            40,
+            40
+          ],
+          "frac": 0.094
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.08
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.057
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.014
+        }
+      ]
+    },
+    {
+      "cx": 8,
+      "cy": 2,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 32.12,
+      "stdLum": 10.09,
+      "edgeDensity": 0.0355,
+      "straightFrac": 0.178,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.044
+      },
+      "noiseRms": 0.042,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.508
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.382
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.054
+        },
+        {
+          "rgb": [
+            104,
+            56,
+            56
+          ],
+          "frac": 0.041
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.012
+        },
+        {
+          "rgb": [
+            24,
+            40,
+            40
+          ],
+          "frac": 0.001
+        }
+      ]
+    },
+    {
+      "cx": 9,
+      "cy": 2,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 31.73,
+      "stdLum": 9.84,
+      "edgeDensity": 0.0354,
+      "straightFrac": 0.177,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.036
+      },
+      "noiseRms": 0.012,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.543
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.363
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.056
+        },
+        {
+          "rgb": [
+            104,
+            56,
+            56
+          ],
+          "frac": 0.038
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0
+        },
+        {
+          "rgb": [
+            56,
+            72,
+            40
+          ],
+          "frac": 0
+        }
+      ]
+    },
+    {
+      "cx": 10,
+      "cy": 2,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 37.78,
+      "stdLum": 21.41,
+      "edgeDensity": 0.0488,
+      "straightFrac": 0.301,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.368
+      },
+      "noiseRms": 0.527,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.591
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.118
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.084
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.054
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.052
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.049
+        }
+      ]
+    },
+    {
+      "cx": 11,
+      "cy": 2,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 28.91,
+      "stdLum": 11,
+      "edgeDensity": 0.0156,
+      "straightFrac": 0.365,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.544
+      },
+      "noiseRms": 0.549,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.765
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.116
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.072
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.025
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.012
+        },
+        {
+          "rgb": [
+            136,
+            120,
+            56
+          ],
+          "frac": 0.005
+        }
+      ]
+    },
+    {
+      "cx": 12,
+      "cy": 2,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 38.44,
+      "stdLum": 22.96,
+      "edgeDensity": 0.0505,
+      "straightFrac": 0.318,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0.001,
+        "flat": 0.355
+      },
+      "noiseRms": 0.566,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.58
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.122
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.09
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.057
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.057
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.056
+        }
+      ]
+    },
+    {
+      "cx": -6,
+      "cy": 3,
+      "label": "rock",
+      "conf": 0.97,
+      "meanLum": 44.58,
+      "stdLum": 29,
+      "edgeDensity": 0.0612,
+      "straightFrac": 0.283,
+      "frac": {
+        "black": 0,
+        "sky": 0.007,
+        "water": 0.014,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.17
+      },
+      "noiseRms": 0.446,
+      "topColors": [
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.185
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.163
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            8
+          ],
+          "frac": 0.143
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.132
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            24
+          ],
+          "frac": 0.089
+        },
+        {
+          "rgb": [
+            56,
+            104,
+            40
+          ],
+          "frac": 0.046
+        }
+      ]
+    },
+    {
+      "cx": -5,
+      "cy": 3,
+      "label": "rock",
+      "conf": 0.97,
+      "meanLum": 40.69,
+      "stdLum": 28.56,
+      "edgeDensity": 0.0615,
+      "straightFrac": 0.319,
+      "frac": {
+        "black": 0,
+        "sky": 0.007,
+        "water": 0.013,
+        "ice": 0.001,
+        "lava": 0,
+        "flat": 0.186
+      },
+      "noiseRms": 0.409,
+      "topColors": [
+        {
+          "rgb": [
+            24,
+            8,
+            8
+          ],
+          "frac": 0.176
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.161
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.133
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.13
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            24
+          ],
+          "frac": 0.094
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.06
+        }
+      ]
+    },
+    {
+      "cx": -4,
+      "cy": 3,
+      "label": "rock",
+      "conf": 0.95,
+      "meanLum": 39.55,
+      "stdLum": 29.56,
+      "edgeDensity": 0.0464,
+      "straightFrac": 0.407,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0.027,
+        "flat": 0.372
+      },
+      "noiseRms": 0.574,
+      "topColors": [
+        {
+          "rgb": [
+            24,
+            8,
+            8
+          ],
+          "frac": 0.2
+        },
+        {
+          "rgb": [
+            56,
+            56,
+            56
+          ],
+          "frac": 0.139
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            24
+          ],
+          "frac": 0.12
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            72
+          ],
+          "frac": 0.109
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.098
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            40
+          ],
+          "frac": 0.081
+        }
+      ]
+    },
+    {
+      "cx": -3,
+      "cy": 3,
+      "label": "rock",
+      "conf": 0.97,
+      "meanLum": 41.22,
+      "stdLum": 28.76,
+      "edgeDensity": 0.0462,
+      "straightFrac": 0.407,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0.015,
+        "flat": 0.316
+      },
+      "noiseRms": 0.55,
+      "topColors": [
+        {
+          "rgb": [
+            24,
+            8,
+            8
+          ],
+          "frac": 0.196
+        },
+        {
+          "rgb": [
+            56,
+            56,
+            56
+          ],
+          "frac": 0.172
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            72
+          ],
+          "frac": 0.134
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.094
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            24
+          ],
+          "frac": 0.092
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            40
+          ],
+          "frac": 0.088
+        }
+      ]
+    },
+    {
+      "cx": -2,
+      "cy": 3,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 42.11,
+      "stdLum": 27.7,
+      "edgeDensity": 0.0487,
+      "straightFrac": 0.402,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0.002,
+        "flat": 0.246
+      },
+      "noiseRms": 0.568,
+      "topColors": [
+        {
+          "rgb": [
+            56,
+            56,
+            56
+          ],
+          "frac": 0.209
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            8
+          ],
+          "frac": 0.18
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            72
+          ],
+          "frac": 0.135
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.094
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            40
+          ],
+          "frac": 0.088
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            24
+          ],
+          "frac": 0.068
+        }
+      ]
+    },
+    {
+      "cx": -1,
+      "cy": 3,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 34.34,
+      "stdLum": 25.77,
+      "edgeDensity": 0.0378,
+      "straightFrac": 0.418,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0.001,
+        "flat": 0.366
+      },
+      "noiseRms": 0.573,
+      "topColors": [
+        {
+          "rgb": [
+            24,
+            8,
+            8
+          ],
+          "frac": 0.234
+        },
+        {
+          "rgb": [
+            56,
+            56,
+            56
+          ],
+          "frac": 0.134
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            40
+          ],
+          "frac": 0.12
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.12
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            24
+          ],
+          "frac": 0.115
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            72
+          ],
+          "frac": 0.092
+        }
+      ]
+    },
+    {
+      "cx": 0,
+      "cy": 3,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 35.95,
+      "stdLum": 26.64,
+      "edgeDensity": 0.0393,
+      "straightFrac": 0.416,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0.001,
+        "flat": 0.396
+      },
+      "noiseRms": 0.56,
+      "topColors": [
+        {
+          "rgb": [
+            24,
+            8,
+            8
+          ],
+          "frac": 0.233
+        },
+        {
+          "rgb": [
+            56,
+            56,
+            56
+          ],
+          "frac": 0.144
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            24
+          ],
+          "frac": 0.108
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            72
+          ],
+          "frac": 0.1
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.099
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            40
+          ],
+          "frac": 0.084
+        }
+      ]
+    },
+    {
+      "cx": 1,
+      "cy": 3,
+      "label": "rock",
+      "conf": 0.95,
+      "meanLum": 43.86,
+      "stdLum": 30,
+      "edgeDensity": 0.0488,
+      "straightFrac": 0.378,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0.023,
+        "flat": 0.281
+      },
+      "noiseRms": 0.59,
+      "topColors": [
+        {
+          "rgb": [
+            56,
+            56,
+            56
+          ],
+          "frac": 0.19
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            8
+          ],
+          "frac": 0.173
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            72
+          ],
+          "frac": 0.16
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            40
+          ],
+          "frac": 0.098
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.093
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            24
+          ],
+          "frac": 0.085
+        }
+      ]
+    },
+    {
+      "cx": 2,
+      "cy": 3,
+      "label": "rock",
+      "conf": 0.99,
+      "meanLum": 46.4,
+      "stdLum": 29.44,
+      "edgeDensity": 0.0542,
+      "straightFrac": 0.402,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0.004,
+        "flat": 0.235
+      },
+      "noiseRms": 0.531,
+      "topColors": [
+        {
+          "rgb": [
+            56,
+            56,
+            56
+          ],
+          "frac": 0.232
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            72
+          ],
+          "frac": 0.191
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            8
+          ],
+          "frac": 0.181
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            24
+          ],
+          "frac": 0.068
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            40
+          ],
+          "frac": 0.064
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.06
+        }
+      ]
+    },
+    {
+      "cx": 3,
+      "cy": 3,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 40.79,
+      "stdLum": 27.13,
+      "edgeDensity": 0.045,
+      "straightFrac": 0.4,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0.002,
+        "flat": 0.321
+      },
+      "noiseRms": 0.591,
+      "topColors": [
+        {
+          "rgb": [
+            56,
+            56,
+            56
+          ],
+          "frac": 0.176
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            8
+          ],
+          "frac": 0.16
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            72
+          ],
+          "frac": 0.127
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            24
+          ],
+          "frac": 0.1
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.088
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            40
+          ],
+          "frac": 0.082
+        }
+      ]
+    },
+    {
+      "cx": 4,
+      "cy": 3,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 28.28,
+      "stdLum": 8.09,
+      "edgeDensity": 0.0281,
+      "straightFrac": 0.198,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.046
+      },
+      "noiseRms": 0.027,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.745
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.156
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.079
+        },
+        {
+          "rgb": [
+            104,
+            56,
+            56
+          ],
+          "frac": 0.017
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            8
+          ],
+          "frac": 0.001
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            24
+          ],
+          "frac": 0.001
+        }
+      ]
+    },
+    {
+      "cx": 5,
+      "cy": 3,
+      "label": "lava",
+      "conf": 1,
+      "meanLum": 72.41,
+      "stdLum": 45.8,
+      "edgeDensity": 0.0282,
+      "straightFrac": 0.296,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0.444,
+        "flat": 0.449
+      },
+      "noiseRms": 0.012,
+      "topColors": [
+        {
+          "rgb": [
+            248,
+            104,
+            8
+          ],
+          "frac": 0.444
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.281
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.195
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.034
+        },
+        {
+          "rgb": [
+            104,
+            56,
+            56
+          ],
+          "frac": 0.026
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.01
+        }
+      ]
+    },
+    {
+      "cx": 6,
+      "cy": 3,
+      "label": "rock",
+      "conf": 0.96,
+      "meanLum": 32.38,
+      "stdLum": 18.04,
+      "edgeDensity": 0.039,
+      "straightFrac": 0.276,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0.021,
+        "flat": 0.14
+      },
+      "noiseRms": 0.092,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.423
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.296
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.092
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.06
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.048
+        },
+        {
+          "rgb": [
+            104,
+            56,
+            56
+          ],
+          "frac": 0.036
+        }
+      ]
+    },
+    {
+      "cx": 7,
+      "cy": 3,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 21.62,
+      "stdLum": 8.9,
+      "edgeDensity": 0.0145,
+      "straightFrac": 0.269,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.574
+      },
+      "noiseRms": 0.108,
+      "topColors": [
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.434
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.349
+        },
+        {
+          "rgb": [
+            24,
+            40,
+            40
+          ],
+          "frac": 0.1
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.057
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.04
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.009
+        }
+      ]
+    },
+    {
+      "cx": 8,
+      "cy": 3,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 31.39,
+      "stdLum": 9.71,
+      "edgeDensity": 0.0328,
+      "straightFrac": 0.139,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.041
+      },
+      "noiseRms": 0.041,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.563
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.344
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.058
+        },
+        {
+          "rgb": [
+            104,
+            56,
+            56
+          ],
+          "frac": 0.035
+        }
+      ]
+    },
+    {
+      "cx": 9,
+      "cy": 3,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 31.09,
+      "stdLum": 10.53,
+      "edgeDensity": 0.0347,
+      "straightFrac": 0.204,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.045
+      },
+      "noiseRms": 0.421,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.6
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.289
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.062
+        },
+        {
+          "rgb": [
+            104,
+            56,
+            56
+          ],
+          "frac": 0.032
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.005
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.004
+        }
+      ]
+    },
+    {
+      "cx": 10,
+      "cy": 3,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 35.96,
+      "stdLum": 20.52,
+      "edgeDensity": 0.0411,
+      "straightFrac": 0.323,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.415
+      },
+      "noiseRms": 0.551,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.632
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.103
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.096
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.057
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.046
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.036
+        }
+      ]
+    },
+    {
+      "cx": 11,
+      "cy": 3,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 28.04,
+      "stdLum": 8.83,
+      "edgeDensity": 0.0143,
+      "straightFrac": 0.358,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.559
+      },
+      "noiseRms": 0.543,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.78
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.117
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.074
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.013
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.007
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.004
+        }
+      ]
+    },
+    {
+      "cx": 12,
+      "cy": 3,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 34.61,
+      "stdLum": 19.37,
+      "edgeDensity": 0.0425,
+      "straightFrac": 0.319,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.409
+      },
+      "noiseRms": 0.56,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.649
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.1
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.074
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.064
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.046
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.04
+        }
+      ]
+    },
+    {
+      "cx": -6,
+      "cy": 4,
+      "label": "rock",
+      "conf": 0.98,
+      "meanLum": 39.94,
+      "stdLum": 27.3,
+      "edgeDensity": 0.0603,
+      "straightFrac": 0.288,
+      "frac": {
+        "black": 0,
+        "sky": 0.009,
+        "water": 0.011,
+        "ice": 0.001,
+        "lava": 0,
+        "flat": 0.163
+      },
+      "noiseRms": 0.34,
+      "topColors": [
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.171
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            8
+          ],
+          "frac": 0.167
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.139
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.134
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            24
+          ],
+          "frac": 0.085
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.074
+        }
+      ]
+    },
+    {
+      "cx": -5,
+      "cy": 4,
+      "label": "rock",
+      "conf": 0.98,
+      "meanLum": 44.22,
+      "stdLum": 30.3,
+      "edgeDensity": 0.0685,
+      "straightFrac": 0.362,
+      "frac": {
+        "black": 0,
+        "sky": 0.01,
+        "water": 0.007,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.18
+      },
+      "noiseRms": 0.532,
+      "topColors": [
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.143
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            8
+          ],
+          "frac": 0.141
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.137
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.121
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            24
+          ],
+          "frac": 0.101
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.038
+        }
+      ]
+    },
+    {
+      "cx": -4,
+      "cy": 4,
+      "label": "rock",
+      "conf": 0.97,
+      "meanLum": 39.96,
+      "stdLum": 27.27,
+      "edgeDensity": 0.0444,
+      "straightFrac": 0.384,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.015,
+        "ice": 0,
+        "lava": 0.001,
+        "flat": 0.312
+      },
+      "noiseRms": 0.596,
+      "topColors": [
+        {
+          "rgb": [
+            56,
+            56,
+            56
+          ],
+          "frac": 0.18
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            8
+          ],
+          "frac": 0.166
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            72
+          ],
+          "frac": 0.12
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            24
+          ],
+          "frac": 0.108
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            40
+          ],
+          "frac": 0.092
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.09
+        }
+      ]
+    },
+    {
+      "cx": -3,
+      "cy": 4,
+      "label": "rock",
+      "conf": 0.97,
+      "meanLum": 45.94,
+      "stdLum": 28.21,
+      "edgeDensity": 0.0485,
+      "straightFrac": 0.391,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.015,
+        "ice": 0,
+        "lava": 0.002,
+        "flat": 0.268
+      },
+      "noiseRms": 0.526,
+      "topColors": [
+        {
+          "rgb": [
+            56,
+            56,
+            56
+          ],
+          "frac": 0.231
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            72
+          ],
+          "frac": 0.166
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            8
+          ],
+          "frac": 0.142
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            24
+          ],
+          "frac": 0.078
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.072
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            40
+          ],
+          "frac": 0.054
+        }
+      ]
+    },
+    {
+      "cx": -2,
+      "cy": 4,
+      "label": "rock",
+      "conf": 0.97,
+      "meanLum": 43.41,
+      "stdLum": 28.36,
+      "edgeDensity": 0.0495,
+      "straightFrac": 0.395,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.015,
+        "ice": 0,
+        "lava": 0.002,
+        "flat": 0.271
+      },
+      "noiseRms": 0.583,
+      "topColors": [
+        {
+          "rgb": [
+            56,
+            56,
+            56
+          ],
+          "frac": 0.199
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            8
+          ],
+          "frac": 0.149
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            72
+          ],
+          "frac": 0.14
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            24
+          ],
+          "frac": 0.091
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.082
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            40
+          ],
+          "frac": 0.081
+        }
+      ]
+    },
+    {
+      "cx": -1,
+      "cy": 4,
+      "label": "rock",
+      "conf": 0.97,
+      "meanLum": 42.91,
+      "stdLum": 28.74,
+      "edgeDensity": 0.0484,
+      "straightFrac": 0.407,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.015,
+        "ice": 0,
+        "lava": 0.007,
+        "flat": 0.29
+      },
+      "noiseRms": 0.588,
+      "topColors": [
+        {
+          "rgb": [
+            56,
+            56,
+            56
+          ],
+          "frac": 0.187
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            72
+          ],
+          "frac": 0.155
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            8
+          ],
+          "frac": 0.148
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            24
+          ],
+          "frac": 0.097
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            40
+          ],
+          "frac": 0.091
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.086
+        }
+      ]
+    },
+    {
+      "cx": 0,
+      "cy": 4,
+      "label": "rock",
+      "conf": 0.99,
+      "meanLum": 44.29,
+      "stdLum": 28.07,
+      "edgeDensity": 0.0484,
+      "straightFrac": 0.415,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.001,
+        "ice": 0,
+        "lava": 0.005,
+        "flat": 0.28
+      },
+      "noiseRms": 0.582,
+      "topColors": [
+        {
+          "rgb": [
+            56,
+            56,
+            56
+          ],
+          "frac": 0.189
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            8
+          ],
+          "frac": 0.162
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            72
+          ],
+          "frac": 0.137
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            24
+          ],
+          "frac": 0.082
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            40
+          ],
+          "frac": 0.071
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.068
+        }
+      ]
+    },
+    {
+      "cx": 1,
+      "cy": 4,
+      "label": "rock",
+      "conf": 0.97,
+      "meanLum": 43.44,
+      "stdLum": 28.04,
+      "edgeDensity": 0.0491,
+      "straightFrac": 0.417,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.015,
+        "ice": 0,
+        "lava": 0.002,
+        "flat": 0.262
+      },
+      "noiseRms": 0.573,
+      "topColors": [
+        {
+          "rgb": [
+            56,
+            56,
+            56
+          ],
+          "frac": 0.203
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            8
+          ],
+          "frac": 0.164
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            72
+          ],
+          "frac": 0.157
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            24
+          ],
+          "frac": 0.085
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.076
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            40
+          ],
+          "frac": 0.063
+        }
+      ]
+    },
+    {
+      "cx": 2,
+      "cy": 4,
+      "label": "rock",
+      "conf": 0.97,
+      "meanLum": 38.97,
+      "stdLum": 26.69,
+      "edgeDensity": 0.0418,
+      "straightFrac": 0.42,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.015,
+        "ice": 0,
+        "lava": 0.001,
+        "flat": 0.332
+      },
+      "noiseRms": 0.6,
+      "topColors": [
+        {
+          "rgb": [
+            56,
+            56,
+            56
+          ],
+          "frac": 0.177
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            8
+          ],
+          "frac": 0.169
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            72
+          ],
+          "frac": 0.118
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            24
+          ],
+          "frac": 0.105
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            40
+          ],
+          "frac": 0.101
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.098
+        }
+      ]
+    },
+    {
+      "cx": 3,
+      "cy": 4,
+      "label": "rock",
+      "conf": 0.95,
+      "meanLum": 43.8,
+      "stdLum": 29.75,
+      "edgeDensity": 0.0495,
+      "straightFrac": 0.405,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.014,
+        "ice": 0,
+        "lava": 0.025,
+        "flat": 0.302
+      },
+      "noiseRms": 0.577,
+      "topColors": [
+        {
+          "rgb": [
+            56,
+            56,
+            56
+          ],
+          "frac": 0.168
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            8
+          ],
+          "frac": 0.163
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            72
+          ],
+          "frac": 0.134
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            24
+          ],
+          "frac": 0.097
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            40
+          ],
+          "frac": 0.071
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.071
+        }
+      ]
+    },
+    {
+      "cx": 4,
+      "cy": 4,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 29.39,
+      "stdLum": 9.15,
+      "edgeDensity": 0.0313,
+      "straightFrac": 0.212,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.053
+      },
+      "noiseRms": 0.285,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.663
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.223
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.071
+        },
+        {
+          "rgb": [
+            104,
+            56,
+            56
+          ],
+          "frac": 0.025
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            24
+          ],
+          "frac": 0.008
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            8
+          ],
+          "frac": 0.005
+        }
+      ]
+    },
+    {
+      "cx": 5,
+      "cy": 4,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 28.01,
+      "stdLum": 7.76,
+      "edgeDensity": 0.0281,
+      "straightFrac": 0.209,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.046
+      },
+      "noiseRms": 0.008,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.765
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.141
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.079
+        },
+        {
+          "rgb": [
+            104,
+            56,
+            56
+          ],
+          "frac": 0.014
+        }
+      ]
+    },
+    {
+      "cx": 6,
+      "cy": 4,
+      "label": "rock",
+      "conf": 0.96,
+      "meanLum": 38.79,
+      "stdLum": 20.39,
+      "edgeDensity": 0.0464,
+      "straightFrac": 0.362,
+      "frac": {
+        "black": 0,
+        "sky": 0.018,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.083
+      },
+      "noiseRms": 0.5,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.361
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.269
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.121
+        },
+        {
+          "rgb": [
+            104,
+            88,
+            72
+          ],
+          "frac": 0.055
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.04
+        },
+        {
+          "rgb": [
+            104,
+            56,
+            56
+          ],
+          "frac": 0.032
+        }
+      ]
+    },
+    {
+      "cx": 7,
+      "cy": 4,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 21.8,
+      "stdLum": 9.39,
+      "edgeDensity": 0.0149,
+      "straightFrac": 0.259,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.576
+      },
+      "noiseRms": 0.107,
+      "topColors": [
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.437
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.35
+        },
+        {
+          "rgb": [
+            24,
+            40,
+            40
+          ],
+          "frac": 0.1
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.046
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.045
+        },
+        {
+          "rgb": [
+            104,
+            56,
+            56
+          ],
+          "frac": 0.011
+        }
+      ]
+    },
+    {
+      "cx": 8,
+      "cy": 4,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 29.18,
+      "stdLum": 8.63,
+      "edgeDensity": 0.0304,
+      "straightFrac": 0.195,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.042
+      },
+      "noiseRms": 0.01,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.695
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.212
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.072
+        },
+        {
+          "rgb": [
+            104,
+            56,
+            56
+          ],
+          "frac": 0.022
+        }
+      ]
+    },
+    {
+      "cx": 9,
+      "cy": 4,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 29.11,
+      "stdLum": 8.83,
+      "edgeDensity": 0.0303,
+      "straightFrac": 0.219,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.046
+      },
+      "noiseRms": 0.199,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.705
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.195
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.074
+        },
+        {
+          "rgb": [
+            104,
+            56,
+            56
+          ],
+          "frac": 0.022
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.001
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.001
+        }
+      ]
+    },
+    {
+      "cx": 10,
+      "cy": 4,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 34.2,
+      "stdLum": 17.99,
+      "edgeDensity": 0.032,
+      "straightFrac": 0.304,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.436
+      },
+      "noiseRms": 0.538,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.653
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.094
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.089
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.062
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.042
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.033
+        }
+      ]
+    },
+    {
+      "cx": 11,
+      "cy": 4,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 37.78,
+      "stdLum": 21.18,
+      "edgeDensity": 0.0383,
+      "straightFrac": 0.315,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.394
+      },
+      "noiseRms": 0.56,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.594
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.15
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.088
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.057
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.05
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.037
+        }
+      ]
+    },
+    {
+      "cx": 12,
+      "cy": 4,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 34.42,
+      "stdLum": 19.8,
+      "edgeDensity": 0.0375,
+      "straightFrac": 0.303,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0.001,
+        "lava": 0,
+        "flat": 0.435
+      },
+      "noiseRms": 0.558,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.669
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.103
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.08
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.065
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.042
+        },
+        {
+          "rgb": [
+            136,
+            120,
+            56
+          ],
+          "frac": 0.018
+        }
+      ]
+    },
+    {
+      "cx": -6,
+      "cy": 5,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 29.84,
+      "stdLum": 9.07,
+      "edgeDensity": 0.0307,
+      "straightFrac": 0.167,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.043
+      },
+      "noiseRms": 0.012,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.656
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.248
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.069
+        },
+        {
+          "rgb": [
+            104,
+            56,
+            56
+          ],
+          "frac": 0.026
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            40
+          ],
+          "frac": 0.001
+        },
+        {
+          "rgb": [
+            120,
+            72,
+            56
+          ],
+          "frac": 0
+        }
+      ]
+    },
+    {
+      "cx": -5,
+      "cy": 5,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 30.05,
+      "stdLum": 9.84,
+      "edgeDensity": 0.0321,
+      "straightFrac": 0.193,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.002,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.054
+      },
+      "noiseRms": 0.187,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.602
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.256
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.068
+        },
+        {
+          "rgb": [
+            104,
+            56,
+            56
+          ],
+          "frac": 0.031
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.02
+        },
+        {
+          "rgb": [
+            24,
+            8,
+            24
+          ],
+          "frac": 0.008
+        }
+      ]
+    },
+    {
+      "cx": -4,
+      "cy": 5,
+      "label": "rock",
+      "conf": 0.91,
+      "meanLum": 67.72,
+      "stdLum": 15.46,
+      "edgeDensity": 0.0484,
+      "straightFrac": 0.124,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.044,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.045
+      },
+      "noiseRms": 0.49,
+      "topColors": [
+        {
+          "rgb": [
+            88,
+            72,
+            56
+          ],
+          "frac": 0.47
+        },
+        {
+          "rgb": [
+            72,
+            56,
+            40
+          ],
+          "frac": 0.272
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.13
+        },
+        {
+          "rgb": [
+            8,
+            24,
+            24
+          ],
+          "frac": 0.034
+        },
+        {
+          "rgb": [
+            104,
+            88,
+            56
+          ],
+          "frac": 0.032
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.014
+        }
+      ]
+    },
+    {
+      "cx": -3,
+      "cy": 5,
+      "label": "rock",
+      "conf": 0.91,
+      "meanLum": 67.73,
+      "stdLum": 15.43,
+      "edgeDensity": 0.0482,
+      "straightFrac": 0.109,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.045,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.046
+      },
+      "noiseRms": 0.487,
+      "topColors": [
+        {
+          "rgb": [
+            88,
+            72,
+            56
+          ],
+          "frac": 0.472
+        },
+        {
+          "rgb": [
+            72,
+            56,
+            40
+          ],
+          "frac": 0.271
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.131
+        },
+        {
+          "rgb": [
+            8,
+            24,
+            24
+          ],
+          "frac": 0.034
+        },
+        {
+          "rgb": [
+            104,
+            88,
+            56
+          ],
+          "frac": 0.029
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.014
+        }
+      ]
+    },
+    {
+      "cx": -2,
+      "cy": 5,
+      "label": "rock",
+      "conf": 0.91,
+      "meanLum": 63.21,
+      "stdLum": 21.11,
+      "edgeDensity": 0.0503,
+      "straightFrac": 0.297,
+      "frac": {
+        "black": 0.011,
+        "sky": 0.001,
+        "water": 0.045,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.062
+      },
+      "noiseRms": 0.602,
+      "topColors": [
+        {
+          "rgb": [
+            88,
+            72,
+            56
+          ],
+          "frac": 0.386
+        },
+        {
+          "rgb": [
+            72,
+            56,
+            40
+          ],
+          "frac": 0.231
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.108
+        },
+        {
+          "rgb": [
+            104,
+            88,
+            56
+          ],
+          "frac": 0.037
+        },
+        {
+          "rgb": [
+            8,
+            24,
+            24
+          ],
+          "frac": 0.034
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.033
+        }
+      ]
+    },
+    {
+      "cx": -1,
+      "cy": 5,
+      "label": "rock",
+      "conf": 0.91,
+      "meanLum": 60.02,
+      "stdLum": 24.84,
+      "edgeDensity": 0.0558,
+      "straightFrac": 0.412,
+      "frac": {
+        "black": 0.014,
+        "sky": 0,
+        "water": 0.045,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.069
+      },
+      "noiseRms": 0.738,
+      "topColors": [
+        {
+          "rgb": [
+            88,
+            72,
+            56
+          ],
+          "frac": 0.312
+        },
+        {
+          "rgb": [
+            72,
+            56,
+            40
+          ],
+          "frac": 0.201
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.088
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.06
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.047
+        },
+        {
+          "rgb": [
+            104,
+            88,
+            56
+          ],
+          "frac": 0.039
+        }
+      ]
+    },
+    {
+      "cx": 0,
+      "cy": 5,
+      "label": "rock",
+      "conf": 0.99,
+      "meanLum": 66.48,
+      "stdLum": 18.02,
+      "edgeDensity": 0.05,
+      "straightFrac": 0.32,
+      "frac": {
+        "black": 0.012,
+        "sky": 0.001,
+        "water": 0.007,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.072
+      },
+      "noiseRms": 0.742,
+      "topColors": [
+        {
+          "rgb": [
+            88,
+            72,
+            56
+          ],
+          "frac": 0.398
+        },
+        {
+          "rgb": [
+            72,
+            56,
+            40
+          ],
+          "frac": 0.236
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.111
+        },
+        {
+          "rgb": [
+            40,
+            72,
+            72
+          ],
+          "frac": 0.05
+        },
+        {
+          "rgb": [
+            104,
+            88,
+            56
+          ],
+          "frac": 0.039
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.025
+        }
+      ]
+    },
+    {
+      "cx": 1,
+      "cy": 5,
+      "label": "rock",
+      "conf": 0.91,
+      "meanLum": 67.73,
+      "stdLum": 15.42,
+      "edgeDensity": 0.0481,
+      "straightFrac": 0.11,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.045,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.046
+      },
+      "noiseRms": 0.488,
+      "topColors": [
+        {
+          "rgb": [
+            88,
+            72,
+            56
+          ],
+          "frac": 0.472
+        },
+        {
+          "rgb": [
+            72,
+            56,
+            40
+          ],
+          "frac": 0.271
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.131
+        },
+        {
+          "rgb": [
+            8,
+            24,
+            24
+          ],
+          "frac": 0.034
+        },
+        {
+          "rgb": [
+            104,
+            88,
+            56
+          ],
+          "frac": 0.029
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.014
+        }
+      ]
+    },
+    {
+      "cx": 2,
+      "cy": 5,
+      "label": "rock",
+      "conf": 0.91,
+      "meanLum": 67.71,
+      "stdLum": 15.46,
+      "edgeDensity": 0.0484,
+      "straightFrac": 0.124,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.045,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.045
+      },
+      "noiseRms": 0.49,
+      "topColors": [
+        {
+          "rgb": [
+            88,
+            72,
+            56
+          ],
+          "frac": 0.47
+        },
+        {
+          "rgb": [
+            72,
+            56,
+            40
+          ],
+          "frac": 0.272
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.13
+        },
+        {
+          "rgb": [
+            8,
+            24,
+            24
+          ],
+          "frac": 0.034
+        },
+        {
+          "rgb": [
+            104,
+            88,
+            56
+          ],
+          "frac": 0.032
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.014
+        }
+      ]
+    },
+    {
+      "cx": 3,
+      "cy": 5,
+      "label": "rock",
+      "conf": 0.91,
+      "meanLum": 67.74,
+      "stdLum": 15.44,
+      "edgeDensity": 0.0481,
+      "straightFrac": 0.11,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.045,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.046
+      },
+      "noiseRms": 0.487,
+      "topColors": [
+        {
+          "rgb": [
+            88,
+            72,
+            56
+          ],
+          "frac": 0.472
+        },
+        {
+          "rgb": [
+            72,
+            56,
+            40
+          ],
+          "frac": 0.271
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.131
+        },
+        {
+          "rgb": [
+            8,
+            24,
+            24
+          ],
+          "frac": 0.034
+        },
+        {
+          "rgb": [
+            104,
+            88,
+            56
+          ],
+          "frac": 0.029
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.014
+        }
+      ]
+    },
+    {
+      "cx": 4,
+      "cy": 5,
+      "label": "rock",
+      "conf": 0.96,
+      "meanLum": 29.78,
+      "stdLum": 10.05,
+      "edgeDensity": 0.0334,
+      "straightFrac": 0.241,
+      "frac": {
+        "black": 0.002,
+        "sky": 0,
+        "water": 0.021,
+        "ice": 0.001,
+        "lava": 0,
+        "flat": 0.05
+      },
+      "noiseRms": 0.241,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.647
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.223
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.069
+        },
+        {
+          "rgb": [
+            104,
+            56,
+            56
+          ],
+          "frac": 0.027
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            40
+          ],
+          "frac": 0.022
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            56
+          ],
+          "frac": 0.003
+        }
+      ]
+    },
+    {
+      "cx": 5,
+      "cy": 5,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 30.93,
+      "stdLum": 9.55,
+      "edgeDensity": 0.0331,
+      "straightFrac": 0.167,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.038
+      },
+      "noiseRms": 0.038,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.591
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.315
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.062
+        },
+        {
+          "rgb": [
+            104,
+            56,
+            56
+          ],
+          "frac": 0.033
+        }
+      ]
+    },
+    {
+      "cx": 6,
+      "cy": 5,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 28.21,
+      "stdLum": 7.94,
+      "edgeDensity": 0.0286,
+      "straightFrac": 0.215,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.044
+      },
+      "noiseRms": 0.009,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.754
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.152
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.079
+        },
+        {
+          "rgb": [
+            104,
+            56,
+            56
+          ],
+          "frac": 0.016
+        }
+      ]
+    },
+    {
+      "cx": 7,
+      "cy": 5,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 21.62,
+      "stdLum": 8.91,
+      "edgeDensity": 0.0146,
+      "straightFrac": 0.268,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.575
+      },
+      "noiseRms": 0.108,
+      "topColors": [
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.436
+        },
+        {
+          "rgb": [
+            8,
+            8,
+            8
+          ],
+          "frac": 0.349
+        },
+        {
+          "rgb": [
+            24,
+            40,
+            40
+          ],
+          "frac": 0.1
+        },
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.055
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.039
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.01
+        }
+      ]
+    },
+    {
+      "cx": 8,
+      "cy": 5,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 30.48,
+      "stdLum": 9.36,
+      "edgeDensity": 0.0335,
+      "straightFrac": 0.194,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.036
+      },
+      "noiseRms": 0.015,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.618
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.288
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.064
+        },
+        {
+          "rgb": [
+            104,
+            56,
+            56
+          ],
+          "frac": 0.03
+        }
+      ]
+    },
+    {
+      "cx": 9,
+      "cy": 5,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 30.36,
+      "stdLum": 9.36,
+      "edgeDensity": 0.0341,
+      "straightFrac": 0.22,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.037
+      },
+      "noiseRms": 0.331,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.626
+        },
+        {
+          "rgb": [
+            56,
+            40,
+            24
+          ],
+          "frac": 0.275
+        },
+        {
+          "rgb": [
+            72,
+            40,
+            24
+          ],
+          "frac": 0.066
+        },
+        {
+          "rgb": [
+            104,
+            56,
+            56
+          ],
+          "frac": 0.03
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.002
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0
+        }
+      ]
+    },
+    {
+      "cx": 10,
+      "cy": 5,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 37.73,
+      "stdLum": 20.57,
+      "edgeDensity": 0.0357,
+      "straightFrac": 0.281,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.001,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.389
+      },
+      "noiseRms": 0.537,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.583
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.157
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.087
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.052
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.045
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.042
+        }
+      ]
+    },
+    {
+      "cx": 11,
+      "cy": 5,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 36.53,
+      "stdLum": 20.24,
+      "edgeDensity": 0.0312,
+      "straightFrac": 0.292,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0.001,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.412
+      },
+      "noiseRms": 0.561,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.601
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.143
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.094
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.058
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.047
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.037
+        }
+      ]
+    },
+    {
+      "cx": 12,
+      "cy": 5,
+      "label": "rock",
+      "conf": 1,
+      "meanLum": 35.59,
+      "stdLum": 19.96,
+      "edgeDensity": 0.0417,
+      "straightFrac": 0.326,
+      "frac": {
+        "black": 0,
+        "sky": 0,
+        "water": 0,
+        "ice": 0,
+        "lava": 0,
+        "flat": 0.411
+      },
+      "noiseRms": 0.552,
+      "topColors": [
+        {
+          "rgb": [
+            40,
+            24,
+            24
+          ],
+          "frac": 0.638
+        },
+        {
+          "rgb": [
+            72,
+            72,
+            40
+          ],
+          "frac": 0.097
+        },
+        {
+          "rgb": [
+            24,
+            24,
+            24
+          ],
+          "frac": 0.096
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            24
+          ],
+          "frac": 0.061
+        },
+        {
+          "rgb": [
+            88,
+            88,
+            56
+          ],
+          "frac": 0.044
+        },
+        {
+          "rgb": [
+            40,
+            40,
+            40
+          ],
+          "frac": 0.036
+        }
+      ]
+    }
+  ]
+}

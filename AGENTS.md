@@ -48,6 +48,11 @@ npm run bench:diff   # score chunks, write stats.json + report.html
 node mapgen/experiments/2026-09-03-fit-transform.mjs       # cross-correlate gen vs ref masks
 node mapgen/experiments/2026-09-03-verify-vs-noitool.mjs   # wasm wrapper vs noitool fixtures
 
+# Capture analysis (see mapcap/README.md; artifacts in mapcap/out/, gitignored)
+node mapcap/analyze-capture.mjs --name <run> --seed <seed> [--stitched <png>] [--chunks true]
+node mapcap/diff-captures.mjs --a <runA> --b <runB>
+node mapcap/diff-vs-reference.mjs --name <run>
+
 # Tests
 npm test             # node:test; determinism + golden hash (needs extracted data)
 
@@ -66,6 +71,7 @@ npm run preview
 | ---- | ---------- |
 | `bridge/index.js` | File watcher + WebSocket broadcaster (Node ESM: `ws`, `chokidar`) |
 | `mapgen/` | Map-gen bench: wasm loader, biome layout parser, chunk renderer, reference slicer, diff/fit rig (plain ESM `.mjs`) |
+| `mapcap/` | Capture-based ground truth: noita-mapcap slicing, seed-differential analysis, predetermined zones (`mapcap/README.md`) |
 | `mods/noita-live-map/` | Noita Lua telemetry mod (`init.lua`, `files/telemetry.lua`) |
 | `src/main.ts`, `src/style.css` | Vite frontend; embeds noitamap iframe |
 | `index.html` | Vite entry point |

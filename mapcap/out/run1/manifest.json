@@ -1,0 +1,30 @@
+{
+  "name": "run1",
+  "seed": 78633192,
+  "source": "(existing chunk files)",
+  "tilesDir": "/mnt/e/Programmes/Steam/steamapps/common/Noita/mods/noita-mapcap/output",
+  "stitchedSize": [
+    9728,
+    4608
+  ],
+  "origin": null,
+  "grid": {
+    "cx": [
+      -6,
+      12
+    ],
+    "cy": [
+      -3,
+      5
+    ],
+    "chunk": 512
+  },
+  "worldRect": [
+    -3072,
+    -1536,
+    6656,
+    3072
+  ],
+  "chunks": 171,
+  "createdAt": "2026-09-04T00:34:26.535Z"
+}

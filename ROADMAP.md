@@ -157,6 +157,41 @@ The wang *rules* are solved; the unknown is **how the game picks the corner colo
 - [ ] **Tier-2 wasm knobs** (fork noita-tools + `tools/zig`): discarded-rows `k`, RNG skip constant, rep-reduction on/off.
 - [ ] **Ghidra, targeted** — only for the specific function that remains unexplained.
 
+### Phase 0.6 — Capture-based ground truth ✅ (2026-09-04)
+
+- [x] In-game capture workstream (`mapcap/`): noita-mapcap captures of seeds
+  78633192/93 (parallax OFF = `disable-background`), sliced + analyzed + diffed;
+  tooling: `analyze-capture.mjs`, `diff-captures.mjs`, `diff-vs-reference.mjs`
+  (see `mapcap/README.md`).
+- [x] Capture pipeline pixel-stable: adjacent-tile overlaps 99.6–99.7% identical
+  across three independent captures.
+- [x] Real wang seams found: the game does NOT blend across 512-chunk boundaries
+  (x=2048 4.6×, y=1536 3.6× discontinuity) — generator must not blend either.
+- [x] Predetermined zones mapped: Holy Mountain bands (j=16/19/23/26/30/34) ~95%
+  seed-independent; sky/void black; `mapcap/PREDICTABLE_ZONES.md`.
+- [x] Adjacent-seed divergence calibrated: **26.45% of foreground px changed**
+  for 91↔92 (the L2 target); 3-way classes: 48.0% seed-independent / 17.9%
+  two-agree-one-differs (small-variant pools) / 6.8% all-distinct.
+- [~] Cross-run same-seed noise floor: foreground overlap 99.6%+ / flat-region
+  RMS 0.16/255 measured from tile overlaps; dedicated recapture optional.
+
+### Phase 0.7 — Wang-model iteration ladder (current focus, 2026-09-04 →)
+
+Each level is cheaper than the next; paint-immunity increases:
+
+1. **L0 determinism gate** — `npm test` goldens; gen twice = byte-identical.
+2. **L1 spawn equations (decisive judge)** — every seeded spawn (orb/perk/chest/
+   heart) = exact wang-cell color fact from `wang_scripts.csv`; extract per-seed
+   spawn data (probe v3 fix) for 91/92/93; sweep fill hypotheses; a hypothesis
+   lives only if it satisfies 100% of constraints on all three seeds.
+3. **L2 divergence calibration** — our generator's adjacent-seed foreground
+   divergence must match the game's 26.5%; HM bands must be 100% seed-independent.
+4. **L3 geometry IoU in wang bands only** — air/solid after global-shift fit,
+   excluding HM/sky/solid_wall zones (`mapcap/PREDICTABLE_ZONES.md`).
+
+Accept a knob only if L1 holds and L3 improves; else revert + log to the
+mismatch DB.
+
 ### Phase 1 — Map Generation Engine
 
 - [x] Add noita-tools as a git submodule (`vendor/noita-tools`).

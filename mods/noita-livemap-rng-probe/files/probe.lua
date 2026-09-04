@@ -1,24 +1,46 @@
--- Noita RNG Probe (v2)
--- Dumps a fill-sweep truth table to the save folder:
---   noita-rng-probe2-<seed>.csv
---     one row per position: x, y, ProceduralRandomi(x,y,0,1), ProceduralRandomi(x,y,0,2),
---     then SetRandomSeed(x,y) + Random(0,1)x2 + Random(0,2)x2
---   noita-rng-probe2-meta.json
+-- Noita RNG Probe (v3)
+-- Dumps ground-truth data to the save folder:
+--   noita-rng-probe2-<seed>.csv          RNG truth table (v2)        [skipped if exists]
+--   noita-rng-probe3-entities-<seed>.csv item entities (spawn facts) [this run's payload]
+--   noita-rng-probe4-sequences-<seed>.csv chunk-origin RNG sequences  [skipped if exists]
+--   noita-rng-probe2-meta.json / noita-rng-probe3-meta.json
+--   probe-debug.log
 --
--- Region: x in [-6144, 6144], y in [-1024, 6144] (spawn + Coal Pits band),
--- step 10 world px -> ~880k rows. Covers all candidate vertex lattice
--- positions (biome short sides 13/20/22... x10) with margin for anchor sweeps.
+-- v3 (spawn-equation observables): after a warmup phase the camera sweeps the
+-- spawn band (biome rows 12..17, cols 30..45 = Mines → Coal Pits), letting
+-- chunks generate in sweep order. Every item entity (data/entities/items/*)
+-- is recorded at FIRST sighting (closest to its spawn point — falling items
+-- drift after landing). Items are the paint-immune observables: each implies
+-- "the wang cell here had the spawn color for this item class".
+-- Waypoint order = row-major (ty asc, tx asc) — part of the observation protocol.
 --
--- Runs once, on the first world update.
+-- All phases are idempotent: outputs that already exist for this seed are
+-- skipped, so a re-run only does what is missing.
 
 local probe = {}
 
 local DEBUG_LOG_PATH = "mods/noita-livemap-rng-probe/probe-debug.log"
-local done = false
 
+local done = false
+local phase = "boot"
+
+-- v2 truth-table bounds (unchanged)
 local STEP = 10
 local X_MIN, X_MAX = -6144, 6144
 local Y_MIN, Y_MAX = -1024, 6144
+
+-- v3 sweep parameters
+local WARMUP_FRAMES = 600 -- 10 s: let the spawn area settle first
+local DWELL_FRAMES = 45   -- per waypoint (~0.75 s)
+local COLLECT_FROM = 20   -- start collecting this many frames after arrival
+local RADIUS = 360        -- entity query radius around the waypoint (< 256+512 so overlap is small)
+local TX_MIN, TX_MAX = 30, 45 -- biome cols (world chunks cx = tx-35 → -5..10)
+local TY_MIN, TY_MAX = 12, 17 -- biome rows (world chunks cy = ty-14 → -2..3)
+
+local wps, wpi, dwell = {}, 0, 0
+local seen, rows = {}, {}
+local ent_n = 0
+local skip_counts = { nofile = 0, filtered = 0 }
 
 local function log_debug(message)
     local line = "[" .. os.time() .. "] " .. tostring(message) .. "\n"
@@ -41,125 +63,226 @@ local function resolve_output_path(filename)
     return "mods/noita-livemap-rng-probe/" .. filename
 end
 
-function probe.update()
-    if done then
-        return
-    end
-    done = true
+local function file_exists(path)
+    local f = io.open(path, "r")
+    if f then f:close() return true end
+    return false
+end
 
-    local seed_str = StatsGetValue("world_seed") or "0"
-    local started = os.time()
-
-    local rows = {}
-    local n = 0
-    for y = Y_MIN, Y_MAX, STEP do
-        for x = X_MIN, X_MAX, STEP do
-            SetRandomSeed(x, y)
-            local s01a = Random(0, 1)
-            local s01b = Random(0, 1)
-            local s02a = Random(0, 2)
-            local s02b = Random(0, 2)
-            n = n + 1
-            rows[n] = string.format(
-                "%d,%d,%d,%d,%d,%d,%d,%d",
-                x, y,
-                ProceduralRandomi(x, y, 0, 1),
-                ProceduralRandomi(x, y, 0, 2),
-                s01a, s01b, s02a, s02b
-            )
+local function build_waypoints()
+    local w = {}
+    for ty = TY_MIN, TY_MAX do
+        for tx = TX_MIN, TX_MAX do
+            w[#w + 1] = { x = (tx - 35) * 512 + 256, y = (ty - 14) * 512 + 256 }
         end
     end
+    return w
+end
 
-    local csv_path = resolve_output_path("noita-rng-probe2-" .. seed_str .. ".csv")
-    local file, err = io.open(csv_path, "w")
-    if file then
-        file:write("x,y,pr01,pr02,s01a,s01b,s02a,s02b\n")
-        file:write(table.concat(rows, "\n"))
-        file:write("\n")
-        file:close()
-    else
-        log_debug("v2 dump failed: " .. tostring(err))
-        return
-    end
-
-    local meta_file = io.open(resolve_output_path("noita-rng-probe2-meta.json"), "w")
-    if meta_file then
-        meta_file:write(string.format(
-            '{"seed":"%s","step":%d,"x_min":%d,"x_max":%d,"y_min":%d,"y_max":%d,"rows":%d,"ts":%d}',
-            seed_str, STEP, X_MIN, X_MAX, Y_MIN, Y_MAX, n, os.time()
-        ))
-        meta_file:close()
-    end
-
-    log_debug(string.format("v2 dumped %d rows (seed %s) in %ds", n, seed_str, os.time() - started))
-
-    -- v3: entity dump (spawn-function observables) — items/orbs/perks/chests
-    -- present at world start. Each gives an exact "cell had color C" equation.
-    local ent_rows = {}
-    local ent_n = 0
-    local entities = EntityGetInRadius(0, 512, 12288) or {}
+local function collect_at(wp)
+    local entities = EntityGetInRadius(wp.x, wp.y, RADIUS) or {}
     for _, eid in ipairs(entities) do
-        local ok_name, fname = pcall(EntityGetFileName, eid)
-        if ok_name and fname then
-            local lx, ly = EntityGetTransform(eid)
-            if lx and fname:find("orb", 1, true) or fname:find("perk", 1, true)
-                or fname:find("chest", 1, true) or fname:find("wand", 1, true)
-                or fname:find("heart", 1, true) or fname:find("potion", 1, true) then
-                ent_n = ent_n + 1
-                ent_rows[ent_n] = string.format("%.0f,%.0f,%s", lx, ly, fname)
+        if not seen[eid] then
+            seen[eid] = true
+            local ok, fname = pcall(EntityGetFileName, eid)
+            if ok and fname then
+                if fname:find("data/entities/items/", 1, true) then
+                    local lx, ly = EntityGetTransform(eid)
+                    if lx then
+                        ent_n = ent_n + 1
+                        rows[ent_n] = string.format("%.0f,%.0f,%s", lx, ly, fname)
+                    end
+                else
+                    skip_counts.filtered = skip_counts.filtered + 1
+                end
+            else
+                skip_counts.nofile = skip_counts.nofile + 1
             end
         end
     end
-    local ent_path = resolve_output_path("noita-rng-probe3-entities-" .. seed_str .. ".csv")
-    local ent_file = io.open(ent_path, "w")
-    if ent_file then
-        ent_file:write("x,y,file\n")
-        ent_file:write(table.concat(ent_rows, "\n"))
-        ent_file:write("\n")
-        ent_file:close()
-        log_debug(string.format("v3 dumped %d entities (seed %s)", ent_n, seed_str))
-    end
+end
 
-    -- v4: long sequences per chunk origin (per-chunk-sequential-fill hypothesis).
-    -- For each chunk origin in the spawn band: SetRandomSeed(origin) then
-    -- 8x Random(0,255) (verifiable anchor) + 4088x Randomf() (full precision).
-    local seq_rows = {}
-    local seq_n = 0
-    for cy = 12, 20 do
-        for cx = 25, 48 do
-            local ox = (cx - 35) * 512
-            local oy = (cy - 14) * 512
-            SetRandomSeed(ox, oy)
-            local parts = {}
-            for i = 1, 8 do
-                parts[i] = Random(0, 255)
+function probe.update()
+    if done then return end
+    local frame = GameGetFrameNum()
+
+    if phase == "boot" then
+        local seed_str = StatsGetValue("world_seed") or "0"
+
+        -- v2: RNG truth table (skip if already dumped for this seed)
+        local csv_path = resolve_output_path("noita-rng-probe2-" .. seed_str .. ".csv")
+        if file_exists(csv_path) then
+            log_debug("v2 skipped (exists, seed " .. seed_str .. ")")
+        else
+            local started = os.time()
+            local rows2, n = {}, 0
+            for y = Y_MIN, Y_MAX, STEP do
+                for x = X_MIN, X_MAX, STEP do
+                    SetRandomSeed(x, y)
+                    local s01a = Random(0, 1)
+                    local s01b = Random(0, 1)
+                    local s02a = Random(0, 2)
+                    local s02b = Random(0, 2)
+                    n = n + 1
+                    rows2[n] = string.format(
+                        "%d,%d,%d,%d,%d,%d,%d,%d",
+                        x, y,
+                        ProceduralRandomi(x, y, 0, 1),
+                        ProceduralRandomi(x, y, 0, 2),
+                        s01a, s01b, s02a, s02b
+                    )
+                end
             end
-            local floats = {}
-            for i = 1, 4088 do
-                floats[i] = string.format("%.17g", Randomf())
+            local f = io.open(csv_path, "w")
+            if f then
+                f:write("x,y,pr01,pr02,s01a,s01b,s02a,s02b\n")
+                f:write(table.concat(rows2, "\n"))
+                f:write("\n")
+                f:close()
+                local meta_file = io.open(resolve_output_path("noita-rng-probe2-meta.json"), "w")
+                if meta_file then
+                    meta_file:write(string.format(
+                        '{"seed":"%s","step":%d,"x_min":%d,"x_max":%d,"y_min":%d,"y_max":%d,"rows":%d,"ts":%d}',
+                        seed_str, STEP, X_MIN, X_MAX, Y_MIN, Y_MAX, n, os.time()
+                    ))
+                    meta_file:close()
+                end
+                log_debug(string.format("v2 dumped %d rows (seed %s) in %ds", n, seed_str, os.time() - started))
+            else
+                log_debug("v2 dump failed")
             end
-            seq_n = seq_n + 1
-            seq_rows[seq_n] = string.format(
-                "%d,%d,%s,%s",
-                ox, oy,
-                table.concat(parts, ","),
-                table.concat(floats, ",")
-            )
         end
-    end
-    local seq_path = resolve_output_path("noita-rng-probe4-sequences-" .. seed_str .. ".csv")
-    local seq_file = io.open(seq_path, "w")
-    if seq_file then
-        seq_file:write("ox,oy,anchor1..8,randf1..4088\n")
-        seq_file:write(table.concat(seq_rows, "\n"))
-        seq_file:write("\n")
-        seq_file:close()
-        log_debug(string.format("v4 dumped %d chunk sequences (seed %s)", seq_n, seed_str))
-    else
-        log_debug("v4 dump failed: " .. tostring(err))
+
+        -- v4: chunk-origin sequences (skip if already dumped for this seed)
+        local seq_path = resolve_output_path("noita-rng-probe4-sequences-" .. seed_str .. ".csv")
+        if file_exists(seq_path) then
+            log_debug("v4 skipped (exists, seed " .. seed_str .. ")")
+        else
+            local seq_rows, seq_n = {}, 0
+            for cy = 12, 20 do
+                for cx = 25, 48 do
+                    local ox = (cx - 35) * 512
+                    local oy = (cy - 14) * 512
+                    SetRandomSeed(ox, oy)
+                    local parts = {}
+                    for i = 1, 8 do
+                        parts[i] = Random(0, 255)
+                    end
+                    local floats = {}
+                    for i = 1, 4088 do
+                        floats[i] = string.format("%.17g", Randomf())
+                    end
+                    seq_n = seq_n + 1
+                    seq_rows[seq_n] = string.format(
+                        "%d,%d,%s,%s",
+                        ox, oy,
+                        table.concat(parts, ","),
+                        table.concat(floats, ",")
+                    )
+                end
+            end
+            local sf = io.open(seq_path, "w")
+            if sf then
+                sf:write("ox,oy,anchor1..8,randf1..4088\n")
+                sf:write(table.concat(seq_rows, "\n"))
+                sf:write("\n")
+                sf:close()
+                log_debug(string.format("v4 dumped %d chunk sequences (seed %s)", seq_n, seed_str))
+            else
+                log_debug("v4 dump failed")
+            end
+        end
+
+        -- v3 gate: skip the sweep if this seed already has a non-trivial dump
+        local ent_path = resolve_output_path("noita-rng-probe3-entities-" .. seed_str .. ".csv")
+        local prior_rows = 0
+        local pf = file_exists(ent_path) and io.open(ent_path, "r")
+        if pf then
+            local content = pf:read("*a") or ""
+            pf:close()
+            for _ in content:gmatch("[^\n]+") do prior_rows = prior_rows + 1 end
+            prior_rows = prior_rows - 1 -- minus header
+        end
+        if prior_rows > 0 then
+            log_debug("v3 skipped (exists with " .. prior_rows .. " rows, seed " .. seed_str .. ")")
+            done = true
+            return
+        end
+
+        phase = "warmup"
+        return
     end
 
-    print("[noita-rng-probe] v2 dumped " .. n .. " rows for seed " .. seed_str)
+    if phase == "warmup" then
+        if frame >= WARMUP_FRAMES then
+            wps = build_waypoints()
+            wpi, dwell = 1, 0
+            seen, rows, ent_n = {}, {}, 0
+            skip_counts = { nofile = 0, filtered = 0 }
+            GameSetCameraFree(true)
+            log_debug(string.format("v3 sweep started: %d waypoints, dwell %d, radius %d", #wps, DWELL_FRAMES, RADIUS))
+            phase = "sweep"
+        end
+        return
+    end
+
+    if phase == "sweep" then
+        local wp = wps[wpi]
+        if not wp then
+            phase = "write"
+            return
+        end
+        dwell = dwell + 1
+        if dwell == 1 then
+            GameSetCameraPos(wp.x, wp.y)
+        elseif dwell % 10 == 0 then
+            -- mapcap-style wiggle: nudges chunk generation along
+            GameSetCameraPos(wp.x + math.random(-8, 8), wp.y + math.random(-8, 8))
+        end
+        if dwell >= COLLECT_FROM then
+            collect_at(wp)
+        end
+        if dwell >= DWELL_FRAMES then
+            if wpi % 16 == 0 then
+                log_debug(string.format("v3 sweep: %d/%d stops, %d items so far", wpi, #wps, ent_n))
+            end
+            wpi = wpi + 1
+            dwell = 0
+            if wpi > #wps then
+                phase = "write"
+            end
+        end
+        return
+    end
+
+    if phase == "write" then
+        GameSetCameraFree(false)
+        local seed_str = StatsGetValue("world_seed") or "0"
+        local ent_path = resolve_output_path("noita-rng-probe3-entities-" .. seed_str .. ".csv")
+        local f = io.open(ent_path, "w")
+        if f then
+            f:write("x,y,file\n")
+            if ent_n > 0 then
+                f:write(table.concat(rows, "\n"))
+                f:write("\n")
+            end
+            f:close()
+            local meta_file = io.open(resolve_output_path("noita-rng-probe3-meta.json"), "w")
+            if meta_file then
+                meta_file:write(string.format(
+                    '{"seed":"%s","waypoints":%d,"tx_min":%d,"tx_max":%d,"ty_min":%d,"ty_max":%d,"dwell_frames":%d,"collect_from":%d,"radius":%d,"entities":%d,"filtered":%d,"nofile":%d,"ts":%d}',
+                    seed_str, #wps, TX_MIN, TX_MAX, TY_MIN, TY_MAX, DWELL_FRAMES, COLLECT_FROM, RADIUS, ent_n, skip_counts.filtered, skip_counts.nofile, os.time()
+                ))
+                meta_file:close()
+            end
+            log_debug(string.format("v3 dumped %d entities, %d filtered, %d nofile (seed %s)", ent_n, skip_counts.filtered, skip_counts.nofile, seed_str))
+            print("[noita-rng-probe] v3 dumped " .. ent_n .. " items for seed " .. seed_str)
+        else
+            log_debug("v3 dump failed")
+        end
+        done = true
+        return
+    end
 end
 
 return probe
