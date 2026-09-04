@@ -35,13 +35,20 @@ end
 local function drain()
   local count = tonumber(GlobalsGetValue("wanglab_count", "0") or "0")
   if count <= drained then return end
-  local fh = io.open(resolve(), "a")
+  local mySeed = tostring(StatsGetValue("world_seed") or "0")
+  local fh = nil
+  if rows == 0 then
+    fh = io.open(resolve(), "a")
+    if fh then fh:write("seed,tile,is_h,a,b,c,d,e,f,x,y\n") end
+  else
+    fh = io.open(resolve(), "a")
+  end
   if not fh then return end
-  if rows == 0 then fh:write("seed,tile,is_h,a,b,c,d,e,f,x,y\n") end
   while drained < count do
     drained = drained + 1
     local row = GlobalsGetValue("wanglab_r_" .. drained, "")
-    if row ~= "" then
+    -- rows carry their seed; skip stale rows from other sessions' seeds
+    if row ~= "" and row:sub(1, #mySeed) == mySeed then
       fh:write(row .. "\n")
       rows = rows + 1
     end
