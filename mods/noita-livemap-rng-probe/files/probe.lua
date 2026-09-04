@@ -6,17 +6,15 @@
 --   noita-rng-probe2-meta.json / noita-rng-probe3-meta.json
 --   probe-debug.log
 --
--- v3 (spawn-equation observables): after boot the mod waits while a
--- noita-mapcap area scan moves the camera over the same world (physics frozen
--- via mapcap's disable-physics, dev build). The sweep auto-starts when the
--- camera has been stable for STABLE_FRAMES consecutive frames (= mapcap scan
--- finished), or immediately if save00/probe-go.txt exists (manual override,
--- consumed on use). The camera then sweeps the spawn band (biome rows 12..17,
--- cols 30..45 = Mines → Coal Pits) in row-major waypoint order, letting
--- chunks generate in sweep order. Every item entity (data/entities/items/*)
--- is recorded at FIRST sighting (with frozen physics = exact spawn position).
--- Items are the paint-immune observables: each implies "the wang cell here
--- had the spawn color for this item class".
+-- v3 (spawn-equation observables): after a warmup phase the camera sweeps the
+-- spawn band (biome rows 12..17, cols 30..45 = Mines → Coal Pits), letting
+-- chunks generate in sweep order. Protocol (2026-09-04): run the sweep FIRST,
+-- then the noita-mapcap area capture afterwards, with mapcap's disable-physics
+-- ON for the whole session (dev build) — frozen physics means items are
+-- recorded at their exact spawn position (no fall drift) and produce no
+-- physics debris. Items are the paint-immune observables: each implies "the
+-- wang cell here had the spawn color for this item class".
+-- Waypoint order = row-major (ty asc, tx asc) — part of the observation protocol.
 --
 -- All phases are idempotent: outputs that already exist for this seed are
 -- skipped, so a re-run only does what is missing.
@@ -35,7 +33,6 @@ local Y_MIN, Y_MAX = -1024, 6144
 
 -- v3 sweep parameters
 local WARMUP_FRAMES = 600 -- 10 s: let the spawn area settle first
-local STABLE_FRAMES = 600 -- camera must be still this many frames to auto-start (mapcap scan done)
 local DWELL_FRAMES = 45   -- per waypoint (~0.75 s)
 local COLLECT_FROM = 20   -- start collecting this many frames after arrival
 local RADIUS = 360        -- entity query radius around the waypoint (< 256+512 so overlap is small)
@@ -43,8 +40,6 @@ local TX_MIN, TX_MAX = 30, 45 -- biome cols (world chunks cx = tx-35 → -5..10)
 local TY_MIN, TY_MAX = 12, 17 -- biome rows (world chunks cy = ty-14 → -2..3)
 
 local wps, wpi, dwell = {}, 0, 0
-local stable = 0
-local lastCamX, lastCamY = nil, nil
 local seen, rows = {}, {}
 local ent_n = 0
 local skip_counts = { nofile = 0, filtered = 0 }
@@ -222,38 +217,12 @@ function probe.update()
 
     if phase == "warmup" then
         if frame >= WARMUP_FRAMES then
+            wps = build_waypoints()
             wpi, dwell = 1, 0
             seen, rows, ent_n = {}, {}, 0
             skip_counts = { nofile = 0, filtered = 0 }
-            stable = 0
-            lastCamX, lastCamY = nil, nil
             GameSetCameraFree(true)
-            GamePrint("[probe] waiting: mapcap scan or probe-go.txt")
-            log_debug("v3 idle: waiting for mapcap scan to finish (camera stability) or probe-go.txt")
-            phase = "idle"
-        end
-        return
-    end
-
-    if phase == "idle" then
-        if file_exists(resolve_output_path("probe-go.txt")) then
-            os.remove(resolve_output_path("probe-go.txt"))
-            log_debug("v3 start: manual override (probe-go.txt)")
-            wps = build_waypoints()
-            log_debug(string.format("v3 sweep started (manual): %d waypoints, dwell %d, radius %d", #wps, DWELL_FRAMES, RADIUS))
-            phase = "sweep"
-            return
-        end
-        local cx, cy = GameGetCameraPos()
-        if lastCamX and cx == lastCamX and cy == lastCamY then
-            stable = stable + 1
-        else
-            stable = 0
-            lastCamX, lastCamY = cx, cy
-        end
-        if stable >= STABLE_FRAMES then
-            wps = build_waypoints()
-            log_debug(string.format("v3 sweep started (camera stable %d frames): %d waypoints, dwell %d, radius %d", STABLE_FRAMES, #wps, DWELL_FRAMES, RADIUS))
+            log_debug(string.format("v3 sweep started: %d waypoints, dwell %d, radius %d", #wps, DWELL_FRAMES, RADIUS))
             phase = "sweep"
         end
         return
