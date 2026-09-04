@@ -19,7 +19,7 @@ const history = []; // {t, deepest}
 
 fetch("/mapgen/out/oracle/lab-vertex-grids.json")
   .then((r) => r.json())
-  .then((g) => { grids = g; drawGrid(); log("grids loaded — ready"); })
+  .then((g) => { grids = g; drawGrid(); drawTileMap(); log("grids loaded — ready"); })
   .catch(() => log("FAILED to load lab-vertex-grids.json — run the recovery experiment first", "done"));
 
 function log(text, cls) {
@@ -28,6 +28,26 @@ function log(text, cls) {
   el.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
   const feed = $("log");
   feed.prepend(el);
+}
+
+// tile map: what the game actually built — 16 tile types, herringbone layout
+function drawTileMap() {
+  const cv = $("tilemap"), ctx = cv.getContext("2d");
+  const bb = grids.bbox ? grids.bbox["78633191"] : null;
+  if (!bb) { ctx.fillStyle = "#0b0e12"; ctx.fillRect(0, 0, cv.width, cv.height); return; }
+  const PX = 3; // px per cell
+  cv.width = (bb.mxx - bb.mnx + 1) * PX;
+  cv.height = (bb.mxy - bb.mny + 1) * PX;
+  ctx.fillStyle = "#0b0e12";
+  ctx.fillRect(0, 0, cv.width, cv.height);
+  const hue = (i) => `hsl(${(i * 137.5) % 360} 65% 55%)`;
+  for (const p of grids["78633191"].placements || []) {
+    ctx.fillStyle = hue(p.tile);
+    ctx.fillRect((p.X - bb.mnx) * PX, (p.Y - bb.mny) * PX, (p.isH ? 8 : 4) * PX - 1, (p.isH ? 4 : 8) * PX - 1);
+  }
+  ctx.fillStyle = "#0b0e12aa";
+  ctx.font = "10px monospace";
+  ctx.fillText("tile map · seed 91 · 16 tile types · herringbone layout", 4, cv.height - 4);
 }
 
 function drawGrid() {

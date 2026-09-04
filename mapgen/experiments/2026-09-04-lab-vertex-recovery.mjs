@@ -131,6 +131,14 @@ for (const seed of SEEDS) {
 
 // stash the winning mapping's grids (integer keys) for the model search
 const best = "natural";
+const bboxBySeed = {};
+for (const seed of SEEDS) {
+  const cells = loadGrid(seed);
+  let mnx = 1e9, mny = 1e9, mxx = -1e9, mxy = -1e9;
+  for (const k of cells.keys()) { const [x, y] = k.split(",").map(Number); mnx = Math.min(mnx, x); mxx = Math.max(mxx, x); mny = Math.min(mny, y); mxy = Math.max(mxy, y); }
+  bboxBySeed[seed] = { mnx, mny, mxx, mxy };
+}
+result.bbox = bboxBySeed;
 for (const seed of SEEDS) {
   const cells = loadGrid(seed);
   const pls = placements(cells);
@@ -147,6 +155,9 @@ for (const seed of SEEDS) {
     }
   }
   result[seed].grid = grid;
+  // placements in bbox-cell coords (tile idx, orientation, rect) for the tile-map view
+  const pls2 = placements(loadGrid(seed));
+  result[seed].placements = pls2.map((p) => ({ X: p.X, Y: p.Y, isH: p.isH, tile: p.tile }));
 }
 fs.writeFileSync(repoRoot + "/mapgen/out/oracle/lab-vertex-grids.json", JSON.stringify(result, null, 1));
 console.log("wrote mapgen/out/oracle/lab-vertex-grids.json");
