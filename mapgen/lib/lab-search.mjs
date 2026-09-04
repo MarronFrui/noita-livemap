@@ -110,19 +110,21 @@ export class LabSearch {
     const ws = Number(this.seed) >>> 0;
 
     if (cfg.templates.S1) {
+      const warmups = cfg.s1Warmups || [0];
+      for (const warm of warmups) {
       for (const [dname, draw] of draws) {
         for (const [dI, dJ] of aligns) {
           const obsAt = this.scanList.map(([i, j]) => this.obsMap.get(i - dI + "," + (j - dJ)));
           for (let sy = this.area.y0; sy < this.area.y0 + this.dims.H * 10; sy++) {
             for (let sx = this.area.x0; sx < this.area.x0 + this.dims.W * 10; sx++) {
-              const { depth, alive } = this.walk(() => seededPrng(ws, sx, sy), draw, dI, dJ, obsAt, cfg.missBudget);
+              const { depth, alive } = this.walk(() => { const r = seededPrng(ws, sx, sy); for (let w = 0; w < warm; w++) r.next(); return r; }, draw, dI, dJ, obsAt, cfg.missBudget);
               this.scored++;
               if (depth > this.deepest) {
                 this.deepest = depth;
-                this.deepestInfo = { template: "S1", draw: dname, dI, dJ, sx, sy };
+                this.deepestInfo = { template: "S1", draw: dname, dI, dJ, sx, sy, warm };
                 this.emit({ type: "best", depth, info: this.deepestInfo });
               }
-              if (alive && depth >= this.obs.length * 0.9) { this.winner = { template: "S1", draw: dname, dI, dJ, sx, sy, depth }; this.finish("hit"); return; }
+              if (alive && depth >= this.obs.length * 0.9) { this.winner = { template: "S1", draw: dname, dI, dJ, sx, sy, warm, depth }; this.finish("hit"); return; }
               if (this.scored % cfg.batchSize === 0) {
                 this.emit({ type: "progress", scored: this.scored, deepest: this.deepest, accuracy: (100 * this.deepest) / this.obs.length });
                 await yieldToMessages();
@@ -133,6 +135,7 @@ export class LabSearch {
             if (this._stop) { this.finish("stopped"); return; }
           }
         }
+      }
       }
     }
 

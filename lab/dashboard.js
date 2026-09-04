@@ -94,6 +94,7 @@ $("start").addEventListener("click", () => {
     templates: { S1: $("tS1").checked, S2: $("tS2").checked, P: $("tP").checked },
     batchSize: 20000,
   };
+  if ($("deep").checked) { config.missBudget = 40; config.s1Warmups = [0, 1, 2, 3]; }
   history.length = 0;
   worker.postMessage({ type: "start", grids, seed: "78633191", config });
   running = true;

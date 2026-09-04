@@ -12,7 +12,7 @@ self.onmessage = (e) => {
       seed: msg.seed,
       area: { x0: -16896, y0: 11264 },
       dims: { W: 256, H: 102 },
-      config: msg.config,
+      config: { missBudget: 0, s1Warmups: [0], ...msg.config },
     });
     search.on((evt) => self.postMessage(evt));
     search.run();
