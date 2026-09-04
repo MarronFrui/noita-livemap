@@ -38,29 +38,48 @@ function drawChart() {
   const cv = $("chart"), ctx = cv.getContext("2d");
   ctx.fillStyle = "#0b0e12";
   ctx.fillRect(0, 0, cv.width, cv.height);
-  if (history.length < 2) return;
-  const maxD = 389, maxT = history[history.length - 1].t;
-  ctx.strokeStyle = "#8fd3ff";
-  ctx.beginPath();
-  for (const [t, d] of history) {
-    const x = (t / maxT) * (cv.width - 10) + 5;
-    const y = cv.height - 5 - (d / maxD) * (cv.height - 10);
-    ctx.lineTo(x, y);
-  }
-  ctx.stroke();
-  // noise reference: ~log2(scored) for random walks
-  ctx.strokeStyle = "#4a5666";
-  ctx.setLineDash([4, 4]);
-  ctx.beginPath();
-  const scoredNow = Number($("scored").textContent.replace(/\s/g, "")) || 1;
+  const scoredNow = Number($("scored").textContent.replace(/[^\d]/g, "")) || 1;
   const noise = Math.min(389, Math.log2(Math.max(scoredNow, 2)) + 2);
-  const ny = cv.height - 5 - (noise / maxD) * (cv.height - 10);
-  ctx.moveTo(5, ny);
-  ctx.lineTo(cv.width - 5, ny);
+  const deepestNow = history.length ? history[history.length - 1][1] : 0;
+  // zoom the Y axis to the relevant band — the fixed 0..389 scale squashed
+  // everything onto the bottom edge
+  const yMax = Math.max(24, Math.ceil(noise * 2.2), Math.ceil(deepestNow * 1.4));
+  const maxT = Math.max(10, history.length ? history[history.length - 1].t : 10);
+  const X = (t) => (t / maxT) * (cv.width - 44) + 38;
+  const Y = (d) => cv.height - 18 - (d / yMax) * (cv.height - 28);
+  // gridlines + labels
+  ctx.font = "10px monospace";
+  ctx.strokeStyle = "#1d2530";
+  for (let g = 0; g <= 4; g++) {
+    const d = (yMax / 4) * g;
+    ctx.beginPath();
+    ctx.moveTo(38, Y(d));
+    ctx.lineTo(cv.width - 5, Y(d));
+    ctx.stroke();
+    ctx.fillStyle = "#5a6a7a";
+    ctx.fillText(d.toFixed(0), 8, Y(d) + 3);
+  }
+  // noise floor (dashed)
+  ctx.strokeStyle = "#c9873a";
+  ctx.setLineDash([5, 4]);
+  ctx.beginPath();
+  ctx.moveTo(38, Y(noise));
+  ctx.lineTo(cv.width - 5, Y(noise));
   ctx.stroke();
   ctx.setLineDash([]);
-  ctx.fillStyle = "#4a5666";
-  ctx.fillText(`noise floor ~log2(N) = ${noise.toFixed(0)}`, 8, ny - 4);
+  ctx.fillStyle = "#c9873a";
+  ctx.fillText(`noise floor ~log2(N) = ${noise.toFixed(1)}`, 42, Y(noise) - 4);
+  // data trend
+  if (history.length >= 2) {
+    ctx.strokeStyle = "#8fd3ff";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (const [t, d] of history) ctx.lineTo(X(t), Y(d));
+    ctx.stroke();
+    ctx.lineWidth = 1;
+  }
+  ctx.fillStyle = "#5a6a7a";
+  ctx.fillText("elapsed s →", cv.width - 80, cv.height - 5);
 }
 
 $("start").addEventListener("click", () => {
