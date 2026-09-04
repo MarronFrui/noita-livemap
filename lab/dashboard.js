@@ -33,15 +33,20 @@ function log(text, cls) {
 function drawGrid() {
   const cv = $("grid"), ctx = cv.getContext("2d");
   const S = 4, COLS = 70, ROWS = 31;
-  ctx.fillStyle = "#0b0e12";
-  ctx.fillRect(0, 0, cv.width, cv.height);
   const classOf = (i, j) => (((i - j) % 4) + 4) % 4;
-  for (const [key, color] of Object.entries(grids["78633191"].grid)) {
-    const [I, J] = key.split(",").map(Number);
-    const cl = classOf(I, J);
-    ctx.fillStyle = cl === 1 || cl === 3 ? "#3a4450" : color === 0 ? "#ffd479" : "#8fd3ff";
-    ctx.fillRect(I * S, J * S, S - 1, S - 1);
-  }
+  const key = grids["78633191"].grid;
+  // full lattice: dark = never generated, grey = fixed class (seed-independent),
+  // gold/blue = informative vertices (the coin flips the search must explain)
+  for (let j = 0; j < ROWS; j++)
+    for (let i = 0; i < COLS; i++) {
+      const v = key[i + "," + j];
+      const cl = classOf(i, j);
+      ctx.fillStyle = v === undefined ? "#0b0e12" : (cl === 1 || cl === 3) ? "#39424e" : v === 0 ? "#ffd479" : "#8fd3ff";
+      ctx.fillRect(i * S, j * S, S - 1, S - 1);
+    }
+  ctx.fillStyle = "#5a6a7a";
+  ctx.font = "9px monospace";
+  ctx.fillText("dark = chunk never generated · grey = fixed class · gold/blue = informative", 2, cv.height - 2);
 }
 
 function drawChart() {

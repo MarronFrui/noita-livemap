@@ -12,6 +12,7 @@
 // except rep-reduced vertices).
 
 import { NollaPrng, seededPrng } from "./wang-js.mjs";
+export { seededPrng }; // re-export for integrity tests and tooling
 
 // Bump when walk semantics change (scan order, class rule, consumption rule,
 // scoring) — invalidates any persisted sweep ledger.
