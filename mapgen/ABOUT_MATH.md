@@ -619,6 +619,69 @@ fires our spawn callback per placed pixel → tile placement log per seed
 biome-script sandboxes have NO io and NO sight of mod globals; learned the
 hard way, two iterations).
 
+**How the lab works (functioning, for future sessions):**
+
+1. **Injection** (`init.lua`, mod load time): patch `_biomes_all.xml` via
+   `ModTextFileSetContent` (idempotent, guards on "wanglab.xml"), then
+   `ModMagicNumbersFileAdd` pointing `BIOME_MAP` at
+   `files/biome_map_loader.lua`, which does `BiomeMapSetSize(70,48)` +
+   `BiomeMapLoadImage(0,0,"data/biome_impl/biome_map.png")` +
+   `BiomeMapSetPixel` for the 5×2 lab rect (color `ff0a0b0c`, registered in
+   the patched XML with `biome_filename` pointing into the mod folder).
+2. **Atlas** (`files/wang_tiles/lab.png`, 30×56): corner-type,
+   `numColor=(2,1,2,1)`, `short_side_len=4`, vary 1/1 → 8h+8v tiles. Written
+   by `lib/wang-template-writer.mjs`, which mirrors the canonical template
+   walk (the reader assigns corner constraints by SLOT POSITION, not pixel
+   colors) and paints each tile's whole content with a unique marker RGB
+   (interiors are free art). Self-test: parse the written PNG with
+   `buildTileset` and diff constraints + markers.
+   Header gotcha: the 9 header bytes land 3-per-pixel on row 0 — paint them
+   per-PIXEL, not per-byte (byte write order clobbers channels), and apply
+   the `& 0xff` truncation on encode AND decode.
+3. **Readout** (`files/scripts/lab.lua`, generated): thin shim —
+   `RegisterSpawnFunction` per marker color + per-tile callbacks that push
+   rows into the game's global store (`GlobalsSetValue("wanglab_r_<n>", …)`,
+   counter in `wanglab_count`). The biome-script sandbox has no `io` and no
+   sight of mod globals (two failed designs before this); the mod context
+   (init.lua, owns io) drains the rows every frame into the per-seed CSV and
+   filters stale rows by seed (globals.lst persists across sessions).
+   `0xffffeedd` per-chunk init did NOT fire for our mod biome (no anchors in
+   the CSVs — harmless, rows carry positions).
+4. **Session protocol**: lab mod + seed mod ONLY (rng-probe also drives the
+   camera — conflict). The mod auto-visits the rect with 5 camera stops
+   (frames 600..2100 after world load) so chunks generate; callbacks fire on
+   placement; expect `[wang-lab] done - N rows` ≈ 35 s in. Physics state is
+   irrelevant for the readout (markers fire at placement time), but frozen
+   physics (mapcap `disable-physics`, dev build) makes dumps cleaner.
+5. **Recovery** (`experiments/2026-09-04-lab-vertex-recovery.mjs`): rasterize
+   fired pixels → 10-px cells → connected components = placements (keep only
+   full 8×4 h / 4×8 v extents; partials sit at clipped edges or ungenerated
+   chunks) → fit lattice phase φ ∈ [0..3]² (measured (1,1), 0 misaligned —
+   the fired grid is offset from the fill's output grid by the world
+   placement phase) → integer vertex indices I = (X+φx)/4+2 → each placement
+   pins 6 corners → over-determined grid, **0 conflicts** → the per-seed
+   answer key (`out/oracle/lab-vertex-grids.json`).
+6. **Class rule (empirical, supersedes §3ter's note)**: binary classes at
+   `(I−J)&3 ∈ {0,2}`; classes {1,3} are single-color (0) by construction —
+   a built-in skeleton: ~half the vertices are seed-independent.
+7. **Optimizer** (`experiments/2026-09-04-lab-optimizer.mjs`): automated
+   hypothesis search with EXACT-MATCH prefilter scoring (abort on first
+   mismatch — a true model walks all informative vertices clean; partial-walk
+   scores are noise: at n≤55 the max over 188M candidates is ~90%, the v1
+   lesson), selective journaling (`out/oracle/optimizer-log.jsonl` — v1 OOMed
+   writing 33M lines; v2 logs new bests/survivors only, RSS ≈ 72 MB), two
+   exits: 100% → auto-verify on 92/93 → save `out/oracle/lab-solution.json`,
+   or timeout (minutes arg). Templates: S1 sequential via `seededPrng(ws,sx,sy)`
+   exhaustive over every world pixel of the rect (~94M candidates ≈ 35 min),
+   S2 `SetRandomFromWorldSeed` + skip k ≤ 200k, P positional over coordinate
+   systems × offsets × draw shapes.
+
+**Resource profile**: repo disk holds all analysis artifacts (~350 MB in
+`mapgen/out` + `mapcap/out`, gitignored, 900+ GB free); the game disk (E:)
+holds mapcap raw tiles/stitches (~140 MB per capture set, 200 GB free —
+watch it, 90% used). Optimizer is single-threaded, RSS ≈ 72 MB, ~50k
+candidates/s; `--max-old-space-size=4096` as belt-and-braces.
+
 **Vertex grid recovery** (`experiments/2026-09-04-lab-vertex-recovery.mjs`):
 338 full placements per seed → 778 vertices, **0 conflicts** (natural corner
 mapping: h = a,b,c left→right top, d,e,f bottom; v = a,b,c left col top→bottom,

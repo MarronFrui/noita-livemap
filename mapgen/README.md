@@ -81,6 +81,35 @@ graduates into `lib/` or `pipeline/`.
 | ---- | ------- |
 | `update-golden.mjs` | Re-blesses `out/golden.json` (regression baselines for the wasm output AND the wang-js port). Refuses to overwrite without `--force` — re-goldening is always a deliberate act; log the reason in `ABOUT_MATH.md` §6 |
 
+### Wang Lab (`mods/noita-wang-lab/` + `lib/wang-template-writer.mjs`)
+
+A controlled experiment: injects a 16-tile custom wang biome as a 5×2-chunk
+rectangle (biome px tx 2..6, ty 36..37) whose tiles self-report their
+placement via spawn-color callbacks. The recovered tile→cell map determines
+the vertex-color grid **exactly** — the answer key for fill-hypothesis
+testing (see `ABOUT_MATH.md` §7septies).
+
+```bash
+# regenerate atlas + lab.lua from the template encoder (self-validating)
+node -e 'import("./mapgen/lib/wang-template-writer.mjs").then(async W => { const fs=await import("node:fs"); const t=W.makeLabTemplate(); const {writePng}=await import("./mapgen/lib/images.mjs"); writePng("mods/noita-wang-lab/files/wang_tiles/lab.png",t.width,t.height,t.rgba); fs.writeFileSync("mods/noita-wang-lab/files/scripts/lab.lua",W.labLua(t.tiles)); })'
+
+# in-game (lab mod + seed mod ONLY — no rng-probe, both drive the camera):
+#   force seed → new game → auto-visit (~35 s) → quit
+#   output: save00/noita-wang-lab-tiles-<seed>.csv
+
+# recover vertex grids from the dumps
+node mapgen/experiments/2026-09-04-lab-vertex-recovery.mjs
+
+# automated hypothesis search (two exits: 100% match → auto-verify 92/93,
+# or timeout in minutes; journal: out/oracle/optimizer-log.jsonl)
+node --max-old-space-size=4096 mapgen/experiments/2026-09-04-lab-optimizer.mjs 60
+```
+
+Resource notes: optimizer RSS ≈ 72 MB (no OOM risk in v2 — v1 OOMed by
+journaling every candidate; v2 journals new bests/survivors only). Full S1
+exhaustive sweep ≈ 94M candidates ≈ 35 min single-threaded. Artifacts live
+on the repo disk (gitignored); the game disk only holds the small CSVs.
+
 ### test/
 
 | File | Purpose |

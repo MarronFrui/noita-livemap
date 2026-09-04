@@ -53,6 +53,10 @@ node mapcap/analyze-capture.mjs --name <run> --seed <seed> [--stitched <png>] [-
 node mapcap/diff-captures.mjs --a <runA> --b <runB>
 node mapcap/diff-vs-reference.mjs --name <run>
 
+# Wang Lab (controlled fill experiments; see mapgen/README.md + ABOUT_MATH §7septies)
+node mapgen/experiments/2026-09-04-lab-vertex-recovery.mjs          # dumps → vertex grids
+node --max-old-space-size=4096 mapgen/experiments/2026-09-04-lab-optimizer.mjs 60  # hypothesis search (timeout min)
+
 # Tests
 npm test             # node:test; determinism + golden hash (needs extracted data)
 
