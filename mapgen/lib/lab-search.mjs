@@ -13,6 +13,10 @@
 
 import { NollaPrng, seededPrng } from "./wang-js.mjs";
 
+// Bump when walk semantics change (scan order, class rule, consumption rule,
+// scoring) — invalidates any persisted sweep ledger.
+export const SEARCH_VERSION = "2.1.0";
+
 export const DRAW = {
   random: (rng, cc) => (cc === 1 ? 0 : rng.random(0, cc - 1)),
   nextUmod: (rng, cc) => rng.nextU() % cc,
@@ -62,6 +66,7 @@ export class LabSearch {
     this.obs = observedVertices(grids, seed);
     this.obsMap = new Map(this.obs.map((v) => [v.I + "," + v.J, v.color]));
     this.scanList = makeScanList(dims.W, dims.H);
+    this.skipKeys = new Set(config.skipKeys || []);
     this.scored = 0;
     this.deepest = 0;
     this.deepestInfo = null;
@@ -95,6 +100,8 @@ export class LabSearch {
     }
     return { depth, alive: true };
   }
+
+  skey(...parts) { return [this.seed, SEARCH_VERSION, ...parts].join("|"); }
 
   aligns() { return this.config.aligns || [[0, 0], [1, 0], [0, 1], [1, 1], [-1, 0], [0, -1], [-1, -1], [1, 1], [-1, -1]]; }
   draws() {
@@ -132,6 +139,8 @@ export class LabSearch {
       for (const warm of warmups) {
         for (const [dname, draw] of draws) {
           for (const [dI, dJ] of aligns) {
+            const key = this.skey("S1", "w" + warm, dname, dI + "," + dJ, "b" + (cfg.missBudget || 0));
+            if (this.skipKeys.has(key)) { this.emit({ type: "skipped", key }); continue; }
             const obsAt = this.scanList.map(([i, j]) => this.obsMap.get(i - dI + "," + (j - dJ)));
             for (const [sx, sy] of pts) {
               const { depth, alive } = this.walk(
@@ -160,6 +169,7 @@ export class LabSearch {
                 if (this._stop) { this.finish("stopped"); return; }
               }
             }
+            this.emit({ type: "sweepDone", key, accuracy: (100 * this.deepest) / this.obs.length });
           }
         }
       }
@@ -169,6 +179,8 @@ export class LabSearch {
       const maxK = cfg.s2MaxK || 200000;
       for (const [dname, draw] of draws) {
         for (const [dI, dJ] of aligns) {
+          const key = this.skey("S2", dname, dI + "," + dJ, "b" + (cfg.missBudget || 0));
+          if (this.skipKeys.has(key)) { this.emit({ type: "skipped", key }); continue; }
           const obsAt = this.scanList.map(([i, j]) => this.obsMap.get(i - dI + "," + (j - dJ)));
           const base = new NollaPrng(ws);
           base.setRandomFromWorldSeed(ws);
@@ -191,6 +203,7 @@ export class LabSearch {
               if (this._stop) { this.finish("stopped"); return; }
             }
           }
+          this.emit({ type: "sweepDone", key, accuracy: (100 * this.deepest) / this.obs.length });
         }
       }
     }
@@ -205,6 +218,8 @@ export class LabSearch {
       };
       for (const [unit, fn] of Object.entries(UNITS)) {
         const range = unit === "vertexIdx" ? 4 : unit === "chunk" ? 2 : unit === "cell" ? 8 : 40;
+        const pkey = this.skey("P", unit, "b" + (cfg.missBudget || 0));
+        if (this.skipKeys.has(pkey)) { this.emit({ type: "skipped", pkey }); continue; }
         for (let dx = -range; dx <= range; dx++)
           for (let dy = -range; dy <= range; dy++)
             for (const [dname, draw] of draws) {
@@ -228,6 +243,7 @@ export class LabSearch {
                 if (this._stop) { this.finish("stopped"); return; }
               }
             }
+        this.emit({ type: "sweepDone", key: pkey });
       }
     }
 

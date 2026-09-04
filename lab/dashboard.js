@@ -3,7 +3,17 @@ const $ = (id) => document.getElementById(id);
 const worker = new Worker(new URL("./lab-worker.mjs", import.meta.url), { type: "module" });
 
 let grids = null;
+let gridsFp = "";
 let running = false;
+const LEDGER = "wanglab-sweeps-ledger-v1";
+let ledger = {};
+try { ledger = JSON.parse(localStorage.getItem(LEDGER) || "{}"); } catch { ledger = {}; }
+function saveLedger() { localStorage.setItem(LEDGER, JSON.stringify(ledger)); }
+function gridsFingerprint(g) { // djb2 — ledger auto-invalidates when the answer key changes
+  const str = JSON.stringify(g); let h = 5381;
+  for (let i = 0; i < str.length; i++) h = ((h * 33) ^ str.charCodeAt(i)) >>> 0;
+  return h.toString(36);
+}
 let startT = 0;
 const history = []; // {t, deepest}
 
@@ -90,17 +100,24 @@ function drawChart() {
 
 $("start").addEventListener("click", () => {
   if (!grids) { log("grids not loaded yet", "done"); return; }
+  const fp = gridsFingerprint(grids);
+  const skipKeys = Object.entries(ledger)
+    .filter(([k, v]) => v.fp === fp)
+    .map(([k]) => k.split("|").slice(1).join("|")); // strip fp prefix
   const config = {
     templates: { S1: $("tS1").checked, S2: $("tS2").checked, P: $("tP").checked },
     batchSize: 20000,
+    skipKeys,
   };
   if ($("deep").checked) { config.missBudget = 40; config.s1Warmups = [0, 1, 2, 3]; }
   history.length = 0;
   worker.postMessage({ type: "start", grids, seed: "78633191", config });
   running = true;
+  skippedCount = 0;
   startT = Date.now();
   setButtons();
-  log("search started");
+  const pending = Object.values(ledger).filter((v) => v.fp === gridsFingerprint(grids)).length;
+  log(`search started — ledger: ${pending} completed sub-sweeps will be skipped`);
 });
 
 $("pause").addEventListener("click", () => {
@@ -125,6 +142,7 @@ function setButtons() {
 
 worker.onmessage = (e) => {
   const evt = e.data;
+  if (evt.type === "sweepDone" || evt.type === "skipped") { /* handled below */ }
   if (evt.type === "progress") {
     $("scored").textContent = evt.scored.toLocaleString("en-US");
     $("deepest").textContent = evt.deepest;
@@ -140,6 +158,11 @@ worker.onmessage = (e) => {
     $("deepest").textContent = evt.depth;
     $("deepestInfo").textContent = JSON.stringify(evt.info);
     log(`new best: depth ${evt.depth} — ${JSON.stringify(evt.info)}`, "best");
+  } else if (evt.type === "sweepDone") {
+    ledger[gridsFp + "|" + evt.key] = { fp: gridsFp, ts: Date.now(), accuracy: evt.accuracy };
+    saveLedger();
+  } else if (evt.type === "skipped") {
+    skippedCount++;
   } else if (evt.type === "done") {
     running = false;
     setButtons();
