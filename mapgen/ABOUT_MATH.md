@@ -523,6 +523,61 @@ User hypothesis: comparing seed N vs N+1 could reveal the generation math.
   detail). A fill model that only produces all-distinct pixels for changed
   content misses the two-agree class entirely.
 
+## 7sexies. Spawn-equation judge v1 — L1 armed, first paint-immune verdict (2026-09-04)
+
+**Oracle data** (`mods/noita-livemap-rng-probe/` v3 sweep, committed fixtures
+`mapgen/fixtures/oracle/`): entity dumps for 78633191/92/93 (74/54/50 items;
+filter `data/entities/items/`, first-sighting positions). Probe bug fixed:
+`EntityGetFileName` → `EntityGetFilename` (annotations.lua:161 — old code
+failed 100% of lookups). 15 sightings identical across ALL 3 seeds = fixed
+spawns, exactly as PREDICTABLE_ZONES predicts (HM pedestals/perks, altar
+orb_00+book, kantele, evil_eye, orb-room orbs) — the 3-way diff itself
+validates the observation protocol.
+
+**Trigger audit (pixel-counted in the atlases, this session)** — tiles carry
+ONLY three wang spawn colors:
+
+| Atlas color | wang_scripts fn | Effect (biome Lua, verified) |
+| --- | --- | --- |
+| `00ff00` | spawn_items | biome-local fn → RNG gate → `wand_altar` pixel scene (coalmine 47% air/29% altar; fungicave 94% altar) |
+| `78ffff` | spawn_heart | 70% `heart.xml`, else chest_random/mimic |
+| `55ff8c` | spawn_chest | chest_random — registered in coalmine only |
+
+`spawn_wands`/`spawn_potions` colors have ZERO atlas pixels: wands, potions,
+thunderstone, brimstone, broken_wand all CASCADE from green — `wand_altar.png`
+itself contains a single `50a0f0` px → `spawn_wands` → per-biome `g_items`
+(coalmine = wand_001..017 + potion; excavationsite = level_02 wands; fungicave
+= unshuffle wands). **Constraint set = root triggers only.**
+`goldnugget*` = physics debris (props/orbs break during the camera sweep,
+terrain kills enemies; no static spawner exists) — excluded (user insight,
+2026-09-04).
+
+**Judge** (`experiments/2026-09-04-spawn-judge.mjs`): for each seed-dependent
+item, the root trigger color must appear within dx±4 / dy[−6..1] atlas px of
+`floor((world − areaOrigin)/10)` in the model's fill, using FULL
+connected-component area dims (v1 had a shrunken-bbox bug — GetRNG's skip
+depends on area width — fixed).
+
+**RESULT (48 constraints: 22 potion, 12 heart, 9 chest, 4 wand, 1 egg):**
+
+| Model | Satisfied |
+| --- | --- |
+| noitool wasm (full pipeline incl. rejection) | **0/48** |
+| wang-js sequential, single attempt | **5/48** (heart 3/12, potion 1/22, chest 1/9) |
+| chance expectation (color share 0.01–0.17% × 45-px window) | ≈ 0.2 |
+
+Both candidate models fail the spawn equations — the first **paint-immune**
+eliminations, independent of the capture's non-wang layers that confounded
+§7ter/§7quater. The js sequential model is indistinguishable-from-chance to
+slightly-above; noitool's model is flat zero.
+
+**Caveats / next knobs**: physics drift can move items below the tolerance
+window (a correct fill needs ≫10%, not exactly 100%); anchor hypotheses
+(H1/H2/H3, §4) not yet swept; js model lacks the hasPath rejection loop;
+per-class detail in `mapgen/out/oracle/judge-v1.json`.
+
+
+
 ## 8. Glossary
 
 - **Wang tile / herringbone**: domino-shaped tiles (2:1) whose edge colors must
