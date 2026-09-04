@@ -134,13 +134,13 @@ export class LabSearch {
       for (const [dname, draw] of draws) {
         for (const [dI, dJ] of aligns) {
           const obsAt = this.scanList.map(([i, j]) => this.obsMap.get(i - dI + "," + (j - dJ)));
+          const base = new NollaPrng(ws);
+          base.setRandomFromWorldSeed(ws);
           for (let k = 0; k <= maxK; k++) {
-            const { depth, alive } = this.walk(() => {
-              const r = new NollaPrng(ws);
-              r.setRandomFromWorldSeed(ws);
-              for (let i = 0; i < k; i++) r.next();
-              return new NollaPrng(r.nextU());
-            }, draw, dI, dJ, obsAt);
+            // incremental: skip k and k+1 share the base stream — advance one
+            // draw per step instead of re-skipping from scratch (O(maxK) total)
+            const u = base.nextU();
+            const { depth, alive } = this.walk(() => new NollaPrng(u), draw, dI, dJ, obsAt);
             this.scored++;
             if (depth > this.deepest) {
               this.deepest = depth;
