@@ -112,6 +112,8 @@ function wire(s) {
     } else if (evt.type === "best") {
       $("deepestInfo").textContent = JSON.stringify(evt.info);
       log(`new best: accuracy ${(100 * evt.depth / 548).toFixed(1)}% — ${JSON.stringify(evt.info)}`, "best");
+    } else if (evt.type === "control") {
+      log(`control: ${evt.what}`, "best");
     } else if (evt.type === "sweepDone") {
       ledger[gridsFingerprint(grids) + "|" + evt.key] = { fp: gridsFingerprint(grids), ts: Date.now(), accuracy: evt.accuracy };
       saveLedger();
@@ -140,7 +142,7 @@ $("start").addEventListener("click", () => {
   if (search) search.stop(); // kill any leftover instance
   const config = {
     templates: { S1: $("tS1").checked, S2: $("tS2").checked, P: $("tP").checked },
-    batchSize: 20000,
+    batchSize: 5000,
   };
   if ($("deep").checked) { config.missBudget = 40; config.s1Warmups = [0, 1, 2, 3]; }
   const fp = gridsFingerprint(grids);

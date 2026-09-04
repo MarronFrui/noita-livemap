@@ -166,8 +166,10 @@ export class LabSearch {
               if (this.scored % cfg.batchSize === 0) {
                 this.emit({ type: "progress", scored: this.scored, deepest: this.deepest, accuracy: (100 * this.deepest) / this.obs.length });
                 await yieldToMessages();
+                if (this._pause && !this._stop) this.emit({ type: "control", what: "paused" });
                 while (this._pause && !this._stop) await yieldToMessages();
                 if (this._stop) { this.finish("stopped"); return; }
+                this.emit({ type: "control", what: "resumed" });
               }
             }
             this.emit({ type: "sweepDone", key, accuracy: (100 * this.deepest) / this.obs.length });
@@ -200,8 +202,10 @@ export class LabSearch {
             if (this.scored % cfg.batchSize === 0) {
               this.emit({ type: "progress", scored: this.scored, deepest: this.deepest, accuracy: (100 * this.deepest) / this.obs.length });
               await yieldToMessages();
+              if (this._pause && !this._stop) this.emit({ type: "control", what: "paused" });
               while (this._pause && !this._stop) await yieldToMessages();
               if (this._stop) { this.finish("stopped"); return; }
+              this.emit({ type: "control", what: "resumed" });
             }
           }
           this.emit({ type: "sweepDone", key, accuracy: (100 * this.deepest) / this.obs.length });
@@ -240,8 +244,10 @@ export class LabSearch {
               if (this.scored % cfg.batchSize === 0) {
                 this.emit({ type: "progress", scored: this.scored, deepest: this.deepest, accuracy: (100 * this.deepest) / this.obs.length });
                 await yieldToMessages();
+                if (this._pause && !this._stop) this.emit({ type: "control", what: "paused" });
                 while (this._pause && !this._stop) await yieldToMessages();
                 if (this._stop) { this.finish("stopped"); return; }
+                this.emit({ type: "control", what: "resumed" });
               }
             }
         this.emit({ type: "sweepDone", key: pkey });
