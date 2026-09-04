@@ -207,6 +207,7 @@ function probe.update()
         end
         if prior_rows > 0 then
             log_debug("v3 skipped (exists with " .. prior_rows .. " rows, seed " .. seed_str .. ")")
+            GamePrint("[probe] dump already exists for seed " .. seed_str .. " - nothing to do (delete the CSV to re-run)")
             done = true
             return
         end
@@ -222,6 +223,7 @@ function probe.update()
             seen, rows, ent_n = {}, {}, 0
             skip_counts = { nofile = 0, filtered = 0 }
             GameSetCameraFree(true)
+            GamePrint("[probe] sweep starting - camera will move on its own")
             log_debug(string.format("v3 sweep started: %d waypoints, dwell %d, radius %d", #wps, DWELL_FRAMES, RADIUS))
             phase = "sweep"
         end
@@ -279,8 +281,10 @@ function probe.update()
             end
             log_debug(string.format("v3 dumped %d entities, %d filtered, %d nofile (seed %s)", ent_n, skip_counts.filtered, skip_counts.nofile, seed_str))
             print("[noita-rng-probe] v3 dumped " .. ent_n .. " items for seed " .. seed_str)
+            GamePrint("[probe] done: " .. ent_n .. " items dumped - camera released")
         else
             log_debug("v3 dump failed")
+            GamePrint("[probe] dump FAILED - see probe-debug.log")
         end
         done = true
         return
