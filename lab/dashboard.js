@@ -95,6 +95,7 @@ function drawChart() {
 // ---- engine event wiring ----
 function wire(s) {
   s.on((evt) => {
+    if (s !== search) return; // stale engine — ignore everything
     lastEventT = Date.now();
     if (evt.type === "progress") {
       $("scored").textContent = evt.scored.toLocaleString("en-US");
@@ -124,7 +125,7 @@ function wire(s) {
 }
 
 function setButtons(state) {
-  const running = state === undefined && search && search.state === "running";
+  const running = search && search.state === "running";
   $("start").disabled = !!running;
   $("pause").disabled = !running;
   $("stop").disabled = !running;
@@ -132,6 +133,11 @@ function setButtons(state) {
 }
 
 $("start").addEventListener("click", () => {
+  if (search && search.state === "running") {
+    log("already running — press Stop before starting a new search", "done");
+    return;
+  }
+  if (search) search.stop(); // kill any leftover instance
   const config = {
     templates: { S1: $("tS1").checked, S2: $("tS2").checked, P: $("tP").checked },
     batchSize: 20000,
