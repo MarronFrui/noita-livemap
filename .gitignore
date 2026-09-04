@@ -6,4 +6,5 @@ public/noitamap/
 SESSION_CONTEXT.md
 tools/
 mapgen/out/
-mapgen/noita-data*mapcap/out/
+mapgen/noita-dat
+mapcap/out/
