@@ -48,9 +48,7 @@ function drawTileMap() {
     ctx2.fillStyle = hue(p.tile);
     ctx2.fillRect((p.X - bb.mnx) * PX, (p.Y - bb.mny) * PX, (p.isH ? 8 : 4) * PX - 1, (p.isH ? 4 : 8) * PX - 1);
   }
-  ctx2.fillStyle = "#0b0e12aa";
-  ctx2.font = "10px monospace";
-  ctx2.fillText(`tile map · seed 91 · ${pls.length} placed tiles · static (the answer key)`, 4, cv.height - 4);
+  // (legend lives in the HTML below the canvas — no in-canvas cropping)
 }
 
 // ---- trend chart: accuracy % over elapsed time, with noise references ----
