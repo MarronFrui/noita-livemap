@@ -1,29 +1,25 @@
-// Wang Lab dashboard — supervises the search worker.
+// Wang Lab dashboard — search runs IN-PAGE (no worker), chunked async so the
+// UI stays responsive. All wiring is direct: if the numbers tick, it's alive.
+import { LabSearch, SEARCH_VERSION } from "../mapgen/lib/lab-search.mjs";
 import gridsData from "../mapgen/out/oracle/lab-vertex-grids.json";
 
 const $ = (id) => document.getElementById(id);
-const worker = new Worker(new URL("./lab-worker.mjs", import.meta.url), { type: "module" });
+const grids = gridsData;
+let search = null;
+let startT = 0;
+let lastEventT = 0;
+let lastScored = 0;
+const history = [];
 
-let grids = gridsData;
-let gridsFp = "";
-let running = false;
 const LEDGER = "wanglab-sweeps-ledger-v1";
 let ledger = {};
 try { ledger = JSON.parse(localStorage.getItem(LEDGER) || "{}"); } catch { ledger = {}; }
-function saveLedger() { localStorage.setItem(LEDGER, JSON.stringify(ledger)); }
-function gridsFingerprint(g) { // djb2 — ledger auto-invalidates when the answer key changes
-  const str = JSON.stringify(g); let h = 5381;
+const saveLedger = () => localStorage.setItem(LEDGER, JSON.stringify(ledger));
+function gridsFingerprint(g) {
+  const str = JSON.stringify(g);
+  let h = 5381;
   for (let i = 0; i < str.length; i++) h = ((h * 33) ^ str.charCodeAt(i)) >>> 0;
   return h.toString(36);
-}
-let startT = 0;
-const history = []; // {t, deepest}
-
-try {
-  drawTileMap();
-  log("grids loaded — ready");
-} catch (err) {
-  log("grids load FAILED: " + err.message, "done");
 }
 
 function log(text, cls) {
@@ -34,73 +30,63 @@ function log(text, cls) {
   feed.prepend(el);
 }
 
-// tile map: what the game actually built — 16 tile types, herringbone layout
+// ---- tile map: the answer key, as placed rectangles (herringbone layout) ----
 function drawTileMap() {
-  const cv = $("tilemap"), ctx = cv.getContext("2d");
-  const bb = grids.bbox ? grids.bbox["78633191"] : null;
-  if (!bb) { ctx.fillStyle = "#0b0e12"; ctx.fillRect(0, 0, cv.width, cv.height); return; }
-  const PX = 3; // px per cell
+  const cv = $("tilemap");
+  const ctx = cv.getContext("2d");
+  const bb = grids.bbox && grids.bbox["78633191"];
+  if (!bb) throw new Error("no bbox in grids JSON");
+  const PX = 3;
   cv.width = (bb.mxx - bb.mnx + 1) * PX;
   cv.height = (bb.mxy - bb.mny + 1) * PX;
-  ctx.fillStyle = "#0b0e12";
-  ctx.fillRect(0, 0, cv.width, cv.height);
+  const ctx2 = cv.getContext("2d");
+  ctx2.fillStyle = "#0b0e12";
+  ctx2.fillRect(0, 0, cv.width, cv.height);
   const hue = (i) => `hsl(${(i * 137.5) % 360} 65% 55%)`;
-  for (const p of grids["78633191"].placements || []) {
-    ctx.fillStyle = hue(p.tile);
-    ctx.fillRect((p.X - bb.mnx) * PX, (p.Y - bb.mny) * PX, (p.isH ? 8 : 4) * PX - 1, (p.isH ? 4 : 8) * PX - 1);
+  const pls = (grids["78633191"].placements || []);
+  for (const p of pls) {
+    ctx2.fillStyle = hue(p.tile);
+    ctx2.fillRect((p.X - bb.mnx) * PX, (p.Y - bb.mny) * PX, (p.isH ? 8 : 4) * PX - 1, (p.isH ? 4 : 8) * PX - 1);
   }
-  ctx.fillStyle = "#0b0e12aa";
-  ctx.font = "10px monospace";
-  ctx.fillText("tile map · seed 91 · 16 tile types · herringbone layout", 4, cv.height - 4);
+  ctx2.fillStyle = "#0b0e12aa";
+  ctx2.font = "10px monospace";
+  ctx2.fillText(`tile map · seed 91 · ${pls.length} placed tiles · static (the answer key)`, 4, cv.height - 4);
 }
 
+// ---- trend chart: accuracy % over elapsed time, with noise references ----
 function drawChart() {
   const cv = $("chart"), ctx = cv.getContext("2d");
   ctx.fillStyle = "#0b0e12";
   ctx.fillRect(0, 0, cv.width, cv.height);
-  const scoredNow = Number($("scored").textContent.replace(/[^\d]/g, "")) || 1;
-  // two noise references: prefix walks (log2(N) vertices) and full-walk
-  // positional scoring (selection max of a 389-sample binomial ≈ 50% + 4σ)
-  const prefixNoise = (100 * (Math.log2(Math.max(scoredNow, 2)) + 2)) / 389;
-  const fullNoise = 50 + 4 * 100 * Math.sqrt(0.25 / 389);
-  const deepestNow = history.length ? history[history.length - 1][1] : 0;
-  const yMax = Math.min(100, Math.max(30, Math.ceil(fullNoise * 1.35), Math.ceil(deepestNow * 1.4)));
-  const maxT = Math.max(10, history.length ? history[history.length - 1].t : 10);
+  const scoredNow = search ? search.scored : 1;
+  const prefixNoise = (100 * (Math.log2(Math.max(scoredNow, 2)) + 2)) / 548;
+  const fullNoise = 50 + 4 * 100 * Math.sqrt(0.25 / 548);
+  const deepestNow = search ? search.deepest : 0;
+  const yMax = Math.min(100, Math.max(30, Math.ceil(fullNoise * 1.5), Math.ceil(deepestNow * 1.4)));
+  const maxT = Math.max(10, (Date.now() - startT) / 1000);
   const X = (t) => (t / maxT) * (cv.width - 44) + 38;
   const Y = (d) => cv.height - 18 - (d / yMax) * (cv.height - 28);
-  // gridlines + labels
   ctx.font = "10px monospace";
   ctx.strokeStyle = "#1d2530";
   for (let g = 0; g <= 4; g++) {
     const d = (yMax / 4) * g;
-    ctx.beginPath();
-    ctx.moveTo(38, Y(d));
-    ctx.lineTo(cv.width - 5, Y(d));
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(38, Y(d)); ctx.lineTo(cv.width - 5, Y(d)); ctx.stroke();
     ctx.fillStyle = "#5a6a7a";
-    ctx.fillText(d.toFixed(0), 8, Y(d) + 3);
+    ctx.fillText(d.toFixed(0) + "%", 6, Y(d) + 3);
   }
-  // noise floor (dashed)
-  ctx.strokeStyle = "#c9873a";
-  ctx.setLineDash([5, 4]);
-  ctx.beginPath();
-  ctx.moveTo(38, Y(noise));
-  ctx.lineTo(cv.width - 5, Y(noise));
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.fillStyle = "#c9873a";
-  ctx.fillText(`prefix noise ${prefixNoise.toFixed(1)}%`, 42, Y(prefixNoise) - 4);
-  ctx.fillText(`full-walk noise ${fullNoise.toFixed(1)}%`, 42, Y(fullNoise) - 4);
-  ctx.strokeStyle = "#c9873a";
-  ctx.setLineDash([2, 4]);
-  ctx.beginPath(); ctx.moveTo(38, Y(fullNoise)); ctx.lineTo(cv.width - 5, Y(fullNoise)); ctx.stroke();
-  ctx.setLineDash([]);
-  // data trend
+  const ref = (v, label, color) => {
+    ctx.strokeStyle = color; ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.moveTo(38, Y(v)); ctx.lineTo(cv.width - 5, Y(v)); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = color; ctx.fillText(label, 42, Y(v) - 4);
+  };
+  ref(prefixNoise, `prefix noise (S) ${prefixNoise.toFixed(1)}%`, "#c9873a");
+  ref(fullNoise, `full-walk noise (P) ${fullNoise.toFixed(1)}%`, "#c9873a");
   if (history.length >= 2) {
     ctx.strokeStyle = "#8fd3ff";
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    for (const [t, d] of history) ctx.lineTo(X(t), Y(d));
+    for (const [t, acc] of history) ctx.lineTo(X(t), Y(acc));
     ctx.stroke();
     ctx.lineWidth = 1;
   }
@@ -108,88 +94,101 @@ function drawChart() {
   ctx.fillText("elapsed s →", cv.width - 80, cv.height - 5);
 }
 
+// ---- engine event wiring ----
+function wire(s) {
+  s.on((evt) => {
+    lastEventT = Date.now();
+    if (evt.type === "progress") {
+      $("scored").textContent = evt.scored.toLocaleString("en-US");
+      const acc = evt.accuracy ?? 0;
+      $("accuracy").textContent = acc.toFixed(2) + "%";
+      $("deepest").textContent = evt.deepest;
+      const elapsed = (Date.now() - startT) / 1000;
+      $("rate").textContent = Math.round(evt.scored / Math.max(1, elapsed)).toLocaleString("en-US");
+      $("elapsed").textContent = elapsed.toFixed(0) + "s";
+      $("progressFill").style.width = Math.min(100, acc) + "%";
+      history.push([elapsed, acc]);
+      if (history.length > 2000) history.splice(0, history.length - 2000);
+      drawChart();
+    } else if (evt.type === "best") {
+      $("deepestInfo").textContent = JSON.stringify(evt.info);
+      log(`new best: accuracy ${(100 * evt.depth / 548).toFixed(1)}% — ${JSON.stringify(evt.info)}`, "best");
+    } else if (evt.type === "sweepDone") {
+      ledger[gridsFingerprint(grids) + "|" + evt.key] = { fp: gridsFingerprint(grids), ts: Date.now(), accuracy: evt.accuracy };
+      saveLedger();
+    } else if (evt.type === "done") {
+      $("state").textContent = evt.reason;
+      $("accuracy").textContent = (evt.accuracy ?? 0).toFixed(2) + "%";
+      setButtons(evt.reason);
+      log(`search ${evt.reason} — scored ${evt.scored}, accuracy ${(evt.accuracy ?? 0).toFixed(2)}%${evt.winner ? " — WINNER: " + JSON.stringify(evt.winner) : ""}`, "done");
+    }
+  });
+}
+
+function setButtons(state) {
+  const running = state === undefined && search && search.state === "running";
+  $("start").disabled = !!running;
+  $("pause").disabled = !running;
+  $("stop").disabled = !running;
+  if (state) { $("pause").textContent = "Pause"; delete $("pause").dataset.paused; }
+}
+
 $("start").addEventListener("click", () => {
-  if (!grids) { log("grids not loaded yet", "done"); return; }
-  const fp = gridsFingerprint(grids);
-  const skipKeys = Object.entries(ledger)
-    .filter(([k, v]) => v.fp === fp)
-    .map(([k]) => k.split("|").slice(1).join("|")); // strip fp prefix
   const config = {
     templates: { S1: $("tS1").checked, S2: $("tS2").checked, P: $("tP").checked },
     batchSize: 20000,
-    skipKeys,
   };
   if ($("deep").checked) { config.missBudget = 40; config.s1Warmups = [0, 1, 2, 3]; }
+  const fp = gridsFingerprint(grids);
+  config.skipKeys = Object.entries(ledger).filter(([, v]) => v.fp === fp).map(([k]) => k.split("|").slice(1).join("|"));
   history.length = 0;
-  worker.postMessage({ type: "start", grids, seed: "78633191", config });
-  running = true;
-  skippedCount = 0;
   startT = Date.now();
+  lastEventT = Date.now();
+  search = new LabSearch({ grids, seed: "78633191", area: { x0: -16896, y0: 11264 }, dims: { W: 256, H: 102 }, config });
+  wire(search);
   setButtons();
-  const pending = Object.values(ledger).filter((v) => v.fp === gridsFingerprint(grids)).length;
-  log(`search started — ledger: ${pending} completed sub-sweeps will be skipped`);
+  $("state").textContent = "running";
+  const pending = Object.values(ledger).filter((v) => v.fp === fp).length;
+  log(`search started — ${pending} ledgered sub-sweeps will be skipped (engine ${SEARCH_VERSION})`);
+  search.run().catch((err) => {
+    $("state").textContent = "CRASHED";
+    log("engine crashed: " + (err && err.stack ? err.stack.split("\n").slice(0, 3).join(" | ") : String(err)), "done");
+  });
 });
 
 $("pause").addEventListener("click", () => {
+  if (!search) return;
   if ($("pause").dataset.paused) {
-    worker.postMessage({ type: "resume" });
-    $("pause").textContent = "Pause";
+    search.resume();
     delete $("pause").dataset.paused;
+    $("pause").textContent = "Pause";
     log("resumed");
   } else {
-    worker.postMessage({ type: "pause" });
-    $("pause").textContent = "Resume";
+    search.pause();
     $("pause").dataset.paused = "1";
+    $("pause").textContent = "Resume";
     log("paused");
   }
 });
 
 $("stop").addEventListener("click", () => {
-  worker.postMessage({ type: "stop" });
-  running = false;
-  setButtons();
+  if (!search) return;
+  search.stop();
   log("stop requested", "done");
 });
 
-function setButtons() {
-  $("start").disabled = running;
-  $("pause").disabled = !running;
-  $("stop").disabled = !running;
-}
-
-worker.onmessage = (e) => {
-  const evt = e.data;
-  if (evt.type === "sweepDone" || evt.type === "skipped") { /* handled below */ }
-  if (evt.type === "progress") {
-    $("scored").textContent = evt.scored.toLocaleString("en-US");
-    $("deepest").textContent = evt.deepest;
-    const acc = evt.accuracy ?? (100 * evt.deepest) / 389;
-    $("accuracy").textContent = acc.toFixed(2) + "%";
-    const elapsed = (Date.now() - startT) / 1000;
-    $("rate").textContent = Math.round(evt.scored / Math.max(1, elapsed)).toLocaleString("en-US");
-    $("elapsed").textContent = elapsed.toFixed(0) + "s";
-    $("progressFill").style.width = Math.min(100, acc) + "%";
-    history.push([elapsed, evt.accuracy ?? (100 * evt.deepest) / 389]);
-    drawChart();
-  } else if (evt.type === "best") {
-    $("deepest").textContent = evt.depth;
-    $("deepestInfo").textContent = JSON.stringify(evt.info);
-    log(`new best: depth ${evt.depth} — ${JSON.stringify(evt.info)}`, "best");
-  } else if (evt.type === "sweepDone") {
-    ledger[gridsFp + "|" + evt.key] = { fp: gridsFp, ts: Date.now(), accuracy: evt.accuracy };
-    saveLedger();
-  } else if (evt.type === "skipped") {
-    skippedCount++;
-  } else if (evt.type === "done") {
-    running = false;
-    setButtons();
-    $("state").textContent = evt.reason;
-    log(`search ${evt.reason} — scored ${evt.scored}, deepest ${evt.deepest}${evt.winner ? " — WINNER: " + JSON.stringify(evt.winner) : ""}`, "done");
-    if (evt.winner) log("WINNER — verify ran in-engine; solution saved by CLI for disk writes", "done");
-  }
-};
-
-// state ticker
+// heartbeat: aliveness is self-evident — if "since event" grows, it's dead
 setInterval(() => {
-  if (running) $("state").textContent = $("pause").dataset.paused ? "paused" : "running";
-}, 500);
+  const since = ((Date.now() - lastEventT) / 1000).toFixed(0);
+  $("heartbeat").textContent = search && search.state === "running" ? `${since}s ago (rate ${$("rate").textContent}/s)` : "—";
+  if (running_()) drawChart();
+}, 1000);
+function running_() { return search && search.state === "running"; }
+
+try {
+  drawTileMap();
+  const n = Object.keys(grids["78633191"].grid).length;
+  log(`grids imported — ${n} vertices for seed 91 (engine ${SEARCH_VERSION})`);
+} catch (err) {
+  log("grids load FAILED: " + err.message, "done");
+}
