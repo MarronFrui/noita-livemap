@@ -131,10 +131,17 @@ $("start").addEventListener("click", () => {
 });
 
 $("pause").addEventListener("click", () => {
-  worker.postMessage({ type: "pause" });
-  $("pause").textContent = "Resume";
-  $("pause").dataset.paused = "1";
-  log("paused");
+  if ($("pause").dataset.paused) {
+    worker.postMessage({ type: "resume" });
+    $("pause").textContent = "Pause";
+    delete $("pause").dataset.paused;
+    log("resumed");
+  } else {
+    worker.postMessage({ type: "pause" });
+    $("pause").textContent = "Resume";
+    $("pause").dataset.paused = "1";
+    log("paused");
+  }
 });
 
 $("stop").addEventListener("click", () => {
