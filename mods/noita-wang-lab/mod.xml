@@ -1,0 +1,6 @@
+<Mod
+    name="Noita Wang Lab"
+    description="Controlled minimal wang biome for map-gen reverse engineering. Injects a 5x2-chunk lab area far below the west edge; tile placements self-report via spawn callbacks to save00/noita-wang-lab-tiles-<seed>.csv."
+    request_no_api_restrictions="1"
+>
+</Mod>

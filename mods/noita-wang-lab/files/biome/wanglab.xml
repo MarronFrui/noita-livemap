@@ -1,0 +1,15 @@
+<Biome>
+  <Topology
+    name="$biome_wanglab"
+    type="BIOME_WANG_TILE"
+    wang_template_file="mods/noita-wang-lab/files/wang_tiles/lab.png"
+    lua_script="mods/noita-wang-lab/files/scripts/lab.lua"
+    wang_map_width="256"
+    wang_map_height="256"
+    noise_biome_edges="0"
+    limit_background_image="0"
+  >
+  </Topology>
+  <Materials>
+  </Materials>
+</Biome>
