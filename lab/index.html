@@ -34,7 +34,8 @@
         <b style="color:#9fb3c8">S1</b> — Sequential, one-pixel seed: "the game seeds ONE random stream at world pixel (sx,sy), then colors every vertex by drawing in order." Engine tries every pixel of the lab area (~2.6M × alignments).<br />
         <b style="color:#9fb3c8">S2</b> — Sequential, world-seed stream: "the stream comes from SetRandomFromWorldSeed(worldSeed), but an unknown number of draws were consumed first." Engine tries skip 0..200k.<br />
         <b style="color:#9fb3c8">P</b> — Positional: "no stream — each vertex's color is hashed directly from its coordinates" (the game's SetRandomSeed pattern), across coordinate systems × offsets × draw shapes.<br />
-        <b style="color:#9fb3c8">depth (x/389)</b> — informative vertices matched before the first mismatch. Wrong candidates die at 1–2; the true rule walks 389 clean. The dashed line is the luckiest-random-candidate expectation (~log2N) — only a trend above it is signal.
+        <b style="color:#9fb3c8">depth (x/389)</b> — informative vertices matched before the first mismatch. Wrong candidates die at 1–2; the true rule walks 389 clean. The dashed line is the luckiest-random-candidate expectation (~log2N) — only a trend above it is signal.<br />
+        <b style="color:#9fb3c8">reading P bests</b> — P candidates are scored on all 389 vertices at once (a percentage); their "depth" display is just pct × 3.89. The current 60%-ish P bests are the expected luckiest-of-28k scores, not signal. "exhausted" = every candidate in the selected templates was tested — a completed elimination, not an error. The grid canvas shows diagonal vertex classes (grey = seed-independent), with holes from two lab chunks that never generated.
       </div>
     </div>
 

@@ -18,6 +18,11 @@ export const DRAW = {
   nextUmod: (rng, cc) => rng.nextU() % cc,
   nextmul: (rng, cc) => Math.floor(rng.next() * cc),
   nextUhalf: (rng, cc) => (rng.nextU() >>> 1) % cc,
+  // warm-up variants: the game may discard draws before the used one
+  random_w2: (rng, cc) => { rng.random(0, 1); return cc === 1 ? 0 : rng.random(0, cc - 1); },
+  nextUmod_w2: (rng, cc) => { rng.nextU(); return rng.nextU() % cc; },
+  // multi-draw: two draws combined (sum mod cc) — catches xor/add schemes
+  nextU2sum: (rng, cc) => (rng.nextU() + rng.nextU()) % cc,
 };
 
 export const classOf = (i, j) => (((i - j) % 4) + 4) % 4;
