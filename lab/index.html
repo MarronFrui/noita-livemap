@@ -29,6 +29,15 @@
   <body>
     <h1>Wang Lab — fill-hypothesis search supervisor</h1>
 
+    <div class="panel" style="margin-bottom:12px">
+      <div class="muted" style="line-height:1.6">
+        <b style="color:#9fb3c8">S1</b> — Sequential, one-pixel seed: "the game seeds ONE random stream at world pixel (sx,sy), then colors every vertex by drawing in order." Engine tries every pixel of the lab area (~2.6M × alignments).<br />
+        <b style="color:#9fb3c8">S2</b> — Sequential, world-seed stream: "the stream comes from SetRandomFromWorldSeed(worldSeed), but an unknown number of draws were consumed first." Engine tries skip 0..200k.<br />
+        <b style="color:#9fb3c8">P</b> — Positional: "no stream — each vertex's color is hashed directly from its coordinates" (the game's SetRandomSeed pattern), across coordinate systems × offsets × draw shapes.<br />
+        <b style="color:#9fb3c8">depth (x/389)</b> — informative vertices matched before the first mismatch. Wrong candidates die at 1–2; the true rule walks 389 clean. The dashed line is the luckiest-random-candidate expectation (~log2N) — only a trend above it is signal.
+      </div>
+    </div>
+
     <div class="panel">
       <label><input type="checkbox" id="tS1" checked /> S1 sequential (diddle mixer, exhaustive over lab rect)</label>
       <label><input type="checkbox" id="tS2" /> S2 SetRandomFromWorldSeed + skip k (≤200k)</label>
