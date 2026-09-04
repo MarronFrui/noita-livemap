@@ -576,6 +576,35 @@ window (a correct fill needs ≫10%, not exactly 100%); anchor hypotheses
 (H1/H2/H3, §4) not yet swept; js model lacks the hasPath rejection loop;
 per-class detail in `mapgen/out/oracle/judge-v1.json`.
 
+**FROZEN-PHYSICS RE-RUN (2026-09-04 evening) — primary dataset now**:
+
+- Protocol: `noita_dev.exe` + mapcap `disable-physics` ON → probe sweep FIRST,
+  then mapcap area capture in the same frozen world (corners −3072,−1536 →
+  6656,3072, 19×9). On-screen probe status added (started/done/skip/failed).
+- Engine finding: mapcap's `disable-physics` (DEBUG_PAUSE_BOX2D) **crashes the
+  dev build under entity streaming** — `physicsbody_system.cpp:1722` /
+  `physicsbody2_system.cpp:569` asserts ("body already in mDestroyedBodies")
+  accumulate while the sweep unloads chunks, then abort (~stop 80/96). One
+  retry completed; evidence in `mapcap/out/../oracle/crash-20260904/`
+  (mapgen/out/oracle/crash-20260904/).
+- Frozen dumps: gold **0** (was 23–26 → debris theory confirmed), 54/52/50
+  items, 0 lookup failures, fixed spawns intact. Fixtures swapped to the
+  frozen trio (`mapgen/fixtures/oracle/`); physics-on trio archived as
+  `mapgen/fixtures/oracle-physics-on/`.
+- Judge re-run (tolerance tightened to dx±2 / dy[−3..1] — items sit at exact
+  spawn offsets): wasm **0/48**, js-seq **6/48** (~chance). Verdict unchanged
+  on pristine data: both models fail the spawn equations.
+- **Trigger colors are consumed at generation**: sampling the game's own
+  frozen capture at item positions finds 0/32 trigger-color pixels — the
+  rendered world never shows spawn colors, so geometry metrics are blind to
+  spawn facts by construction. Entity dumps are the only observable.
+- Frozen capture diffs (same build, same pipeline): 91↔92 **82.34%** identical
+  (40/171 stable chunks), 92↔93 **83.10%** (40/171) — consistent with the
+  physics-on L2 calibration (~26.5% foreground divergence). Same-seed
+  cross-pipeline (frozen91 vs noitamap ref stitch, build 2024-08-12): only
+  **80.4%** identical, changed-px mean diff 120 → the hosted reference is NOT
+  pixel-faithful to today's build; treat cross-build diffs as qualitative.
+
 
 
 ## 8. Glossary
