@@ -108,7 +108,7 @@ export class LabSearch {
           const obsAt = this.scanList.map(([i, j]) => this.obsMap.get(i - dI + "," + (j - dJ)));
           for (let sy = this.area.y0; sy < this.area.y0 + this.dims.H * 10; sy++) {
             for (let sx = this.area.x0; sx < this.area.x0 + this.dims.W * 10; sx++) {
-              const { depth, alive } = this.walk(() => seededPrng(ws, sx, sy), draw, dI, dJ);
+              const { depth, alive } = this.walk(() => seededPrng(ws, sx, sy), draw, dI, dJ, obsAt);
               this.scored++;
               if (depth > this.deepest) {
                 this.deepest = depth;
@@ -140,7 +140,7 @@ export class LabSearch {
               r.setRandomFromWorldSeed(ws);
               for (let i = 0; i < k; i++) r.next();
               return new NollaPrng(r.nextU());
-            }, draw, dI, dJ);
+            }, draw, dI, dJ, obsAt);
             this.scored++;
             if (depth > this.deepest) {
               this.deepest = depth;
