@@ -33,8 +33,8 @@ import { readPng } from "../lib/images.mjs";
 const SEEDS = ["78633191", "78633192", "78633193"];
 const CLASSIF = path.join(repoRoot, "mapgen/out/oracle/classification.json");
 
-const DX = [-4, -3, -2, -1, 0, 1, 2, 3, 4];
-const DY = [-6, -5, -4, -3, -2, -1, 0, 1];
+const DX = [-2, -1, 0, 1, 2]; // frozen physics: items sit at exact spawn offsets
+const DY = [-3, -2, -1, 0, 1];
 
 // ARGB int -> [r, g, b]
 const rgbOf = (argb) => [(argb >> 16) & 0xff, (argb >> 8) & 0xff, argb & 0xff];
