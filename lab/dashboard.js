@@ -1,8 +1,10 @@
 // Wang Lab dashboard — supervises the search worker.
+import gridsData from "../mapgen/out/oracle/lab-vertex-grids.json";
+
 const $ = (id) => document.getElementById(id);
 const worker = new Worker(new URL("./lab-worker.mjs", import.meta.url), { type: "module" });
 
-let grids = null;
+let grids = gridsData;
 let gridsFp = "";
 let running = false;
 const LEDGER = "wanglab-sweeps-ledger-v1";
@@ -17,10 +19,12 @@ function gridsFingerprint(g) { // djb2 — ledger auto-invalidates when the answ
 let startT = 0;
 const history = []; // {t, deepest}
 
-fetch("/mapgen/out/oracle/lab-vertex-grids.json")
-  .then((r) => r.json())
-  .then((g) => { grids = g; drawGrid(); drawTileMap(); log("grids loaded — ready"); })
-  .catch(() => log("FAILED to load lab-vertex-grids.json — run the recovery experiment first", "done"));
+try {
+  drawTileMap();
+  log("grids loaded — ready");
+} catch (err) {
+  log("grids load FAILED: " + err.message, "done");
+}
 
 function log(text, cls) {
   const el = document.createElement("div");
@@ -48,25 +52,6 @@ function drawTileMap() {
   ctx.fillStyle = "#0b0e12aa";
   ctx.font = "10px monospace";
   ctx.fillText("tile map · seed 91 · 16 tile types · herringbone layout", 4, cv.height - 4);
-}
-
-function drawGrid() {
-  const cv = $("grid"), ctx = cv.getContext("2d");
-  const S = 4, COLS = 70, ROWS = 31;
-  const classOf = (i, j) => (((i - j) % 4) + 4) % 4;
-  const key = grids["78633191"].grid;
-  // full lattice: dark = never generated, grey = fixed class (seed-independent),
-  // gold/blue = informative vertices (the coin flips the search must explain)
-  for (let j = 0; j < ROWS; j++)
-    for (let i = 0; i < COLS; i++) {
-      const v = key[i + "," + j];
-      const cl = classOf(i, j);
-      ctx.fillStyle = v === undefined ? "#0b0e12" : (cl === 1 || cl === 3) ? "#39424e" : v === 0 ? "#ffd479" : "#8fd3ff";
-      ctx.fillRect(i * S, j * S, S - 1, S - 1);
-    }
-  ctx.fillStyle = "#5a6a7a";
-  ctx.font = "9px monospace";
-  ctx.fillText("dark = chunk never generated · grey = fixed class · gold/blue = informative", 2, cv.height - 2);
 }
 
 function drawChart() {
