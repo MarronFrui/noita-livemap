@@ -103,6 +103,12 @@ node mapgen/experiments/2026-09-04-lab-vertex-recovery.mjs
 # automated hypothesis search (two exits: 100% match → auto-verify 92/93,
 # or timeout in minutes; journal: out/oracle/optimizer-log.jsonl)
 node --max-old-space-size=4096 mapgen/experiments/2026-09-04-lab-optimizer.mjs 60
+
+# interactive supervision (browser dashboard over the same engine):
+#   npm run dev  →  open http://localhost:5173/lab/
+#   live counters, depth trend vs noise floor, event feed, start/pause/stop.
+#   The dashboard runs the search in a Web Worker via lib/lab-search.mjs
+#   (pure ESM, browser-safe — the CLI optimizer is the unattended alternative).
 ```
 
 Resource notes: optimizer RSS ≈ 72 MB (no OOM risk in v2 — v1 OOMed by

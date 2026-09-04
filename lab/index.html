@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wang Lab — search supervisor</title>
+    <style>
+      :root { color-scheme: dark; }
+      body { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; background: #101418; color: #d8dee6; margin: 0; padding: 16px; }
+      h1 { font-size: 16px; margin: 0 0 12px; color: #8fd3ff; }
+      h2 { font-size: 12px; margin: 14px 0 6px; color: #9fb3c8; text-transform: uppercase; letter-spacing: 1px; }
+      .row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+      .panel { background: #171d24; border: 1px solid #232c36; border-radius: 6px; padding: 10px 12px; }
+      #stats span { display: inline-block; margin-right: 18px; }
+      #stats b { color: #ffd479; font-weight: 600; }
+      button { font: inherit; background: #223140; color: #d8dee6; border: 1px solid #2f4256; border-radius: 4px; padding: 6px 14px; cursor: pointer; }
+      button:hover { background: #2c4256; }
+      button:disabled { opacity: 0.4; cursor: default; }
+      label { margin-right: 12px; cursor: pointer; }
+      #log { height: 180px; overflow-y: auto; font-size: 11px; line-height: 1.5; }
+      #log .best { color: #7ce38b; }
+      #log .done { color: #ffd479; }
+      canvas { image-rendering: pixelated; border: 1px solid #232c36; }
+      .muted { color: #6b7a8a; font-size: 11px; }
+      #progressBar { width: 100%; height: 6px; background: #232c36; border-radius: 3px; margin: 6px 0; }
+      #progressFill { height: 100%; width: 0%; background: #8fd3ff; border-radius: 3px; transition: width 0.2s; }
+    </style>
+  </head>
+  <body>
+    <h1>Wang Lab — fill-hypothesis search supervisor</h1>
+
+    <div class="panel">
+      <label><input type="checkbox" id="tS1" checked /> S1 sequential (diddle mixer, exhaustive over lab rect)</label>
+      <label><input type="checkbox" id="tS2" /> S2 SetRandomFromWorldSeed + skip k (≤200k)</label>
+      <label><input type="checkbox" id="tP" /> P positional (coordinate systems × offsets)</label>
+      <button id="start">Start</button>
+      <button id="pause" disabled>Pause</button>
+      <button id="stop" disabled>Stop</button>
+    </div>
+
+    <h2>Progress</h2>
+    <div class="panel">
+      <div id="progressBar"><div id="progressFill"></div></div>
+      <div id="stats">
+        <span>state <b id="state">idle</b></span>
+        <span>scored <b id="scored">0</b></span>
+        <span>rate <b id="rate">0</b>/s</span>
+        <span>deepest prefix <b id="deepest">0</b>/389</span>
+        <span>elapsed <b id="elapsed">0s</b></span>
+      </div>
+      <div class="muted" id="deepestInfo">—</div>
+    </div>
+
+    <div class="row">
+      <div>
+        <h2>Score-depth trend</h2>
+        <div class="panel"><canvas id="chart" width="560" height="160"></canvas></div>
+      </div>
+      <div>
+        <h2>Observed vertex grid (seed 91, binary classes)</h2>
+        <div class="panel"><canvas id="grid" width="280" height="120"></canvas>
+          <div class="muted">1 px per vertex · cols 0..69 × rows 0..30 · gold = informative, grey = fixed class</div>
+        </div>
+      </div>
+    </div>
+
+    <h2>Event feed</h2>
+    <div class="panel"><div id="log"><div class="muted">idle — press Start</div></div></div>
+
+    <script type="module" src="./dashboard.js"></script>
+  </body>
+</html>
