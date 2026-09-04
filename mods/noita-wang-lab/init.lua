@@ -57,7 +57,9 @@ local function drain()
 end
 
 -- 4) auto-visit: teleport the camera across the lab rect so all its chunks
--- generate (spawn callbacks fire on placement)
+-- generate (spawn callbacks fire on placement). VISIT ORDER = RIGHT → LEFT
+-- (reversed vs the visitA dumps) — doubles as the generation-order
+-- independence test: same seed, different camera path, layouts must match.
 local frame = 0
 local visited = false
 local function visit(x, y)
@@ -70,16 +72,16 @@ function OnWorldPostUpdate()
   if visited then return end
   frame = frame + 1
   if frame == 600 then
-    visit(-16640, 11520) -- lab left
-    GamePrint("[wang-lab] visiting lab area...")
+    visit(-14592, 11776) -- lab right (reversed order)
+    GamePrint("[wang-lab] visiting lab area (reversed path)...")
   elseif frame == 900 then
-    visit(-16128, 11776)
+    visit(-15104, 12032)
   elseif frame == 1200 then
     visit(-15616, 11776) -- lab center
   elseif frame == 1500 then
-    visit(-15104, 12032)
+    visit(-16128, 11520)
   elseif frame == 1800 then
-    visit(-14592, 11776) -- lab right
+    visit(-16640, 12032) -- lab left
   elseif frame > 2100 then
     GameSetCameraFree(false)
     visited = true
