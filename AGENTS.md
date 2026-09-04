@@ -92,6 +92,11 @@ npm run preview
   respective submodule repos, not here.
 - Read `SESSION_CONTEXT.md` before planning work; it records decisions and the
   intended next steps so sessions don't rediscover context.
+- Domain facts must carry a source (file + section) verified on disk **this
+  session**. Never carry numbers from chat memory, prior-session summaries, or
+  handovers into work or docs — re-check first. `mapgen/ABOUT_MATH.md` §6 is
+  the evidence log; new facts belong there (with a status tag), not in new
+  parallel docs.
 
 ## Environment notes
 

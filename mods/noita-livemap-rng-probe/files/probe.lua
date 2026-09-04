@@ -84,7 +84,7 @@ local function collect_at(wp)
     for _, eid in ipairs(entities) do
         if not seen[eid] then
             seen[eid] = true
-            local ok, fname = pcall(EntityGetFileName, eid)
+            local ok, fname = pcall(EntityGetFilename, eid)
             if ok and fname then
                 if fname:find("data/entities/items/", 1, true) then
                     local lx, ly = EntityGetTransform(eid)

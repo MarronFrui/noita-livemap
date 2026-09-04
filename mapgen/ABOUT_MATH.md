@@ -23,7 +23,7 @@ but no direct in-game probe yet) · ❓ hypothesis · upstream refs are
 | --- | --- | --- | --- |
 | **World px** | game pixel | capture spans x −53760..+53759 (3 DZI segments, incl. parallel worlds); **main world = 70 chunks, x −35..+34** (−17920..+17919); origin = left edge of biome-map px 35 | — |
 | **Chunk** | 512 world px | world is 71×144 chunks in the capture (−35..+35, −62..+81) | `cx = floorDiv512(worldX)` |
-| **Biome-map px** | 1 px = 1 chunk | 70×48 (`data/biome_impl/biome_map.png`) | `cx = tx − 35`, `cy = ty − 14` 🔗 (offset 14 = game's own `biome_offset_y` ✅; conversion = noitool's decompilation + capture alignment; **not yet probed in-game**) |
+| **Biome-map px** | 1 px = 1 chunk | 70×48 (`data/biome_impl/biome_map.png`; re-verified on disk 2026-09-04 — also disproves the "64×64 / 96×55 chunks / 35714 px" figures that circulated in a session handover) | `cx = tx − 35`, `cy = ty − 14` 🔗 (offset 14 = game's own `biome_offset_y` ✅; conversion = noitool's decompilation + capture alignment; **not yet probed in-game**) |
 | **Wang cell** | 10 world px | lattice of the wang layer | `cell ≈ worldPx / 10` — **non-integer ratio 512/10 = 51.2, see §4** |
 | **Atlas px** | 1 px in `data/wang_tiles/<biome>.png` | coalmine 348×448, excavationsite 344×440 … | 1 atlas px = 1 wang cell ✅ (iterateMap `cb(gx + px*10, …)`, mapWasm.ts:182) |
 | **bigMap px** | per-area cell grid ×10 | `w*10 × h*10` where `w,h` = area dims in cells | anchored at **area origin**, not world origin (noitool choice) |
@@ -365,6 +365,17 @@ The capture cannot validate a bare wang layer — we need either a wang-only
 ground truth (dev-build probe) or to model the full layer stack.
 - Capture = noita-mapcap base-layout (physics frozen) of seed 78633191, hosted
   by noitamap (acidflow.stream). Same tiles our viewer displays.
+- **2026-09-04 — non-tiling RNG is already solved by noitool (🔗)**: HM perk/shop
+  offers, fungal shift, chest/potion/wand contents etc. are fully reconstructed
+  in noitool's InfoProviders (`Perk/`, `Shop/`, `FungalShift/`, `ChestRandom/`,
+  `Potion*`, `Wand/`, with spec tests); the author's accuracy statement leaves
+  only wang→tile coords + `RaytracePlatforms` unsolved (`ARCHITECTURE.md`).
+  User-verified in practice (tool predictions match the game). Consequences:
+  (1) Holy Mountain *content* (the ~5% of HM-band pixels that do vary across
+  seeds) is seed-dependent but **not wang** — exclude from fill constraints and
+  don't count it as wang anomaly in the 3-seed diffs; (2) spawn-equation
+  constraints must come only from wang-triggered spawns (`wang_scripts.csv`
+  colors → item entities), not HM pedestal content.
 
 ## 7. Open questions → ordered experiments
 
