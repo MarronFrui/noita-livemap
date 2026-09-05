@@ -713,11 +713,33 @@ on 92/93 where relevant)** — a correct model must score ~100%:
 - hybrid position-seeded → sequential at canonical anchors (corner phases,
   center, chunk origins/centers, world origin): none
 
-**Next in the lab pipeline**: mismatch-topology forensics on the best
-positional candidates (which vertices mismatch: per-row/class/chunk?),
-multi-draw positional variants, class-specific streams, rep-reduce ON
-combinations, and the ungenerated-chunk gap in lab coverage (fix camera
-visit points for fuller grids).
+**VERDICT after the full deep sweep (2026-09-05, 13.3 h unattended)**:
+644,555,000 candidates — S1 (every pixel of the rect × 7 draw shapes × 9
+alignments × warm-ups 0–3 × budgets {0, 40}), S2 (skips ≤200k), P (4
+coordinate systems × offsets × 7 shapes), biome-grid seeding, per-chunk
+lattices (structurally excluded). Final accuracy **58.03% (318/548)** =
+exactly the full-walk noise floor (~58.5% at n=548). **The vertex-coloring
+rule does not live in any tested configuration of the verified RNG
+machinery.** The lab has formally exhausted the cheap search space.
+
+Consequences:
+- The fill's randomness is deterministic per (seed, area) — order-independence
+  was verified experimentally (100% identical placements across camera paths)
+  — but its source is **not** the Lua-visible RNG we reconstructed. Most likely
+  a separate C++-internal PRNG instance (e.g. an engine-side generator) seeded
+  from a derivation we haven't modeled.
+- **Ghidra escalation is now sanctioned** (the roadmap's condition: "only when
+  everything cheaper is exhausted" — met with a 644M-candidate receipt).
+  Target: the fill call site in noita_dev.exe — locate `stbhw_generate_image`,
+  its rand() callback, and the state initialization feeding it.
+- The lab remains the instant verification bench: whatever the decompilation
+  reveals is implemented as a new search family and tested to 100% against the
+  548-vertex answer key in minutes (integrity suite all-PASS, planted-solution
+  verified).
+
+Open (not excluded, but unbounded): multi-input seeding derivations
+(hash of (seed, area coords, color, …)) — the space is combinatorial; this is
+precisely why reading the code beats guessing the parameters.
 
 
 
