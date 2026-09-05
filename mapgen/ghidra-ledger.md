@@ -124,9 +124,25 @@ body. Lab-testing LCG hypotheses without #2 repeats the 644M trap.
 The spawn DISPATCH machinery = decoded (registry chain: binding → AddScriptColor
 → map@+0x8c → queue → processor). The per-spawn RNG = the LCG scatter pair
 (FUN_00633930/FUN_00794620) — their seeding derivation is part of the same read.
-7. [ ] After the fill is identified: extract generator + seeding derivation +
-       consumption pattern → new lab-search family → planted-verification on
-       the 548-vertex key.
+7. [x] **THE GENERATOR OBJECT FOUND (2026-09-05)** — the full chain:
+       FUN_0090e840 (ProceduralTerrain world-grid init) → FUN_009119d0
+       (GetSeed) → FUN_0090ce20 (allocates the 0x1ec-byte generator object,
+       THIS is the MapHandlerNew equivalent) → FUN_008f9470 (the random-state
+       constructor, THE SEEDING DECODER):
+         +0x23 = the raw world seed (stored!)
+         d = (double)seed + diddle[(seed>>31)]  (same compensation as the mixer)
+         if (2147483647 <= d) d *= 0.5          (same halving)
+         FUN_010098c0() ×2                      (two Next() advances!)
+         +0x25 = (float)d * 200000f − 100000f   (the C3/C4 constants again!)
+       The object is stored per-biome in the world grid entries (piVar26[0x21]).
+       The world grid init (FUN_0090e840's tail) walks width×height cells
+       wiring Biome objects (vtable type-getters +0x4/+0x30/+0x6c/+100) into
+       cells with FUN_007646a0/FUN_00764d10.
+8. [ ] **LAST READ: the consume method** — what reads the generator object's
+       state (+0x25 etc.) to color vertices and place tiles. Routes:
+       FUN_0090cfb0 (12.9 KB, called right after creation — dump EXISTS
+       h16_90cfb0.c), FUN_0079e440, FUN_0092cb50. Then: port to lab-search →
+       planted-verification on the 548-vertex key.
 5. [ ] Optional: h9 dumps (22 fns, 0x806000–0x80c000) = the biome Lua-API
        bindings region — several UNREAD (0080bee0 10 KB, 0080a5f0 8 KB,
        00809930 7 KB = AddScriptColor-family binding).
