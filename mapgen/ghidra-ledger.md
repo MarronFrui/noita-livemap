@@ -71,11 +71,29 @@ body. Lab-testing LCG hypotheses without #2 repeats the 644M trap.
        DAT_01327ffc; new-game generator FUN_00911730/009118b0) and
        `procedural_terrain.cpp` (100+ functions dumped via assert-string xrefs,
        hunt 12).
-5. [ ] **PRIME CANDIDATE: FUN_00905fb0** (54 KB, procedural_terrain.cpp, reads
-       g_worldseed 13×, contains "worldseed" strings) — READ IN FULL. The fill
-       (or its parent) with the seeding derivation in reach.
-6. [ ] Secondary: FUN_00904c20 (25 KB, 5 seed refs), FUN_00901780 (46 KB, 4
-       refs), FUN_008ff150 (7 refs), FUN_00909370.
+5. [x] **FUN_00905fb0 = ProceduralTerrain::Init — READ. THE SEEDING DERIVATION
+       DECODED** (constants read from .rdata): seed = WORLDSEED::GetSeed()
+       (g_worldseed = DAT_01327ffc; FUN_009119d0 asserts g_worldseed_is_valid);
+       d = (double)seed + diddle[(seed>>31)] (SAME compensation as the mixer,
+       table at 0x11e0ba0, [0]=0.0); if (2147483647 <= d) d *= 0.5 (same
+       halving, constants verified at 0x11e0220/0x11dfdd8);
+       **mSeed = (float)d * 9999f + 1.0** (→this+0x30, asserted "mSeed");
+       **state2 = mSeed * 200000f − 100000f** (→this+0x48);
+       **state3 = state2 * 200000f − 100000f** (→this+0x38).
+       FUN_00452ba0 = the halve-helper. Init then: prints "ProceduralTerrain -
+       worldseed: N" where N = seed + DAT_01328010 (constant, read from
+       binary), allocates the biome grid (w×h), FUN_00904230 = find-biome-for-
+       color ("Biome load error - couldn't find biome for color").
+       VERDICT: Init = the world-setup orchestrator — NOT the tile fill itself.
+       The decoded mSeed chain feeds the terrain-level state; the WANG fill is
+       downstream in the per-Biome generation.
+6. [ ] **NEXT: the per-Biome generation** — FUN_00904230 returns Biome objects
+       (RTTI class `Biome` exists); each Biome's generation = the wang fill.
+       Find: the Biome class methods (vtable via RTTI ".?AVBiome@@"), the
+       MapHandlerNew-equivalent, the vertex-coloring loop and ITS generator +
+       seeding (the LCG? the poro mixer with a Biome-derived seed?).
+7. [ ] Secondary: FUN_00904c20 (25 KB), FUN_00901780 (46 KB), FUN_008ff150,
+       FUN_00909370 — procedural_terrain functions, unread.
 7. [ ] After the fill is identified: extract generator + seeding derivation +
        consumption pattern → new lab-search family → planted-verification on
        the 548-vertex key.
