@@ -763,6 +763,41 @@ mt19937/64-bit LCGs: ruled out. Fill door anchors confirmed in-binary:
 "wang_scripts.csv" (the spawn-color walk over placed tiles), "wang_map_width"
 (Topology parser → area setup), "data/wang_tiles/" ×3 (template loader).
 
+**GHIDRA READING STATE (2026-09-05 night) — dumps in ~/work/ghidra-logs/**:
+Calibration ✅: FUN_0048fd30 (VA 0x48fd47) decompiled = the verified mixer,
+step-for-step (diddle table backward-index, &3 warm-up loop, 16807/127773
+Lehmer core, the assert leaks the source path
+"poro/source/utils/random/random.cpp" — Nolla's engine framework). Pipeline
+proven: we can read this binary.
+
+Key functions mapped:
+- FUN_00633930: LCG consumer (state global DAT_0132a388, ×214013 +2531011,
+  draws (x>>16)&0x7fff → floats) — per-object random-position spawner?
+- FUN_00794620 (23 KB): uses BOTH the poro mixer AND the LCG — per-object
+  positions in a vector loop, seeds LCG from (objfield + base + idx*2 − 3)^0xc
+  — READ FULLY (prime fill candidate)
+- FUN_00436a50 (39 KB): global-LCG gameplay logic (10%-chance dice) — likely
+  NOT the fill (global state = order-dependent, contradicts the lab)
+- Registry: RegisterSpawnFunction binding = FUN_00807d20; the color→name map
+  lives in BiomeSpawnScripts::GameLuaManager instances (global list
+  DAT_01347698..0134769c, 12 list-management users dumped — consumer not yet
+  among them)
+- 1,958 RTTI class names extracted (/tmp/opencode/rtti-names.txt) — no
+  wang/generator class (the fill is free functions)
+
+Method notes: byte-scan fingerprints for short constants (0x343FD = fd 43 03 00)
+are noisy at binary scale (697 hits, all instruction fragments) — decompile-
+first works better. Ghidra script API quirks: find(String,Address) doesn't
+exist; getDefinedStrings signature differs; use findBytes(null, hex) sparingly
+(silently found nothing for .rdata strings — use computed VAs + getReferencesTo
+instead). File→VA: .text file+0x400c00, .rdata file+0x400e00.
+
+Next reading queue: (1) FUN_00794620 in full — does it drive the wang fill?
+(2) FUN_00633930's callers. (3) The GameLuaManager consumer: find via the
+class's methods (RTTI vtable walk) — it reads placed-map pixels + dispatches
+registered Lua functions per color. (4) From the consumer, walk UP to the
+tile-placement loop and its LCG seeding derivation.
+
 Open (not excluded, but unbounded): multi-input seeding derivations
 (hash of (seed, area coords, color, …)) — the space is combinatorial; this is
 precisely why reading the code beats guessing the parameters.
