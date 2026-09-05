@@ -139,10 +139,24 @@ The spawn DISPATCH machinery = decoded (registry chain: binding → AddScriptCol
        wiring Biome objects (vtable type-getters +0x4/+0x30/+0x6c/+100) into
        cells with FUN_007646a0/FUN_00764d10.
 8. [ ] **LAST READ: the consume method** — what reads the generator object's
-       state (+0x25 etc.) to color vertices and place tiles. Routes:
-       FUN_0090cfb0 (12.9 KB, called right after creation — dump EXISTS
-       h16_90cfb0.c), FUN_0079e440, FUN_0092cb50. Then: port to lab-search →
-       planted-verification on the 548-vertex key.
+       state to produce tiles. STATUS: the seeding chain is FULLY DECODED:
+       g_worldseed → diddle-compensated double → halve → ×200000−100000 →
+       stored in the generator object (+0x8c = raw seed, +0x94 = derived state).
+       The generator object (0x1ec bytes) is per-biome created by
+       FUN_0090ce20/FUN_008f9470 and stored per world-grid cell.
+       The consume method = in the CHUNK-GENERATION path (lazy/streaming —
+       not in Init; FUN_0079e440 = just a copy op; FUN_0090cfb0 = pixel scene).
+       NEXT ROUTE: find what reads the generator object's +0x8c/+0x94 state
+       when a chunk loads → that is the tile-generation code → from it, the
+       vertex-coloring loop and the consumption pattern. The most efficient
+       approach: a lab experiment — construct the object with a known seed
+       (from our decoded chain), feed it through the game's chunk generation,
+       and diff against the 548-vertex answer key.
+9. [x] The 9999/200000/100000 constant chain is the SAME construction pattern
+       as the fill's derived state. FUN_008f9470 = the definitive seeding
+       function for the generator object (verified: diddle table at 0x11e0ba0,
+       halve constant at 0x11e0220 = 2147483647, scale at 0x11dfdd8 = 0.5,
+       C3 = 200000.0f at 0x11e0504, C4 = 100000.0f at 0x11e04ec).
 5. [ ] Optional: h9 dumps (22 fns, 0x806000–0x80c000) = the biome Lua-API
        bindings region — several UNREAD (0080bee0 10 KB, 0080a5f0 8 KB,
        00809930 7 KB = AddScriptColor-family binding).
