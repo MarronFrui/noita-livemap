@@ -90,11 +90,18 @@ body. Lab-testing LCG hypotheses without #2 repeats the 644M trap.
 6. [ ] **NEXT: the per-Biome generation chain**:
        - FUN_00904230 = color→Biome lookup (vector of 32-byte entries: color at
          +0, Biome object at +0x1c; memoized at +0x28/+0x2c) — dumped (h13b)
-       - **FUN_00904c20 (25 KB) = recursive biome-map processor in WORLD PIXELS**
-         (`× 0x200 − DAT_01327670/013289a8` = world-origin globals; self-
-         recursion = the area walk; FUN_00949e80 = biome-map accessor) — dumped
-         (h13b), UNREAD in detail — prime next read: the per-biome generation
-         entry + its seeding.
+       - **FUN_00904c20 (25 KB) = pixel-scene/image placement walker** (NOT the
+         fill, NOT recursive — earlier counts were self-match/debug-flag
+         artifacts). Its worker FUN_008f9ab0 = **BitmapNoise::LoadFromImageData**
+         (noise_utils.cpp): RGBA image → material conversion → fills TWO world
+         buffers (float grid + u16 material-id grid; assert material_id <
+         USHRT_MAX). Color→material formula visible: (chan + diddle) * scale /
+         DAT_011dff70. **WORLD DATA MODEL discovered: parallel float + u16
+         material buffers.** FUN_009fe4e0 = u16 reader (neighborhood ops).
+       - **The wang fill is still ahead** — but GetSeed's caller list (30+
+         functions, all dumped h14_*) = the complete seeding-site map.
+         Next reads: FUN_00901780 (46 KB, procterrain, GetSeed caller),
+         FUN_0090e840 (37 KB), FUN_00ca8730/00ca6b70 (far region), FUN_00c15600.
        - Biome class: NO vtable (plain struct) — the generation is free functions.
 7. [ ] Secondary: FUN_00901780 (46 KB), FUN_008ff150, FUN_00909370 — unread.
 
