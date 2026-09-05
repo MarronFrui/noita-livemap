@@ -66,9 +66,19 @@ body. Lab-testing LCG hypotheses without #2 repeats the 644M trap.
        around FUN_0085d7b0 (0x85dxxx–0x85exxx — its siblings incl. the enqueue
        method); (b) callers of FUN_0085d7b0 → the world-update → the walker.
        The walker sits IMMEDIATELY upstream of the tile-placement loop.
-4. [ ] From the walker: walk UP to the tile-placement loop → extract generator +
-       seeding derivation + consumption pattern → new lab-search family →
-       planted-verification.
+4. [x] Walker route superseded — assert-string scan mapped the source tree
+       (330 paths): `procedural_utils/world_seed.cpp` (g_worldseed global =
+       DAT_01327ffc; new-game generator FUN_00911730/009118b0) and
+       `procedural_terrain.cpp` (100+ functions dumped via assert-string xrefs,
+       hunt 12).
+5. [ ] **PRIME CANDIDATE: FUN_00905fb0** (54 KB, procedural_terrain.cpp, reads
+       g_worldseed 13×, contains "worldseed" strings) — READ IN FULL. The fill
+       (or its parent) with the seeding derivation in reach.
+6. [ ] Secondary: FUN_00904c20 (25 KB, 5 seed refs), FUN_00901780 (46 KB, 4
+       refs), FUN_008ff150 (7 refs), FUN_00909370.
+7. [ ] After the fill is identified: extract generator + seeding derivation +
+       consumption pattern → new lab-search family → planted-verification on
+       the 548-vertex key.
 5. [ ] Optional: h9 dumps (22 fns, 0x806000–0x80c000) = the biome Lua-API
        bindings region — several UNREAD (0080bee0 10 KB, 0080a5f0 8 KB,
        00809930 7 KB = AddScriptColor-family binding).
