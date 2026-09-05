@@ -737,6 +737,18 @@ Consequences:
   548-vertex answer key in minutes (integrity suite all-PASS, planted-solution
   verified).
 
+**GHIDRA FRONT OPEN (2026-09-05)** — headless Ghidra 12.1.3 + JDK 21 installed on
+the WSL side (tools/, ~2.5 GB, no Windows-side install needed). Target:
+`noita_dev.exe` (17 MB, build 2025-01-26). **First anchor landed pre-analysis**:
+the mixer XOR constant `0x93262e6f` appears EXACTLY ONCE in the binary (file
+offset 0x8f147 → VA 0x48fd47, .text) = the game's `SetRandomSeed` mixer is
+located. Lua API name strings confirmed present ("SetRandomSeed" ×4,
+"ProceduralRandomi" ×2, "RegisterSpawnFunction" ×2, "wang_template_file" ×4).
+Auto-analysis runs unattended; staged `HuntFill.java` decompiles the mixer, its
+callers (2 levels), and RNG-string xrefs into ghidra-logs/. Working note: the
+diddle table is NOT stored contiguously (0 hits as bytes or dwords) — computed
+at compile time or restructured.
+
 Open (not excluded, but unbounded): multi-input seeding derivations
 (hash of (seed, area coords, color, …)) — the space is combinatorial; this is
 precisely why reading the code beats guessing the parameters.
