@@ -183,6 +183,20 @@ $("stop").addEventListener("click", () => {
   log("stop requested", "done");
 });
 
+// ghidra analysis progress panel
+setInterval(() => {
+  fetch("./ghidra-status.json?t=" + Date.now())
+    .then((r) => r.json())
+    .then((st) => {
+      const badge = $("ghidra-badge"), detail = $("ghidra-detail");
+      if (st.done) { badge.textContent = "DONE"; badge.style.color = "#7ce38b"; }
+      else if (st.alive) { badge.textContent = "running · " + st.elapsedSec + "s"; badge.style.color = "#ffd479"; }
+      else { badge.textContent = "stopped"; badge.style.color = "#ff8f8f"; }
+      detail.textContent = (st.pct != null ? st.pct + "% · " : "") + (st.lastLine.replace(/^INFO\s*/, "").slice(0, 110) || "(log silent — analyzing)");
+    })
+    .catch(() => { $("ghidra-badge").textContent = "no status"; });
+}, 5000);
+
 // heartbeat: aliveness is self-evident — if "since event" grows, it's dead
 setInterval(() => {
   const since = ((Date.now() - lastEventT) / 1000).toFixed(0);
