@@ -11,8 +11,17 @@ const PROJECT = process.env.HOME + "/work/ghidra-projects";
 const startedAt = Date.now(); // watcher start ≈ analysis start (± minutes)
 
 function alive() {
-  try { execSync("pgrep -f analyzeHeadless", { stdio: "ignore" }); return true; }
-  catch { return false; }
+  // pgrep -f self-matches through the execSync shell wrapper — scan /proc directly
+  try {
+    for (const pid of fs.readdirSync("/proc").filter((d) => /^\d+$/.test(d))) {
+      if (Number(pid) === process.pid) continue;
+      try {
+        const cmd = fs.readFileSync(`/proc/${pid}/cmdline`, "utf-8");
+        if (cmd.includes("analyzeHeadless") && cmd.includes("noita")) return true;
+      } catch { /* process vanished */ }
+    }
+  } catch { /* no /proc */ }
+  return false;
 }
 
 function dirSize(dir) {
@@ -35,7 +44,7 @@ function tick() {
     lastLine = lines[lines.length - 1] || "";
     // progress percentages from Ghidra's task monitor, e.g. "INFO ... 42%"
     for (const m of raw.matchAll(/(\d{1,3})%/g)) pct = +m[1];
-    if (/ANALYSIS COMPLETED|Analysis succeeded|Saving project|INFO  .*succeeded/i.test(raw) && !alive()) done = true;
+    if (/Import succeeded/i.test(raw)) done = true; // analysis log's completion marker
   } catch { /* log not created yet */ }
   const status = {
     ts: Date.now(),
