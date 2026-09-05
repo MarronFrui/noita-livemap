@@ -8,3 +8,4 @@ tools/
 mapgen/out/
 mapgen/noita-dat
 mapcap/out/
+lab/ghidra-status.json
