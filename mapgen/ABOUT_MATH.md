@@ -792,6 +792,33 @@ exist; getDefinedStrings signature differs; use findBytes(null, hex) sparingly
 (silently found nothing for .rdata strings — use computed VAs + getReferencesTo
 instead). File→VA: .text file+0x400c00, .rdata file+0x400e00.
 
+**GHIDRA KNOWLEDGE STATE (consolidated 2026-09-05, ✅ unless tagged)** —
+processing state in **mapgen/ghidra-ledger.md**:
+
+1. **Toolchain**: headless Ghidra 12.1.3 + JDK 21 (WSL side, tools/, no root).
+   Scripting: Java scripts compiled with javac against the jars (see ledger
+   method notes for the API quirks). Section→VA: .text file+0x400c00,
+   .rdata file+0x400e00, .data file+0x401a00.
+2. **Calibration**: FUN_0048fd30 (VA 0x48fd47) = the verified SetRandomSeed
+   mixer, matches our JS step-for-step. Source path leaked via asserts:
+   `poro/source/utils/random/random.cpp` — asserts in the binary embed source
+   paths → the whole source tree is recoverable (330 files scanned).
+3. **Generators**: poro Random (Lehmer+diddle, Lua-visible — NOT the fill,
+   proven by lab); a multiply-and-add family (×214013, +2531011, global state
+   DAT_0132a388) used for gameplay dice/object scatter; mt19937 ruled out.
+4. **Spawn registry chain**: RegisterSpawnFunction binding (FUN_00807d20) →
+   AddScriptColor (FUN_007eb020) → std::map at GameLuaManager+0x8c (color →
+   Lua function name) → spawn queue → processor FUN_0085d7b0 (camera-culled
+   Lua execution). Consumer (the pixel-walk) not yet dumped.
+5. **RTTI**: 1,958 class names (dev build); no wang/generator class — the fill
+   is free functions. GameLuaManager vtable = 3 functions (queue processor found).
+6. **g_worldseed located**: global DAT_01327ffc (world_seed.cpp); new-game
+   generator = FUN_00911730/009118b0 (time/entropy — irrelevant to prediction).
+7. **PRIME CANDIDATE (the next read)**: FUN_00905fb0 — 54 KB in
+   procedural_terrain.cpp, reads g_worldseed 13×. Expected to contain the fill
+   (or its parent) with generator + seeding derivation + consumption pattern.
+   Secondary: FUN_00904c20 (25 KB), FUN_00901780 (46 KB), FUN_008ff150.
+
 Reading queue + function inventory now tracked in **mapgen/ghidra-ledger.md** (the processing ledger — verdicts, queue, method notes; never re-dump without a reason). Queue: (1) FUN_00794620 in full — does it drive the wang fill?
 (2) FUN_00633930's callers. (3) The GameLuaManager consumer: find via the
 class's methods (RTTI vtable walk) — it reads placed-map pixels + dispatches
