@@ -98,10 +98,16 @@ body. Lab-testing LCG hypotheses without #2 repeats the 644M trap.
          USHRT_MAX). Color→material formula visible: (chan + diddle) * scale /
          DAT_011dff70. **WORLD DATA MODEL discovered: parallel float + u16
          material buffers.** FUN_009fe4e0 = u16 reader (neighborhood ops).
-       - **The wang fill is still ahead** — but GetSeed's caller list (30+
-         functions, all dumped h14_*) = the complete seeding-site map.
-         Next reads: FUN_00901780 (46 KB, procterrain, GetSeed caller),
-         FUN_0090e840 (37 KB), FUN_00ca8730/00ca6b70 (far region), FUN_00c15600.
+       - **Global-LCG scan (193 functions) → ELIMINATED as the fill's source**:
+         the heaviest consumers are gameplay (FUN_00685350 = 21 KB with 78 LCG
+         refs + sine math = 360-entry angle tables; effects systems). The fill
+         does NOT use the global LCG.
+       - **THE LEAD: the terrain object's own derived state** — ProceduralTerrain
+         fields +0x30 (mSeed) / +0x38 / +0x48 (the 9999/200000/100000 chain,
+         decoded). The fill = the procedural_terrain.cpp functions that READ
+         those fields: candidates FUN_0090e840 (37 KB), FUN_00901780 (46 KB),
+         FUN_00904c20 — all dumped, all receive the ProceduralTerrain pointer.
+         Next read: FUN_0090e840 + FUN_00901780 with the state-offset knowledge.
        - Biome class: NO vtable (plain struct) — the generation is free functions.
 7. [ ] Secondary: FUN_00901780 (46 KB), FUN_008ff150, FUN_00909370 — unread.
 
