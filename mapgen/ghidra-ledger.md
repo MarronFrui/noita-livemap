@@ -35,6 +35,9 @@
 | `FUN_00807d20` | 0x807d20 | 6 KB | `RegisterSpawnFunction` Lua binding → writes the color→name registry in `BiomeSpawnScripts::GameLuaManager` (global list `DAT_01347698..0134769c`) |
 | `FUN_008581b0` | 0x8581b0 | 11 KB | second RegisterSpawnFunction binding — UNREAD |
 | listusers (12 fns) | various | <6 KB | CAutoList add/remove plumbing for the LuaManager list — consumer NOT among them |
+| `FUN_0085d7b0` | 0x85d7b0 | 2.7 KB | GameLuaManager vtable method: **spawn-queue processor** — drains queued (name, position) requests, camera-culled, executes via Lua |
+| `FUN_007eb020` | 0x7eb020 | 1.9 KB | **AddScriptColor**: inserts (color, name) into the registry std::map at manager+0x8c |
+| h9 region (22 fns) | 0x806000–0x80c000 | ≤11 KB each | the biome Lua-API bindings region (LoadPixelScene family etc.) — partially unread |
 | `FUN_00701d50` | 0x701d50 | — | false-positive hit (hand-typed 0x343FD bytes were wrong: 0x000034FD=13501) — ignore |
 | h2 strref wang_template_file (11 fns) | 0x49xxxx–0x4axxxx | ≤65 KB | biome-XML/template-parsing subsystem — UNREAD (fill setup path lives here) |
 
@@ -49,15 +52,26 @@ body. Lab-testing LCG hypotheses without #2 repeats the 644M trap.
 
 ## Queue (in order)
 
-1. [ ] Read `FUN_00794620` in full (23 KB dump exists) — does it drive tile placement?
-2. [ ] Read `FUN_00633930`'s callers (who consumes the scatter?)
-3. [ ] Find the registry CONSUMER: GameLuaManager's method that walks placed-map
-       pixels and dispatches registered Lua functions per color (access via the
-       class RTTI/vtable — name: `BiomeSpawnScripts::GameLuaManager`, RTTI at
-       0xexxxxx region). From the consumer, walk UP to the tile-placement loop.
-4. [ ] From the tile-placement loop: extract generator + seeding derivation +
-       consumption pattern → new lab-search family → planted-verification.
-5. [ ] Optional: full-RTTI dump at /tmp/opencode/rtti-names.txt (1,958 classes).
+1. [x] Read `FUN_00794620` in full — VERDICT: NOT the fill. World-grid scatter
+       utility (`(x&0x1ff)<<9|y&0x1ff` = 512² falling-sand cell indexing; LCG =
+       per-object property picks). h7_lcguser dump.
+2. [x] Registry chain fully decoded: RegisterSpawnFunction binding (FUN_00807d20)
+       → AddScriptColor (FUN_007eb020) → std::map at GameLuaManager+0x8c
+       (color → Lua function name; tree insert + "already registered" error).
+       Registry CONSUMER = spawns are QUEUED: FUN_0085d7b0 (GameLuaManager
+       vtable method) drains a queue (+0x44/+0x48 vector of name+position
+       requests, camera-culled) and executes them.
+3. [ ] **NEXT: find the ENQUEUE side** — the pixel-walk that iterates placed-map
+       pixels and pushes (name, x, y) into the queue. Routes: (a) dump functions
+       around FUN_0085d7b0 (0x85dxxx–0x85exxx — its siblings incl. the enqueue
+       method); (b) callers of FUN_0085d7b0 → the world-update → the walker.
+       The walker sits IMMEDIATELY upstream of the tile-placement loop.
+4. [ ] From the walker: walk UP to the tile-placement loop → extract generator +
+       seeding derivation + consumption pattern → new lab-search family →
+       planted-verification.
+5. [ ] Optional: h9 dumps (22 fns, 0x806000–0x80c000) = the biome Lua-API
+       bindings region — several UNREAD (0080bee0 10 KB, 0080a5f0 8 KB,
+       00809930 7 KB = AddScriptColor-family binding).
 
 ## Method notes (do not relearn)
 
