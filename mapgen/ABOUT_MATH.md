@@ -792,7 +792,7 @@ exist; getDefinedStrings signature differs; use findBytes(null, hex) sparingly
 (silently found nothing for .rdata strings — use computed VAs + getReferencesTo
 instead). File→VA: .text file+0x400c00, .rdata file+0x400e00.
 
-Next reading queue: (1) FUN_00794620 in full — does it drive the wang fill?
+Reading queue + function inventory now tracked in **mapgen/ghidra-ledger.md** (the processing ledger — verdicts, queue, method notes; never re-dump without a reason). Queue: (1) FUN_00794620 in full — does it drive the wang fill?
 (2) FUN_00633930's callers. (3) The GameLuaManager consumer: find via the
 class's methods (RTTI vtable walk) — it reads placed-map pixels + dispatches
 registered Lua functions per color. (4) From the consumer, walk UP to the
