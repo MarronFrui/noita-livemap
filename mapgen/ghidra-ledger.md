@@ -87,13 +87,30 @@ body. Lab-testing LCG hypotheses without #2 repeats the 644M trap.
        VERDICT: Init = the world-setup orchestrator — NOT the tile fill itself.
        The decoded mSeed chain feeds the terrain-level state; the WANG fill is
        downstream in the per-Biome generation.
-6. [ ] **NEXT: the per-Biome generation** — FUN_00904230 returns Biome objects
-       (RTTI class `Biome` exists); each Biome's generation = the wang fill.
-       Find: the Biome class methods (vtable via RTTI ".?AVBiome@@"), the
-       MapHandlerNew-equivalent, the vertex-coloring loop and ITS generator +
-       seeding (the LCG? the poro mixer with a Biome-derived seed?).
-7. [ ] Secondary: FUN_00904c20 (25 KB), FUN_00901780 (46 KB), FUN_008ff150,
-       FUN_00909370 — procedural_terrain functions, unread.
+6. [ ] **NEXT: the per-Biome generation chain**:
+       - FUN_00904230 = color→Biome lookup (vector of 32-byte entries: color at
+         +0, Biome object at +0x1c; memoized at +0x28/+0x2c) — dumped (h13b)
+       - **FUN_00904c20 (25 KB) = recursive biome-map processor in WORLD PIXELS**
+         (`× 0x200 − DAT_01327670/013289a8` = world-origin globals; self-
+         recursion = the area walk; FUN_00949e80 = biome-map accessor) — dumped
+         (h13b), UNREAD in detail — prime next read: the per-biome generation
+         entry + its seeding.
+       - Biome class: NO vtable (plain struct) — the generation is free functions.
+7. [ ] Secondary: FUN_00901780 (46 KB), FUN_008ff150, FUN_00909370 — unread.
+
+## Drop tables / spawn data (answered 2026-09-05)
+
+"Which biome gets what" = TWO layers:
+1. DATA (already mapped): biome→atlas (wang_template_file), palettes (atlas
+   headers), materials (biome XML), spawn tables (biome Lua scripts +
+   item_spawnlists.lua + entity XMLs — all in the extracted data.wak;
+   biomes.mjs parses the tileset half today).
+2. BINARY (the missing piece): the per-biome generation SEEDING — what derives
+   each biome's fill RNG from (g_worldseed, biome identity). Route: FUN_00904c20
+   detail read + the Biome object layout (32-byte entries from FUN_00904230).
+The spawn DISPATCH machinery = decoded (registry chain: binding → AddScriptColor
+→ map@+0x8c → queue → processor). The per-spawn RNG = the LCG scatter pair
+(FUN_00633930/FUN_00794620) — their seeding derivation is part of the same read.
 7. [ ] After the fill is identified: extract generator + seeding derivation +
        consumption pattern → new lab-search family → planted-verification on
        the 548-vertex key.
