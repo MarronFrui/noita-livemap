@@ -749,6 +749,20 @@ callers (2 levels), and RNG-string xrefs into ghidra-logs/. Working note: the
 diddle table is NOT stored contiguously (0 hits as bytes or dwords) — computed
 at compile time or restructured.
 
+**Careful framing (user-pushed, 2026-09-05)**: the mixer hit at 0x48fd47 is
+TIER-1 confidence (unique 32-bit immediate, false-hit expectation ~0.004) but
+its LABEL is ours (could be an inlined copy), and — critically — the lab PROVED
+the fill does not use this mixer: decompiling it is for **pipeline calibration**
+(diff against our verified JS) and **elimination mapping** (the fill lives in
+code that never touches this path). The real prize anchors: PRNG fingerprint
+scans. **0x343FD (MSVC rand multiplier): 12 hits, 6 densely clustered at
+0x34b27–0x36031 (.text)** — far above chance; hypothesis: the fill reads an
+MSVC-rand-style LCG, re-seeded per area (fits order-independence + explains
+invisibility to our Lua-visible machinery). Also 1× glibc-style LCG (0xc08728);
+mt19937/64-bit LCGs: ruled out. Fill door anchors confirmed in-binary:
+"wang_scripts.csv" (the spawn-color walk over placed tiles), "wang_map_width"
+(Topology parser → area setup), "data/wang_tiles/" ×3 (template loader).
+
 Open (not excluded, but unbounded): multi-input seeding derivations
 (hash of (seed, area coords, color, …)) — the space is combinatorial; this is
 precisely why reading the code beats guessing the parameters.
