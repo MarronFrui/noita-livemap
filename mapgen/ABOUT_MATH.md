@@ -771,6 +771,22 @@ precisely why reading the code beats guessing the parameters.
 
 ## 8. Glossary
 
+**Binary-analysis decoder (added 2026-09-05 — every acronym gets defined at
+first use from now on):**
+
+| Acronym | Meaning |
+| --- | --- |
+| MSVC | Microsoft Visual C++ — the compiler that built Noita; its standard library is baked into the binary |
+| rand() / LCG | The classic C random function; LCG = Linear Congruential Generator, the multiply-and-add family it belongs to (`next = next*A + C mod M`) |
+| MSVC-rand fingerprint | The fixed multiplier 214013 (0x343FD) that such generators carry in the code — searchable like a toolmaker's stamp |
+| CRT | C RunTime — the standard library code statically linked into the exe |
+| PRNG | Pseudo-Random Number Generator (any of the above) |
+| VA / RVA | (Relative) Virtual Address — where code/data sits in the program's memory space once loaded |
+| PE | Portable Executable — the Windows program file format |
+| xref | Cross-reference — "which code points at this address/string" |
+| RTTI | RunTime Type Information — C++ class-name metadata sometimes left in binaries |
+| Headless (Ghidra) | Running the decompiler with no GUI, driven by scripts from the shell |
+
 - **Wang tile / herringbone**: domino-shaped tiles (2:1) whose edge colors must
   match neighbors; herringbone = alternating orientations, staggered lattice
   (nothings.org/gamedev/herringbone). Noita uses stb's implementation
