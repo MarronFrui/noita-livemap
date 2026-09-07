@@ -244,3 +244,33 @@ The most direct: find the function that reads the generator object's +0x8c
    known value via the seed mod, read the generator object's state via a probe
    mod, compare with our decoded derivation — confirms the chain before
    hunting the consume)
+
+## Correction (2026-09-05 very late): FUN_00fec850 is the RENDERER, not the fill
+
+The 1690 indirect calls in FUN_00fec850 (30 KB) are OpenGL vertex calls through
+function pointers loaded by FUN_00fec6b0 (the OpenGL/Win32 init — "FGL" = the
+graphics layer). This is the world RENDER function, NOT the wang generation.
+The indirect-call-count approach found the renderer because OpenGL calls also
+go through function pointers.
+
+## The path forward
+
+The consume method (vertex coloring) is in the CHUNK-GENERATION path. The
+static-analysis approach (tracing decompiled C through the binary) has mapped
+the infrastructure but not reached the consume method due to:
+- Many layers of engine abstraction (procedural_terrain → biome → generator
+  object → consume → stbhw generate → tile placement)
+- Lazy/streaming generation (not in the init path)
+- The decompiler's difficulty with heavily optimized C++ code
+
+**RECOMMENDED NEXT APPROACH: the empirical method.**
+Instead of tracing static code, use the GAME as an oracle:
+1. Run the lab with different world seeds (S, S+1, S×2, etc.)
+2. Record the vertex colors for each seed (the lab dumps)
+3. Compare: which vertices change? How do they depend on the seed?
+4. From the observed input→output relationship, deduce the consume rule
+
+This is the same approach that successfully reverse-engineered the poro PRNG
+(2.1M draws, 100% match) — but applied to the vertex-coloring system instead
+of the RNG itself. The lab infrastructure (probes, answer keys, the
+verification pipeline) is already built and tested.
