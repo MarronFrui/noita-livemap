@@ -176,3 +176,71 @@ The spawn DISPATCH machinery = decoded (registry chain: binding → AddScriptCol
   binaries (decompile/sleigh) or every decompile call fails with an empty error.
 - LuaManager list: `DAT_01347698` (head) `.9c` (end) `.a0` (capacity) — global
   CAutoList of BiomeSpawnScripts::GameLuaManager.
+
+## Session close (2026-09-05 late) — the state after exhaustive tracing
+
+### What we've decoded from the binary (ALL VERIFIED)
+
+The seeding chain from g_worldseed to the generator object:
+```
+g_worldseed (DAT_01327ffc)
+  → FUN_009119d0 (GetSeed, asserts g_worldseed_is_valid)
+  → FUN_0090ce20 (allocates 0x1ec bytes, calls FUN_008f9470)
+    → FUN_008f9470 (the random-state constructor):
+      +0x8c = raw seed (stored)
+      d = (double)seed + diddle_compensation
+      if (d >= 2147483647) d ×= 0.5
+      FUN_010098c0() ×2 (two Next() advances of the global poro PRNG)
+      +0x94 = (float)d × 200000.0f − 100000.0f
+    → the object is stored per-biome in the world grid
+```
+Every constant verified from .rdata: diddle table at 0x11e0ba0,
+threshold 2147483647 at 0x11e0220, scale 0.5 at 0x11dfdd8,
+C3 = 200000.0f at 0x11e0504, C4 = 100000.0f at 0x11e04ec.
+
+The source tree (330 files) recovered from assert strings:
+- `source/procedural_utils/` — world_seed.cpp, procedural_terrain.cpp,
+  biome.cpp, biome_materials.cpp, noise_utils.cpp
+- `source/grid/` — gridworld.cpp etc. (the falling-sand simulation)
+- `poro/source/` — the engine framework (random.cpp etc.)
+
+The world data model: parallel float grid + u16 material-ID grid.
+The spawn registry: GameLuaManager (+0x8c map of color→Lua function name),
+spawn queue, camera-culled processor.
+
+### What we've tested and eliminated (with the 548-vertex key)
+
+- Sequential poro mixer walks (every pixel as seed point, 94M+ candidates): NOISE
+- World-seed skips ≤200k: NOISE
+- Positional hashing (4 coordinate systems × offsets × 7 shapes): NOISE
+- Global LCG (×214013+2531011) consumers: all gameplay, NOT the fill
+- Derived-state families (×200000−100000, 7 variants): 48–53% = chance
+- Biome-grid seeding: NOISE
+- Per-chunk lattices: structurally excluded
+
+### What we've decoded but NOT yet connected to vertex colors
+
+The generator object (0x1ec bytes) holds the seed and derived state.
+The consume method — what reads these to produce vertex colors — is NOT:
+- In the generator class neighborhood (0x8f8000–0x8fc000 = noise utils)
+- In the Init chain (FUN_0090e840 → FUN_00910c20 → FUN_0090c1f0)
+- FUN_0079e440 (just a copy op), FUN_0090cfb0 (pixel scene), FUN_0092cb50 (init)
+
+### The consume method lives in the CHUNK-GENERATION path
+
+The game generates tiles LAZILY — when a chunk comes into the camera viewport.
+The consume method is called from the chunk-loading code, not from the world
+init. This is the streaming/streaming-chunk-target system (STREAMING_CHUNK_TARGET
+magic number from the mapcap magic-numbers file).
+
+### Next-session approach
+
+The most direct: find the function that reads the generator object's +0x8c
+(the stored world seed) or +0x94 (the derived state). Search strategies:
+1. Ghidra xrefs to the KNOWN storage offsets within the 0x1ec-byte object
+2. The stbhw generate call: the color_source function pointer passed to the
+   herringbone generator IS the consume method
+3. Lab experiment: verify the seeding chain empirically (set g_worldseed to a
+   known value via the seed mod, read the generator object's state via a probe
+   mod, compare with our decoded derivation — confirms the chain before
+   hunting the consume)
