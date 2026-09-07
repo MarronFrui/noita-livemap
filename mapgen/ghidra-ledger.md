@@ -274,3 +274,59 @@ This is the same approach that successfully reverse-engineered the poro PRNG
 (2.1M draws, 100% match) — but applied to the vertex-coloring system instead
 of the RNG itself. The lab infrastructure (probes, answer keys, the
 verification pipeline) is already built and tested.
+
+
+## Derived-state test results (2026-09-05, commit 5d181d3)
+
+The generator object's +0x94 field (derived state from g_worldseed) was tested
+as a Lehmer PRNG seed in 7 variants:
+- F1: derived_int → NollaPrng sequential walk: 49.82%
+- F2: float_bits → u32 → NollaPrng walk: 51.64%
+- F3: seededPrng(ws, area) walk: 52.92%
+- F4: worldseed → 2×Next → walk: 52.01%
+- F5: raw_seed → NollaPrng walk: 48.36%
+- F6: derived_int warm+random walk: 48.54%
+- F7: FUN_008efdd0 derivation → walk: 48.36%
+
+ALL at chance level (noise floor ~58.5% at n=548). The consume method does
+NOT simply seed a Lehmer PRNG with the derived state and walk vertices.
+
+## Key insight: the consume method reads the LOCAL state, not the global PRNG
+
+The fill is order-INDEPENDENT (verified: 100% identical placements across
+camera paths). If the vertex coloring used the global poro PRNG (which is
+advanced by every generator object creation), the fill would be order-DEPENDENT.
+Therefore: the vertex coloring MUST use a LOCAL state (the +0x94 derived state,
+or the +0x8c raw seed) with its own PRNG advance.
+
+The consume method reads the LOCAL state and applies a transformation we
+haven't identified. The transformation is NOT:
+- Lehmer PRNG seeded with the derived state
+- Lehmer PRNG seeded with the float bits of the derived state
+- Lehmer PRNG seeded with the raw seed
+- poro mixer seeded with the area coordinates
+
+The consume method might:
+1. Use a completely different PRNG (not Lehmer, not LCG)
+2. Use the state as an index into a pre-computed table
+3. Combine the state with other inputs (biome color, position, etc.)
+4. Use a completely different algorithm
+
+## The most direct next approach
+
+Find the function that reads the generator object's +0x8c or +0x94 field.
+The generator object is 0x1ec bytes. The +0x8c (seed) and +0x94 (derived)
+fields are read by the consume method. Ghidra can find all functions that
+access these specific offsets within the context of the 0x1ec-byte object.
+
+Alternative: find the CREATEHERRINGBONEWANG function. The binary contains
+the function name as an assert string (VA 0x1172ffe, 0x1173009, 0x117428d).
+The function is somewhere in the binary. It would:
+1. Take the atlas/biome data as input
+2. Set up the vertex coloring
+3. Call the stbhw generate (or equivalent) to produce the tile map
+4. Return the generated chunk data
+
+The Ghidra xref search for these string VAs returned 0 results, likely
+because the strings are referenced through a different mechanism (e.g., a
+vtable or function table rather than direct code references).
