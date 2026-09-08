@@ -9,6 +9,13 @@
 Everything we know about the map-generation math, with sources and verification
 status. This is the shared map of the rabbit hole — update it as we learn.
 
+> **Read order note (2026-09-08):** the distilled, current-only truth —
+> verified facts, eliminated-don't-retest rows, open frontier — lives in
+> `mapgen/VERIFIED.md`. This file is the research journal: new results land
+> here first (§6 evidence log is append-only), and settled conclusions are
+> distilled into `VERIFIED.md`. Where the two disagree, re-check the cited
+> sources; the newer evidence wins and both get fixed.
+
 Legend: ✅ verified (we ran it / byte-compared) · 🔎 plausible (code read, not
 empirically tested) · 🔗 cross-confirmed (multiple independent sources agree,
 but no direct in-game probe yet) · ❓ hypothesis · upstream refs are

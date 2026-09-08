@@ -2,8 +2,9 @@
 
 > Processing ledger for the decompilation hunt. Update every session:
 > a function's verdict is FINAL unless new evidence overturns it — never
-> re-dump, never re-read without a reason. Facts with evidence go to
-> `ABOUT_MATH.md`; this file is the processing state only.
+> re-dump, never re-read without a reason. Settled facts get distilled into
+> `mapgen/VERIFIED.md` (the canon); research detail goes to `ABOUT_MATH.md`;
+> this file is the processing state only.
 >
 > Dumps live in `~/work/ghidra-logs/` (outside the repo). File→VA mapping:
 > .text file+0x400c00 · .rdata file+0x400e00 · imageBase 0x400000.

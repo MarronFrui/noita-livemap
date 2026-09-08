@@ -1,8 +1,13 @@
 # mapgen/ — Map-Gen Prediction bench
 
 Tools to reverse-engineer and validate Noita's procedural world generation
-("Map Gen Prediction" — see `ABOUT_MATH.md` for the math, `SESSION_CONTEXT.md`
-at the repo root for strategy and current state).
+("Map Gen Prediction").
+
+**Docs:** `VERIFIED.md` is the distilled canon — verified truths, eliminated
+hypotheses (do not re-test), and the ranked open frontier; feed session
+context from it. `ABOUT_MATH.md` is the full research journal (evidence log
+§6+); `ghidra-ledger.md` tracks the decompilation processing state.
+`SESSION_CONTEXT.md` (repo root) holds strategy and current state.
 
 **Goal**: given a seed, produce the same world the game produces, verified
 against the noitamap capture of seed `78633191`.
