@@ -76,7 +76,7 @@ test("different seeds produce different wang output", async () => {
   assert.notEqual(await gen(CAPTURE_SEED), await gen(CAPTURE_SEED + 1));
 });
 
-test("golden: wasm (noitool model) output is stable", async (t) => {
+test("golden: legacy wasm (obsolete noitool model) output is stable", async (t) => {
   if (!fs.existsSync(goldenPath)) {
     t.skip("no golden snapshot yet (run mapgen/update-golden.mjs --force)");
     return;

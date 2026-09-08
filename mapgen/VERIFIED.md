@@ -7,15 +7,14 @@
 > `ABOUT_MATH.md` (evidence log §6+) and `ghidra-ledger.md` (decompilation
 > processing state); this file holds only what survived.
 >
-> **Tl;dr state (2026-09-08, evening):** **THE WANG LAYER IS PREDICTION-SOLVED.**
-> The full chain — worldseed → GetRNG (warm-up + skip = (w%11)+(ws%12)) →
-> per-attempt sub-seed → TLS → vertex coloring (`(i−j+1)&3`, one `nextU()` per
-> vertex) → rep-reduce → herringbone tile fill — is asm-verified, runtime-
-> confirmed (Cheat Engine), and end-to-end verified against the frozen spawn
-> equations: 12/12 direct-trigger constraints across seeds 91/92/93, unique
-> early attempts, 60 wrong-seed controls never reaching perfect. Remaining:
-> hasPath emulation (which attempt is accepted), cascade-class spawn offsets
-> (altar-scene data model), and post-wang paint layers for full visuals (§9).
+> **Tl;dr state (2026-09-08, night):** **THE WANG LAYER IS PREDICTION-SOLVED,
+> END TO END.** Worldseed → GetRNG (warm-up + skip = (w%11)+(ws%12)) →
+> per-attempt sub-seed → TLS → vertex coloring (`(i−j+1)&3`) → rep-reduce →
+> herringbone fill → **hasPath rejection → the game's accepted attempt** —
+> every link asm-verified or oracle-validated. `generateAreaExact(seed, area)`
+> reproduces the game's terrain skeleton exactly (~10 ms/area). Remaining for
+> visuals: paint layers (post-wang finalize: random-block / material fills —
+> re-derive from the binary), pixel scenes, template biomes (§9).
 >
 > **Maintenance rules:**
 > - A fact enters here only after it is settled, and must carry a source
@@ -29,8 +28,16 @@ Legend: ✅ empirically verified (ran it / byte-compared / measured in-game) ·
 🔬 asm-verified (read from `noita_dev.exe` disassembly, constants byte-checked) ·
 🔗 cross-confirmed (independent sources agree, no direct probe) ·
 ⚠️ decoded but not closed (code path read; runtime input unmeasured).
-Upstream refs: `vendor/noita-tools/.../noita_random/src/` (`nr/` = noita_random.cpp,
-`w/` = wang/wang.cpp). Binary = `noita_dev.exe` build 2025-01-26, 32-bit x86.
+
+**AUTHORITY STATEMENT (2026-09-08):** every load-bearing fact here stands on
+our own Ghidra asm verification of `noita_dev.exe` (build 2025-01-26, 32-bit
+x86) plus game-side oracle validation. **`vendor/noita-tools` (noitool) is
+OBSOLETE as a reference — do not compare against it, do not port its code
+unchecked.** Its wasm output was eliminated as game terrain (§8 row 1), and
+its shipped code contains silent bugs (e.g. its coalmine-hax constants
+`0x004000`/`0x0040` never match its own overlay data `0x006400`/`0x000064` —
+the hax is a no-op there). Vendored files may still be READ as convenient
+data containers (e.g. the overlay bytes), never as authority.
 
 ---
 
@@ -79,7 +86,7 @@ the correct S, the following mechanics reproduce the game exactly:
 - **Repetition-reduction pass** (default ON, gated cc>1): re-colors vertices where the 3×2 neighborhood matches fully; flips ~11% of informative vertices (calibrated 8.8–12.9%). ✅+🔬 ABOUT_MATH §3ter, §7decies.
 - **Herringbone scan:** `ypos = −s`, `j = −1`, `phase = j&3`, column start `i = phase ? phase−4 : 0`, step 4; h-tiles consume vertices `[j+2..j+3][i+2..i+4]`, v-tiles `[j+2..j+4][i+5..i+6]`. The game's 464-placement log aligns **464/464** to the simulated scan at `log = sim + (3,−1)` in cell coords. (Tile-ID choices differ 30/464 only because our port reads a different constant vertex offset than the game — port convention, not model; the lab tileset is fully forced so picks are unambiguous given the vertices.) ✅ ABOUT_MATH §7decies.
 - **Output mapping:** output px (0,0) ↔ vertex (2,2); vertex (I,J) ↔ output px `((I−2)·s, (J−2)·s)`; 1 atlas px = 10 world px (scale still 🔗). ABOUT_MATH §3ter.
-- **+4-row discard:** the buffer is `(h+4)` rows; the copy loop starts at j=−4 → the top 4 cell-rows are discarded (confirms noitool). ✅ in-binary. ABOUT_MATH §3, §7octies.
+- **+4-row discard:** the buffer is `(h+4)` rows; the copy loop starts at j=−4 → the top 4 cell-rows are discarded. ✅ in-binary. ABOUT_MATH §3, §7octies.
 - **Order-independence:** 100% identical placements across camera paths → the fill uses a LOCAL state, never the global poro stream. ✅ ABOUT_MATH §7septies.
 - **The measured sub-seeds** (exactly one S per seed over [0, 2³¹); sweep `experiments/2026-09-08-subseed-sweep.c`, planted-solution-verified):
 
@@ -97,7 +104,7 @@ the correct S, the following mechanics reproduce the game exactly:
 - **Area** = bounding box of one connected component of a biome color on the biome map; dims via `GetWidthFromPix`. ✅ ABOUT_MATH §3.
 - **Once per area**, cached by (width, height, seed) across chunks (FUN_0090c1f0). 🔬 ABOUT_MATH §7octies.
 - **Area driver** FUN_00904c20 (procedural_terrain.cpp): reads the area object (`this`), computes GetRNG, runs **≤100 attempts**; per attempt `state = Schrage(state)`, `param_9 = (double)state × 4.656612875e-10 × 2147483645`, `CreateHerringboneWang_Threaded(...)`; `hasPath` = FUN_00901780 (JPS) → accept or retry; coalmine/excavationsite string checks → FUN_00901580. 🔬 ABOUT_MATH §7decies.
-- **GetRNG (asm-exact):** `d = (double)(int32)C + diddle[C>>31]` (diddle = {0.0, 2³²} @0x11e0ba0 — unsigned promotion); `if (d >= 2147483647.0) d *= 0.5`; ONE warm-up `Next()` on the driver-local Random; `skip = (width % 11)(signed trunc) + ((u32)C % 12)` (width = `[area+0x34]` clamped [1,1024]); advance `skip` inline Schrage. Identical to noitool's GetRNG including the unsigned mod-12. 🔬 ABOUT_MATH §7decies.
+- **GetRNG (asm-exact):** `d = (double)(int32)C + diddle[C>>31]` (diddle = {0.0, 2³²} @0x11e0ba0 — unsigned promotion); `if (d >= 2147483647.0) d *= 0.5`; ONE warm-up `Next()` on the driver-local Random; `skip = (width % 11)(signed trunc) + ((u32)C % 12)` (width = `[area+0x34]` clamped [1,1024]); advance `skip` inline Schrage. 🔬 ABOUT_MATH §7decies.
 - **Dispatch:** the fill runs as an **Init-time thread-pool std::function task** capturing the 0x154-byte area object (ctor FUN_00904b10; `[area+0x4c]` = ctor arg = `WORLDSEED::GetSeed() + DAT_01328010`, written once during the Init walk). Chunk generation at runtime is lazy/streaming. 🔬 ABOUT_MATH §7novies, §7decies.
 - **RUNTIME CONFIRMATION (Cheat Engine, 2026-09-08, seed 78633191):** `[area+0x4c]` = raw ws (`EAX = 0x04AFD8E7`, multiple areas, hook at 0x904d3b); the Threaded-layer cache pair (DAT_013276c8/d0) reads `(last param_9, diddled ws = 78633191.0)`; the last fill's accepted state = **ws × 16807^115** — inside the chain's ≤ ~122 (115 = 1 warm-up + skip 14 + A+1 = 100 → w ≡ 3 mod 11, e.g. w = 256 = the Mines width, accepted on attempt A = 99). **The asm-exact chain from worldseed to the fill's sub-seed is confirmed for regular (Init-filled) areas.** ✅
 - ⚠️ **THE OPEN LINK:** the driver's input is runtime-confirmed (**C' = raw worldseed**, Cheat Engine hook at 0x904d3b, seed 78633191, 2026-09-08 — `EAX = 0x04AFD8E7` after `MOV EAX,[ESI+4C]`, multiple areas) — but C = ws is **excluded by measurement** as the source of the lab sub-seed (§8 rows 11–12). So the divergence is downstream of the driver's input: between the driver's chain and/or the sub-seed actually passed to `CreateHerringboneWang_Threaded` (FUN_008eda10) — see §9.
@@ -110,7 +117,7 @@ L4 pixel scenes / decor. ABOUT_MATH §5bis.
 
 - **Wang trigger colors — only three exist in the atlases** (pixel-counted): `00ff00` spawn_items (→ RNG gate → `wand_altar` pixel scene), `78ffff` spawn_heart (70% `heart.xml`, else chest_random/mimic), `55ff8c` spawn_chest (coalmine only). `spawn_wands`/`spawn_potions` colors have ZERO atlas pixels — wands/potions cascade from green (`wand_altar.png` contains a single `50a0f0` px → `spawn_wands`). `goldnugget*` = physics debris, no static spawner (frozen dumps: gold 0 vs 23–26 physics-on). ✅ ABOUT_MATH §7sexies.
 - **Trigger colors are consumed at generation:** the rendered capture shows 0/32 trigger-color pixels at item positions → entity dumps are the only observable for spawn facts. ✅ ABOUT_MATH §7sexies.
-- **Holy Mountain content** (perks, shops, pedestals) is seed-dependent but NOT wang — exclude from fill constraints and don't count it as wang anomaly. ✅ (noitool InfoProviders, user-verified) ABOUT_MATH §6.
+- **Holy Mountain content** (perks, shops, pedestals) is seed-dependent but NOT wang — exclude from fill constraints and don't count it as wang anomaly. ✅ (user-verified in game) ABOUT_MATH §6.
 - **Spawn registry (binary):** RegisterSpawnFunction (FUN_00807d20) → AddScriptColor (FUN_007eb020) → std::map at GameLuaManager+0x8c → spawn queue → camera-culled processor FUN_0085d7b0. The **enqueue side** (the pixel-walk over placed map pixels) = FUN_00904c20's tail: per pixel → color → map lookup → ONE Schrage draw per pixel → FUN_00900c70 insert. 🔬 ledger 2026-09-07/08.
 - **Fixed spawns:** 15 sightings identical across seeds 91/92/93 (HM pedestals/perks, altar orb_00+book, kantele, evil_eye, orb-room orbs). ✅ ABOUT_MATH §7sexies.
 - **Capture ground truth:** in-game pipeline pixel-stable (overlap identity 99.6–99.7%, flat-region RMS 0.16/255); adjacent-seed foreground divergence **26.45%** (91↔92) = the calibration target; 92↔93 83.0% identical; 3-way decomposition 48.0% all-stable / **17.9% two-agree-one-differs** (even split → small-variant-pool content, an RE target) / 6.8% all-distinct; HM bands ~95% seed-independent; the hosted ref stitch is build 2024-08-12 and NOT pixel-faithful to the current build (80.4%) — treat cross-build diffs as qualitative. ✅ mapcap/README, PREDICTABLE_ZONES.md.
@@ -166,14 +173,14 @@ of these mechanisms, cite the row instead of re-running it.
 ## 9. Open frontier (ranked)
 
 1. **RESOLVED (2026-09-08): the sub-seed derivation is runtime-confirmed AND end-to-end verified for regular areas** — see §5 and the chain-vs-spawn-equations result (ABOUT_MATH §6, 2026-09-08): **12/12 direct-trigger constraints satisfied across seeds 91/92/93** by chain-derived fills (unique early attempts A=0/3/1, consistent (+1..3,+1..5) px anchor; 60 wrong-seed controls never exceeded 3/4). The lab anomaly is explained: the injected lab biome fills via a different path (§8 row 17). **Remaining frontier (offline):**
-   - **a. hasPath emulation** — predict WHICH attempt the game accepts (JPS check per candidate; observed acceptances at A=0..3 for the oracle areas, so the tail only matters for heavy-rejecting areas).
+   - **a. ~~hasPath emulation~~ ✅ DONE (2026-09-08):** ported (`lib/has-path.mjs`) and oracle-validated — 8/8 accept/reject constraints (excav 91/92/93 → attempts 0/3/1), coalmine 91 independently corroborates (attempt 1 = the spawn-judge's winner). Wired as `generateAreaExact` (`lib/generate-exact.mjs`, ~10 ms/area). The accepted out_map carries the hasPath mutations (blocked-room whites, hax) = exact finalize input.
    - **b. Cascade-class spawn offsets** — potions/wands spawn at structural offsets from the wand_altar scene art (+ RNG gate); needed to extend the judge beyond direct triggers (pure data modeling: altar art + per-biome g_items lists).
    - **c. Post-wang layers** — room blocking / coalmine_hax / pixel scenes for full geometry (needed for visual prediction, not for spawn facts).
    - **d. Optional:** identify the CE-observed A=99 last-filled area (no oracle items — untestable, consistent).
 2. **12 border-zone key mismatches** (parked, §4, lab-scope): systematic across seeds; suspect the key's border values or a game-side edge effect. Do not chase until the lab scope needs it. ABOUT_MATH §7decies.
 3. ~~Port read-offset convention~~ **RESOLVED (2026-09-08):** real-area fills anchor at ~(3,3) px from the area origin — the port's geometry is essentially exact; the lab's (3,−1) cell offset was lab-recovery bookkeeping. (Chain-vs-spawn-equations run, ABOUT_MATH §6.)
 4. **Small-variant-pool content:** the 17.9% two-agree-one-differs capture class (even split across seeds) is a separate RE target (randomMaterials / scene variants?). mapcap/README.
-5. **Post-wang layers:** noitool's `finalize` family (`fillMainPath`, `fillBlockedRooms`, `fillC0ffee`, `ClearPath`, `doCoalMineHax`) and pixel-scene placement — required for full visual prediction (§9.1c). ABOUT_MATH §7.
+5. **Post-wang layers:** the game's `finalize` family (`fillMainPath`, `fillBlockedRooms`, `fillC0ffee`, `ClearPath`, random-material fills) and pixel-scene placement — required for full visual prediction (§9.1c). **Re-derive each step from the binary; do NOT port noitool's versions** (obsolete; known-buggy hax constants). ABOUT_MATH §7.
 
 ## 10. Working principles
 
@@ -182,3 +189,24 @@ of these mechanisms, cite the row instead of re-running it.
 - **Order-independence is a hard constraint:** any fill model must be a local, per-attempt state — the global poro stream is out. (ABOUT_MATH §7septies.)
 - **The lab is the instant bench:** the 548/362/451-vertex answer keys (seeds 91/92/93, `out/oracle/lab-vertex-grids.json`) verify any new hypothesis in minutes; a correct model scores ~100%, partial-walk scores are noise. (ABOUT_MATH §7septies, §7decies.)
 - **Sources or it didn't happen:** every domain fact carries a file+section verified on disk this session; numbers never travel via chat memory or handovers. (AGENTS.md.)
+
+## Session close 2026-09-08 (evening, genmap wiring: in-game tested)
+
+- **First in-game validation:** reference seed = "extremely close to reality"
+  (correct shape everywhere); +3 seed close with minor deltas. Purple ghost
+  layers = OUR hasPath search painting the map — fixed (search on path_map
+  copy; oracle re-validated 8/8); cache rev r2.
+- genmap MVP shipped: `mapgen/lib/world-gen.mjs` + `mapgen/server/genmap-server.mjs`
+  (tile server :8082, `npm run gen:server`) + `public/genmap.html`
+  (canvas viewer, ?seed=, live telemetry marker, zones overlay).
+  Cold generation ≈ 25 s/seed (57 areas; disk-cached).
+- Renderer gaps (ranked): template biomes (surface/Tree/desert/HM art —
+  ~1973 chunks; port the game's own data/scripts/biomes/*.lua init
+  compositions + LoadPixelScene machinery; even the obsolete noitool recon
+  never implemented these (AUTO_GEN stubs) — original work, validated against the
+  ~95%-seed-independent capture zones); the lake + rainforest_dark
+  no-attempt areas (180 chunks — hasPath semantics question); remaining
+  finalize steps for coloring.
+- Marker-vs-terrain offset: bounded to x∈[−1..3], y∈[0..2] atlas px by the
+  spawn-constraint intersection; precise constant-vs-sawtooth fit armed via
+  the L3 foreground-mask instrument (mapcap) — next session.

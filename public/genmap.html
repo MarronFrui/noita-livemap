@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>noita livemap — generated world</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font-family: monospace; }
+      #ui {
+        position: fixed; top: 8px; left: 8px; z-index: 10; color: #cde; background: rgba(10,14,20,.85);
+        padding: 8px 10px; border-radius: 6px; font-size: 13px; display: flex; gap: 8px; align-items: center;
+      }
+      #ui input { width: 110px; background: #0a0f16; color: #cde; border: 1px solid #345; border-radius: 4px; padding: 3px 6px; }
+      #ui button { background: #1c2b3a; color: #cde; border: 1px solid #345; border-radius: 4px; padding: 4px 10px; cursor: pointer; }
+      #status { position: fixed; bottom: 8px; left: 8px; z-index: 10; color: #9bd; font-size: 12px; background: rgba(10,14,20,.7); padding: 4px 8px; border-radius: 4px; }
+      canvas { display: block; cursor: grab; }
+      canvas.dragging { cursor: grabbing; }
+    </style>
+  </head>
+  <body>
+    <div id="ui">
+      <label>seed <input id="seed" /></label>
+      <button id="load">load</button>
+      <button id="live">live: off</button>
+      <button id="zones" title="chunk classification overlay">zones</button>
+      <span id="hint">drag = pan · wheel = zoom (z <span id="zlabel"></span>)</span>
+    </div>
+    <div id="status">enter a seed and hit load</div>
+    <div id="legend" style="position:fixed;top:44px;left:8px;z-index:10;color:#cde;background:rgba(10,14,20,.85);padding:6px 10px;border-radius:6px;font-size:12px;display:none;line-height:1.6">
+      <b style="color:#7fd97f">▪</b> wang generated&nbsp;&nbsp;
+      <b style="color:#e05b5b">▪</b> unsupported atlas&nbsp;&nbsp;
+      <b style="color:#f0a030">▪</b> no attempt accepted<br/>
+      <b style="color:#59b8ff">▪</b> non-wang (template/sky)&nbsp;&nbsp;
+      <b style="color:#ff5bd8">▪</b> Holy Mountain band&nbsp;&nbsp;
+      <b style="color:#ffffff66">▯</b> chunk grid
+    </div>
+    <canvas id="cv"></canvas>
+    <script>
+      // canvas px = virtual-map px * 512; chunk (0,0) = biome px (0,-48) = world (-17920,-31744)
+      // 71x144 chunks = clamped virtual map (48 sky rows + 70x48 band + 48 deep rows + 1 east col)
+      const CHUNKS_W = 71, CHUNKS_H = 144;
+      const TILE = 512, MAXZ = 6;
+      const cv = document.getElementById("cv");
+      const ctx = cv.getContext("2d");
+      ctx.imageSmoothingEnabled = false;
+      const status = document.getElementById("status");
+
+      const params = new URLSearchParams(location.search);
+      const seedInput = document.getElementById("seed");
+      seedInput.value = params.get("seed") ?? "78633191";
+
+      let seed = null, z = 1, cam = { x: 35 * 512, y: 62 * 512 }; // start at spawn (world 0,0)
+      const tiles = new Map(); // key -> {img, ok}
+      let zones = null, showZones = false; // per-chunk tags
+      let live = true, ws = null, marker = null, followMarker = true;
+
+      const liveBtn = document.getElementById("live");
+      const W2C = { x: 17920, y: 31744 }; // world -> canvas: canvas = world + (17920, 31744)
+
+      function setLive(on) {
+        live = on;
+        liveBtn.textContent = `live: ${on ? "ON" : "off"}`;
+        liveBtn.style.background = on ? "#2c5a2c" : "#1c2b3a";
+        if (on) {
+          connectBridge();
+          if (marker && marker.seed && marker.seed !== seed) loadSeed(marker.seed);
+        }
+      }
+      liveBtn.onclick = () => setLive(!live);
+
+      function connectBridge() {
+        try {
+          ws = new WebSocket("ws://localhost:8080");
+          ws.onmessage = (e) => {
+            let m;
+            try { m = JSON.parse(e.data); } catch { return; }
+            if (!m || typeof m.seed !== "number") return;
+            marker = { wx: m.x, wy: m.y, seed: m.seed >>> 0, biome: m.biome };
+            if (live) {
+              if (marker.seed !== seed) loadSeed(marker.seed);
+              if (followMarker) {
+                cam = { x: marker.wx + W2C.x, y: marker.wy + W2C.y };
+              }
+            }
+            draw();
+          };
+          ws.onclose = () => { if (live) setTimeout(connectBridge, 2000); };
+          ws.onerror = () => { try { ws.close(); } catch {} };
+        } catch {}
+      }
+
+      function loadSeed(s) {
+        const v = parseInt(String(s), 10);
+        if (Number.isNaN(v)) return;
+        seed = v >>> 0;
+        tiles.clear();
+        zones = null;
+        if (showZones) loadZones();
+        seedInput.value = String(seed);
+        history.replaceState(null, "", `?seed=${seed}`);
+        status.textContent = `generating seed ${seed}… (first load warms the cache)`;
+        pollStatus();
+        draw();
+      }
+
+      const ZONE_COLORS = { 1: "127,217,127", 2: "224,91,91", 3: "240,160,48", 0: "89,184,255", 5: "255,91,216" };
+
+      function loadZones() {
+        fetch(`/gen/zones/${seed}`).then((r) => r.json()).then((s) => { zones = s; draw(); }).catch(() => {});
+      }
+
+      function resize() { cv.width = innerWidth; cv.height = innerHeight; ctx.imageSmoothingEnabled = false; draw(); }
+      addEventListener("resize", resize);
+
+      function tileUrl(tx, ty, tz) { return `/gen/tile/${seed}/${tz}/${tx}/${ty}.png`; }
+      function fetchTile(tx, ty, tz) {
+        const key = `${seed}/${tz}/${tx}/${ty}`;
+        if (tiles.has(key)) return tiles.get(key);
+        const t = { img: new Image(), ok: false };
+        tiles.set(key, t);
+        t.img.onload = () => { t.ok = true; draw(); };
+        t.img.src = tileUrl(tx, ty, tz);
+        return t;
+      }
+
+      function draw() {
+        document.getElementById("zlabel").textContent = z;
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, cv.width, cv.height);
+        if (!seed) return;
+        const scale = 1 / 2 ** z;
+        const gw = Math.ceil(CHUNKS_W / 2 ** z), gh = Math.ceil(CHUNKS_H / 2 ** z);
+        const w0 = cam.x - cv.width / 2 / scale, h0 = cam.y - cv.height / 2 / scale;
+        const t0x = Math.floor(w0 / (TILE * 2 ** z)), t0y = Math.floor(h0 / (TILE * 2 ** z));
+        const t1x = Math.floor((w0 + cv.width / scale) / (TILE * 2 ** z)), t1y = Math.floor((h0 + cv.height / scale) / (TILE * 2 ** z));
+        let pending = 0;
+        for (let ty = Math.max(0, t0y); ty <= Math.min(gh - 1, t1y); ty++) {
+          for (let tx = Math.max(0, t0x); tx <= Math.min(gw - 1, t1x); tx++) {
+            const t = fetchTile(tx, ty, z);
+            if (!t.ok) { pending++; continue; }
+            const sx = (tx * TILE * 2 ** z - cam.x) * scale + cv.width / 2;
+            const sy = (ty * TILE * 2 ** z - cam.y) * scale + cv.height / 2;
+            const s = TILE * 2 ** z * scale;
+            ctx.drawImage(t.img, Math.round(sx), Math.round(sy), Math.ceil(s), Math.ceil(s));
+          }
+        }
+        if (pending) status.textContent = `loading ${pending} tiles… (seed ${seed}, z${z})`;
+        else status.textContent = `seed ${seed}, z${z} — canvas px; world px = canvas − (17920, 31744)`;
+        if (showZones && zones) {
+          const cw = 512 * scale, ch = 512 * scale;
+          for (let ty = 0; ty < CHUNKS_H; ty++) {
+            for (let tx = 0; tx < CHUNKS_W; tx++) {
+              const tag = zones.tags[ty * CHUNKS_W + tx];
+              const sx = (tx * 512 - cam.x) * scale + cv.width / 2;
+              const sy = (ty * 512 - cam.y) * scale + cv.height / 2;
+              if (sx > cv.width || sy > cv.height || sx + cw < 0 || sy + ch < 0) continue;
+              if (tag !== 1) {
+                ctx.fillStyle = `rgba(${ZONE_COLORS[tag] ?? "89,184,255"},0.30)`;
+                ctx.fillRect(sx, sy, cw, ch);
+              }
+              if (showGrid) {
+                ctx.strokeStyle = "rgba(255,255,255,0.25)";
+                ctx.strokeRect(sx + 0.5, sy + 0.5, cw - 1, ch - 1);
+              }
+            }
+          }
+        }
+        if (marker && marker.seed === seed) {
+          const mx = (marker.wx + W2C.x - cam.x) * scale + cv.width / 2;
+          const my = (marker.wy + W2C.y - cam.y) * scale + cv.height / 2;
+          if (mx > -20 && my > -20 && mx < cv.width + 20 && my < cv.height + 20) {
+            const r = Math.max(6, 10 * scale);
+            ctx.strokeStyle = "#ff3030";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(mx, my, r, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(mx - r * 1.6, my); ctx.lineTo(mx + r * 1.6, my);
+            ctx.moveTo(mx, my - r * 1.6); ctx.lineTo(mx, my + r * 1.6);
+            ctx.stroke();
+          }
+          status.textContent += ` · ${marker.biome ?? ""} (${Math.round(marker.wx)}, ${Math.round(marker.wy)})`;
+        }
+      }
+
+      function pollStatus() {
+        if (!seed) return;
+        fetch(`/gen/status/${seed}`).then((r) => r.json()).then((s) => {
+          if (!s.ready) {
+            status.textContent = `generating seed ${seed}: ${s.done}/${s.total} areas${s.errors.length ? ` — ${s.errors.length} errors` : ""}…`;
+            draw();
+            setTimeout(pollStatus, 500);
+          }
+        }).catch(() => {});
+      }
+
+      const zonesBtn = document.getElementById("zones");
+      const legend = document.getElementById("legend");
+      let showGrid = false;
+      zonesBtn.onclick = () => {
+        showZones = !showZones;
+        showGrid = showZones;
+        legend.style.display = showZones ? "block" : "none";
+        if (showZones && !zones) loadZones();
+        draw();
+      };
+
+      function load() {
+        const v = parseInt(seedInput.value, 10);
+        if (Number.isNaN(v)) return;
+        loadSeed(v);
+        if (live) followMarker = false; // manual load/UI wins over follow until live re-enabled
+      }
+      document.getElementById("load").onclick = load;
+      seedInput.addEventListener("keydown", (e) => e.key === "Enter" && load());
+
+      let dragging = false, last = null;
+      cv.addEventListener("mousedown", (e) => { dragging = true; followMarker = false; last = [e.clientX, e.clientY]; cv.classList.add("dragging"); });
+      addEventListener("mouseup", () => { dragging = false; cv.classList.remove("dragging"); });
+      addEventListener("mousemove", (e) => {
+        if (!dragging) return;
+        const scale = 1 / 2 ** z;
+        cam.x -= (e.clientX - last[0]) / scale;
+        cam.y -= (e.clientY - last[1]) / scale;
+        last = [e.clientX, e.clientY];
+        draw();
+      });
+      cv.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        const scale = 1 / 2 ** z;
+        const wx = cam.x + (e.clientX - cv.width / 2) / scale;
+        const wy = cam.y + (e.clientY - cv.height / 2) / scale;
+        z = Math.max(0, Math.min(MAXZ, z + (e.deltaY > 0 ? 1 : -1)));
+        const ns = 1 / 2 ** z;
+        cam.x = wx - (e.clientX - cv.width / 2) / ns;
+        cam.y = wy - (e.clientY - cv.height / 2) / ns;
+        draw();
+      }, { passive: false });
+
+      resize();
+      load(); // auto-load the seed from the URL
+      setLive(true); // try the telemetry bridge (genmap shows the live run when Noita is open)
+    </script>
+  </body>
+</html>

@@ -60,11 +60,25 @@ function parseBiomeDefinition(dataDir, filename) {
   }
   const flatRandomMaterials = [randomMaterials.length, ...randomMaterials.flat()];
 
+  // MaterialComponents of the biome's <Materials> (for procedural fills)
+  const materialBands = [...xml.matchAll(/<MaterialComponent\b[\s\S]*?<\/MaterialComponent>/g)]
+    .map((b) => ({
+      name: (b[0].match(/material_name="([^"]*)"/) ?? [])[1],
+      min: Number((b[0].match(/material_min="([^"]*)"/) ?? [])[1] ?? 0),
+      max: Number((b[0].match(/material_max="([^"]*)"/) ?? [])[1] ?? 0),
+      rare: (b[0].match(/is_rare="([^"]*)"/) ?? [])[1] === "1",
+      limitMinY: (b[0].match(/limit_min_y="([^"]*)"/) ?? [])[1],
+      limitMaxY: (b[0].match(/limit_max_y="([^"]*)"/) ?? [])[1],
+    }))
+    .filter((b) => b.name && Number.isFinite(b.min) && Number.isFinite(b.max))
+    .map((b) => ({ ...b, limitMinY: b.limitMinY != null ? Number(b.limitMinY) : null, limitMaxY: b.limitMaxY != null ? Number(b.limitMaxY) : null }));
+
   return {
     filename,
     name: name || path.basename(filename, ".xml"),
     templateFile,
     randomMaterials: flatRandomMaterials,
+    materialBands,
     isCoalMine: false, // set below from name, mirrors noita-tools flags
     shouldBlockOutRooms: false,
   };
@@ -124,6 +138,29 @@ export function loadBiomeConfig(dataDir) {
   const biomeOffsetY = Number(parseAttr(rootTag, "biome_offset_y") ?? 14);
   const entries = parseBiomesToLoad(xml);
 
+  // Virtual map: the game samples the biome map with clamped coordinates, so
+  // the world extends 48 chunks above (sky), 48 below (deep) and 1 column east
+  // of the 70x48 png (hosted-ref DZI: 36352x73728 px = 71x144 chunks, TopLeft
+  // world (-17920,-31744)). Virtual row = biome ty + V_OFF_Y; col 70 = col 69.
+  const V_OFF_Y = 48;
+  const vmap = {
+    width: map.width + 1,
+    height: map.height + 2 * V_OFF_Y,
+    data: new Uint8Array((map.width + 1) * (map.height + 2 * V_OFF_Y) * 4),
+  };
+  for (let vy = 0; vy < vmap.height; vy++) {
+    const ty = Math.min(Math.max(vy - V_OFF_Y, 0), map.height - 1);
+    for (let vx = 0; vx < vmap.width; vx++) {
+      const tx = Math.min(vx, map.width - 1);
+      const s = 4 * (ty * map.width + tx);
+      const d = 4 * (vy * vmap.width + vx);
+      vmap.data[d] = map.data[s];
+      vmap.data[d + 1] = map.data[s + 1];
+      vmap.data[d + 2] = map.data[s + 2];
+      vmap.data[d + 3] = 255;
+    }
+  }
+
   const biomes = new Map();
   for (const entry of entries) {
     if (biomes.has(entry.color)) continue;
@@ -135,24 +172,38 @@ export function loadBiomeConfig(dataDir) {
       "solid_wall_tower_1",
       "solid_wall_tower_2",
     ].includes(def.name);
-    def.areas = computeAreas(map, entry.color);
-    if (def.areas.length > 0 && def.templateFile) {
+    // template biomes (no wang atlas) are drawn by the template renderer
+    def.template = !def.templateFile;
+    // Wang areas are computed over the CLAMPED virtual map (edge biomes extend
+    // into sky/deep: the_end down, the_sky up, robobase down). Template-biome
+    // areas stay in-map (their renderers place content themselves).
+    const areaMap = def.templateFile ? vmap : map;
+    def.areas = computeAreas(areaMap, entry.color);
+    if (def.templateFile) {
+      // wang areas live in virtual-map rows; shift back to biome coords (y1 can be -48)
+      for (const a of def.areas) {
+        a.y1 -= V_OFF_Y;
+        a.y2 -= V_OFF_Y;
+      }
+    }
+    if (def.areas.length > 0) {
       biomes.set(entry.color, def);
     }
   }
 
-  return { map, biomeOffsetY, biomes };
+  return { map, vmap, V_OFF_Y, biomeOffsetY, biomes };
 }
 
 export function biomeAt(config, tx, ty) {
-  if (tx < 0 || ty < 0 || tx >= config.map.width || ty >= config.map.height) {
+  // biome coords: tx 0..70, ty -48..95 (clamped virtual map)
+  if (tx < 0 || ty < -config.V_OFF_Y || tx >= config.vmap.width || ty >= config.vmap.height - config.V_OFF_Y) {
     return undefined;
   }
-  const i = 4 * (ty * config.map.width + tx);
+  const i = 4 * ((ty + config.V_OFF_Y) * config.vmap.width + tx);
   const color = rgbToRgbaInt(
-    config.map.data[i],
-    config.map.data[i + 1],
-    config.map.data[i + 2]
+    config.vmap.data[i],
+    config.vmap.data[i + 1],
+    config.vmap.data[i + 2]
   );
   const biome = config.biomes.get(color);
   if (!biome) return undefined;

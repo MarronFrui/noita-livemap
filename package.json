@@ -15,6 +15,7 @@
     "bench:gen": "node mapgen/pipeline/2-generate.mjs",
     "bench:ref": "node mapgen/pipeline/1-fetch-capture.mjs",
     "bench:diff": "node mapgen/pipeline/3-compare.mjs",
+    "gen:server": "node mapgen/server/genmap-server.mjs",
     "test": "node --test \"mapgen/test/*.test.mjs\""
   },
   "repository": {

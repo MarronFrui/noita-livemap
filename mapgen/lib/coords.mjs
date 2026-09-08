@@ -4,9 +4,10 @@
 // chunk we need the world-px origin of the bigMap, which depends on where
 // the cell lattice is anchored:
 //
-//   mode 'noitool' — chunk p content starts at cell floor(51.2*p) (raw
-//     biome-px anchored). Has a sawtooth error of (512*p mod 10) px vs any
-//     world-anchored model — the thing this module exists to test.
+//   mode 'noitool' (historical label) — chunk p content starts at cell
+//     floor(51.2*p) (raw biome-px anchored). Has a sawtooth error of
+//     (512*p mod 10) px vs any world-anchored model — the thing this
+//     module exists to test.
 //   mode 'snap' (H1) — lattice anchored at world 0: cell boundaries at
 //     multiples of 10 (+ sub-cell phase). Area origin snaps to the cell
 //     containing world px of biome px area.x1.

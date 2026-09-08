@@ -295,6 +295,27 @@ Open questions specific to this ruleset:
 
 ## 6. Evidence log
 
+- **2026-09-08 (late) — HASPATH PORTED + ORACLE-VALIDATED** (`lib/has-path.mjs`,
+  `lib/generate-exact.mjs`, `experiments/2026-09-08-haspath-oracle.mjs`).
+  Exact port of noitool's decompilation-derived rejection rule (Search =
+  greedy best-first flood, priority |y−goalRow| then FIFO, neighbors
+  up/left/right/down, visited cells painted PURPLE and state PERSISTS across
+  the top-row scan; traversable = black/coffee/0xcff7c8/0x8aff80;
+  blockOutRooms (9 pixel-scene colors → white rects, scan sees its own
+  fills); doCoalMineHax (overlay from vendored coalmine_hax.cpp, 256-wide);
+  coalmine start_x=142; fillMainPath band for mainPath areas).
+  **Oracle: 8/8 constraints** — first-accepted attempt = 0/3/1 for
+  excavationsite 91/92/93 (92 rejects exactly 0,1,2 first). Independent
+  cross-check: coalmine 91 → attempt **1**, matching the spawn-equation
+  judge's family-shift winner (chest+wands at manh 3–4) — two methods, one
+  answer. The CE A=99 hint stays attributable to another w≡3 mod 11 area
+  (coalmine_alt or an item-less area; untestable, consistent).
+  API: `generateAreaExact(ts, w, h, seed, {isCoalMine, shouldBlockOutRooms,
+  worldX, worldY})` → accepted out_map (post-hasPath mutations, = finalize
+  input) + blockList + attempt; ~10 ms/area.
+  NOTE: the game's driver can SKIP hasPath entirely (flag `[ESP+0x20]`,
+  asm 0x9058e4: JZ → AL=1) — unidentified, all oracle areas validate.
+
 - **2026-09-08 — THE CHAIN IS CORRECT: end-to-end spawn-equation confirmation
   (`experiments/2026-09-08-chain-vs-spawn-equations.mjs` + `-chain-signal-analysis.mjs`)**.
   The asm-exact sub-seed chain (C = ws → 1 warm-up → skip = (w%11)+(ws%12) →
@@ -1193,3 +1214,109 @@ first use from now on):**
   is native resolution.
 - **Area**: bounding box of one connected component of a biome color on the
   biome map; generation unit (one wang lattice per area).
+
+- **2026-09-08 (night) — GENMAP MVP + in-game results + purple-trail fix +
+  finalize-lite.** User played against the generated map in-game
+  (`genmap-server.mjs` + live telemetry marker):
+  - Reference seed 78633191: "EXTREMELY CLOSE from reality, correct shape
+    everywhere" — first in-game confirmation of the prediction pipeline.
+  - Seed 78633194 (+3): structures differ slightly (positions, pools) — close
+    but not 1:1; candidate causes: missing finalize steps (ClearPath,
+    fillC0ffee, fillRandomMaterials), missing pixel scenes, and the
+    small-variant-pool content class.
+  - **Ghost-purple layers on all seeds — ROOT-CAUSED & FIXED**: the JPS
+    search paints visited cells 0x7f007f; noitool runs the search on a
+    SEPARATE path_map copy (`usemap = path`) — our port painted the trail on
+    the returned terrain. Fixed (`lib/has-path.mjs`: search/coffee-floods/
+    fillMainPath-band now operate on a Buffer copy; blockOutRooms/hax still
+    mutate out_map like the C++). hasPath oracle re-validated 8/8 after the
+    fix. Cache bumped to `gen-cache/r2`.
+  - `finalizeLite` added to the genmap output (undoCoalMineHax +
+    fillBlockedRooms(black)); ClearPath/fillC0ffee/fillRandomMaterials remain
+    TODO (part of the observed +3-seed deltas).
+  - **Anchor fit (offline)**: constant render-shift satisfying ALL direct
+    spawn constraints, intersected across excavationsite 91/92/93 = x ∈
+    [−1..3], y ∈ [0..2] atlas px — a RANGE (trigger regions are multi-px);
+    center (1,1) candidate. A precise anchor needs the L3 foreground-mask fit
+    (per-chunk, constant-vs-sawtooth discriminator per §4) — parked.
+  - **Coverage report (per-row)**: wang = 15-45 chunks/row for rows 15..47
+    (mining band rows 14-15: 12-29; Pits 41-42; Vaults 16-44; Crypt 23-45).
+    Rows 6..14 wang 0-3 (sky/surface = template biome colors
+    d6d8e3/cc9944/36d517/fe0000 with NO wang_template in our area list).
+    The Work bands 40-47: 15-21 wang chunks + template dominance — matches
+    the user's "one layer displayed" report; the fix = template rendering.
+  - Renderer additions: zones endpoint already tags these per chunk;
+    genmap player marker wired to the bridge (live seed + marker follow).
+
+- **2026-09-08 (late night) — NOITOOL MARKED OBSOLETE + white-tile root cause
+  (coloring-layer semantics from game data).**
+  - **Noitool obsolete (user decision):** `vendor/noita-tools` is no longer a
+    reference or comparison target anywhere — authority = our Ghidra asm
+    verification + game oracles (VERIFIED.md header now carries the authority
+    statement; live-lib comments updated; historical evidence-log entries and
+    dated experiments intentionally left untouched). Corroborating reason
+    found this session: noitool's `doCoalMineHax`/`undoCoalMineHax` compare
+    against `0x004000`/`0x0040` while its own shipped overlay data is
+    `0x006400`/`0x000064` → the hax is a silent no-op in noitool's code. Do
+    not port noitool code unchecked; re-derive finalize steps from the binary.
+  - **White-tile root cause (user report: "tiles rendered completely white,
+    always the same kind — a vertical domino centered on a cave filled with a
+    material", example = `mapcap/out/frozen91/chunks/chunk_0_1.png` top-right
+    tank).** Mechanism verified from game data (coalmine.xml + materials.xml
+    + wiki Modding:custom-environment §Wang Tiles + capture sampling):
+    - The wang out_map's **grey ramp** (`r==g==b`, incl. pure white — 27.9%
+      of the placed coalmine map + hundreds of grey shades ≈ 35% total) is a
+      PLACEHOLDER family: "Shades of grey get filled with the materials
+      defined in the biome's `<Materials>`" (coalmine.xml MaterialComponents:
+      soil/sand_static/rock_static_wet noise bands 0.45–0.53 / 0.53–0.95 /
+      0.9–3.5 + rare coal/copper/gold polka veins). Our genmap renders them
+      raw → the white regions. Material wang_colors are `rgb` values with
+      NEAR-greys used deliberately (coal `505052`, oil `3b3b3c`, steel
+      `404041` — r==g but b+1/+2) so they don't collide with the placeholder
+      greys; `rock_static_wet`=`103344`, `wood_static`=`413f24`,
+      `wood_static_vertical`=`413f3a`, `rock_static_radioactive`=`00f344`,
+      `gunpowder_explosive`=`f7bb43`, `gold`=`ebcd01`.
+    - **The reported tile itself**: a coalmine v-tile (13×26 cells) whose art
+      = white/grey cavern blob + teal pool. Its teal = `2f554c` = **water**'s
+      wang_color (`materials.xml` `wang_color="902F554C"` — alpha `90`, easy
+      to miss with an `ff`-strip). In-game: cavern grey → material fill,
+      pool → water. Ours: raw white + teal → matches the user's description
+      exactly. (Captured tank = water `39,67,63` + `rock_static_wet` frame.)
+    - **Random-block placeholders**: `c0ffee` (0.56% of placed map) and the
+      biome XML `<RandomMaterials><RandomColor input_color="FF00BBEE|
+      FF12BBEE" output_colors="FF000000,FFFFFFFF"/>` entries → flooded to
+      black|white at finalize (noitool's fillC0ffee/fillRandomMaterials model
+      matches the XML semantics; re-derive from binary before trusting RNG
+      details). noitool maps.json carries the same per-biome lists.
+    - **Trigger colors** (consumed at generation, never visible in-game —
+      §7sexies) render RAW in our viewer: `00ff33/00ff00` spawn_items, big
+      green altar blob, `ff0000/78ffff` hearts, `ffff00`, plus the
+      coalmine.lua `RegisterSpawnFunction` palette (`969678/967878/967896`
+      structure loaders, `c35700` oiltank, `c88d1a`...). Must map → air (or
+      scene) at render.
+    - **blockOutRooms colors** (`c35700, ff0080, ff0aff, ...` 9 colors) →
+      room right/below → white → fillBlockedRooms(black) in finalize.
+    - **Status tag: ELUCIDATED (render semantics); the grey→material noise
+      mapping itself (exact band/vein math incl. grey-value semantics) is
+      OPEN** — first capture-based attempt (shift-scan alignment of raw A1 vs
+      frozen91 chunk_0_1) gave only ~43% skeleton agreement with the best
+      shift at the scan edge (±32 px) — alignment instrument needs a wider
+      scan before the grey-value table can be read off the capture.
+  - **STALE CACHE FOUND:** `mapgen/out/gen-cache/r2/*` holds the RAW fill
+    (pre-hasPath: 52.7% black / 27.9% white, no blocked-room whites, no
+    finalizeLite) — written by an older `generateAreaExact` revision. The
+    genmap viewer therefore serves neither the current pipeline nor the
+    finalize. Cache must be bumped (r3) after the coloring work lands.
+
+- **2026-09-09 — COLORING LAYER SHIPPED (genmap r3b).** `mapgen/lib/colorize.mjs`
+  wired into `world-gen.mjs` (cached gen-cache/r3b): random-block floods
+  (c0ffee + biome-XML RandomColors → per-region 50/50 air|white), trigger
+  colors → air, engine moss marker `00ff33` → moss green, material
+  wang_colors → capture-calibrated shades, grey ramp → air(g≤100) /
+  soil(100<g<250) / world-seeded fBm fill (white: rock 33% / soil 53% /
+  sand 14%, scales 14px+8px). Unknown-px rate 0.24% (coalmine). Side-by-side
+  chunk (0,1) = same structures (moss pool, water tank, platforms); visual
+  gap remaining = torch lighting + vegetation + pixel scenes + spawn-band
+  extra layers (row 0 raw-fill alignment only 64.1% vs row 1's 78.4%; the
+  hax-overlay-forced variant scored WORSE (61.7%) → not applied at render;
+  overlay semantics need the binary).

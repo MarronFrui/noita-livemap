@@ -1,4 +1,4 @@
-// JS port of the stbhw corner-mode wang generator + noitool's seeding,
+// JS port of the stbhw corner-mode wang generator + the game's seeding,
 // with a PLUGGABLE vertex-coloring source:
 //   - 'seq': sequential stream exactly like noita_random.wasm (GetRNG + attempts)
 //   - 'pos': per-vertex position-seeded game RNG (SetRandomSeed(worldSeed, x, y))
@@ -322,8 +322,9 @@ export function generateCorner(ts, w, h, colorSource, choiceSource, repReduce) {
   return { width: w, height: h, rgb: out };
 }
 
-// One noitool-model attempt (sequential stream, GetRNG seeding) for a biome
-// area — the JS twin of what noita_random.wasm does per rejection attempt.
+// One legacy-model attempt (sequential stream, GetRNG seeding) for a biome
+// area — the JS twin of what the obsolete noitool wasm does per attempt
+// (kept for regression comparisons only, not a game reference).
 // Output RGB is 1 cell per px; the top 4 rows of the (h+4)-row generation are
 // discarded, mirroring wang.cpp's memcpy skip.
 export function seqAttempt(ts, wCells, hCells, seed) {

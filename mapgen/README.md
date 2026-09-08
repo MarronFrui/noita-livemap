@@ -9,6 +9,13 @@ context from it. `ABOUT_MATH.md` is the full research journal (evidence log
 §6+); `ghidra-ledger.md` tracks the decompilation processing state.
 `SESSION_CONTEXT.md` (repo root) holds strategy and current state.
 
+**Authority (2026-09-08):** all facts stand on our own Ghidra asm work +
+game oracles. **`vendor/noita-tools` (noitool) is OBSOLETE** — historical
+reference only, never a comparison target or authority (its wasm output was
+eliminated as game terrain, and its shipped hax code is a silent no-op due
+to constant/data mismatch). Legacy wasm paths below are regression baselines
+only. See `VERIFIED.md` header.
+
 **Goal**: given a seed, produce the same world the game produces, verified
 against the noitamap capture of seed `78633191`.
 
@@ -51,12 +58,12 @@ graduates into `lib/` or `pipeline/`.
 
 | File | Purpose |
 | ---- | ------- |
-| `paths.mjs` | Resolves extracted game data dir (`NOITA_DATA_DIR` / WSL scan / Proton), noita-tools wasm path, capture tile sources, `CAPTURE_SEED` (78633191) |
+| `paths.mjs` | Resolves extracted game data dir (`NOITA_DATA_DIR` / WSL scan / Proton), legacy noita-tools wasm path (obsolete vendor), capture tile sources, `CAPTURE_SEED` (78633191) |
 | `images.mjs` | PNG/JPEG decode+encode (pngjs, sharp): `readPng`, `writePng`, `readImageRaw`, PNG header peek, color conversions (RGBA ints, ARGB hex) |
-| `biomes.mjs` | Parses `_biomes_all.xml` + biome XMLs + `biome_map.png` (70×48); connected-component **areas** per biome color; `biomeAt(tx,ty)` lookup. Game-truth equivalent of noitool's maps.json |
-| `wang-wasm.mjs` | Node loader for noitool's prebuilt `noita_random.wasm`; `generateArea()` = their full pipeline (seed → MapHandlerNew → atlas → toBig) returning the cell map + bigMap |
+| `biomes.mjs` | Parses `_biomes_all.xml` + biome XMLs + `biome_map.png` (70×48); connected-component **areas** per biome color; `biomeAt(tx,ty)` lookup. Game-truth parser (noitool's maps.json = obsolete) |
+| `wang-wasm.mjs` | **LEGACY** loader for the obsolete noitool prebuilt `noita_random.wasm`; `generateArea()` = the old noitool pipeline — regression baseline only, NOT a game reference (superseded by `generate-exact.mjs`) |
 | `wang-js.mjs` | **Our own JS port** of the corner-mode stbhw builder: exact `NollaPrng` + `SetRandomSeed` (diddle table), template parser, vertex grid, fill scan, pluggable vertex-coloring (sequential vs position-seeded) — the laboratory for coloring hypotheses |
-| `coords.mjs` | bigMap ↔ world/chunk mapping with anchor hypotheses (`noitool` / `snap` / `exact`) and correction knobs (offsets, flips) — the fitting ground for placement math |
+| `coords.mjs` | bigMap ↔ world/chunk mapping with anchor hypotheses (mode names `noitool`/`snap`/`exact` are historical labels) and correction knobs (offsets, flips) — the fitting ground for placement math |
 
 ### pipeline/
 
@@ -125,7 +132,7 @@ on the repo disk (gitignored); the game disk only holds the small CSVs.
 
 | File | Purpose |
 | ---- | ------- |
-| `bench.test.mjs` | Determinism (same seed → identical output), seed sensitivity, **two golden hashes**: wasm (noitool model) bigMap + wang-js sequential port (map hash + tileset parse counts). Both skip until `out/golden.json` exists |
+| `bench.test.mjs` | Determinism (same seed → identical output), seed sensitivity, **two golden hashes**: legacy wasm-model bigMap (obsolete noitool baseline — regression pin only) + wang-js sequential port (map hash + tileset parse counts). Both skip until `out/golden.json` exists |
 
 ### out/ (gitignored)
 

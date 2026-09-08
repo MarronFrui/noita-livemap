@@ -46,13 +46,13 @@ Default write path:
 
 - [x] License updated to GPL-3.0
 - [x] Forked noitamap added as `vendor/noitamap` submodule
-- [x] noita-tools added as `vendor/noita-tools` submodule
+- [x] noita-tools added as `vendor/noita-tools` submodule (now an **OBSOLETE reference** — legacy data/wasm container only)
 - [x] Build helper script copies noitamap assets to `public/noitamap/`
 
 ### Map-Gen Prediction bench (`mapgen/`, 2026-09-03)
 
 - [x] Data.wak extracted; local machine setup documented in `SESSION_CONTEXT.md`
-- [x] WASM harness, biome layout parser (areas match noitool's maps.json), chunk renderer
+- [x] WASM harness, biome layout parser (game-truth; noitool's maps.json used only as a now-obsolete cross-check), chunk renderer
 - [x] Capture fetcher (noitamap CDN, seed 78633191, DZI→512px chunks, cached)
 - [x] Diff/report pipeline (per-chunk scores, heatmap, side-by-sides, noise-floor calibration)
 - [x] Biome atlas format fully decoded (corner-type herringbone; hidden binary header)
@@ -128,7 +128,7 @@ TELEMETRY_PATH=/your/actual/path/noita-live-map-telemetry.json npm run dev:bridg
 
 ## 🧬 Map Gen Prediction: Procedural Map Generation
 
-Long-term goal: replace noitamap's pre-captured tiles with tiles generated on demand from any valid Noita seed. This is a reverse-engineering project built on top of [noita-tools](https://github.com/TwoAbove/noita-tools), which has already reconstructed much of Noita's RNG and world-generation logic.
+Long-term goal: replace noitamap's pre-captured tiles with tiles generated on demand from any valid Noita seed. This is an original reverse-engineering project: **our own Ghidra reconstruction of `noita_dev.exe` is the authority** (see `mapgen/VERIFIED.md`). noita-tools was the starting point but is now **OBSOLETE** as a reference — never a comparison target.
 
 > **The math record is `mapgen/ABOUT_MATH.md`** — coordinate systems, PRNG,
 > atlas format, fill algorithm, hypotheses, evidence log, experiment backlog.
@@ -145,33 +145,53 @@ Long-term goal: replace noitamap's pre-captured tiles with tiles generated on de
 - [~] Ghidra — deliberately deferred; cheaper oracles first (wang_gen.exe, in-game Lua RNG oracle). Fallback only.
 - [~] Decode the biome atlases — **done** (corner-type herringbone, header in the last 9 RGB bytes of row 0, all 31 configs verified); not an original roadmap item but a major unlock.
 
-### Phase 0.5 — Open the black box (current focus, 2026-09-03 →)
+### Phase 0.5 — Open the black box ✅ (2026-09-03 → 2026-09-08: **SOLVED**)
 
-The wang *rules* are solved; the unknown is **how the game picks the corner colors**. Ordered by cost:
+The wang _rules_ were solved; the unknown was **how the game picks the corner
+colors — and what seeds the fill**. Resolution (evidence: `mapgen/VERIFIED.md`,
+`ABOUT_MATH.md` §6+):
 
-- [x] **`wang_gen.exe`** — inspected + template diff (2026-09-03): it's the *template generator* (artist canvas, no seed, no fill). Confirmed library lineage and validated our atlas walk against it (dims/header/72h+72v enumeration identical); found+fixed a missing variants loop in our port. Builder confirmed to live in `noita.exe` → next oracle below.
-- [x] **In-game RNG oracle** — BUILT + RUN (2026-09-03 night): probe mod dumps truth tables; crosscheck found a signedness bug in our JS port (fixed) and now matches the game **100.00% across 4 seeds / 2.1M draws**. The RNG component is game-verified; remaining unknown = how the fill consumes the numbers (next: oracle-driven fill sweep).
-- [ ] **Read noitool's `MapGen` post-processing** (`finalize`, `fillC0ffee`, `fillBlockedRooms`, `doCoalMineHax`…) — defines what the wasm output actually contains.
-- [ ] **Wang-only ground truth** — quantify the non-wang share of the capture per biome (biome XMLs: PixelScene probabilities, BitmapCaves, edge noise) or probe with the dev build, so the metric stops being confounded.
-- [ ] **Community ask** — pudy248 / kaliuresis / `#mod-development` may already know the fill seeding.
-- [ ] **Tier-2 wasm knobs** (fork noita-tools + `tools/zig`): discarded-rows `k`, RNG skip constant, rep-reduction on/off.
-- [ ] **Ghidra, targeted** — only for the specific function that remains unexplained.
+- [x] **`wang_gen.exe`** — template generator only; validated our atlas walk (2026-09-03).
+- [x] **In-game RNG oracle** — 100.00% across 4 seeds / 2.1M draws (2026-09-03).
+- [x] **Ghidra, targeted** — executed 2026-09-05→08 (mixer calibrated, fill subsystem
+      read end-to-end, seeding chain decoded to asm level; ledger: `ghidra-ledger.md`).
+- [x] **THE FILL SEEDING — SOLVED (2026-09-08)**: C = worldseed; GetRNG skip =
+      (w%11)+(ws%12); per-attempt sub-seed = schrage^(16+A)(ws) via nextU; TLS poro
+      Random; class `(i−j+1)&3`. Runtime-confirmed via Cheat Engine, then end-to-end
+      verified: **12/12 direct spawn constraints across seeds 91/92/93** with unique
+      early attempts; 60 wrong-seed controls never reached perfect. The 644M-candidate
+      failure is explained: the injected Wang-Lab biome fills via a non-Init path.
+- [ ] **Re-derive the game's `MapGen` post-processing from the binary**
+      (`finalize`, `fillC0ffee`, `fillBlockedRooms`, random-material fills,
+      coalmine hax…) — still open; needed for full paint layers.
+      (noitool's work was very useful but is obsolete at this point of the
+      project — re-derive each step from `noita_dev.exe`; its shipped hax
+      code is a silent no-op due to a constant/data mismatch.)
+- [~] **Wang-only ground truth** — superseded by paint-immune judging (spawn
+  equations + Wang Lab answer keys).
+- [~] **Tier-2 wasm knobs** — superseded: our exact JS builder (`wang-js.mjs`)
+  replaces the wasm fork entirely.
+- [~] **Community ask** — never needed.
+
+**Remaining to full prediction:** hasPath emulation (which attempt is accepted —
+~1–2 days), cascade spawn offsets (altar scenes; item overlays only), and the
+paint layers below.
 
 ### Phase 0.6 — Capture-based ground truth ✅ (2026-09-04)
 
 - [x] In-game capture workstream (`mapcap/`): noita-mapcap captures of seeds
-  78633192/93 (parallax OFF = `disable-background`), sliced + analyzed + diffed;
-  tooling: `analyze-capture.mjs`, `diff-captures.mjs`, `diff-vs-reference.mjs`
-  (see `mapcap/README.md`).
+      78633192/93 (parallax OFF = `disable-background`), sliced + analyzed + diffed;
+      tooling: `analyze-capture.mjs`, `diff-captures.mjs`, `diff-vs-reference.mjs`
+      (see `mapcap/README.md`).
 - [x] Capture pipeline pixel-stable: adjacent-tile overlaps 99.6–99.7% identical
-  across three independent captures.
+      across three independent captures.
 - [x] Real wang seams found: the game does NOT blend across 512-chunk boundaries
-  (x=2048 4.6×, y=1536 3.6× discontinuity) — generator must not blend either.
+      (x=2048 4.6×, y=1536 3.6× discontinuity) — generator must not blend either.
 - [x] Predetermined zones mapped: Holy Mountain bands (j=16/19/23/26/30/34) ~95%
-  seed-independent; sky/void black; `mapcap/PREDICTABLE_ZONES.md`.
+      seed-independent; sky/void black; `mapcap/PREDICTABLE_ZONES.md`.
 - [x] Adjacent-seed divergence calibrated: **26.45% of foreground px changed**
-  for 91↔92 (the L2 target); 3-way classes: 48.0% seed-independent / 17.9%
-  two-agree-one-differs (small-variant pools) / 6.8% all-distinct.
+      for 91↔92 (the L2 target); 3-way classes: 48.0% seed-independent / 17.9%
+      two-agree-one-differs (small-variant pools) / 6.8% all-distinct.
 - [~] Cross-run same-seed noise floor: foreground overlap 99.6%+ / flat-region
   RMS 0.16/255 measured from tile overlaps; dedicated recapture optional.
 
@@ -180,10 +200,10 @@ The wang *rules* are solved; the unknown is **how the game picks the corner colo
 Each level is cheaper than the next; paint-immunity increases:
 
 1. **L0 determinism gate** — `npm test` goldens; gen twice = byte-identical.
-2. **L1 spawn equations (decisive judge)** — every seeded spawn (orb/perk/chest/
-   heart) = exact wang-cell color fact from `wang_scripts.csv`; extract per-seed
-   spawn data (probe v3 fix) for 91/92/93; sweep fill hypotheses; a hypothesis
-   lives only if it satisfies 100% of constraints on all three seeds.
+2. **L1 spawn equations (decisive judge)** — ✅ **PASSED for direct triggers
+   (2026-09-08)**: 12/12 heart/chest constraints across seeds 91/92/93 with
+   chain-derived fills, unique attempts, consistent anchor; cascade classes
+   (potions) await the altar-scene offset model.
 3. **L2 divergence calibration** — our generator's adjacent-seed foreground
    divergence must match the game's 26.5%; HM bands must be 100% seed-independent.
 4. **L3 geometry IoU in wang bands only** — air/solid after global-shift fit,
@@ -216,7 +236,7 @@ mismatch DB.
 
 ### Phase 4 — Seed Prediction Overlays
 
-- [ ] Integrate noita-tools WASM for fungal shifts, shops, perks, LC/AP recipes.
+- [ ] Integrate seed-prediction features (fungal shifts, shops, perks, LC/AP recipes) — implement from the game binary / data (noitool WASM is obsolete as a source).
 - [ ] Render prediction markers on the generated map.
 
 ### Phase 5 — Scale & Polish
@@ -239,13 +259,13 @@ mismatch DB.
 
 ## Tech stack recap
 
-| Layer              | Tech                                                                   |
-| ------------------ | ---------------------------------------------------------------------- |
-| Noita mod          | Lua 5.1                                                                |
-| Local bridge       | Node.js + `ws` + `chokidar`                                            |
-| Map viewer         | Forked noitamap (TypeScript + OpenSeadragon) served inside Vite        |
-| Map generation     | noita-tools C++ / WASM, Ghidra for targeted Noita binary decompilation |
-| Seed predictions   | noita-tools WASM / InfoProviders                                       |
+| Layer            | Tech                                                                   |
+| ---------------- | ---------------------------------------------------------------------- |
+| Noita mod        | Lua 5.1                                                                |
+| Local bridge     | Node.js + `ws` + `chokidar`                                            |
+| Map viewer       | Forked noitamap (TypeScript + OpenSeadragon) served inside Vite        |
+| Map generation   | Our own Ghidra-derived JS port (`mapgen/lib/*`), Ghidra for targeted Noita binary decompilation |
+| Seed predictions | Own reconstructions (noitool WASM/InfoProviders = obsolete)                              |
 
 ---
 

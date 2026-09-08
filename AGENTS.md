@@ -22,8 +22,8 @@ Noita Lua mod  →  telemetry JSON  →  Node bridge  →  frontend  →  noitam
    player marker inside the embedded noitamap iframe.
 
 Long-term goal (see `ROADMAP.md`, `SESSION_CONTEXT.md`): procedurally generate
-the world map for the live seed using the reverse-engineered generation in
-`vendor/noita-tools`, instead of showing pre-captured tiles.
+the world map for the live seed using our own Ghidra-reconstructed generation
+(`mapgen/VERIFIED.md` is the canon), instead of showing pre-captured tiles.
 
 ## Commands
 
@@ -46,7 +46,7 @@ npm run bench:gen    # seed -> wang-layer chunk PNGs in mapgen/out/gen/
 npm run bench:ref    # fetch capture tiles (seed 78633191) -> mapgen/out/ref/
 npm run bench:diff   # score chunks, write stats.json + report.html
 node mapgen/experiments/2026-09-03-fit-transform.mjs       # cross-correlate gen vs ref masks
-node mapgen/experiments/2026-09-03-verify-vs-noitool.mjs   # wasm wrapper vs noitool fixtures
+node mapgen/experiments/2026-09-03-verify-vs-noitool.mjs   # (OBSOLETE) historical check vs noitool fixtures
 
 # Capture analysis (see mapcap/README.md; artifacts in mapcap/out/, gitignored)
 node mapcap/analyze-capture.mjs --name <run> --seed <seed> [--stitched <png>] [--chunks true]
@@ -83,7 +83,7 @@ npm run preview
 | `public/noitamap/` | **Generated** — do not edit; comes from `vendor/noitamap/public` |
 | `dist/` | Build output — do not edit |
 | `vendor/noitamap/` | Git submodule (fork of acidflow-noita/noitamap) |
-| `vendor/noita-tools/` | Git submodule (TwoAbove/noita-tools; PRNG + map-gen recon) |
+| `vendor/noita-tools/` | Git submodule (TwoAbove/noita-tools) — **OBSOLETE reference**: legacy data/wasm container only; never a comparison target (see `mapgen/VERIFIED.md`) |
 | `tools/zig/` | Zig toolchain used for native tooling |
 | `ROADMAP.md` | Phased plan (Phases 0–5) |
 | `SESSION_CONTEXT.md` | Current state, decisions, key technical facts, next steps |

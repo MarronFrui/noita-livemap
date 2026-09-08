@@ -1,5 +1,6 @@
 // Deliberately re-bless mapgen/out/golden.json — the regression baseline for
-// the two wang implementations (noitool's wasm and our JS port).
+// the two wang implementations (the legacy obsolete-noitool wasm and our JS
+// port). Baselines pin behavior; they are NOT game references.
 //
 // Run this ONLY when you intend to change golden-covered output, then commit
 // the reasoning to ABOUT_MATH.md §6. Without --force it refuses to overwrite.
@@ -38,7 +39,7 @@ const atlasBytes = fs.readFileSync(atlasPath);
 
 console.log(`golden target: ${entry.biome.name} area [${entry.area.x1},${entry.area.y1}..${entry.area.x2},${entry.area.y2}], seed ${CAPTURE_SEED}`);
 
-// 1. wasm (noitool model) — bigMap hash
+// 1. legacy wasm (obsolete noitool model) — bigMap hash
 const wang = await loadWang();
 const wasm = wang.generateArea({
   seed: CAPTURE_SEED,
