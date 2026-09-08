@@ -330,3 +330,260 @@ The function is somewhere in the binary. It would:
 The Ghidra xref search for these string VAs returned 0 results, likely
 because the strings are referenced through a different mechanism (e.g., a
 vtable or function table rather than direct code references).
+
+## Session 2026-09-07 — CREATEHERRINGBONEWANG FOUND — the fill is READ (hunts 33–35)
+
+**Why the old xref search failed — two independent bugs:**
+1. The ledger's string VAs (0x1172ffe/0x1173009/0x117428d) are 6/11/17 bytes
+   INTO the strings (substring starts: "Herringbone"/"Wang"), not C-string
+   starts. Correct starts: **0x1172ff8** ("CreateHerringboneWang"),
+   **0x1173003** ("..._Threaded"), **0x117427c** ("CreateHerringboneWang(").
+   getReferencesTo(mid-string address) can never match.
+2. The entries were golden either way — the strings have NO direct refs at
+   all: `CreateHerringboneWang`/`_Threaded` are **profiler scope names**
+   (`FUN_010324ea("CreateHerringboneWang")` at function exit), so they get no
+   code xref; getReferencesTo(FUN's name string) nevertheless hits
+   FUN_008ed490 because Ghidra indexes the `FUN_010324ea` reference.
+
+Method that worked: numpy scan of the whole file for **u32 == full string
+VA** (this is a 32-bit x86 binary — .text begins file 0x400 ↔ VA 0x401000;
+string literals are `push imm32` absolute addresses, no RIP-relative). Scan
++ verification scripts: /tmp/opencode/wangscan*.py (session temp, JS-side
+re-derivation trivial). Confirmed real sites: `push 0x1172fdc` at VA
+0x8ed44b ("seed <= ..." with __LINE__ 0x94=148) and
+`push 0x1174254` at 0x9050a6 ("height <= 1024", line 0x714=1812).
+
+### The fill subsystem (all functions dumped h33/h34, evidence in ghidra-logs)
+
+| Function | VA | Role | Assert-leaked source |
+| --- | --- | --- | --- |
+| FUN_008ed490 | 0x8ed490 | **Biome::CreateHerringboneWang** | biome.cpp (line 0xcd=205 asserts inside) |
+| FUN_008eda10 | 0x8eda10 | **CreateHerringboneWang_Threaded** (asserts xs/ys ∈ [1,2048], line 0x119/0x11a) | biome.cpp |
+| FUN_008ec9f0 | 0x8ec9f0 | **stbhw_generate_image** (the consume method) | stb_hbwang |
+| FUN_008ec710 | 0x8ec710 | stbhw choose_tile (2-pass count-then-pick, one draw) | — |
+| FUN_008ec5d0/670 | 0x8ec5d0/0x8ec670 | place h/v tile (pure blit, no RNG) | — |
+| FUN_008ec8e0 | 0x8ec8e0 | rep-reduce re-roll (`(p+1+rand%(cc−1))%cc` / weighted) | — |
+| FUN_008ed0f0 | 0x8ed0f0 | build tileset from PNG (header decode i*55, C0 flag, cc<33, vary<65 — matches our JS) | — |
+| FUN_010098c0 | 0x10098c0 | poro Random::Next() — Schrage 16807/127773, TLS state. random.cpp:0x66 asserts Seed!=0 | poro random.cpp |
+| FUN_01033781 | 0x1033781 | CRT double→u64 (15 bytes) — a "draw" = Next() then (u64)state | — |
+| FUN_00904c20 | 0x904c20 | **area driver** (procedural_terrain.cpp:1808-1850 asserts) — seeding + skip + ≤100 attempts | procedural_terrain.cpp |
+| FUN_00904b10 | 0x904b10 | **area-object ctor (0x154 B)** — `[+0x4c] = arg` = the fill's seed; runs FUN_008f9470 on the sub-object at +0x90 | procedural_terrain.cpp (Init walker) |
+| FUN_008f95c0 | 0x8f95c0 | SetSize(w,h): (re)allocates the float grid (+0x18) + u16 material grid (+0x38) of its `this` | — |
+| FUN_0090c820 | 0x90c820 | 0x90-byte record copy-ctor (strings at +0x0c/+0x24/+0x3c) — the area-cache record clone | — |
+| 0x1199d40 | — | NOT a class vtable — a **std::function functor vtable**; Init submits one fill task per area (thunk = the lambda's invoke, passing the captured area object) | — |
+| FUN_010098c0 | 0x10098c0 | poro Random::Next(double\* state) — Schrage core **AND returns `state × 4.656612875e-10` in XMM0** (asm 0x109932); callers ×2147483645 → (u64)-trunc = nextU() | poro random.cpp |
+| FUN_0090ce20 / FUN_008f9470 | 0x90ce20 / 0x8f9470 | per-cell generator object ctor (0x1ec B): +0x23(raw=[0x8c]) seed stored; d=(double)seed+diddle[sign]; halve; Next()×2; **+0x25(=+0x94)=(float)d×200000−100000** (constants 0x11e0504/0x11e04ec verified) | — |
+
+### The decoded recipe (state machine, biome.cpp + stb_hbwang.h)
+
+```
+seed_state = (double)(u32 promoted seed)        // diddle = {0.0, 4294967296.0} @0x11e0ba0, index = seed>>31
+if (seed >= 2147483647.0) seed *= 0.5           // @0x11e0220 / @0x11dfdd8
+seed = Next()                                    // ONE warm-up (0x10098c0)
+skip = (width % 11) + ((u32)seed_int % 12)       // width SIGNED trunc-mod; seed UNSIGNED mod (@0x905273 magic consts)
+advance skip times (inline Schrage)
+attempt ≤ 100:
+    clear blocked-rooms vector (0x90-stride elements)
+    seed = Next() -> stored as new sub-RNG seed
+    sub_seed = sub_seed * 2^-31 * 2147483645     // = rng.NextU() EXACTLY @0x905697/0x90569f
+    CreateHerringboneWang_Threaded(w, h, ..., seedint, sub_seed(double))
+      → TLS Random (TLS+0x14, lazy ctor via 0x8ebf00) seed = sub_seed, then ONE Next() (warm-up)
+      → buildTileset(atlas PNG) once (cached? per-call @0x8ed0f0)
+      → stbhw_generate_image(buf, w*3, w, h+4):
+          vertex grid: xmin/ymax = w/s+6 × h/s+6, row stride 0x6a=106 (= STB_HBWANG_MAX_X+1? 0x6a—106)
+          per vertex scan order: state = Schrage(state); c_color[j][i] = (u64)state % cc[(i+j)&3]   ← CLASS FORMULA (i+j)&3
+          rep-reduce pass (3×2 neighbor match → reroll via cc−1 mod trick), gated by cc>1
+          herringbone scan: ypos=−s, j=−1, phase=j&3 pattern... choose_tile = 2-pass count + rand%count draw
+          stb +4 window: buf is (h+4) rows; copy loop starts j=−4, grid row k ← buf row k+4 (top 4 discarded) ✓ noitool-consistent
+    hasPath check (FUN_00901780) → accept or retry
+```
+
+### THE SMOKING GUN for the 644M-candidate failure
+
+The binary's vertex class is `p = (i+j) & 3` (@0x8ec9f0 vertex coloring,
+`param_1[(iVar13 + local_18 & 3) + 1]`). Our port/lab used §3ter's
+`(i−j+1)&3`. Wrong class ⇒ drawing `%` the WRONG count for ~half the
+vertices ⇒ 50% noise floor on ANY walk — the exact result the lab optimizer
+produced (58.03%). The `(I−J)&3 ∈ {0,2}` parity correction from lab recovery
+is consistent with (I+J)&3 (same parity classes). **A re-test of
+S1/S2-style walks with the corrected class formula + full pipeline
+(rec-reduce + choose_tile + 4-row discard + rejection) is the immediate next
+step — lib/wang-js.mjs fill + 548-vertex answer key can do it O(minutes).**
+
+### Remaining wiring (next session, ONE read)
+- ~~Who calls FUN_00904c20~~ **RESOLVED 2026-09-07 (hunt 36):** the single xref
+  FUN_00a99ea0 = a vtable thunk `mov ecx,[ecx+4]; jmp 0x904c20` at vtable
+  0x1199d40 (slot 2; vtable installed by FUN_0090e840 @0x907abf). The area
+  object read in 00904c20: seed = `[this+0x4c]` (loaded at 0x904d3b→0x904d4f
+  together with the [0x3c..0x4b] MOVDQU param copy). **The seed is NOT the
+  raw worldseed** — it comes from the per-area seed constructor:
+- **FUN_00904730 = the mSeed constructor** (procedural_terrain.cpp:1669-1691,
+  "mSeed" assert at line 1680 vs _DAT_011df878 — the same cached-seed global
+  CreateHerringboneWang compares):
+  ```
+  ws = WORLDSEED::GetSeed()                        (asserted != 0, line 1669)
+  d  = (double)ws + diddle[ws>>31]                 // {0.0, +2^32} unsigned promote
+  FUN_008ed3a0(d)                                  // biome.cpp:148 guard d <= 2147483645; stores DAT_013276c8/d0
+  Next()                                           // ONE advance (state now runs on the TLS poro)
+  mSeed = (double)((float)d * 9999.0f + 1.0f)      // 0x11e0494 = 9999f, 0x11dfbf0 = 1.0f — verified
+  Next()
+  state_a = (float)d * 200000.0f - 100000.0f       // 0x11e0504/0x11e04ec — verified
+  Next()
+  state_b = (float)d * 200000.0f - 100000.0f       // same constants again
+  ```
+  (This is the SAME 9999/200000/100000 pattern the ledger §5 found in
+  ProceduralTerrain::Init — it is the per-area version of that chain, and it
+  feeds the ancestor of the fill's per-area seed.)
+- FUN_0090c1f0 (procedural_terrain.cpp): caches/dedups areas by
+  (width, height, seed) tuple from the generator object's fields
+  [0x7]/[0xd]/[0x13] — the ONCE-PER-AREA rule across chunks confirmed
+  in-binary; stride-0x90 registration records match the per-attempt
+  destructed-room vector in 00904c20.
+- Cell wiring: world-grid init (FUN_0090e840) allocs the 0x1ec object per
+  biome, ctor FUN_0090ce20→FUN_008f9470 seeded with WORLDSEED::GetSeed()
+  (raw worldseed → +0x8c raw; +0x94 = derived float ×200000−100000), then
+  overwrites +0x90/+0x94 from the walker's params.
+
+### VERIFICATION (the remaining step — numeric, not decompilation)
+
+~~Byte-level object layouts differ between the seed ctor writes (+0xc/+0xe/
++0x10/+0x12 doubles) and the fill's reads ([0x4c]); the missing ~10% is
+mapping which derived field (mSeed / ×200000−100000 state) lands at the
+fill's seed input.~~ **RESOLVED + OVERTURNED (2026-09-07 late, hunts 37–45,
+see ABOUT_MATH §7novies for the full asm-verified recipe):**
+
+- The fill's `this` = the **0x154-byte AREA OBJECT** built by Init's biome-map
+  walk (NOT the mSeed-ctor object, NOT the 0x1ec generator object). Ctor
+  **FUN_00904b10**: `[area+0x4c] = ctor arg` (asm 0x904b71); arg =
+  **`WORLDSEED::GetSeed() + DAT_01328010`** (asm 0x9062d4) —
+  DAT_01328010 = **NEW_GAME_PLUS_COUNT magic number, default 13589**.
+  The hunt-36 "seed comes from the per-area seed constructor" was WRONG
+  (that ctor object = the ProceduralTerrain, different struct).
+- "vtable 0x1199d40" = a **std::function functor vtable** (Init's task
+  submission; asm 0x907abf writes it to a stack local) — the fill runs as an
+  Init-time thread-pool task with the area object captured.
+- Class formula = **`(i − j + 1) & 3`** in gen space — the same-day
+  "(i+j)&3 correction" misread the decrementing row counter (asm 0x8eca4b
+  `MOV EBX,1` … 0x8ecacd `DEC EBX`). §3ter was right; in key space it
+  equals the lab's `(I−J)&3` after the 1-vertex-row discard.
+- ALL draws (vertex 0x8eca9e, reroll 0x8ec950, choose-tile 0x8ec855) =
+  **`nextU() % m`** — poro `Next()` RETURNS `state × 4.656612875e-10` in XMM0
+  (asm 0x109932) and callers `MULSD ×2147483645` + `(u64)`-trunc
+  (FUN_01033781 = `__dtoui64`). The port's `nextU()` is exact.
+- GetRNG skip = `(width % 11) + (u32)seed % 12` — the decompile's `+local_c8`
+  is part of the %11 algebra (the magic-mul term is NEGATIVE
+  −11·⌊w/11⌋). No extra width. Asm 0x905273–0x9052b1.
+- mSeed ctor chain: the Nexts advance the LOCAL chain (asm pattern at
+  0x905264 `LEA ECX,[ESP+0x24]`); with x86 CVTTSD2SI saturation,
+  `stateA`/`stateB` are SEED-CONSTANT → eliminated a priori; only `mSeed`
+  varies.
+
+**THE NUMERIC VERDICT (negative):** the asm-exact model driven by
+seed = ws+13589 (and ~40 other candidate derivations × 4 draw conventions ×
+attempts 0..99 × offsets × widths × skip deltas ≈ 27k walks/seed) does NOT
+reproduce the 548-vertex lab key — best ≈ 60–66% = noise ceiling
+(`experiments/2026-09-07-area-seed-candidates.mjs`, + `-ext.mjs`).
+The divergence must be in the runtime value reaching `[area+0x4c]` (or
+DAT_01328010's runtime value — it is magic-number-writable). **Next: hook
+FUN_00904c20/008eda10 in the dev build and log [area+0x4c] + the first
+nextU values for a known seed — one number settles it.**
+
+## Session 2026-09-08 — the sub-seed is MEASURED (hunts 46–52 + the S-sweep)
+
+**Method note first:** instead of hooking (probe target 2), we inverted the
+problem: brute-forced the TLS sub-RNG state S over [0, 2^31) against the
+548-vertex lab key (the walk mechanics were asm-verified; S is the only
+per-attempt unknown). Instrument: `experiments/2026-09-08-subseed-sweep.c`
+(16 threads, 2.147e9 candidates ≈ 58 s wall; early abort at 25% mismatch —
+rep-reduce flips only ~11% of informative vertices, calibrated 8.8–12.9%).
+Planted-solution test (S0=123456789) → exactly 1 survivor in the full range;
+C↔JS FNV grid hashes bit-identical. **RESULT: exactly one S per seed —
+S₉₁=1228813614, S₉₂=1319606147, S₉₃=1966969580** (all at key→gen offset
+(−5,−6)); post-reduce match 498/500, 325/327, 395/403. 1206/1218 informative
+vertices exact across three seeds ⇒ **the walk mechanics are measured-correct;
+the 644M failure and the 2026-09-07 negative were purely the SEED.**
+Full story + evidence tables: ABOUT_MATH §7decies. 12 residual mismatches,
+all gen-border zones, systematic across seeds (key(5,23) fails in 91 AND 93)
+— OPEN, parked.
+
+### New verified anchors / verdicts (this session)
+
+| Function | VA | Verdict |
+| --- | --- | --- |
+| `FUN_00922950` | 0x922950 | magic-number bind/parse (2684 B): binds NEW_GAME_PLUS_COUNT→DAT_01328010 (register via FUN_00442f50(&DAT_01328010) = the current default as fallback; parse `DAT_01328010 = FUN_004448e0()` @0x6fa1f8 is in FUN_006fa0d0). Name mapping independently confirmed in-binary: string "NEW_GAME_PLUS_COUNT" VA 0x1199be4 pushed 16 B before `push 0x1328010` @0x6f9f9e. |
+| `FUN_009233d0` | 0x9233d0 | **biome-map RESET (89 B): sets DAT_01328010 = 0** + `is_biome_map_initialized`=0 + BIOME_MAP paths to defaults + DESIGN_SCALE_ENEMIES=0 + NG+ scales 1.0f. ⇒ fill-time NEW_GAME_PLUS_COUNT = 0 (no XML defines it); §7novies' "C = ws+13589" is DEAD (C = ws). Timing of the reset vs Init unverified — moot, both 0 and 13589 are excluded by measurement (below). |
+| `FUN_00904c20` | 0x904c20 | **area driver — chain asm-verified end-to-end** (h47 full decompile, 4997 B + objdump): [ESP+0x4c]=[area+0x4c] (0x904d3b/0x904d4f); diddle/halve (0x90523c–59); ONE warm-up on the LOCAL Random object at [ESP+0x24] (0x905264–6e); skip = (w%11)+((u32)C%12) (0x905273–b1, magics 0xaaaaaaab & 0xd1745d17=−0x2e8ba2e9); ≤100 attempts, 1 Schrage each (0x905643–67a; Schrage exact: 16807·(n mod 127773) − 2836·⌊n/127773⌋, +M if ≤0); **param_9 = (double)state × 4.656612875e-10 × 2147483645** (0x905681–a7; MULSD [0x11df988]=C1 — the JS literal, bits 685f1c000000003e, ONE .rdata hit @file 0xddeb88; [0x11e0210]=2147483645.0 @file 0xddf410); coalmine/excavationsite string checks → FUN_00901580; hasPath = FUN_00901780. |
+| `FUN_00904c20` tail | 0x905a93+ | **the spawn-color walker FOUND (the enqueue side)**: per placed pixel → color → BiomeSpawnScripts std::map lookup → ONE Schrage draw per pixel → FUN_00900c70 (queue insert). Closes the ledger's old "find the ENQUEUE side" item. |
+| `FUN_008eda10` | 0x8eda10 | Threaded (1309 B): asserts xs/ys ∈ [1,2048]; cached-seed check `param_9 != _DAT_011df878 (0.0)` (DAT_013276c8 = write-only cache); FUN_008ebf00 lazy TLS ctor; **TLS Random.seed = param_9 (the UNTRUNCATED double**, halved if ≥ 2^31−1 — never: param_9 < 2147483645); ONE warm-up Next; FUN_008ed0f0 buildTileset; FUN_008ec9f0(w·3, w, h+4); copy loop j=−4.. = the +4-row discard; FUN_008ed320. |
+| `FUN_008ebf00` | 0x8ebf00 | lazy TLS Random ctor (74 B): if TLS+0x14 == 0 → operator_new(8) + FUN_00452ba0; then an UNCONDITIONAL tail Next() + double→u64 (an extra advance of the TLS object — absorbed by the sweep's S convention). |
+| `FUN_00904b10` | 0x904b10 | area ctor (264 B): `[area+0x4c] = arg` (raw store, param_1[0x13]); FUN_008f9470(arg) on the sub-object. Ctor call site 0x9077d9: `PUSH [EBP-0x270]; MOV ECX,EAX; CALL` — the arg slot [EBP−0x270] is written once at 0x9062e0 (= GetSeed()+DAT_01328010, h50b slot scan); puVar20[0x13] has NO other writer in the walk (only [0x0d]/[0x0e] w/h and [0x23] sub-seed). |
+| `FUN_008f9470` | 0x8f9470 | generator ctor (336 B): sub[+0x8c] = raw seed; d = (double)seed + diddle[sign]; halve if ≥ 2147483647; **2 GLOBAL poro Nexts**; sub[+0x94] = (float)d×200000f − 100000f. |
+| `FUN_00904730` | 0x904730 | mSeed ctor (926 B): **all three float outputs derive from d = ws UNCHAINED** — mSeed = f32(f32(ws)·9999f+1f) → +0x30; stateA = stateB = f32(f32(ws)·200000f−100000f); its 3 Nexts advance the GLOBAL poro (decompile shows the working double unchanged). Supersedes the h37–45 "local chain" reading and §7novies' CVTTSD2SI-saturation "stateA/stateB seed-constant" reasoning (based on a misread; moot anyway). |
+| `FUN_00beeee0` | 0xbeeee0 | game-mode dispatch, reads DAT_01328010 ×3 (cmp 0x21/0x0b — NG+ mode checks) — reader only. |
+
+### THE OPEN CONTRADICTION (measured, not modeled)
+
+16807 is a PRIMITIVE ROOT mod 2^31−1 (ord = 2147483646, computed) ⇒ orbit
+distances well-defined. The chain requires dist(C → S) = 1 + skip + (A+1) ≤ 116.
+Measured (BSGS, `experiments/2026-09-08-subseed-invert.mjs` + BSGS runs):
+
+| start → target | 91 | 92 | 93 |
+| --- | --- | --- | --- |
+| ws → S | 852105533 | 34730815 | 468297758 |
+| ws → f⁻¹(S) | 1617467129 | 532342600 | 968007978 |
+| ws+13589 → S | 1659374935 | 1830001187 | 1112350975 |
+| ws+13589 → f⁻¹(S) | 1382122050 | 1649871861 | 1647773426 |
+
+Also: backward inversion over (mode ∈ {state,nextU}, attempt 0..99,
+skip 3..14) = 407/411/190 valid base seeds per seed — ws, ws±1, ws+13589
+NOT among them; no (mode, attempt, skip) with a constant delta across seeds
+(0 configs); the three S are mutually unrelated orbit points (~1e9 pairwise);
+no tested structured start (ws, Schrage^k, mSeed chain V1/V2/REAL-unchained,
+f32-bit encodings) within 400 orbit steps of any S.
+
+### Next-session routes (in order)
+
+1. **Hook the driver** (probe target 2, now armed): log `[area+0x4c]` at its
+   read (0x904d3b), the attempt `state` (0x905643), `param_9` complete at
+   0x9056a7 (XMM0). If logged C' ≠ ws → re-run the inversion from C'.
+   Cheat Engine / x64dbg, lab mod + seed mod, seed 78633191.
+2. **Whole-binary scan for other writers of [area+0x4c]** (the fill task
+   runs async after the ctor; the slot may be rewritten between walk and
+   task — the ctor-site evidence rules out rewrites during the walk, not
+   after it).
+3. If C' = ws after all: the gap is between the local Schrage state and
+   param_9 for the LAB area specifically (a second FUN_008eda10 caller, or
+   FUN_00904c20 reached through another path).
+4. The 12 border-zone key mismatches: keep parked unless the seed closes.
+
+### Method notes (do not relearn)
+
+- Ghidra OSGi bundle cache CORRUPTED after a failed compile (50b worked,
+  everything after failed with "Failed to get OSGi bundle"; clearing
+  `~/.config/ghidra/ghidra_12.1.3_PUBLIC/osgi` did NOT fix it). Workaround:
+  raw disassembly via objdump — extract .text to a file
+  (`python: data[0x400:0xdd0000]` → /tmp/opencode/text.bin), then
+  `objdump -D -b binary -m i386 --adjust-vma=0x401000 --start-address=VA
+  --stop-address=VA /tmp/opencode/text.bin`.
+- JDK must be in PATH for headless runs: `export JAVA_HOME=~/tools/jdk
+  PATH=~/tools/jdk/bin:$PATH`.
+- Ghidra script API: iterate instructions via
+  `currentProgram.getListing().getInstructions(f.getBody(), true)`
+  (InstructionIterator cannot be constructed directly); `new AddressSet(...)`
+  ranges failed to compile under OSGi — filter by address client-side.
+- Binary scan for u32 constants (struct.unpack loop over the whole 17 MB
+  exe) found the magic-number registry pairs and ALL xrefs of DAT_01328010
+  in seconds — cheaper and more complete than Ghidra xrefs for absolute
+  32-bit references.
+- Constants byte-verified this session: diddle {0.0, 2^32} @0x11e0ba0
+  (file 0xddfda0); 2147483647.0 @0x11e0220; 0.5 @0x11dfdd8; 2147483645.0
+  @0x11e0210 (file 0xddf410); C1 4.656612875e-10 @0x11df988 (file 0xddeb88,
+  ONE hit; 1/(2^31−1): zero hits); DAT_011df878 = 0.0; .data default
+  NEW_GAME_PLUS_COUNT = 13589 @file 0xf26610.
+- Sweeper artifacts are session-temp (`/tmp/opencode/subsweep/`); regenerate
+  key files with `node mapgen/experiments/2026-09-08-subseed-sweep-export.mjs`,
+  rebuild with `gcc -O3 -march=native -funroll-loops -o subsweep
+  mapgen/experiments/2026-09-08-subseed-sweep.c -lpthread`.
+
+## The old ledger text (pre-2026-09-07) is retained above (sessions h1–h32)
+

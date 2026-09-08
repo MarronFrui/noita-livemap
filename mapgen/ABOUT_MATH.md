@@ -111,7 +111,10 @@ grid; the only randomness is the vertex coloring itself.
 
 ## 3ter. The fill algorithm (corner mode, read in full)
 
-1. Vertex grid `xmax = w/s+6`, `ymax = h/s+6`; corner class `p = (i−j+1)&3`;
+1. Vertex grid `xmax = w/s+6`, `ymax = h/s+6`; **class `p = (i+j)&3`**
+   (corrected 2026-09-07 from the binary: FUN_008ec9f0 uses
+   `(i+j)&3`; the earlier `(i−j+1)&3` reading was wrong — see §7octies;
+   the lab's binary-class rule `(I−J)&3 ∈ {0,2}` has the same parity classes).
    `c_color[j][i] = rand() % cc[p]` — **one RNG draw per vertex, scan order**.
 2. Repetition-reduction pass (default ON): re-colors vertices where a 3×2
    neighborhood matches fully (extra RNG draws, order-dependent).
@@ -831,7 +834,304 @@ precisely why reading the code beats guessing the parameters.
 
 
 
-## 8. Glossary
+## 7octies. CREATEHERRINGBONEWANG LOCATED + READ (2026-09-07, Ghidra hunts 33–35)
+
+**Target found** — the previous xref failure had two causes: (1) the noted
+string VAs were substring starts (actual C-strings: 0x1172ff8/0x1173003/
+0x117427c, +6/+11/+17 earlier); (2) the bare "CreateHerringboneWang" strings
+are PROFILER scope names (`FUN_010324ea("CreateHerringboneWang")` at exit),
+not assert text. Successful method: numpy scan of the whole exe for `u32 ==
+string VA` — the binary is 32-bit x86 and MSVC references string literals
+with absolute `push imm32` (no RIP-relative refs to these strings exist).
+Verified push sites: "seed <= (double)(INT_MAX-2)" at VA 0x8ed44b (biome.cpp
+line 148) and "height <= 1024" at 0x9050a6 (procedural_terrain.cpp line 1812).
+
+**The fill is now READ end-to-end** (`mapgen/ghidra-ledger.md` 2026-09-07
+section has the recipe, all constants checked from .rdata):
+- `stbhw_generate_image` = FUN_008ec9f0: vertex grid `w/s+6 × h/s+6`, row
+  stride 0x6a=106, rep-reduce pass, herringbone scan via choose-tile
+  (FUN_008ec710, 2-pass count-then-pick one draw) + place h/v blits.
+  **+4-row discard confirmed in-binary** (buffer is (h+4) rows, copy loop
+  starts at −4, writes gated 0≤j<h).
+- RNG = poro Random::Next() (FUN_010098c0 = verified Lehmer Schrage core
+  16807/127773) on a **thread-local state** (TLS+0x14 double, lazily
+  allocated via FUN_008ebf00). A "draw" = Next() then `(u64)state % cc[p]`.
+- Seeding (FUN_00904c20, per area, ≤100 attempts with hasPath retry):
+  `state_seed = (double)(u32 seed) + diddle[seed>>31]` (diddle = {0.0,
+  4294967296.0} @0x11e0ba0 — a 32→unsigned-float promotion), halve if ≥
+  2147483647 (@0x11e0220 / 0x5 @0x11dfdd8), one Next() warm-up, skip =
+  `(width % 11)(signed trunc) + ((u32)seed % 12)` — **identical to noitool's
+  GetRNG including the unsigned mod-12**. Per attempt: sub-seed =
+  `NextU()` exactly (`Seed × 2⁻³¹ × 2147483645`, the two-MUL pattern
+  @0x905697/0x90569f) → NewNollaPrng-style sub-RNG in TLS.
+- **Per-cell generator object** (FUN_0090ce20 → FUN_008f9470, world-grid
+  init): 0x1ec bytes; +0x8c raw seed, d = diddled+halved, Next()×2,
+  **+0x94 = (float)d × 200000.0 − 100000.0** (constants at 0x11e0504/0x11e04ec
+  verified this session).
+
+**Verdict on prior sweeps — the class formula was wrong**: the binary's
+vertex class is `p = (i+j) & 3`; §3ter (and all lab S1/P/S2 sweeps) used
+`(i−j+1)&3`. With the wrong class the `%` draws hit the wrong modulus ~half
+the time → ~58% noise floor on every walk — matching the 644M-candidate
+verdict (58.03%) exactly. The lab's `(I−J)&3 ∈ {0,2}` binary-classes rule is
+consistent (same parity classes as (I+J)&3). **Not yet tested on clean data
+— lib/wang-js.mjs + the 548-vertex answer key can verify in minutes once
+the last wiring link (which object's field feeds 00904c20's seed) is read.**
+
+**Remaining (hunt 36, same session — RESOLVED)**: the fill's caller is a
+vtable thunk (`mov ecx,[ecx+4]; jmp 0x904c20`, vtable 0x1199d40 slot 2,
+installed by the world-grid init FUN_0090e840). The fill's per-area seed =
+`[area+0x4c]`, fed by the **mSeed constructor FUN_00904730**
+(procedural_terrain.cpp:1669):
+`d = (double)ws + diddle[sign]` (unsigned promote, guard ≤2147483645) →
+`Next()` → `mSeed = (float)d × 9999.0f + 1.0f` → `Next()` →
+`×200000f−100000f` → `Next()` → `×200000f−100000f` — the per-area version of
+the ProceduralTerrain::Init 9999/200000/100000 chain. Areas cache by
+(w,h,seed) across chunks (FUN_0090c1f0), explaining once-per-area
+generation.
+
+## 7novies. THE FILL RECIPE IS BINARY-EXACT — AND THE SEED STILL DOESN'T MATCH (2026-09-07, hunts 37–45)
+
+Everything below was verified against the **assembly** this session (dumps
+`h35`–`h45` in ghidra-logs). Three ledger claims from the same day were
+**corrections of corrections**:
+
+1. **Vertex class = `(i − j + 1) & 3` in generation space** (§3ter was right).
+   The 2026-09-07 "(i+j)&3 correction" misread FUN_008ec9f0's row counter,
+   which starts at **1 and DECREMENTS** per row (`MOV EBX,1 … DEC EBX`,
+   asm 0x8eca4b/0x8ecacd): class = `(col + (1 − row)) & 3`. After the
+   +4-cell row discard (1 vertex row) this equals the lab's empirical
+   `(I−J)&3` rule in key space. All reconciled.
+2. **The draw is `nextU() % cc`** — not raw state. `poro Next()`
+   (FUN_010098c0) advances the state AND **returns `state × 4.656612875e-10`
+   in XMM0** (asm 0x109932: `MULSD XMM0,[0x11df988]`; the constant is the
+   hand-typed 2⁻³¹ approximation, not exactly 2⁻³¹). Every consumer multiplies
+   by 2147483645 (`.rdata` 0x11e0210) and trunc-converts to u64
+   (FUN_01033781 = `__dtoui64`): vertex (0x8eca9e), reroll (0x8ec950),
+   choose-tile (0x8ec855, two MULSD from the inline-Schrage state). The port's
+   `nextU()` = `trunc(seed × 4.656612875e-10 × 2147483645)` — identical
+   multiplies, identical rounding.
+3. **The GetRNG skip is `(width % 11) + (u32)seed % 12`** — no extra width
+   term. The decompile's `local_c8 + …` looked like `+width`, but the
+   `((iVar20>>1) − (iVar20>>31))×11` term is **negative** `−11·⌊w/11⌋`
+   (magic-multiply 0xd1745d17 with sign fixup), so `local_c8 + (−11·⌊w/11⌋) =
+   w % 11`. Asm 0x905273–0x9052b1.
+
+**The area object and the fill's `this`** (hunts 37–41):
+- ProceduralTerrain::Init's biome-map walk (Step 1) allocates one
+  **area object, 0x154 bytes**, per connected component: ctor `FUN_00904b10`
+  (asm 0x904b10): `+0x00` biome ptr (walker), strings at `+0x04`/`+0x1c`
+  (image-load name / wang template name), `+0x34` width, `+0x38` height,
+  `+0x3c..0x4b` = the 16-byte coordinate block (the MOVDQU the fill driver
+  copies), **`+0x4c` = the ctor's arg** (asm 0x904b71), `+0x50` a biome flag
+  byte (0 → the wang path), `+0x8c` extra-layers, `+0x150` template filename;
+  it then runs `FUN_008f9470(arg)` on the sub-object at `+0x90`
+  (asm `LEA ECX,[ESI+0x90]`).
+- **The ctor's arg = `WORLDSEED::GetSeed() + DAT_01328010`** (asm 0x9062cf–d4:
+  `CALL GetSeed; ADD EAX,[0x1328010]; MOV [EBP-0x270],EAX`; the ctor call at
+  0x9077d1 pushes it). `DAT_01328010` = the **NEW_GAME_PLUS_COUNT magic
+  number** (default 13589, runtime-writable via magic-numbers config by
+  FUN_006fa0d0/FUN_00922950). So **`[area+0x4c] = worldseed + 13589`**.
+  (The ledger's hunt-36 claim "[0x4c] comes from the per-area seed
+  constructor" was wrong — the mSeed ctor object is the ProceduralTerrain,
+  a different struct.)
+- The fill is dispatched at Init time as a **thread-pool task**: the
+  "vtable 0x1199d40" is a **std::function functor vtable** on the stack
+  (asm 0x907abf stores it into a local), capturing the area-object pointer;
+  the thunk (`mov ecx,[ecx+4]; jmp 0x904c20`) passes the captured object as
+  `this`. Not a chunk-load-time vtable.
+- The mSeed ctor chain (FUN_00904730 / Init-inlined): the three `Next()` calls
+  advance the **local chain** (codegen pattern asm-confirmed at 0x905264:
+  `LEA ECX,[ESP+0x24]` before the call). With x86 `CVTTSD2SI` **saturation**
+  (mSeed ≈ 7.9e11 ≫ i32 → n = INT_MIN every time), `stateA` and `stateB` are
+  **seed-CONSTANT** (Schrage(INT_MIN) = 2147466840; Schrage(+huge) = 2147483647)
+  — they cannot be the fill's seed, consistent with the lab's 91-vs-93
+  coin-flip divergence. Only `mSeed` varies per seed.
+
+**THE NEGATIVE RESULT.** With the recipe fully pinned, the lab answer key
+(548/362/451 informative vertices, seeds 91/92/93) was scored against
+~40 candidate seed values — raw ws, ws+C for C ∈ [13580..13600], Schrage^k(ws)
+k ≤ 16, nextU(ws), verified-mixer outputs at area anchors, the V1/V2 ctor
+chains and the generator `+0x94` field in 5 encodings each (f32bits, double
+hi/lo dword, trunc-wrap, trunc-sat) — crossed with the 4 draw conventions,
+attempts 0..99, offsets (dI ∈ −6..6, dJ ∈ −6..10), widths 248..266 and skip
+deltas ±3 (~27k model walks per seed; `experiments/2026-09-07-area-seed-candidates.mjs`).
+**Best ≈ 60–66% everywhere = the extreme-value noise ceiling. The fill's
+runtime seed is NOT any statically-decoded derivation of the worldseed.**
+
+Since the chain seed → GetRNG → sub-seed → TLS → vertex draws is asm-exact,
+the divergence must be in the value that reaches `[area+0x4c]` (or the state
+of the magic-number global at runtime). Next session's discriminator, in
+order of cost:
+1. **In-game probe**: hook FUN_00904c20 (or FUN_008eda10) in the dev build
+   (Cheat Engine / detour DLL) and log `[area+0x4c]` + the first ~16 nextU
+   values per attempt for a known seed. One number answers everything.
+2. Verify DAT_01328010 at runtime (is NEW_GAME_PLUS_COUNT actually 13589 in
+   a vanilla run? the magic-numbers file the mapcap/lab mods load may set it).
+3. Lab variant with an asymmetric tileset (e.g. numColor (3,1,2,1)) so vertex
+   colors pin draw indices more tightly, disambiguating geometry vs stream.
+
+## 7decies. THE SUB-SEED IS MEASURED — AND THE CHAIN TO THE WORLDSEED STILL DOESN'T CLOSE (2026-09-08)
+
+**The instrument (this session's move — cheaper than all three mission probe
+targets):** instead of hooking the exe, invert the problem. The accepted fill
+attempt is fully driven by ONE number — the sub-RNG state `S` that
+`CreateHerringboneWang_Threaded` seeds the TLS Random with. So brute-force
+`S` over its whole domain `[0, 2³¹)` against the 548-vertex lab key, with
+early abort (a wrong S dies after ~50 informative checks ≈ 100 draws;
+rep-reduce flips only ~11% of informative vertices, so a 25% abort threshold
+is sound; the sweep's walk = coloring only, no rep-reduce). C port (gcc
+-O3 -march=native, 16 threads): 2.147e9 candidates ≈ 58 s wall per offset.
+**Exactly one survivor per seed:**
+
+| seed | S (TLS sub-seed = trunc of the driver's param_9) | exact match (post-reduce) | pre-reduce flips |
+| --- | --- | --- | --- |
+| 78633191 | **1228813614** | 498/500 (99.6%) | 52/500 |
+| 78633192 | **1319606147** | 325/327 (99.4%) | 42/327 |
+| 78633193 | **1966969580** | 395/403 (98.0%) | 50/403 |
+
+All three at key→gen offset **(dI,dJ) = (−5,−6)**. **The walk mechanics are
+now measured-correct**: 1206/1218 informative vertices exact across three
+independent seeds (chance ≈ 2^−1000) — class `(i−j+1)&3`, one `nextU()` per
+vertex row-major, the rep-reduce pass, the `(H+4)/4+6` vertex grid (70×32),
+warm-up absorbed. The 644M-candidate failure (§7septies verdict) and the
+§7novies negative were both purely the SEED. Files (new, on disk):
+`experiments/2026-09-08-subseed-sweep.mjs` (planted-solution integrity test —
+PASS; flip-rate calibration), `-export.mjs` (key binaries → `/tmp/opencode/
+subsweep/key_{91,92,93}.bin`), `2026-09-08-subseed-sweep.c` (sweeper; FNV
+grid-hash cross-check vs JS bit-identical on 5 values; planted key → exactly
+1 survivor in 2.147e9), `2026-09-08-subseed-invert.mjs` (S → C inversion),
+`2026-09-08-placement-check.mjs` (tile-placement sim vs the game log).
+
+**The 12 residual mismatches (OPEN, parked):** all at gen-border zones —
+gen j=0..1 rows (any i) and the gen i=0..3 left-edge band at j=17..21 (key
+J=23..27); key(5,23)→gen(0,17) is wrong in BOTH seed 91 and 93 ⇒ systematic,
+not recovery noise. A pure Lehmer stream cannot diverge at one draw and
+re-converge later (draws after the mismatch positions still match), and no
+reroll touches those vertices (pre==post there). Every mechanism tested
+(OOB reads by fully-off-image edge tiles, read-clamping, tile-index
+swaps) keeps in-bounds pins = stream colors, so the suspect is the key's
+border-zone values or a local game-side edge effect. Unresolved.
+
+**Static probes of NEW_GAME_PLUS_COUNT (mission target 1, closed):**
+- Absent from the game's own `data/magic_numbers.xml` (extracted data at
+  `/mnt/c/Users/xan98/AppData/LocalLow/Nolla_Games_Noita/data/`); the lab
+  mod's magic file sets only `BIOME_MAP`; no installed mod touches it.
+- Binary, byte-verified this session: `.data` default at file 0xf26610
+  (VA 0x1328010) = 13589 ✓; name mapping independently confirmed (string
+  "NEW_GAME_PLUS_COUNT" at VA 0x1199be4 is pushed 16 bytes before
+  `push 0x1328010` at VA 0x6f9f9e; the parse-write `mov [0x1328010],eax`
+  is at VA 0x6fa1f8 inside FUN_00922950).
+- **FUN_009233d0 (the biome-map reset — resets `is_biome_map_initialized`,
+  BIOME_MAP paths to `data/biome_impl/biome_map.png` etc.) sets
+  `DAT_01328010 = 0`** (h46 dump). So the fill-time value is 0 unless the
+  XML parser set it (nothing does). **§7novies' "[area+0x4c] = worldseed +
+  13589" is DEAD — the fill's base seed C = ws + 0 = the raw worldseed**
+  (and the printed "ProceduralTerrain - worldseed: N" = ws + NGPC).
+- Full xref scan (u32 0x1328010 over the whole exe): WRITERS = the magic
+  parse (FUN_00922950) + the zeroer (FUN_009233d0) ONLY. Readers:
+  FUN_00719820, FUN_007ecb10, FUN_00832be0, FUN_00834170, FUN_00834840,
+  FUN_00834f10 (an add-NGPC-to-seed family), FUN_00beeee0 (game-mode
+  dispatch ×3), FUN_00905fb0 (the known ctor add).
+
+**The chain, re-verified at assembly level this session (hunts 46–52; asm
+read via objdump on the raw .text where noted):**
+
+```
+C = [area+0x4c] = WORLDSEED::GetSeed() + DAT_01328010   (0x9062d4–e0: call
+     GetSeed; add eax,[0x1328010]; mov [EBP-0x270],eax; the ctor push at
+     0x9077d1 reads the SAME slot; puVar20[0x13] has no other writer in the
+     walk — only [0x0d]/[0x0e] (w/h) and [0x23] (sub-object seed) are set)
+d = (double)(int32)C + diddle[C>>31]                    (0x90523c–49;
+     diddle = {0.0, 2^32} @0x11e0ba0 — byte-verified)
+if (d >= 2147483647.0) d *= 0.5                         (0x11e0220 / 0x11dfdd8)
+state = d; Next(&state) — ONE warm-up                   (0x905264–6e; the
+     local Random object at [ESP+0x24], ECX = &state)
+skip = (width % 11) + ((u32)C % 12)                     (0x905273–b1; magics
+     0xaaaaaaab → ×12·⌊C/12⌋ and 0xd1745d17 = −0x2e8ba2e9 → −11·⌊w/11⌋;
+     width = [area+0x34] clamped to [1,1024] — asm 0x904cdc)
+advance skip (inline Schrage, EXACT: v = 16807·(n mod 127773) − 2836·
+     ⌊n/127773⌋, v ≤ 0 → += 2^31−1 — ≡ the JS schrageBin, edge-verified)
+attempt A ≤ 99: state = Schrage(state)                  (0x905643–67a)
+  param_9 = (double)state × 4.656612875e-10 × 2147483645
+     (0x905681–a7: movd/cvtdq2pd state; MULSD [0x11df988] = C1 — the SAME
+     double the JS port uses (bits 685f1c000000003e, ONE .rdata hit at file
+     0xddeb88; 1/(2^31−1) has ZERO hits); MULSD [0x11e0210] = 2147483645.0)
+  FUN_008eda10(w, h, state_int, template, atlas_w, atlas_h, ..., param_9):
+    cached-seed check `param_9 != 0.0` (DAT_013276c8 is write-only)
+    lazy TLS ctor FUN_008ebf00 (new 8-byte poro Random + one tail Next())
+    TLS Random.seed = param_9 (UNTRUNCATED double; halved if ≥ 2^31−1 —
+      never: param_9 < 2147483645)
+    ONE warm-up Next(); buildTileset FUN_008ed0f0; FUN_008ec9f0(w·3, w, h+4)
+    copy loop j=−4.. — the +4-row discard (FUN_008eda10 tail)
+```
+
+So `S_measured = trunc32(param_9)` and the orbit distance from C is
+`1 + skip + (A+1) ≤ 116` Lehmer steps. Driver prologue also confirmed:
+`[ESP+0x4c] = [area+0x4c]` (0x904d3b/0x904d4f), `[ESP+0x2c] = width`,
+`[ESP+0x18] = height`.
+
+**THE CONTRADICTION (now measured, not modeled).** 16807 is a PRIMITIVE ROOT
+mod 2^31−1 (ord = 2147483646 — computed this session), so orbit distances
+are well-defined and every nonzero value is reachable. BSGS discrete-log:
+
+| start → target | seed 91 | seed 92 | seed 93 |
+| --- | --- | --- | --- |
+| ws → S (state mode) | 852 105 533 | 34 730 815 | 468 297 758 |
+| ws → f⁻¹(S) (nextU mode) | 1 617 467 129 | 532 342 600 | 968 007 978 |
+| ws+13589 → S | 1 659 374 935 | 1 830 001 187 | 1 112 350 975 |
+| ws+13589 → f⁻¹(S) | 1 382 122 050 | 1 649 871 861 | 1 647 773 426 |
+
+Required: ≤ 116. **Both C = ws and C = ws+13589 are excluded by
+measurement.** Corroborating: the backward inversion over (mode ∈ {state,
+nextU}, attempt 0..99, skip 3..14) yields 407/411/190 valid base seeds per
+seed — ws, ws±1 and ws+13589 are NOT among them; no (mode, attempt, skip)
+gives a constant delta across the three seeds (0 configs); the three S are
+mutually unrelated orbit points (pairwise distances ≈ 7e8–1.6e9); no tested
+structured start (ws, Schrage^k(ws), the mSeed-chain outputs in the
+V1-chained / V2-chained / REAL-unchained FUN_00904730 forms — mSeed =
+f32(f32(ws)·9999f+1f), stateA = stateB = f32(f32(ws)·200000f−100000f) —
+and their f32-bit encodings) lies within 400 orbit steps of any S
+(backward-walk scan; the 43 "small-diff" triples found ≈ the ~57 expected
+by chance).
+
+**Where the missing ~10⁷–10⁹ orbit distance lives (OPEN — next
+discriminators):**
+1. **Hook the driver (mission target 2, now armed with exact offsets):** log
+   `[area+0x4c]` at its read (0x904d3b), the attempt's `state` (0x905643,
+   XMM0 after cvttsd2si), and `param_9` complete at 0x9056a7 (XMM0). ONE
+   number settles it: if the logged C' ≠ ws, re-run the inversion from C'.
+   Cheat Engine or x64dbg on the Windows side; the lab mod + seed mod
+   loadout, seed 78633191.
+2. **[area+0x4c] may not be ws at driver time**: the ctor writes it during
+   the Init walk but the fill task runs async on the thread pool — anything
+   that rewrites the slot or DAT_01328010 in between changes C. A
+   whole-binary scan for other writers of `[reg+0x4c]` (within area-object
+   contexts) is the cheap static route.
+3. The driver's own chain was verified local ([ESP+0x24] object, seeded from
+   [ESP+0x4c] EVERY call) — so the missing distance cannot come from global
+   poro accumulation inside the driver; if the hook shows C' = ws after
+   all, the gap must be between Schrage(state) and param_9 for the LAB area
+   specifically (a second driver caller, or FUN_008eda10 callers beyond the
+   driver).
+4. The mSeed ctor FUN_00904730's three Nexts advance the GLOBAL poro (the
+   decompile shows the working double unchanged across them) — its three
+   float outputs are pure functions of d = ws. If C' turns out to be one of
+   those floats' bit patterns, re-run the inversion from it (the real
+   unchained forms are now in the ledger).
+
+**Placement-sim corollaries (parked, recorded for the port):** the game's
+464-placement log aligns 464/464 to the simulated herringbone scan at
+log = sim + (3,−1) in cell coords — the scan geometry, draw guards and
+stream synchronization are right. Only 30/464 tile IDs matched there
+because the wang-js port's scan reads array cells `[j+2..j+3][i+2..i+4]`
+while the game reads a different constant offset — the lab tileset's picks
+are FORCED (full 2³ slot coverage per orientation: h-tiles constrain slots
+b,d,f; v-tiles a,c,e — no gaps, no duplicates), so tile choices differ only
+where the read convention differs. Port-convention issue, not model issue.
+The recovery's key indices vs the scan-read vertices differ by a constant
+under frame algebra — the empirical sweep offset (−5,−6) is the bridge that
+matters.
 
 **Binary-analysis decoder (added 2026-09-05 — every acronym gets defined at
 first use from now on):**
