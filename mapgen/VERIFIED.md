@@ -7,12 +7,15 @@
 > `ABOUT_MATH.md` (evidence log §6+) and `ghidra-ledger.md` (decompilation
 > processing state); this file holds only what survived.
 >
-> **Tl;dr state (2026-09-08):** RNG machinery game-verified; atlas format and
-> the tile-fill *walk mechanics* measured-correct (exact given the right
-> sub-seed). The one open link is the derivation **world seed → per-attempt
-> sub-seed S**: the asm-verified chain predicts orbit distance ≤ 116 from the
-> worldseed, measurement says 3.5e7–8.5e8. Hooking the driver is the armed
-> next step (§9).
+> **Tl;dr state (2026-09-08, evening):** **THE WANG LAYER IS PREDICTION-SOLVED.**
+> The full chain — worldseed → GetRNG (warm-up + skip = (w%11)+(ws%12)) →
+> per-attempt sub-seed → TLS → vertex coloring (`(i−j+1)&3`, one `nextU()` per
+> vertex) → rep-reduce → herringbone tile fill — is asm-verified, runtime-
+> confirmed (Cheat Engine), and end-to-end verified against the frozen spawn
+> equations: 12/12 direct-trigger constraints across seeds 91/92/93, unique
+> early attempts, 60 wrong-seed controls never reaching perfect. Remaining:
+> hasPath emulation (which attempt is accepted), cascade-class spawn offsets
+> (altar-scene data model), and post-wang paint layers for full visuals (§9).
 >
 > **Maintenance rules:**
 > - A fact enters here only after it is settled, and must carry a source
@@ -96,7 +99,8 @@ the correct S, the following mechanics reproduce the game exactly:
 - **Area driver** FUN_00904c20 (procedural_terrain.cpp): reads the area object (`this`), computes GetRNG, runs **≤100 attempts**; per attempt `state = Schrage(state)`, `param_9 = (double)state × 4.656612875e-10 × 2147483645`, `CreateHerringboneWang_Threaded(...)`; `hasPath` = FUN_00901780 (JPS) → accept or retry; coalmine/excavationsite string checks → FUN_00901580. 🔬 ABOUT_MATH §7decies.
 - **GetRNG (asm-exact):** `d = (double)(int32)C + diddle[C>>31]` (diddle = {0.0, 2³²} @0x11e0ba0 — unsigned promotion); `if (d >= 2147483647.0) d *= 0.5`; ONE warm-up `Next()` on the driver-local Random; `skip = (width % 11)(signed trunc) + ((u32)C % 12)` (width = `[area+0x34]` clamped [1,1024]); advance `skip` inline Schrage. Identical to noitool's GetRNG including the unsigned mod-12. 🔬 ABOUT_MATH §7decies.
 - **Dispatch:** the fill runs as an **Init-time thread-pool std::function task** capturing the 0x154-byte area object (ctor FUN_00904b10; `[area+0x4c]` = ctor arg = `WORLDSEED::GetSeed() + DAT_01328010`, written once during the Init walk). Chunk generation at runtime is lazy/streaming. 🔬 ABOUT_MATH §7novies, §7decies.
-- ⚠️ **THE OPEN LINK:** what actually reaches `[area+0x4c]` at driver time. The static reading (C = ws, since NEW_GAME_PLUS_COUNT is reset to 0) is **excluded by measurement** — see §8 and §9.
+- **RUNTIME CONFIRMATION (Cheat Engine, 2026-09-08, seed 78633191):** `[area+0x4c]` = raw ws (`EAX = 0x04AFD8E7`, multiple areas, hook at 0x904d3b); the Threaded-layer cache pair (DAT_013276c8/d0) reads `(last param_9, diddled ws = 78633191.0)`; the last fill's accepted state = **ws × 16807^115** — inside the chain's ≤ ~122 (115 = 1 warm-up + skip 14 + A+1 = 100 → w ≡ 3 mod 11, e.g. w = 256 = the Mines width, accepted on attempt A = 99). **The asm-exact chain from worldseed to the fill's sub-seed is confirmed for regular (Init-filled) areas.** ✅
+- ⚠️ **THE OPEN LINK:** the driver's input is runtime-confirmed (**C' = raw worldseed**, Cheat Engine hook at 0x904d3b, seed 78633191, 2026-09-08 — `EAX = 0x04AFD8E7` after `MOV EAX,[ESI+4C]`, multiple areas) — but C = ws is **excluded by measurement** as the source of the lab sub-seed (§8 rows 11–12). So the divergence is downstream of the driver's input: between the driver's chain and/or the sub-seed actually passed to `CreateHerringboneWang_Threaded` (FUN_008eda10) — see §9.
 
 ## 6. Content layers, spawns & captures
 
@@ -155,15 +159,21 @@ of these mechanisms, cite the row instead of re-running it.
 | 14 | js-sequential model on the frozen spawn equations | **6/48** ≈ chance | ✅ ABOUT_MATH §7sexies |
 | 15 | FUN_00fec850 as the fill | it is the OpenGL world renderer (indirect calls = GL function pointers) | 🔬 ledger "Correction 2026-09-05" |
 | 16 | FUN_00794620 as the fill | world-grid scatter utility (falling-sand cell indexing + per-object LCG picks) | 🔬 ledger queue item 1 |
+| 17 | Lab-keyed eliminations transferring to regular-area fills | the lab biome is runtime-injected and fills via a non-Init path (sub-seed at orbit distance 1.6e9 from ws); the Init chain is runtime-confirmed for regular areas (§5) — lab-keyed negatives (row 5) do not transfer | ✅ 2026-09-08 |
 
 ## 9. Open frontier (ranked)
 
-1. **The sub-seed derivation gap — THE open problem.** The asm-verified chain (C = `[area+0x4c]` → diddle+halve → warm-up → skip → Schrage → `param_9` → TLS seed) is excluded at both candidate inputs (C = ws, ws+13589; §8 rows 10–12). Armed discriminator: **hook the driver** — log `[area+0x4c]` at its read (0x904d3b), the attempt `state` (0x905643), `param_9` complete (0x9056a7, XMM0) for a known seed (Cheat Engine/x64dbg on Windows, lab + seed mods, seed 78633191). One number settles it; if the logged C' ≠ ws, re-run the inversion from C'. Cheap alternative: whole-binary scan for other writers of `[area+0x4c]` (the fill task runs async — the slot may be rewritten after the ctor walk). ABOUT_MATH §7decies.
-2. **12 border-zone key mismatches** (parked, §4): systematic across seeds; suspect the key's border values or a game-side edge effect. Do not chase until the seed closes. ABOUT_MATH §7decies.
-3. **Port read-offset convention:** placement sim aligns 464/464 but tile IDs match only 30/464 — wang-js reads vertices at `[j+2..j+3][i+2..i+4]` while the game reads a different constant offset. Fix in the port, not the model. ABOUT_MATH §7decies.
+## 9. Open frontier (ranked)
+
+1. **RESOLVED (2026-09-08): the sub-seed derivation is runtime-confirmed AND end-to-end verified for regular areas** — see §5 and the chain-vs-spawn-equations result (ABOUT_MATH §6, 2026-09-08): **12/12 direct-trigger constraints satisfied across seeds 91/92/93** by chain-derived fills (unique early attempts A=0/3/1, consistent (+1..3,+1..5) px anchor; 60 wrong-seed controls never exceeded 3/4). The lab anomaly is explained: the injected lab biome fills via a different path (§8 row 17). **Remaining frontier (offline):**
+   - **a. hasPath emulation** — predict WHICH attempt the game accepts (JPS check per candidate; observed acceptances at A=0..3 for the oracle areas, so the tail only matters for heavy-rejecting areas).
+   - **b. Cascade-class spawn offsets** — potions/wands spawn at structural offsets from the wand_altar scene art (+ RNG gate); needed to extend the judge beyond direct triggers (pure data modeling: altar art + per-biome g_items lists).
+   - **c. Post-wang layers** — room blocking / coalmine_hax / pixel scenes for full geometry (needed for visual prediction, not for spawn facts).
+   - **d. Optional:** identify the CE-observed A=99 last-filled area (no oracle items — untestable, consistent).
+2. **12 border-zone key mismatches** (parked, §4, lab-scope): systematic across seeds; suspect the key's border values or a game-side edge effect. Do not chase until the lab scope needs it. ABOUT_MATH §7decies.
+3. ~~Port read-offset convention~~ **RESOLVED (2026-09-08):** real-area fills anchor at ~(3,3) px from the area origin — the port's geometry is essentially exact; the lab's (3,−1) cell offset was lab-recovery bookkeeping. (Chain-vs-spawn-equations run, ABOUT_MATH §6.)
 4. **Small-variant-pool content:** the 17.9% two-agree-one-differs capture class (even split across seeds) is a separate RE target (randomMaterials / scene variants?). mapcap/README.
-5. **Post-wang layers:** noitool's `finalize` family (`fillMainPath`, `fillBlockedRooms`, `fillC0ffee`, `ClearPath`, `doCoalMineHax`) and pixel-scene placement are unread/unmodeled — required before geometry-vs-capture scoring can work. ABOUT_MATH §7.
-6. **Multi-input seeding derivations** (hash of seed/area/color/…) are combinatorially unbounded — static guessing loses; the hook in (1) is the efficient route. ABOUT_MATH §7octies.
+5. **Post-wang layers:** noitool's `finalize` family (`fillMainPath`, `fillBlockedRooms`, `fillC0ffee`, `ClearPath`, `doCoalMineHax`) and pixel-scene placement — required for full visual prediction (§9.1c). ABOUT_MATH §7.
 
 ## 10. Working principles
 

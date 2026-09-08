@@ -295,6 +295,31 @@ Open questions specific to this ruleset:
 
 ## 6. Evidence log
 
+- **2026-09-08 — THE CHAIN IS CORRECT: end-to-end spawn-equation confirmation
+  (`experiments/2026-09-08-chain-vs-spawn-equations.mjs` + `-chain-signal-analysis.mjs`)**.
+  The asm-exact sub-seed chain (C = ws → 1 warm-up → skip = (w%11)+(ws%12) →
+  attempt A: state = schrage^(16+A)(ws), param_9 = ((double)state × C1) ×
+  2147483645, TLS seed = param_9, 1 warm-up) was first validated **bit-exact**
+  against the CE reading (schrage^115(78633191) → param_9 = 1444051512.578899),
+  then every attempt A=0..99 was filled with the corrected wang-js mechanics
+  (class `(i−j+1)&3`, rep-reduce, choose-tile, +4-row discard) and scored
+  against the frozen spawn equations with shift-voting over a global anchor:
+  - **Direct-trigger constraints (heart/chest, spawn at the trigger pixel):
+    12/12 across seeds 91/92/93** — excavationsite 91 A=0: 2/2, 92 A=3: 4/4,
+    93 A=1: 5/5 (perfect, UNIQUE attempts), coalmine 91: chest+wands hit.
+    All satisfied at one consistent (+1..3, +1..5) px anchor.
+  - Wrong-seed controls (60 fills): ceiling 3/4, 2/5 — never perfect.
+  - All remaining misses = CASCADE classes (potions via the wand_altar scene):
+    item→root-trigger offsets are structural (altar art), beyond the ±2 px
+    window — a judge limitation, NOT a fill error. A=99 (the CE-observed last
+    fill) belongs to an area without oracle items (untestable, consistent).
+  - The anchor being ~(3,3) px also resolves §9 item 3: the port's real-area
+    geometry is essentially exact; the lab's (3,−1)-cell offset was lab-recovery
+    bookkeeping, not a game-vs-port difference.
+  **Verdict: the wang layer is prediction-solved modulo (a) the hasPath
+  emulation (to predict WHICH attempt is accepted — observed A=0..3 for these
+  areas) and (b) cascade-class spawn offsets (altar-scene data model).**
+
 - **2026-09-03 — wrapper fidelity**: `node mapgen/verify.mjs` — 28/28 comparable
   noitool fixtures byte-identical (RGB). The 12 fails are all biome-map px
   (53,30-31) where noitool's embedded world map says coalmine/excavationsite but
