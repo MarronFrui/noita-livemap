@@ -43,8 +43,8 @@ npm run bench:diff   # score + report
 lib/          reusable code
 pipeline/     the bench, in run order (1 → 2 → 3)
 experiments/  dated one-off investigations (do NOT import from these)
-test/         node:test suite
 out/          artifacts (gitignored)
+tests/        vitest suite (repo root `tests/`: mapgen/, mapcap/, bridge/)
 ```
 
 **Convention**: every new experiment goes in `experiments/` as
@@ -128,11 +128,26 @@ journaling every candidate; v2 journals new bests/survivors only). Full S1
 exhaustive sweep ≈ 94M candidates ≈ 35 min single-threaded. Artifacts live
 on the repo disk (gitignored); the game disk only holds the small CSVs.
 
-### test/
+### tests/ (repo root, vitest)
 
 | File | Purpose |
 | ---- | ------- |
-| `bench.test.mjs` | Determinism (same seed → identical output), seed sensitivity, **two golden hashes**: legacy wasm-model bigMap (obsolete noitool baseline — regression pin only) + wang-js sequential port (map hash + tileset parse counts). Both skip until `out/golden.json` exists |
+| `tests/mapgen/prng.test.mjs` | NollaPrng contract + pinned vectors (game-verified port), seededPrng signedness-fix regression |
+| `tests/mapgen/wang-fill.test.mjs` | Template walk + herringbone fill on synthetic atlases; coalmine counts (s=13, 72h+72v) |
+| `tests/mapgen/golden.test.mjs` | L0 determinism + wasm/wang-js golden snapshots (migrated `mapgen/test/bench.test.mjs`) |
+| `tests/mapgen/has-path.test.mjs` | hasPath oracle-port contracts; coalmine-hax constants are live (0x006400/0x000064); marker table |
+| `tests/mapgen/world-gen.test.mjs` | 71x144 canvas, area/chunk grid mapping, per-area .bin cache format, ensureWorld from gen-cache |
+| `tests/mapgen/colorize.test.mjs` | Display pass contracts + **I8** lake_deep water regression |
+| `tests/mapgen/biomes.test.mjs` | Biome config invariants (70x48 map, clamping, flags, def shape) |
+| `tests/mapgen/coords.test.mjs` | Coordinate constants + biome-px↔chunk math |
+| `tests/mapgen/api-surface.test.mjs` | Every public export of every lib module pinned by type/arity/constant |
+| `tests/mapgen/map-format.test.mjs` | `lib/map-format.mjs` JSON spec — serialize/validate round-trip + diagnostics |
+| `tests/mapcap/artifacts.test.mjs` | manifest.json / analysis.json / chunks/ output spec of analyzed captures |
+| `tests/bridge/telemetry-format.test.mjs` | Telemetry JSON contract (Lua mod ↔ bridge ↔ frontend) |
+
+Data-dependent suites skip automatically when the extracted game data (or the
+corresponding artifacts) are absent. `node mapgen/update-golden.mjs --force`
+re-blesses the golden snapshots.
 
 ### out/ (gitignored)
 

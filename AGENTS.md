@@ -57,15 +57,18 @@ node mapcap/diff-vs-reference.mjs --name <run>
 node mapgen/experiments/2026-09-04-lab-vertex-recovery.mjs          # dumps → vertex grids
 node --max-old-space-size=4096 mapgen/experiments/2026-09-04-lab-optimizer.mjs 60  # hypothesis search (timeout min)
 
-# Tests
-npm test             # node:test; determinism + golden hash (needs extracted data)
+# Tests (vitest; data-dependent suites auto-skip without extracted data)
+npm test             # full battery: API surface, PRNG, wang fill, hasPath
+                     # oracle, world cache, map-format spec, mapcap JSON
+                     # specs, telemetry contract ( see tests/ )
 
 # Production build
 npm run build
 npm run preview
 ```
 
-- Tests: none yet (`npm test` is a placeholder).
+- Tests: vitest battery in `tests/` (`npm test`); data-dependent suites
+  auto-skip without extracted data.
 - No linter/formatter is configured at the repo root; there is no root
   tsconfig (Vite compiles `src/main.ts` directly).
 
