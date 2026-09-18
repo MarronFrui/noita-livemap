@@ -13,6 +13,9 @@ import { loadBiomeConfig, biomeAt } from "../lib/biomes.mjs";
 import { loadWang } from "../lib/wang-wasm.mjs";
 import { readPng } from "../lib/images.mjs";
 import { buildTileset, seqAttempt } from "../lib/wang-js.mjs";
+import { generateAreaExact } from "../lib/generate-exact.mjs";
+import { colorizeArea, loadBiomeExtras, SHADES } from "../lib/colorize.mjs";
+import { loadWangWorld, worldColorAt, SKY_ROWS, CHUNK } from "../lib/world-gen.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const goldenPath = path.join(here, "../../mapgen/out/golden.json");
@@ -142,4 +145,45 @@ test("golden: wang-js sequential port is stable", async (t) => {
   // NOTE: the JS port is an independent model (no hasPath rejection loop, no
   // MapGen post-processing) — its golden is its own snapshot, NOT the wasm's.
   assert.equal(hash, golden.wangjs.mapHash, "wang-js output drifted from golden snapshot");
+});
+
+// I8 (mapgen/ISSUES.md): the west deep lake (lake_deep, water.png atlas) is a
+// single-material biome (lake_deep.xml: water, min -1.0 / max 10.5). The game
+// fills the atlas's white placeholder art with the biome's material, so the
+// genmap must render water there — not the generic grey-ramp rock/soil/sand.
+test("I8: lake_deep renders water, not generic dirt", async () => {
+  const dataDir = findNoitaDataDir();
+  const world = loadWangWorld(dataDir);
+  const lake = world.areas.find((a) => a.def.filename.includes("lake_deep"));
+  assert.ok(lake, "lake_deep area missing from wang world");
+  const extras = loadBiomeExtras(dataDir, "lake_deep");
+  assert.equal(extras.mainMaterial, "water", "lake_deep main material should be water");
+
+  const atlas = readPng(
+    path.join(dataDir, lake.def.templateFile.replace(/^data\//, ""))
+  );
+  const ts = buildTileset(atlas);
+  const r = generateAreaExact(ts, lake.w, lake.h, CAPTURE_SEED, {
+    worldX: lake.worldX, worldY: lake.worldY,
+  });
+  assert.ok(r, "no attempt accepted for lake_deep");
+  colorizeArea(r.rgb, lake.w, lake.h, {
+    dataDir, biomeName: lake.def.name, biomeFile: "lake_deep", seed: CAPTURE_SEED,
+  });
+
+  // Count display shades over the whole area (upsampled 10x: sample per cell)
+  const waterShades = new Set(
+    SHADES.water.map((s) => s.rgb.map((v) => v.toString(16).padStart(2, "0")).join(""))
+  );
+  let waterPx = 0;
+  for (let i = 0; i < lake.w * lake.h; i++) {
+    const hex = [r.rgb[3 * i], r.rgb[3 * i + 1], r.rgb[3 * i + 2]]
+      .map((v) => v.toString(16).padStart(2, "0")).join("");
+    if (waterShades.has(hex)) waterPx++;
+  }
+  // The lake is essentially all water; require a solid majority.
+  assert.ok(
+    waterPx > 0.5 * lake.w * lake.h,
+    `expected majority water shades, got ${waterPx}/${lake.w * lake.h}`
+  );
 });

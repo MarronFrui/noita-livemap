@@ -27,7 +27,7 @@ import {
 
 const PORT = Number(process.env.GENMAP_PORT ?? 8082);
 const dataDir = findNoitaDataDir();
-const cacheDir = path.join(repoRoot, "mapgen/out/gen-cache/r3b"); // r3b: display-color pass (colorize.mjs), tuned fill
+const cacheDir = path.join(repoRoot, "mapgen/out/gen-cache/r3d"); // r3d: spliced pixel-scene blit (I9 boss arena + tree/moon/etc)
 
 const worlds = new Map(); // seed -> { world, progress, ready }
 

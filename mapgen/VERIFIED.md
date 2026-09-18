@@ -190,7 +190,53 @@ of these mechanisms, cite the row instead of re-running it.
 - **The lab is the instant bench:** the 548/362/451-vertex answer keys (seeds 91/92/93, `out/oracle/lab-vertex-grids.json`) verify any new hypothesis in minutes; a correct model scores ~100%, partial-walk scores are noise. (ABOUT_MATH §7septies, §7decies.)
 - **Sources or it didn't happen:** every domain fact carries a file+section verified on disk this session; numbers never travel via chat memory or handovers. (AGENTS.md.)
 
-## Session close 2026-09-08 (evening, genmap wiring: in-game tested)
+## 11. Generation lifecycle flow map (2026-09-18)
+
+Per-stage status of the whole world-generation flow. Purpose: fix defects and
+plan work against the LIFECYCLE, not issue-by-issue (user mandate 2026-09-18).
+Layer/status legend: 🔬 asm-read (function dumped, byte-verified) · ✅
+empirically verified end-to-end · ⚠️ data-verified only (game data/scripts,
+binary side unread) · ❌ unexplored.
+
+| # | Stage | Where (binary / data) | Status |
+| --- | --- | --- | --- |
+| 0 | New-game seed generation | FUN_00911730/009118b0 (entropy) | 🔬 n/a for prediction (seed is input) |
+| 1 | Global reset + biome map load | ProceduralTerrain::Init FUN_00905fb0; biome-map reset FUN_009233d0 zeroes NEW_GAME_PLUS_COUNT | 🔬 |
+| 2 | Color→Biome lookup, biome grid alloc | FUN_00904230 (32-byte entries) | 🔬 |
+| 3 | Per-cell generator objects (float/u16 grids) | FUN_0090ce20→FUN_008f9470 (0x1ec B); stores per world-grid cell | 🔬 |
+| 4 | Area objects (biome components) | FUN_00904b10 (0x154 B; +0x4c fill seed) | 🔬 |
+| 5 | Wang fill (Init-time, thread pool) | driver FUN_00904c20 → Threaded FUN_008eda10 → stbhw FUN_008ec9f0; hasPath FUN_00901780 | 🔬 + ✅ (chain 12/12 spawn eqs; hasPath oracle 8/8, re-run 4/4 on 2026-09-18) |
+| 6 | Accept/retry + out_map mutations | hasPath port (`lib/has-path.mjs`, noitool-derived); fillMainPath/blockOutRooms/coalmine-hax | ✅ as noitool-model; ⚠️ in-binary finalize family **not re-derived** (frontier F2) |
+| 7 | Area cache (once per area) | FUN_0090c1f0 (w,h,seed) | 🔬 |
+| 8 | Spawn-trigger walker + queue | FUN_00904c20 tail → 1 draw/px → FUN_00900c70 → processor FUN_0085d7b0 | 🔬 |
+| 9 | Runtime streaming / chunk loads | FUN_0050b0a0 = ProceduralTerrain::Update() entry → FUN_00510420 = DoBufferedPixelScenes() (drains buffered LoadPixelScene work, stride-0x76c records, IAT/virtual dispatches); FUN_0050b9f0 = second Update-scoped body (4 callers) | 🔬 head decoded 2026-09-18 (F1); full body read pending |
+| 10 | Pixel scenes (biome-script loaders) | bindings region 0x806000–0x80c000 (partially read); data: `data/biome_impl/*.xml`, `_pixel_scenes.xml`, spliced `.plz` (compressor FUN_004225f0/b50, dispatcher FUN_00422e20) | ⚠️/❓ (plz codec not reproduced; per-scene art rendered via source-PNG blit) |
+| 11 | Template biomes + procedural noise terrain | data `scripts/biomes/*.lua` (⚠️); binary noise terrain = funcs reading generator +0x94 / DECOR float/u16 grids (FUN_0090e840, FUN_008f9ab0, mSeed ctor FUN_00904730) | ❌ noise math UNREAD — frontier F3 (ISSUES I1/I3/I5/I6) |
+| 12 | Material/coloring paint | data materials.xml + biome MaterialComponents (`lib/colorize.mjs`) | ⚠️ faithful approximation; exact grey-band noise OPEN (ISSUES I1) |
+| 13 | Engine debug toggles | flags DEBUG_GENERATE_BIG_WANG_MAP / DEBUG_FULL_WANG_MAPS registered ~0x472ee0/0x4742d0; REGEN_WANG_MAPS 0x118f924 (0 imm refs) | 🔬 sites found; **storage + readers unknown** — frontier F4 (potential in-game wang ground-truth oracle) |
+
+### Frontier (dependency-ranked, 2026-09-18)
+
+1. **F1 — read the 0x50b000 ProceduralTerrain::Update region.** The runtime
+   streaming path: what a chunk load triggers (area cache hit vs fill, copier
+   bigMap→world grid, the game-space anchoring made official). Everything
+   visual eventually hangs off this map; it sits upstream of the coord/anchor
+   questions and of pixel-scene placement timing.
+2. **F4 — DEBUG flag plumbing** (identification first: readers of the
+   registered flags; then whether magic-numbers.xml can set them). If
+   togglable → first-class wang-only ground truth (in-engine full wang maps),
+   eliminating the capture's non-wang-layer confound for every future check.
+3. **F2 — the finalize family in-binary** (`fillMainPath`, `fillBlockedRooms`
+   exact form, `fillC0ffee`, `fillRandomMaterials`, `ClearPath`, coalmine-hax
+   overlay semantics): currently the noitool-derived port validated only via
+   oracles 8/8; re-derive each from the binary before trusting beyond
+   coalmine/excavationsite (VERIFIED §9 item 5).
+4. **F3 — procedural noise terrain** (poro perlin from the generator +0x94
+   state; mSeed/×200000−100000 chain): unblocks the entire surface band →
+   I1/I2/I3/I5/I6. Ride F1's read of the Update region — the noise terrain
+   fills from there, not from Init.
+
+
 
 - **First in-game validation:** reference seed = "extremely close to reality"
   (correct shape everywhere); +3 seed close with minor deltas. Purple ghost

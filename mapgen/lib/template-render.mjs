@@ -120,6 +120,53 @@ function setWorldPx(buffers, wx, wy, [r, g, b]) {
 }
 
 // ------------------------------------------------------- biome compositions ---
+// Spliced pixel scenes (_pixel_scenes.xml): the game SPLICES one big
+// pre-colored art PNG into per-chunk N.plz/N_visual.plz/N_background pieces
+// via wizard_physics.exe -splice_pixel_scene <png> -x <wx> -y <wy> (the
+// origins live in biome_impl/spliced/_*.bat). The splice source PNG IS the
+// full visual art at a FIXED seed-independent world position — no seed
+// machinery involved. Render = plain blit at (x,y). Sources: each
+// `biome_impl/spliced/_*.bat` (verified on disk 2026-09-17) + the
+// boss_ arena 24-scene grid positions in biome_impl/spliced/boss_arena.xml.
+const SPLICE_PNGS = [
+  { file: "boss_arena.png", x: 1536, y: 12288 },
+  { file: "tree.png", x: -2048, y: -1324 },
+  { file: "moon.png", x: 0, y: -26112 },
+  { file: "moon_dark.png", x: 0, y: 37512 },
+  { file: "skull.png", x: 14645, y: 18395 },
+  { file: "watercave.png", x: -2048, y: 0 },
+  { file: "lake_statue.png", x: -14848, y: 0 },
+  { file: "lavalake2.png", x: 2048, y: 0 },
+  { file: "gourd_room.png", x: -16896, y: -7168 },
+  { file: "mountain_lake.png", x: 2560, y: 0 },
+  { file: "lavalake_pit_bottom.png", x: 2560, y: 3072 },
+];
+
+function blitSplicedScenes(buffers, dataDir) {
+  const materials = loadMaterials(dataDir);
+  for (const sc of SPLICE_PNGS) {
+    const img = art(dataDir, "data/biome_impl/spliced/" + sc.file);
+    if (!img) continue;
+    for (let j = 0; j < img.height; j++) {
+      for (let i = 0; i < img.width; i++) {
+        const q = 4 * (j * img.width + i);
+        if (img.data[q + 3] < 10) continue; // transparent: below shows
+        const r = img.data[q], g = img.data[q + 1], b = img.data[q + 2];
+        if (r === 0 && g === 0 && b === 0) continue; // scene air: below shows
+        const hex = `${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+        const mname = materials.get(hex);
+        let color;
+        if (mname) {
+          color = pick(materialShadeFor(dataDir, mname), sc.x + i, sc.y + j, 0x51ce3f);
+        } else {
+          color = [r, g, b]; // non-material palette pixel (art detail) — draw raw
+        }
+        setWorldPx(buffers, sc.x + i, sc.y + j, color);
+      }
+    }
+  }
+}
+
 // Returns Map("cx,cy" -> Uint8Array 512*512*3, 9=unset) for a seed.
 // x,y passed to the biome scripts' init() = chunk world origin (top-left).
 export function renderTemplateWorld(dataDir, config, seed) {
@@ -141,6 +188,7 @@ export function renderTemplateWorld(dataDir, config, seed) {
     }
   }
   renderWorldExtension(buffers, config, seed);
+  blitSplicedScenes(buffers, dataDir);
   return buffers;
 }
 

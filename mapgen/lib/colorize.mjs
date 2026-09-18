@@ -242,9 +242,19 @@ export function colorizeArea(map, w, h, opts) {
 
   // 2. per-pixel classification -> display shades
   const noiseSalt = Math.imul(seed | 0, 2654435761) ^ 0x9e3779b9;
+  // Single-material biomes (e.g. lake_deep declares only water): the game
+  // fills the atlas's white placeholder art with the biome's material, not a
+  // generic soil/sand/rock mix. (I8, mapgen/ISSUES.md)
+  const singleMaterial =
+    extras.materials?.length === 1 && !extras.materials[0].rare
+      ? extras.materials[0].name
+      : null;
   const shadeFor = (r, g, b, x, y) => {
     if (r === 0 && g === 0 && b === 0) return pick(ov?.air ?? SHADES.airDark, x, y, noiseSalt ^ 1);
     if (r === g && g === b) { // grey ramp placeholder
+      if (singleMaterial && SHADES[MATERIAL_SHADE.get(singleMaterial) ?? ""]) {
+        return pick(SHADES[MATERIAL_SHADE.get(singleMaterial)], x, y, noiseSalt ^ 3);
+      }
       if (ov?.solid) return pick(ov.solid, x, y, noiseSalt ^ 3);
       if (g <= 100) return pick(SHADES.airDark, x, y, noiseSalt ^ 2);
       if (g < 250) return pick(SHADES.soil, x, y, noiseSalt ^ 3);

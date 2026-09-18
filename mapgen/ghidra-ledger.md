@@ -13,6 +13,24 @@
 
 | Function | VA | Verdict |
 | --- | --- | --- |
+| **FUN_0050b0a0** | 0x50b0a0 | **ProceduralTerrain::Update() (thin entry)** — profiler begin(0x11753ac "ProceduralTerrain::Update()") via FUN_0259e40 (327-caller utility that samples a timer + IAT call → the profiler-begin helper), then `call FUN_00510420(this)`. No direct e8 callers → invoked indirectly (not in .rdata as vtable u32 → likely jmp-thunk/vcall). Added 2026-09-18. |
+| **FUN_00510420** | 0x510420 | **DoBufferedPixelScenes()** (profiler scope 0x11764ac; extent 0x510420..0x510ac6 ≈ 1.7 KB) — iterates a vector (`[this]` vs `[this+4]`), stride-0x76c work records, IAT calls 0x114a374/37/38/80, virtual dispatches `*0x4c(%eax)` + `*0x20(%eax)`, calls 0x268000/0x4fd490/0xbd1f00. THE runtime buffered pixel-scene processor (the LoadPixelScene machinery's per-frame side). Partially read; body needs a full dump next. Added 2026-09-18. |
+| **FUN_0050b9f0** | 0x50b9f0 | Second `ProceduralTerrain::Update()` profiler-scoped function (string at 0x50bfce; also calls FUN_00510420 at 0x50bfd9); 4 callers: 0x418469, 0x5077c4, 0x50b519, 0x915252 — UNREAD, next F1 step. Added 2026-09-18. |
+| **FUN_008183c0** | 0x8183c0 | **LoadPixelScene Lua binding — READ** (dump existed: `h3_dispatch_caller_1_008183c0.c`): validates ≥4 args; per-scene record = materials_filename, colors_filename, x, y, background_file, skip_biome_checks, skip_edge_textures, **color_to_material_table** (per entry: FUN_00454d90 ARGB parse → FUN_00741770 lookup, name→material via FUN_009315c0), background_z_index, load_even_if_duplicate → dedup insert into a **0x90-stride record vector via FUN_0090c1f0** (thiscall; first-diff at +4/+8, length compare at +0x1c/+0x34). So FUN_0090c1f0's true role = the **pixel-scene record dedup/add**, and the 0x90-stride vector it handles = the buffered scene queue that FUN_00510420 drains per frame. Added 2026-09-18 (extends the earlier "area cache" guess).
+
+  **CORRECTION (same session, hedged):** FUN_0090c1f0's in-binary body (dump
+  `h20_gen_0090c1f0_gen_d1_d2_d3.c`) iterates a 0x90-stride vector doing two
+  string-min-length compares (buffer fields ~+4/+8, lengths ~+0x1c/+0x34 via
+  `FUN_0042b780`) — consistent with the **pixel-scene record dedup**
+  (`load_even_if_duplicate` semantics; 2 string fields = materials_filename +
+  colors_filename). The older "(width,height,seed) area cache" verdict from
+  the 2026-09-07 hunts conflicts with this; at THIS call site the role is the
+  scene-record dedup/add. Both readings recorded; re-verify the area-cache
+  call site separately before trusting either for gen amounts. |
+
+| **DAT_012eb130** | 0x12eb130 | **STREAMING_CHUNK_TARGET runtime slot** (magic value 12 per game magic_numbers.xml): writer = parse site (0x46a742 `mov %eax,0x12eb130`; name string 0x116e494 registered at 0x46a671 with std::map helpers). US readers NOT found as imm32 in .text → consumed via the registry-getter family. Added 2026-09-18. |
+| **0x50b0cf / 0x50bfb2 region** | ~0x50b000 | located via profiler string 0x11753ac (2026-09-18), now decoded into the three functions above. |
+| **0x472ee0 / 0x4742d0 regions** | — | Debug-flag registration (DEBUG_GENERATE_BIG_WANG_MAP / DEBUG_FULL_WANG_MAPS) — same std::map helper set, assert lines 1002/1062; storage + readers unknown. Added 2026-09-18. |
 | `FUN_0048fd30` | 0x48fd30 | **CALIBRATED** = the game's `SetRandomSeed` mixer (poro Random). Matches our verified JS step-for-step (diddle backward-index, &3 warm-up, 16807/127773/2³¹−1). Assert path leaks `poro/source/utils/random/random.cpp`. Does NOT drive the fill (proven by lab + 644M sweep). |
 
 ## The generator landscape
@@ -53,6 +71,23 @@ body. Lab-testing LCG hypotheses without #2 repeats the 644M trap.
 
 ## Queue (in order)
 
+0. **(2026-09-18 flow-first reframing — current targets):**
+   - [ ] **F1: read the ProceduralTerrain::Update region (~0x50b000).** The
+     lazy/runtime chunk-generation driver; located via profiler string
+     0x11753ac stored at 0x50b0cf/0x50bfb2 (ABOUT_MATH §6 2026-09-18). This
+     also answers where noise terrain and pixel scenes get triggered at
+     chunk-load time.
+   - [ ] **F4: DEBUG flag plumbing.** Sites 0x472ee0-region and 0x4742d0-region
+     register DEBUG_GENERATE_BIG_WANG_MAP / DEBUG_FULL_WANG_MAPS into a
+     std::map-style registry (helpers 0x1c6b0/0x2b8xx/0x1c710/0xc09ef0/
+     0xc0a160; assert lines 1002/1062). Find the storage global + readers;
+     check whether magic-numbers.xml can set the flags (same parse path as
+     NEW_GAME_PLUS_COUNT? different registry?). Potential in-game wang-only
+     ground-truth oracle.
+   - [ ] F2: finalize family from binary (see VERIFIED §11).
+   - [ ] F3: procedural noise terrain reads (VERTEX: generator +0x94 →
+     mInsidePerlin/mGradient; functions around FUN_0090e840/FUN_008f9ab0;
+     mSeed ctor FUN_00904730 already decoded) — helps ISSUES I1/I3/I5/I6.
 1. [x] Read `FUN_00794620` in full — VERDICT: NOT the fill. World-grid scatter
        utility (`(x&0x1ff)<<9|y&0x1ff` = 512² falling-sand cell indexing; LCG =
        per-object property picks). h7_lcguser dump.
@@ -161,8 +196,16 @@ The spawn DISPATCH machinery = decoded (registry chain: binding → AddScriptCol
 5. [ ] Optional: h9 dumps (22 fns, 0x806000–0x80c000) = the biome Lua-API
        bindings region — several UNREAD (0080bee0 10 KB, 0080a5f0 8 KB,
        00809930 7 KB = AddScriptColor-family binding).
-
 ## Method notes (do not relearn)
+
+- **text.bin freshness (2026-09-18 trap):** a stale `~/tools`-era `text.bin`
+  (extracted as `f[0x400:]` — the alternative convention) produced shifted
+  objdump VAs (off by 0x400800) and nonsense decodes that LOOK plausible.
+  Always regenerate: `f[0x400c00:0xdd0000]` + `--adjust-vma=0x401000`
+  (then objdump VA = file+0x400 ✓), and assert `objdump section label
+  = .data+0x...` understanding: the printed VAs are authoritative only if the
+  slab starts exactly at file 0x400c00.
+
 
 - Byte-scan fingerprints for 4-byte constants are noisy at binary scale
   (fd 43 03 00 = 697 hits — instruction fragments). Decompile-first works better.

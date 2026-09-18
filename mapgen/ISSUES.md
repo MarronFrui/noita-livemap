@@ -51,7 +51,11 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   procedural walls + moon spawn). Same reconstruction need as I1 + the_sky
   atlas art (which we have) with correct finalize.
 - [ ] **I4. Moon + no-spawn zones** (MED, anchor): register the moon as a
-  seed-independent anchor; use it to align/validate the heaven band.
+  predictible-static-anchor. NOTE 2026-09-17: the moon's ART now lands via
+  the `SPLICE_PNGS` blit (moon.png @ world (0,−26112); dark moon @
+  (0,37512)) — review whether any I4/I7 work remains beyond what the
+  spliced-scene render already provides. It remains a seed-independent
+  anchor; use it to align/validate the heaven band.
 
 ### 3. The Work — hell (bottom extension band)
 - [ ] **I5. Lava band must be PURE lava** (HIGH): our render shows
@@ -65,13 +69,71 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
 - [ ] **I7. Dark moon + no-spawn zones** (MED, anchor): same as I4 for hell.
 
 ### 4. Main band defects
-- [ ] **I8. West lake renders as dirt, should be water** (HIGH): lake biome
+- [x] **I8. West lake renders as dirt, should be water** (HIGH): lake biome
   (template, water.png atlas area + lake.lua) — currently the hasPath
   fallback (last candidate) or the fill paint it as land. Investigate
   lake.lua composition + water material fill.
+  **FIXED 2026-09-17** (`lib/colorize.mjs`): root cause was not the fill
+  fallback — `lake_deep` is a **single-material biome**
+  (lake_deep.xml: `water`, min -1.0 / max 10.5), so the game fills the
+  atlas's white/grey placeholder art with the biome's material instead of
+  the generic soil/sand/rock mix. colorize now detects
+  `materials.length === 1 && !rare` and shades the grey ramp with that
+  material's shade (water). Regression test `bench.test.mjs` "I8" asserts
+  majority-water shades; cache bumped r3b → r3c.
 - [ ] **I9. Yomi (adventure boss area) not loaded — noise** (HIGH): biome
   not in our generated set or unsupported atlas; identify its biome entry,
   atlas type, and generation path.
+  **DIAGNOSED 2026-09-17 (corrected):** "Yomi" = the **boss_arena** region
+  (`boss_arena.xml`, biome-map px 38–42 × 38–40 = world cx 3..7, cy 24..26;
+  capture-confirmed: golden brick + shop + dark arena + bridge —
+  `mapgen/out/ref-bossarena/` ref_40_38/40_39). Content class:
+  **PREDICTABLE ZONE** (already in `mapcap/PREDICTABLE_ZONES.md`:
+  `boss_arena(_top)`) — the 24 `PixelScene` entries of
+  `data/biome_impl/spliced/boss_arena.xml` are placed at FIXED absolute
+  world positions (pos_x 1536..4096, pos_y 12288..13824, constants in the
+  XML), like the giant tree, mountains and the moon. Seed-independent
+  static content ⇒ our renderer can blit it directly from the game's own
+  scene data; no seed-mechanism involved. (Same family: tree, mountains,
+  HM bands, moon — cf. template biomes already handled.)
+  Implementation gap: `template-render.mjs` renders this biome as generic
+  procedural noise because the spliced-scene loader is deferred.
+  **STRUCTURALLY FIXED 2026-09-17** (`lib/template-render.mjs`
+  `SPLICE_PNGS` / `blitSplicedScenes`): the splice tool
+  (`biome_impl/spliced/_*.bat`: `wizard_physics.exe -splice_pixel_scene
+  <name>.png -x <wx> -y <wy>`) proves every scene's source art is ONE
+  pre-colored PNG (the splice output N.plz/N_visual.plz pieces are merely
+  512-splits of it, placed at the SAME fixed origin). So the renderer
+  blits each source PNG at its origin and maps palette colors through
+  materials.xml like the rest of the pipeline (air/alpha → below shows;
+  unmatched palette colors drawn raw). Zones covered in one go:
+  boss_arena (1536,12288), giant tree (−2048,−1324), moon (0,−26112),
+  dark moon (0,37512), skull (14645,18395), watercave (−2048,0),
+  lake_statue (−14848,0), lavalake2 (2048,0), gourd_room (−16896,−7168),
+  mountain_lake (2560,0), lavalake_pit_bottom (2560,3072).
+  Validated vs capture (ref-bossarena, seed 78633191): arena shapes land
+  pixel-exact (bridge/stalactites/lava lake); 40.8% of ref fg within
+  ±20 per channel — residual = material TEXTURE detail (rock_hard
+  speckle/tint), the same shade-approximation class as the rest of the
+  colorize layer, tracked under the generic texture refinement, not I9's
+  structure. Cache r3c → r3d.
+  Per-scene art lives in: material `N.plz`, visual `N_visual.plz`,
+  background `N_background.png` (plain PNG for the background).
+  `.plz` facts (verified this session, keep minimal — no decoder claims):
+  - header: `u32 1 | i32 w (signed; negative = mirrored) | u32 h | u32 4 |
+    u32 compLen | u32 rawSize = |w|·h·4` + 4-byte trailer (holds on all
+    97 plz files).
+  - payload = Nollagames' own LZ from `pixel_scene_splicer.cpp`
+    (`noita_dev.exe`); compressor read end-to-end (`FUN_004225f0` /
+    `FUN_00422b50`), decoder `FUN_00421e80`/`FUN_004223a0` via dispatcher
+    `FUN_00422e20` — decode semantics not yet reproduced by us. Page kept
+    SHORT deliberately: earlier session notes overclaimed decode
+    semantics from partial compressor reads; treat everything below as
+    evidence, not fact.
+  - Dumps: `~/work/ghidra-logs/plz_{root,lvl,sub,vb,final,dec,compressor}*.c`.
+  - NEXT: restate I9 as a predetermined-zone render job (scene positions
+    from `boss_arena.xml`, art from scenes/vis/background); decode the
+    plz only for the VISUAL layer if needed.
 - [ ] **I10. Holy Mountain right side of shop = noise** (MED): template
   scene blit covers left part; right side likely another scene/piece
   (shop_second_row / altar_right pieces) not ported.
@@ -86,11 +148,22 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
 - [ ] **I14. HM has good resolution, rest is coarse** (LOW for now, user:
   fix shapes first): expected — HM is a pixel scene (art), the rest is
   noise-filled wang; will converge as I1 lands.
-- [ ] **I15. Missing elements inventory** (HIGH, enabler): build a
+- [x] **I15. Missing elements inventory** (HIGH, enabler): build a
   systematic inventory of game elements/materials/scenes per biome from
   data/scripts/biomes/*.lua + _pixel_scenes.xml + wang_scripts.csv, and
   tick off which ones we render. Answer "which element produced this
   anomaly" questions by lookup, not guesswork.
+  **DONE 2026-09-17** (`mapgen/experiments/2026-09-17-element-inventory.mjs`
+  → `mapgen/out/inventory.md`): parses every `data/biome/*.xml` (146) +
+  its lua script, extracts RegisterSpawnFunction colors, pixel-scene
+  tables (g_* material_file entries), entity refs and wang trigger colors,
+  and classifies each element class vs our pipeline:
+  RENDERED=27 (pixel-scene loaders), AIR-HOLE=6 (structure loaders +
+  spawn_lamp — trigger consumed, nothing drawn), PARTIAL=752 (entity
+  spawners, custom fns — not ported). Verdict rule: entity spawners are
+  invisible by design (no static art), so the map-affecting gap list =
+  custom lua fns (vines/fungi/improved parallax) + unported pixel-scene
+  loaders (load_pixel_scene3/4/5 handled, others vary per biome).
 
 ### 5. Parallel worlds (east/west)
 - [ ] **I16. Parallel worlds displayed but not a priority** (LOW/PARKED):

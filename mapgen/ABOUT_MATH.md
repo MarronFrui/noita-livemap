@@ -295,6 +295,72 @@ Open questions specific to this ruleset:
 
 ## 6. Evidence log
 
+- **2026-09-18 — doc review + flow-first dig (session):**
+  - **Oracle re-validated:** `2026-09-08-haspath-oracle.mjs` run against the
+    on-disk oracle fixtures — 4/4 pass (excav 91→0, 92→3, 93→1; coalmine 91→1).
+    No code change; session-state consistency check.
+  - **New binary probe 1 — DEBUG magic-number flags exist.** Strings
+    `DEBUG_GENERATE_BIG_WANG_MAP` (file 0xd6f464 → VA 0x1170264) and
+    `DEBUG_FULL_WANG_MAPS` (file 0xd6f7d4 → VA 0x11705d4) are referenced by
+    `push imm32` at VA 0x472ef0/0x472f51/0x472f87 and 0x4742e3/0x474344/0x47437a
+    respectively (numpy u32-VA scan, ledger method). Both sites are the SAME
+    registration pattern: push string → lea stack buffer → `mov [ebp-4], LINE`
+    (0x3ea=1002, 0x426=1062 = source __LINE__) → identical helper set
+    (0x1c6b0 string ctor, 0x2b8xx assign family, 0x1c710 dtor, 0xc09ef0/
+    0xc0a160 = std::map ops). Verdict: an engine debug-flag registry (likely
+    std::map<string,bool>) wired from the debug-toggle subsystem; the exact
+    storage slot + the READERS of these flags are NOT yet found (no other
+    imm refs to the strings → readers must go through the registration's
+    stored pointer/index). **If these are runtime-togglable, they may be a
+    first-class in-game wang ground-truth oracle** (full wang maps /
+    big-map generation debug rendering) — the thing every earlier "wang-only
+    ground truth" note wanted. Also present: `REGEN_WANG_MAPS`
+    (file 0xd8eb24 → VA 0x118f924) — ZERO imm refs (registered by a
+    different mechanism or console-only).
+  - **New binary probe 2 — the streaming path located:**
+    `ProceduralTerrain::Update()` profiler string (file 0xd745ac → VA
+    0x11753ac) is stored to stack as a profile-name at VA 0x50b0cf and
+    0x50bfb2 (`c7 45 9c ac 53 17 01` / `c7 85 90 fe ff ff ac 53 17 01`) —
+    so the knobby functions in the **0x50b000 region = ProceduralTerrain::Update**
+    + its (likely static/member helpers) = the per-frame LAZY chunk-generation
+    driver. Entirely absent from every prior ledger region list (0x4xxxxx/
+    0x8xxxxx/0x90xxxx/0xbee-0x10a). **Unread; this is the missing runtime
+    stage between the Init-time area fills and the world grid.**
+  - **F1 opened (same session, later):** the 0x50b000 region resolved into 3
+    functions (see ledger table): FUN_0050b0a0 = ProceduralTerrain::Update()
+    thin entry (profiler-begin via FUN_0259e40) → FUN_00510420 =
+    **DoBufferedPixelScenes()** — the runtime buffered pixel-scene processor
+    (vector iterate, stride-0x76c records, IAT + virtual dispatches). Also
+    FUN_0050b9f0 = a second Update-scoped body, 4 callers — unread. So the
+    first runtime stage decoded is the pixel-scene FLUSH, exactly the
+    machinery the genmap's template rendering approximates. Next: full dump
+    of 0x510420/0x50b9f0 and the queue they drain.
+  - **Method trap recorded:** the pre-existing `text.bin` slab was stale
+    (wrong extraction offset → objdump VAs shifted by 0x400800 — plausible-
+    looking garbage). Fixed by regenerating with `f[0x400c00:0xdd0000]`;
+    freshness rule added to the ledger method notes.
+  - **F1 continued (same session):** LoadPixelScene binding = FUN_008183c0
+    (full read via an existing dump): per-scene record (materials/colors
+    filenames, x/y, background, skip flags, color_to_material_table, z-index,
+    load_even_if_duplicate) → dedup insert into a **0x90-stride record
+    vector** via FUN_0090c1f0 (two string-compare dedup, verified in-binary —
+    supersedes the older "(width,height,seed) area cache" reading at this
+    site; that call site re-verification pending). The per-frame consumer is
+    the previously decoded DoBufferedPixelScenes (FUN_00510420, drained
+    through ProceduralTerrain::Update FUN_0050b0a0 / FUN_0050b9f0). So the
+    buffered pixel-scene enqueue → flush pipeline is now traced END TO END
+    at the mechanism level: Lua biome scripts → binding → dedup queue →
+    per-frame draw. STREAMING_CHUNK_TARGET (=12) locates its runtime slot
+    (DAT_012eb130, writer 0x46a742); readers remain to be found (no imm32 in
+    .text → getter path).
+  - **Doc survey:** all repo docs re-read this session (SESSION_CONTEXT,
+
+    ROADMAP, mapgen/*.md, mapcap/README + PREDICTABLE_ZONES). Reconciled:
+    no live contradiction remains on the fill chain — VERIFIED §5/§9's "C'=ws
+    runtime-confirmed but ws excluded" applies ONLY to the injected lab biome
+    (non-Init path, §8 row 17); regular areas are closed by 12/12 spawn
+    equations + 4/4 hasPath oracle.
+
 - **2026-09-08 (late) — HASPATH PORTED + ORACLE-VALIDATED** (`lib/has-path.mjs`,
   `lib/generate-exact.mjs`, `experiments/2026-09-08-haspath-oracle.mjs`).
   Exact port of noitool's decompilation-derived rejection rule (Search =
