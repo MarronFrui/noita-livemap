@@ -1501,3 +1501,14 @@ first use from now on):**
   extra layers (row 0 raw-fill alignment only 64.1% vs row 1's 78.4%; the
   hax-overlay-forced variant scored WORSE (61.7%) → not applied at render;
   overlay semantics need the binary).
+
+- **2026-09-18 (3) — NOITOOL'S +5/+13 DRAW-MAGIC: ELIMINATED AS AN IN-BINARY
+  MECHANISM (F-anchor progress).** Byte-pattern hunt for the `(gx+5)/512`,
+  `(gy+13)/512` forms (instruction pairs `add reg,imm{5,13}` + `shr reg,9`)
+  = **0 hits** across the whole .text slab (also none as separate dwords).
+  The +5/+13 offsets were part of **noitool's own `drawImageData`
+  reconstruction** (wang.cpp ~:858), never ours to confirm. The game's real
+  mapping (cell↔world) must come from the fill's copy-out walk /
+  FUN_008e6d50 consumer — F-anchor stays open with that as its read target;
+  the current genmap's empirically-fitted (3,3) px anchor remains the only
+  bracketed value (x ∈ [−1..3], y ∈ [0..2] from the spawn equations).
