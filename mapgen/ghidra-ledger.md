@@ -265,6 +265,36 @@ The spawn DISPATCH machinery = decoded (registry chain: binding → AddScriptCol
     exposes **debug draw toggles for the pathfinding grid** — potential
     extra F4 names to test in-engine (mDrawPathFindingGrid/Paths).
 
+
+### F2 dig #3 (same session) — the driver→hasPath→fill→walker pipeline EXACTLY traced
+
+- The area driver FUN_00904c20 (once retried ≤100) tail (0x905890-0x9059xx):
+  a) `cmpb 0x20(%esp),0` gate = the hasPath-skip flag (the ledger's
+     "[ESP+0x20] AL=1" note — now an exact flag), then `call 0x901780`
+     (hasPath, passing the wang_image rect), else AL=1 (skip).
+  - Then: `call 0x901450` (= the map-apply post-process helper;
+    0x1346cd8 = worker cache + 0x7eb3b0 worker ctor — the fill task pool),
+    and the block "*.No.10 e30" per-attempt code prints "WANG AT: ..." +
+    logs `Path generation for: <biome> took <n> times` (0x1174300 " - no path
+    found!\n" — the RETRY push).
+  - So the complete acceptance tail is: hasPath (0x901780 w/ skip flag)
+    → FUN_00901780 → 0x905908 call (0x901450 = out_map→map rect) =
+    the 0x901450 wrapper the C0FFEE worker (0x900560) was called from (2× at
+    0x901e70/0x9028d8, each per-room rect in the fill) → the mapping loop
+    drives u16 writes through FUN_00949e80 + 0x949f60 tiles.
+- **fillBlockedRooms (0x13276ba-triggered 0x8ed860)**: right after the fill
+  attempt accept (0x8eda10 Threaded call at 0x9056c8), the driver branch at
+  `cmpb 0x13276ba,0` calls ** FUN_008ed860** with the SAME args
+  (atlas data from area off +0x148/+0x14c/+0x150 = biomecfg.w/h/atlas) —
+  this is the **"no-path-fill" secondary variant generator** (retry
+  strategy fallback: after regular attempt, another Threaded call with
+  same seed管线, likely the "fallback blockcolors fill" when hasPath
+  fails open). NOT yet fully read (it's ~744 lines), but VERIFIED it's the
+  second LifeCycle stage-6 generate before ClearPath.
+- The `.data` block at 0x132aac8-… = 8-byte pairs (u32 index, u32 VA =
+  0x00421e80 plz decoder) — this is the PLZ pixel-scene decoder side-table
+  (for bit-apps) — NOT F2; parked.
+
 ## Method notes (do not relearn)
 
 - **text.bin freshness (2026-09-18 trap):** a stale `~/tools`-era `text.bin`
