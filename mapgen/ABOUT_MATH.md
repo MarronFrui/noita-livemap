@@ -295,6 +295,121 @@ Open questions specific to this ruleset:
 
 ## 6. Evidence log
 
+- **2026-09-18 (2) — F1 stage-9 read + SHIFTED-SLAB correction (session):**
+  - **Correction first (affects all Sep-18 dig VAs):** the F1
+    "0x50b000 region" dig ran through an objdump slab whose VAs print
+    **file+0x400** (slab = file[0x400c00:0xdd0000], adjust 0x401000) while the
+    true VA = file+0x400c00 for .text — VAs shifted by **−0x400800**. Pinned
+    empirically by byte-checking absolute features: the SetRandomSeed mixer
+    constant 0x93262e6f sits at file 0x8f147 → **true VA 0x48fd47** (= the
+    Ghidra anchor), and the "ProceduralTerrain::Update()" profiler-string
+    stores live at true **0x90b8cf** (`c7 45 9c`) / 0x90c7ac (`c7 85 90`),
+    the "DoBufferedPixelScenes()" store at true **0x910c59** — all in the
+    0x90xxxx procedural_terrain region, not 0x50b000. Every 0x50b000-range
+    entry from the previous dig maps to true VA = old + 0x400800. The file→VA
+    method rule in the ledger has been updated accordingly (numeric e8/imm32
+    scans with site = off+5+0x400c00 are the reliable instrument; raw
+    disassembly must be sliced at exact function starts).
+  - **FUN_0090b8a0 = ProceduralTerrain::Update() entry:** thin; profiler-scope
+    begin + `call 0x910c20` at 0x90b8f5 (also called from 0x90c7de = the
+    enqueue tail's flush — two call sites total, both verified by e8 scan).
+  - **FUN_0090c1f0 = InsertBufferedPixelScene(this, 0x90-record, bool)** —
+    FULLY READ this session: compares the incoming record against every
+    queue element (ints +4/+8; 0x18-wide strings at +0x24/+0x3c; bytes
+    +0x58/+0x59; blob at +0x5c via FUN_00442bc0 (slab-name; true 0x00442bc0)); equal → return untouched
+    (dedup). Else construct a local copy (+ optional FUN_008a2850 hook),
+    push into the vector ([esi]/[esi+4], stride-0x90) — with a swap-push
+    when the byte at +0x58 is set — and if the queue was empty, immediately
+    profiler-scopes and runs 0x910c20(this) (the per-write flush).     Callers
+    (e8-scanned, true VAs): 0x818c6e (= LoadPixelScene's binding ✓ consistent
+    with the earlier dedup verdict), 0x907fc9 (Init), 0x90bd1e (buffered
+    Update region), 0x64ca47, 0xd15a57 (static init).
+    The insert semantics (`load_even_if_duplicate`) match the binding's
+    decoded record fields exactly.
+  - **FUN_00910c20 = DoBufferedPixelScenes() — FULLY READ:** drains the
+    0x90-stride vector: (a) status-2 records EXECUTE: FUN_00668800 loads the
+    scene object (0x28-B result), FUN_008fdc90 (noise-utils region) gets the x/y floats from the
+    record's dword copies, then virtuals `*0x4c(%eax)` + `*0x20(%eax)` and
+    float→obj+0x80 — the actual in-world scene load; (b) otherwise the
+    camera-cull branch: ±32 px around the record's (x,y) [record +4/+8, with
+    camera bounds from FUN_0043ac50 (slab-name; true)'s ctx (+0x10 → +0x544) → FUN_008e6650 (slab-name; true)],
+    and the load condition = **ALL FOUR overlapping 512-px chunks loaded**,
+    tested via FUN_0094b040((x±32)>>9, (y±32)>>9) probes of the chunk
+    bit-grid object DAT_0x132aed8 — else DEFER (FUN_00796660 (frame-tick region); debug byte
+    0x132802a → FUN_0099f640 log into 0x12ee538). This explains
+    chunk-load ORDERING of scenes: terrain first, scenes only after their
+    chunks materialize.
+  - **The last STREAMING_CHUNK_TARGET unknown resolved:** DAT_0x12eb130 is
+    read DIRECTLY (no getter indirection — hypothesis falsified) at true VAs
+    **0x79e65a / 0x79e6f1 / 0x79e74f**, inside a per-frame budget regulator:
+    a global counter esi is compared against thr, 2×thr, 3×thr (the
+    `lea (%ecx,%ecx,1)` / `lea (%ecx,%ecx,2)` patterns); a double budget
+    DAT_0x132aef0 is halved (0.5 @0x11dfdd8) or reset from DAT_0x12eb7f0;
+    violations log (0x11a55d4 / 0x11a567c). → the regulator converts
+    STREAMING_CHUNK_TARGET into a per-frame time budget; the actual
+    chunk-request consumer = the chunk bit-grid 0x132aed8's imm-user families
+    (0x405ee1, 0x642exx, 0x720exx, 0x7919xx — same 0x79xxxx frame-tick
+    neighborhood) = the NEXT dig.
+  - **float/u16 world-grid write chain (plan target 3):** FUN_008f95c0
+    SetSize — (re)allocates the float grid (+0x18) + u16 material grid
+    (+0x38) — has EXACTLY TWO e8 call sites, both Init-side: 0x90738f and
+    0x907852; the second is mid area-object construction ([edi+0x34]=w,
+    [edi+0x38]=h, coord movdqu at +0x3c, [edi+0x8c]=0, `lea 0x90(%edi),%ecx`
+    → `call 0x8f95c0(sub, w, h)`) ⇒ **each AREA object's +0x90 sub-object
+    owns its own float/u16 world grids, allocated at INIT (not at chunk
+    load)**. u16 reader FUN_009fe4e0: 19 call sites — the noise_utils
+    accessor family 0x8fa000–0x8fb000 (incl. FUN_008f9ab0
+    LoadFromImageData's family; its callers = 0x8fa9a0 + Init's
+    0x905ddc/0x905f23), plus 0x64c80c, 0x90446c (hasPath region), and
+    0x90dcd3 (a new per-load sampler function in the buffer neighborhood,
+    next read). **Answered the plan's cache-vs-regenerate question in
+    direction: grids are Init-built + area-cached; a chunk load READS the
+    cached area grids (no regeneration).** The remaining piece — the exact
+    wang out_map → float/u16 grid write order inside the area fill, and the
+    (3,3)/(+5,+13) anchor semantics — hangs off the copier read (see F1
+    next-read leads in VERIFIED §11).
+  - **Same session (2) — chunk-materialization skeleton (closing F1 further):**
+    The per-chunk post-load pipeline exists as a **Staged Chunk state machine**:
+    `FUN_008e4ec0` runs states [ebx+0x18] = 0(rule 0x247) → 0x24e → 0x255 →
+    0x25c, each stage pushing a ±0x100 (chunk half, 256 px) quadrant pair into
+    the cache builder **FUN_00939b80 (profiler "build cache")**, then calling
+    **FUN_008e4990 = DistanceField_UpdateForChunk** (profiler 0x1172b60, ONE
+    imm store at 0x8e49cb; stages i ±0x100/ey ∓/+0x100 around the chunk
+    origin) — i.e. the Chunk carries its own distance-field caches built 4
+    quadrants per stage, wrappers through functor thunks 0xa99cc8 (the same
+    std::function family at 0xa99xxx whose invoke thunk 0xa99ea0 → 0x904c20
+    = the wang fill driver). Also read: **FUN_0090d860 = the per-cell
+    material/noise sampler** (reads the u16 material grid via FUN_009fe4e0
+    at +0x20-slot lookups, floats via FUN_009499f0/FUN_0094a8f0 through
+    +0xbc/+0xd8/+0xdc/+0xd8-f8/+0xf4/+0xfc sub-grid-range derefs, u8 markers
+    via 0x949bb0, and evaluates a smoothed noise = FUN_00908cb0 (biome-space
+    cell + (gx+5)-ish trilinear lookup) and FUN_00908e70 with the
+    smoothstep constants 0x11dff70 / 0x11dfe68 / comiss 0x11dfa94 and 1.0f
+    @0x11dfbf0; IAT 0x114a434 (CRT math) — GRID parameters as expected.
+    This is the DECOR/noise-terrain read path that F3's perlin fills feed.
+    NEW F1 leads logged; the out_map→grid copier + anchor constants remain.
+  - **F1 CLOSED (this entry appended to the two above; final reads):**
+    FUN_009fe4e0 (u16 TileGrid GET, read-only-verified — [ecx+0x1c] gate,
+    wrap-indexed via idiv on negative coordinates, returns u16 from
+    [grid+0x18] via FUN_00a242c0; NO write sites anywhere in the 910c20
+    family). FUN_00939b80 = chunk-map Get-with-cache ("chunk_top_left" /
+    "chunk_world_index" asserts at 0x1179ef0/0x117a080; exception logging
+    at 0x1197c8c), used by FUN_008e4ec0 = the per-Chunk staged state
+    machine (0→0x247→0x24e→0x255→0x25c, quadrant cache prep at chunk
+    halves ±0x100=256 px) and by its 4-caller wrapper chain
+    (0x8ea030/0x8ea410 biome.cpp sub-family + FUN_008e6af0 functor
+    invoke-thunk 0xa99cc8). CONSUMER SEMANTIC (the F1 close): chunk loads
+    never regenerate terrain — the accepted out_map rests on Init-time
+    per-area materialization; at runtime the only common writes are
+    FUN_0090c820 cache records (pixel-scene / distance-field caches).
+    Perlin core = FUN_008fca60 family (read as a smoothed
+    value-noise lattice with per-cell gradient bit table 0x114bf30; decode
+    constants ×0.1 (0x11dfd08 f64 0.1), 1/9 (0x11dfd20), thresh 0.5
+    (0x11dfa94), 0.45/0.33/0.11 shade select (0x11dfa5c/0x11dfa10/0x11df97c),
+    0.94/0.95 (0x11dfbac), 15.5 (0x11e01b0) — the F3 backend (exact math
+    still to be decoded).
+
+
 - **2026-09-18 — doc review + flow-first dig (session):**
   - **Oracle re-validated:** `2026-09-08-haspath-oracle.mjs` run against the
     on-disk oracle fixtures — 4/4 pass (excav 91→0, 92→3, 93→1; coalmine 91→1).
