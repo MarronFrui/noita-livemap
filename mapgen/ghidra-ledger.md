@@ -233,6 +233,38 @@ The spawn DISPATCH machinery = decoded (registry chain: binding → AddScriptCol
   engine feature that the game parses from
   biome-XML, not an asm pass (the 0x64/0x6400 imm hits were registry noise).
 
+
+### F2 dig #2 (same session) — hasPath main-fn found IN-BINARY (procedural_terrain.cpp family)
+
+- **FUN_00901780 = the in-binary `MapGen::hasPath`/process-path check** (39 KB,
+  0x901780..—; profiler scope "ProceduralPathFind" @0x1173e98):
+  - asserts `wang_image.IsValid( x, y )` (0x1173ef4) — the check runs ON THE
+    OUT_MAP (wang_image), not on a painted u16 grid; warns
+    "couldn't clear start path finding area for the biome" (0x1173f4c)
+    when the start-path region can't be cleared (the ClearPath step!),
+    gated by debug byte 0x1327699 (logger 0x12ee538).
+  - **the "coalmine start path" is a LITERAL in-binary constant:**
+    `cmp eax, 0xFF420000` at 0x901a4d → writes 0xFF000000 at the cell
+    (FUN_00949e80). So the "start_x=142"-shaped clearing is expressed via a
+    special MARKER COLOR 0xFF42?? (LE bytes B4 00 42 FF = RGBA? value
+    0xFF420000 high-byte-function) in the coalmine hax overlay — **not** the
+    stale noitool 'start_x=142' int.
+  - per-pixel write-delta cases: `imul 0x44d0b0` comparison
+    (`cmp eax, 0xff420000`), plus general black `test 0xff000000` /
+    `cmp eax, 0xff000000` walk-with-decode cases — same family as the
+    C0FFEE walker at 0x900560 (writes 0xFF000000 to the cell where the
+    u8 marker/gray test fails). Also a **`div 0x66666667` ÷10** block at
+    0x901ac4-0x901af4 (cell-ten-arp math: 0x12ec170 minus 0x12eb708 …
+    ∧ `imul`-based `%10` → `imm` / width-hax).
+  - calls FUN_00a4e2f0/0xa4e430 (JPS jump routines?) using /3 divisions,
+    mode 0xc, char 0x8e, then also -processing helpers (0x943da0 =
+    "call on sample-color rect") — matches noitool's JPS describe
+    (priority queued, 6-node neighborhoods).
+  - The DebugSettings global with mDrawPathFinding* asserts
+    (0x1173e98-family + "DEBUG_RAGDOLL_EXTRA_FORCE" nearby) → the game
+    exposes **debug draw toggles for the pathfinding grid** — potential
+    extra F4 names to test in-engine (mDrawPathFindingGrid/Paths).
+
 ## Method notes (do not relearn)
 
 - **text.bin freshness (2026-09-18 trap):** a stale `~/tools`-era `text.bin`
