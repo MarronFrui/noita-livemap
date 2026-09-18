@@ -5,6 +5,16 @@
 // unchecked (its shipped coalmine-hax constants are a silent no-op); this
 // file's behavior is pinned by the oracle, not by noitool.
 //
+// 2026-09-18 REWRITE (F2 dig): three binary-verified corrections applied —
+// (1) the room-marker table is now the 11-entry literal list from FUN_00901580
+//     (0x9015c4-0x90160f); noitool missed 0x00ac64 and 0x70d7a0.
+// (2) the coalmine overlay constants match the overlay data (0x006400 /
+//     0x000064 — noitool's 0x004000/0x0040 made the hax a silent no-op here
+//     too; both mutations are now ACTIVE).
+// (3) undoCoalMineHax uses the corrected constants as well.
+// In-binary semantics still TODO (documented, not yet ported): exact
+// ray-walk room growth (FUN_00901510/FUN_009013f0) replacing the
+// ShadeOfGrey-based scan, and the fill walk ordering of FUN_0090450.
 // Semantics (map = RGB, 3 bytes/px, w*h ATLAS px — 1 px = 10 world px):
 //   hasPath(map):
 //     shouldBlockOutRooms -> blockOutRooms(BLACK -> WHITE)   [mutates map]
@@ -39,9 +49,13 @@ const NO_PARENT = 0xffffffff;
 const BIOME_PATH_FIND_WORLD_POS_MIN_X = 159;
 const BIOME_PATH_FIND_WORLD_POS_MAX_X = 223;
 
-// sorted list; pixel-scene loader colors that block out rooms
+// Binary-verified room-marker table (noita_dev.exe FUN_00901580, literal
+// compares at 0x9015c4-0x90160f, RGBA LE). 11 entries — noitool's shipped
+// 9-color list was incomplete (it missed 0x00ac64 and the 0x70d7a0 shade).
+// Sorted for the linear lookup.
 const blockedColors = [
-  0x00ac6e, 0x70d79e, 0x70d79f, 0x70d7a1, 0x7868ff, 0xc35700, 0xff0080, 0xff00ff, 0xff0aff,
+  0x00ac64, 0x00ac6e, 0x70d79e, 0x70d79f, 0x70d7a0, 0x70d7a1,
+  0x7868ff, 0xc35700, 0xff0080, 0xff00ff, 0xff0aff,
 ];
 
 const createRGB = (r, g, b) => ((r & 0xff) << 16) + ((g & 0xff) << 8) + (b & 0xff);
@@ -206,9 +220,13 @@ function doCoalMineHax(map, width, height) {
     for (let x = 0; x < width; x++) {
       const op = 3 * (256 * y + x);
       const pix = (ov.bytes[op] << 16) | (ov.bytes[op + 1] << 8) | ov.bytes[op + 2];
-      if (pix === 0x004000) { /* main rock portion */
+      // 2026-09-18 binary dig: the overlay data's real values are 0x006400 /
+      // 0x000064 (VERIFIED §8/ledger F2). noitool's own code compared against
+      // 0x004000/0x0040 — a silent no-op — and this port used to copy those
+      // constants. The values below match the actual overlay data.
+      if (pix === 0x006400) { /* main rock portion */
         setPixel(map, width, x, y, COLOR_WHITE);
-      } else if (pix === 0x000040) { /* blue - looks like air */
+      } else if (pix === 0x000064) { /* blue - looks like air */
         setPixel(map, width, x, y, COLOR_BLACK);
       } else if (pix === 0xfefefe) { /* white - stairs, used in path finding */
         map[3 * (width * y + x)] = 0x0a;
@@ -220,17 +238,15 @@ function doCoalMineHax(map, width, height) {
 }
 
 // undoCoalMineHax (finalize step): reset the overlay-forced tiles.
-// NOTE: the vendored noitool version is a silent no-op (its constants
-// 0x004000/0x0040 never match the overlay data 0x006400/0x000064) — this
-// port follows noitool's documented INTENT (all three → black), to be
-// re-derived from the binary when the finalize work starts.
+// 2026-09-18: constants corrected to the overlay data's real values
+// (0x006400/0x000064; noitool's 0x004000/0x0040 were a silent no-op).
 function undoCoalMineHax(map, width, height) {
   const ov = coalmineOverlay();
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const op = 3 * (256 * y + x);
       const pix = (ov.bytes[op] << 16) | (ov.bytes[op + 1] << 8) | ov.bytes[op + 2];
-      if (pix === 0x004000 || pix === 0x000040 || pix === 0xfefefe) {
+      if (pix === 0x006400 || pix === 0x000064 || pix === 0xfefefe) {
         setPixel(map, width, x, y, COLOR_BLACK);
       }
     }
