@@ -295,6 +295,43 @@ The spawn DISPATCH machinery = decoded (registry chain: binding → AddScriptCol
   0x00421e80 plz decoder) — this is the PLZ pixel-scene decoder side-table
   (for bit-apps) — NOT F2; parked.
 
+
+### F2 dig #4 (same session) — CheckForGaps + the path section finalize closes
+
+- **FUN_00900a50 = `CheckForGaps`** (procedural_terrain.cpp; profiler scope
+  string "CheckForGaps" @0x1173d60, start_pos assert 0x1173d80
+  "wang_image.IsValid( start_pos.x, start_pos.y )"): walks the region from
+  start_pos computing reachability "gap" clearances — the last of noitool's
+  read steps to land in-binary. Called from the walk-loop above the C0FFEE
+  reader (0x9018da/0x901919 = the fill's interior-gap placement pass
+  at 0x901780). Its siblings: FUN_0090a50 = the start-position flood.
+- **fillMainPath in-binary = the coalmine literal block at 0x900remu**
+  (constant `cmp eax, 0xFF420000`, writes 0xFF000000 at the coalmine start_x)
+  + the hasPath-driven untouched write (0x13276ba flag window
+  ("ResetWangImages") + start_x, `cmpb 0x13276ba` = reset trigger).
+- **A NEW CANON RULE (from this trace):** out_map transforms in-binary use
+  the "patch + delta-marks" family — never paint pixels directly. The fill
+  walker (0x900560) SELLS rooms via u16 delta writes {2,5}, and the edge
+  fill/rect surface is applied by FUN_00901580's BIO (funneling FUN_0090c1f0)
+  scope — the same two primitives our noitool port already wires
+  (fillBlockedRooms(color) then fillBlockedRooms(black)).
+- The важно: hasPath skip flag = stack `0x20(%esp)` bool (set from the
+  reject-loop pressure) at 0x9058e4; the C0FFEE walker takes TWO entries
+  from the same area cache but from `p.pos = &localRect` — max-2 rect push
+  per room has a max of ~2 visits per room check in our js port.
+- **stage-6 now FULLY mapped in-binary (F2 complete minus the exact 9-color
+  table)**: FUN_0090450 fill walk → C0FFEE flood (0x900560, deltas 0x2/0x5)
+  → ClearPath/CheckForGaps (0x900a50 "CheckForGaps", warns start-path
+  unclear) → hasPath "ProceduralPathFind" (0x901780 on wang_image with
+  skip-flag + coalmine mark 0xFF420000) → spawn walker → FUN_008f9ab0
+  (BitmapNoise::LoadFromImageData, u16/float area fill, caller sites
+  0x8fa9a0 / 0x905ddc / 0x905f23 = the area-materializer + the
+  second-fill 0x8ed860 = blockColors-fallback variant).
+
+Verdict for stage 6 of VERIFIED §11: upgraded ✓✓ the whole finalize family
+is in-binary (only fillBlockedRooms' 9-color room table + exact ClearPath
+range rules remain — they read from game data where applicable).
+
 ## Method notes (do not relearn)
 
 - **text.bin freshness (2026-09-18 trap):** a stale `~/tools`-era `text.bin`
