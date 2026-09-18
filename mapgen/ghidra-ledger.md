@@ -332,6 +332,43 @@ Verdict for stage 6 of VERIFIED §11: upgraded ✓✓ the whole finalize family
 is in-binary (only fillBlockedRooms' 9-color room table + exact ClearPath
 range rules remain — they read from game data where applicable).
 
+
+### F2 dig #5 (same session) — the ROOM-GROWTH table + room-fill machinery FULLY decoded
+
+- **FUN_00901580 (procedural_terrain family, 0x901580, called once at
+  0x90585e within the blockout trigger windows) = `fillBlockedRooms`' engine**
+  (the room-marker walk): per out_map pixel an 11-way literal color test at
+  **0x9015c4–0x90160f** — the DECoded room-marker table (RGBA LE):
+    #ff00ff  #ff0080  #ff0aff  #c35700  #00ac64  #00ac6e  #7868ff
+    #70d79f  #70d79e  #70d7a0  #70d7a1
+  (matches and supersedes noitool's 9-color blockOutRooms list — the four
+  `70 d7 9` mint shades + #00ac6e + #ff00ff were missing there).
+- On a marker pixel it dispatches **two FUN_00901510 ray-walks + one
+  FUN_009013f0 rect bookkeeping walk**; FUN_00901510 = the ray-bounds finder
+  (push (dx,dy) per call: (1,0) right / (0,1) down rays with white/empty
+  run-on; `test $0xffffff` end conditions; max 0x2710 = 10000 steps/s —
+  distance return via FUN_00901510's eax = xrange) → the room rectangle is
+  grown from four rays exactly like noitool's "room right/below" heuristic,
+  but with ABOVE-RIGHT mechanics: **0x901673–0x901741 = the RED-GROW
+  loop** — a std::vector<XMM-rect record> fill (movdqu copies of ±0x24 rect
+  in FUN_00901x70) — with a max-range "cb (0x97f510 = vector alloc / rect
+  push)" during 0x9016c7/0x901730 boundaries.
+- Last piece: **FUN_00901780 = hasPath "ProceduralPathFind"** (called ONCE at
+  0x905908 from the accepted-attempt tail with the wang_image + biome rect);
+  inside: FUN_00900a50 "CheckForGaps" start_pos (0x9018d5 → start = the
+  spawn point!) + second call (0x901914 → the walk to (w-1,h-1)) — 0x900a50
+  reads + returns; the walking helper = 0x97f510 (rect storage ceiling) and
+  FUN_00943da0 = the rect-pooler (0x96a2f0 resize) used by hasPath's
+  "start_path_check" & jump-stream paths.
+```
+SCAN ORDER (in-binary, exact): fill attempt accepted →
+ (hasPath skip flag check) → ProceduralPathFind on wang_image from spawn
+ rect → CheckForGaps from spawn (start-flood, warns if blocked) →
+ 0x901450 = black rect-blit for room-fill pass → 0x901580 = the 11-color
+ room-marker walk (rays → rooms → rect pushes) → repeated attempt retries
+ across the hasPath loop.
+```
+
 ## Method notes (do not relearn)
 
 - **text.bin freshness (2026-09-18 trap):** a stale `~/tools`-era `text.bin`
