@@ -198,6 +198,41 @@ The spawn DISPATCH machinery = decoded (registry chain: binding → AddScriptCol
 5. [ ] Optional: h9 dumps (22 fns, 0x806000–0x80c000) = the biome Lua-API
        bindings region — several UNREAD (0080bee0 10 KB, 0080a5f0 8 KB,
        00809930 7 KB = AddScriptColor-family binding).
+
+### F2 dig (2026-09-18, late) — first verified in-binary finalize finds
+
+- **FUN_00900560 (procedural_terrain.cpp line 0x180** assert
+  "pixels.IsValid( ipos.x, ipos.y )" — Ghidra dump `h12_procterrain_111_00900560.c`
+  + objdump)** = the accepted-fill walker: 4-neighbor scan of the placed
+  map for #C0FFEE (asm `cmp eax, 0xFFEEC0FF` at 0x900888/0x9008f6/0x90095f,
+  the ONLY `c0ffee` byte sequences in .text — c0ffee exists in-binary at
+  LE 0xffeec0ff; no 0x00c0ffee!) or empty (`test 0xffffff`), then per
+  neighbor: u8-slot write 0x2 (top-neighbour) / 0x5 (left) via
+  FUN_00949e80, a point+range push via **FUN_00929850** (queue push,
+  40+ callers incl. 0x76xxxx UI family), plus asserts 0x1173c50
+  ("checked_places.GetHeight() == pixels.GetHeight()") / 0x1173e20 /
+  0x1175088 ("biome->bitmap_data"). This is the in-binary
+  **fillC0ffee/walk (MapGen finalize family)** — heavier than noitool's
+  simple fill (queue-driven with checked_places bitmap + per-pixel
+  Schrage draw + rect pushes).
+- **The "coalmine hax" is NOT a C++ hack — it is NOITAG-style biome-XML
+  data.** Semantic strings in .rdata: **`do_beginning_paths`** = "if set,
+  will do the paths that go down near the center of the image, used for
+  setting up the caves to coal mines near where player starts" (VA 0x117c870)
+  and **`do_beginning_down`** = "if true, will do a hole straight down"
+  (0x117c8fc), both parsed for `<BitmapCaves>` (`size_x/size_y`,
+  `blob_caves_*`, `cave_count_min/max`, `cave_strength_*`,
+  `surface_caves_count_min/max`, `spawn_percent`, `DEBUG_output_image`,
+  `structures`/`CaveStructure` — registration sites at 0x4af032/0x4b060d/
+  0x4b21a8/0x4b56d1 + .rdata tuple table). Fields verified present in the
+  extracted game data (hills.xml:41-42, desert.xml:48, forest.xml:37,
+  mountain_tree.xml:47 …). **Overturns noitool's doCoalMineHax/undoHax as
+  an in-binary mechanism** — its overlay-images hack has no 0x64/0x6400
+  instance where those constants are used as was claimed (the found arr
+  entries are registry noise). "hax"`) = a BitmapCaves engine feature that the game PARSES FROM biome-XML, not an asm pass; the remaining  "hax" = a BitmapCaves
+  engine feature that the game parses from
+  biome-XML, not an asm pass (the 0x64/0x6400 imm hits were registry noise).
+
 ## Method notes (do not relearn)
 
 - **text.bin freshness (2026-09-18 trap):** a stale `~/tools`-era `text.bin`
