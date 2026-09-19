@@ -3,7 +3,10 @@
 // Routes:
 //   GET /gen/tile/:seed/:z/:x/:y.png   z=0 native (512x512 world-px tiles,
 //                                      one per chunk), z+1 halves resolution
-//   GET /gen/status/:seed              generation progress JSON
+//   GET /gen/status/:seed              generation progress JSON (includes `epoch`)
+//   GET|POST /gen/clear/:seed          dev: drop one seed's disk cache + memory,
+//                                      next request regenerates from scratch
+//   GET|POST /gen/clear                dev: same, for every cached seed
 //
 // Coordinate system: "canvas px" = biome-map px * 512 — canvas (0,0) is
 // biome px (0,0) = world (-17920, -7168). Area maps are placed at
@@ -16,6 +19,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { PNG } from "pngjs";
 import { findNoitaDataDir, repoRoot } from "../lib/paths.mjs";
+import { clearGenCache } from "./gen-cache.mjs";
 import {
   ensureWorld,
   worldColorAt,
@@ -30,6 +34,7 @@ const dataDir = findNoitaDataDir();
 const cacheDir = path.join(repoRoot, "mapgen/out/gen-cache/r3d"); // r3d: spliced pixel-scene blit (I9 boss arena + tree/moon/etc)
 
 const worlds = new Map(); // seed -> { world, progress, ready }
+let cacheEpoch = 0; // bumped on every /gen/clear — the viewer appends it to tile URLs to bust the browser's immutable tile cache
 
 function getWorld(seed) {
   let entry = worlds.get(seed);
@@ -101,8 +106,25 @@ const server = http.createServer(async (req, res) => {
     if ((m = url.pathname.match(/^\/gen\/status\/(-?\d+)$/))) {
       const seed = Number(m[1]) >>> 0;
       const entry = getWorld(seed);
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ ready: entry.progress.done >= entry.progress.total, ...entry.progress }));
+      res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-cache" });
+      res.end(JSON.stringify({ ready: entry.progress.done >= entry.progress.total, epoch: cacheEpoch, ...entry.progress }));
+      return;
+    }
+    if ((m = url.pathname.match(/^\/gen\/clear(?:\/(-?\d+))?$/))) {
+      // Dev tool: drop the generated-world cache and force a fresh generation.
+      // POST is canonical; GET is allowed for convenience (local-only server).
+      const seed = m[1] !== undefined ? Number(m[1]) >>> 0 : null;
+      const entry = seed !== null ? worlds.get(seed) : undefined;
+      const wasGenerating = !!entry && entry.progress.done < entry.progress.total;
+      const removed = clearGenCache({ seed });
+      if (seed === null) worlds.clear();
+      else worlds.delete(seed);
+      cacheEpoch++;
+      console.log(
+        `[genmap] cache cleared (seed ${seed ?? "ALL"}, epoch ${cacheEpoch}, ${removed.length} seed dir(s) removed)${wasGenerating ? " — was mid-generation" : ""}`
+      );
+      res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+      res.end(JSON.stringify({ cleared: true, seed, epoch: cacheEpoch, removed: removed.length, wasGenerating }));
       return;
     }
     if ((m = url.pathname.match(/^\/gen\/zones\/(-?\d+)$/))) {
@@ -126,12 +148,12 @@ const server = http.createServer(async (req, res) => {
           }
         }
       }
-      res.writeHead(200, { "Content-Type": "application/json" });
+      res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-cache" });
       res.end(JSON.stringify({ w: WORLD_CHUNKS_W, h: WORLD_CHUNKS_H, tags }));
       return;
     }
     if (url.pathname === "/" || url.pathname === "/genmap.html") {
-      res.writeHead(200, { "Content-Type": "text/html" });
+      res.writeHead(200, { "Content-Type": "text/html", "Cache-Control": "no-cache" });
       res.end(fs.readFileSync(path.join(repoRoot, "public/genmap.html")));
       return;
     }

@@ -73,6 +73,24 @@ graduates into `lib/` or `pipeline/`.
 | `2-generate.mjs` | Runs the wang layer (via `wang-wasm`) for a seed/window; writes chunk PNGs + `manifest.json` (area, crop, world anchor per chunk) |
 | `3-compare.mjs` | Scores generated vs captured chunks (mean abs diff, air/solid mismatch %); writes `out/stats.json` + `out/report.html` (heatmap + side-by-sides) |
 
+### server/ (generated-map tile server + cache tooling)
+
+| File | Purpose |
+| ---- | ------- |
+| `genmap-server.mjs` | The genmap MVP tile server (`npm run gen:server`, port `GENMAP_PORT` 8082): `/gen/tile/:seed/:z/:x/:y.png`, `/gen/status/:seed`, `/gen/zones/:seed`, viewer at `/` (`public/genmap.html`) |
+| `gen-cache.mjs` | Cache-clearing helper shared by the server endpoints and the CLI |
+| `gen-cache-clear.mjs` | CLI: `npm run gen:clear [-- --seed N]` — wipes the generated-world disk cache |
+
+Generated-world caching is three-layered: disk
+(`out/gen-cache/<revision>/<seed>/<areaKey>.bin`; the `<revision>` (r3b, r3c,
+r3d, …) is bumped **manually** when the render pipeline changes), the server's
+in-memory per-seed worlds, and the browser's `immutable` tile cache. To force
+a brand-new generation: `GET|POST /gen/clear/:seed` (or `/gen/clear` for all
+seeds) while the server runs — it drops disk + memory caches and bumps the
+`epoch` returned by `/gen/status`, which the viewer appends to tile URLs so
+the browser's cache is busted (the viewer's **regen** button does this in one
+click) — or `npm run gen:clear` when the server is off.
+
 ### experiments/ (dated one-offs, with conclusions)
 
 | File | Question | Result |

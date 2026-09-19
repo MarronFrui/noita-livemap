@@ -13,6 +13,12 @@
       #ui input { width: 110px; background: #0a0f16; color: #cde; border: 1px solid #345; border-radius: 4px; padding: 3px 6px; }
       #ui button { background: #1c2b3a; color: #cde; border: 1px solid #345; border-radius: 4px; padding: 4px 10px; cursor: pointer; }
       #status { position: fixed; bottom: 8px; left: 8px; z-index: 10; color: #9bd; font-size: 12px; background: rgba(10,14,20,.7); padding: 4px 8px; border-radius: 4px; }
+      #telemetry {
+        position: fixed; top: 44px; left: 8px; z-index: 10; color: #cde; background: rgba(10,14,20,.85);
+        padding: 6px 10px; border-radius: 6px; font-size: 12px; line-height: 1.6;
+      }
+      #telemetry button { background: #1c2b3a; color: #cde; border: 1px solid #345; border-radius: 4px; padding: 3px 8px; cursor: pointer; font-size: 12px; }
+      #telemetry label { cursor: pointer; }
       canvas { display: block; cursor: grab; }
       canvas.dragging { cursor: grabbing; }
     </style>
@@ -23,10 +29,18 @@
       <button id="load">load</button>
       <button id="live">live: off</button>
       <button id="zones" title="chunk classification overlay">zones</button>
+      <button id="regen" title="delete this seed's generated cache and regenerate from scratch">regen</button>
       <span id="hint">drag = pan · wheel = zoom (z <span id="zlabel"></span>)</span>
     </div>
     <div id="status">enter a seed and hit load</div>
-    <div id="legend" style="position:fixed;top:44px;left:8px;z-index:10;color:#cde;background:rgba(10,14,20,.85);padding:6px 10px;border-radius:6px;font-size:12px;display:none;line-height:1.6">
+    <div id="telemetry">
+      <div id="tl-info">live: waiting for telemetry…</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
+        <button id="center" title="pan the map to the live player position">Center on player</button>
+        <label title="re-center on every telemetry update (drag disables it)"><input type="checkbox" id="follow"> follow</label>
+      </div>
+    </div>
+    <div id="legend" style="position:fixed;top:118px;left:8px;z-index:10;color:#cde;background:rgba(10,14,20,.85);padding:6px 10px;border-radius:6px;font-size:12px;display:none;line-height:1.6">
       <b style="color:#7fd97f">▪</b> wang generated&nbsp;&nbsp;
       <b style="color:#e05b5b">▪</b> unsupported atlas&nbsp;&nbsp;
       <b style="color:#f0a030">▪</b> no attempt accepted<br/>
@@ -52,10 +66,35 @@
       let seed = null, z = 1, cam = { x: 35 * 512, y: 62 * 512 }; // start at spawn (world 0,0)
       const tiles = new Map(); // key -> {img, ok}
       let zones = null, showZones = false; // per-chunk tags
-      let live = true, ws = null, marker = null, followMarker = true;
+      let epoch = 0; // server cache epoch (/gen/status) — busts the browser's immutable tile cache after a /gen/clear
+      let live = true, ws = null, marker = null, followMarker = false;
 
       const liveBtn = document.getElementById("live");
+      const tlInfo = document.getElementById("tl-info");
+      const centerBtn = document.getElementById("center");
+      const followChk = document.getElementById("follow");
       const W2C = { x: 17920, y: 31744 }; // world -> canvas: canvas = world + (17920, 31744)
+
+      function setFollow(on) {
+        followMarker = on;
+        followChk.checked = on;
+      }
+
+      function centerOnPlayer() {
+        if (!marker) return false;
+        cam = { x: marker.wx + W2C.x, y: marker.wy + W2C.y };
+        draw();
+        return true;
+      }
+
+      function updateTelemetryBox() {
+        if (!marker) {
+          tlInfo.textContent = "live: waiting for telemetry…";
+          return;
+        }
+        const mapNote = marker.seed === seed ? "" : ` (map: ${seed})`;
+        tlInfo.textContent = `seed ${marker.seed}${mapNote} · ${marker.biome ?? "?"} · ${Math.round(marker.wx)}, ${Math.round(marker.wy)}`;
+      }
 
       function setLive(on) {
         live = on;
@@ -63,7 +102,10 @@
         liveBtn.style.background = on ? "#2c5a2c" : "#1c2b3a";
         if (on) {
           connectBridge();
-          if (marker && marker.seed && marker.seed !== seed) loadSeed(marker.seed);
+          if (marker && marker.seed && marker.seed !== seed) {
+            loadSeed(marker.seed);
+            centerOnPlayer();
+          }
         }
       }
       liveBtn.onclick = () => setLive(!live);
@@ -77,11 +119,15 @@
             if (!m || typeof m.seed !== "number") return;
             marker = { wx: m.x, wy: m.y, seed: m.seed >>> 0, biome: m.biome };
             if (live) {
-              if (marker.seed !== seed) loadSeed(marker.seed);
+              if (marker.seed !== seed) {
+                loadSeed(marker.seed);
+                if (!followMarker) centerOnPlayer(); // jumped to the live run — start at the player
+              }
               if (followMarker) {
                 cam = { x: marker.wx + W2C.x, y: marker.wy + W2C.y };
               }
             }
+            updateTelemetryBox();
             draw();
           };
           ws.onclose = () => { if (live) setTimeout(connectBridge, 2000); };
@@ -100,6 +146,7 @@
         history.replaceState(null, "", `?seed=${seed}`);
         status.textContent = `generating seed ${seed}… (first load warms the cache)`;
         pollStatus();
+        updateTelemetryBox();
         draw();
       }
 
@@ -112,7 +159,7 @@
       function resize() { cv.width = innerWidth; cv.height = innerHeight; ctx.imageSmoothingEnabled = false; draw(); }
       addEventListener("resize", resize);
 
-      function tileUrl(tx, ty, tz) { return `/gen/tile/${seed}/${tz}/${tx}/${ty}.png`; }
+      function tileUrl(tx, ty, tz) { return `/gen/tile/${seed}/${tz}/${tx}/${ty}.png?e=${epoch}`; }
       function fetchTile(tx, ty, tz) {
         const key = `${seed}/${tz}/${tx}/${ty}`;
         if (tiles.has(key)) return tiles.get(key);
@@ -187,6 +234,15 @@
       function pollStatus() {
         if (!seed) return;
         fetch(`/gen/status/${seed}`).then((r) => r.json()).then((s) => {
+          // a /gen/clear from elsewhere (CLI, another tab) bumped the epoch —
+          // drop everything local and re-fetch with the new epoch
+          if (s.epoch != null && s.epoch !== epoch) {
+            epoch = s.epoch;
+            tiles.clear();
+            zones = null;
+            if (showZones) loadZones();
+            draw();
+          }
           if (!s.ready) {
             status.textContent = `generating seed ${seed}: ${s.done}/${s.total} areas${s.errors.length ? ` — ${s.errors.length} errors` : ""}…`;
             draw();
@@ -196,6 +252,7 @@
       }
 
       const zonesBtn = document.getElementById("zones");
+      const regenBtn = document.getElementById("regen");
       const legend = document.getElementById("legend");
       let showGrid = false;
       zonesBtn.onclick = () => {
@@ -206,17 +263,44 @@
         draw();
       };
 
+      regenBtn.onclick = async () => {
+        if (seed == null || regenBtn.disabled) return;
+        regenBtn.disabled = true;
+        try {
+          const r = await fetch(`/gen/clear/${seed}`, { method: "POST" }).then((x) => x.json());
+          epoch = r.epoch ?? epoch + 1;
+          tiles.clear();
+          zones = null;
+          if (showZones) loadZones();
+          status.textContent = `cache cleared — regenerating seed ${seed} from scratch…`;
+          pollStatus();
+          draw();
+        } catch {
+          status.textContent = "cache clear failed (is the genmap server running?)";
+        } finally {
+          regenBtn.disabled = false;
+        }
+      };
+
+      centerBtn.onclick = () => {
+        if (!centerOnPlayer()) status.textContent = "no live telemetry yet (bridge on :8080?)";
+      };
+      followChk.onchange = () => {
+        setFollow(followChk.checked);
+        if (followMarker) centerOnPlayer();
+      };
+
       function load() {
         const v = parseInt(seedInput.value, 10);
         if (Number.isNaN(v)) return;
         loadSeed(v);
-        if (live) followMarker = false; // manual load/UI wins over follow until live re-enabled
+        if (live) setFollow(false); // manual load/UI wins over follow until re-enabled
       }
       document.getElementById("load").onclick = load;
       seedInput.addEventListener("keydown", (e) => e.key === "Enter" && load());
 
       let dragging = false, last = null;
-      cv.addEventListener("mousedown", (e) => { dragging = true; followMarker = false; last = [e.clientX, e.clientY]; cv.classList.add("dragging"); });
+      cv.addEventListener("mousedown", (e) => { dragging = true; setFollow(false); last = [e.clientX, e.clientY]; cv.classList.add("dragging"); });
       addEventListener("mouseup", () => { dragging = false; cv.classList.remove("dragging"); });
       addEventListener("mousemove", (e) => {
         if (!dragging) return;

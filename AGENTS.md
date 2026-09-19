@@ -45,6 +45,8 @@ npm run bench        # generate + fetch reference + diff (report in mapgen/out/r
 npm run bench:gen    # seed -> wang-layer chunk PNGs in mapgen/out/gen/
 npm run bench:ref    # fetch capture tiles (seed 78633191) -> mapgen/out/ref/
 npm run bench:diff   # score chunks, write stats.json + report.html
+npm run gen:server   # generated-map tile server on :8082 (mapgen/server/genmap-server.mjs)
+npm run gen:clear    # wipe the generated-world cache (-- --seed N scopes to one seed)
 node mapgen/experiments/2026-09-03-fit-transform.mjs       # cross-correlate gen vs ref masks
 node mapgen/experiments/2026-09-03-verify-vs-noitool.mjs   # (OBSOLETE) historical check vs noitool fixtures
 

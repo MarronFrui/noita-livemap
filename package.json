@@ -16,6 +16,7 @@
     "bench:ref": "node mapgen/pipeline/1-fetch-capture.mjs",
     "bench:diff": "node mapgen/pipeline/3-compare.mjs",
     "gen:server": "node mapgen/server/genmap-server.mjs",
+    "gen:clear": "node mapgen/server/gen-cache-clear.mjs",
     "test": "vitest run"
   },
   "repository": {
@@ -34,6 +35,6 @@
     "pngjs": "^7.0.0",
     "sharp": "^0.35.4",
     "vite": "^8.0.16",
-    "vitest": "^3.2.7"
+    "vitest": "latest"
   }
 }
