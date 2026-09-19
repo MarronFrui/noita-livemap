@@ -184,6 +184,16 @@ of these mechanisms, cite the row instead of re-running it.
 
 ## 10. Working principles
 
+- **Reference-frame statement (2026-09-19):** the absolute references are
+  THIS file and the probed reference seeds 78633191/92/93 (captures, CE
+  anchors, entity dumps, spawn equations). **Coalmine is a stage-6
+  special-case FIXTURE, not a reference biome** — it was inherited as a
+  reference from noitool's work but is the most special-cased wang biome
+  in-binary (C1/C2 mark walk, C20 stairs band + overlay loader, C19
+  blockOutRooms union trigger exist only for the coalmine/excavationsite
+  template paths), so models tuned on it inherit port-local artifacts
+  (see ABOUT_MATH 2026-09-19 (9)).
+
 - **Constant-offset principle:** a constant offset is only valid if the drift it corrects is zero or sawtooth-shaped; any linear (multiplier) component makes a constant wrong far from where it was measured. (ABOUT_MATH §4.)
 - **Paint-immune judging:** spawn equations (each seeded spawn = an exact wang-cell color fact from entity dumps) are the primary judge; geometry-vs-capture metrics are confounded by non-wang layers and density. (ABOUT_MATH §7quater/§7sexies, mapcap/README ladder.)
 - **Order-independence is a hard constraint:** any fill model must be a local, per-attempt state — the global poro stream is out. (ABOUT_MATH §7septies.)
@@ -206,7 +216,7 @@ binary side unread) · ❌ unexplored.
 | 3 | Per-cell generator objects (float/u16 grids) | FUN_0090ce20→FUN_008f9470 (0x1ec B); stores per world-grid cell; **grid ALLOCATION = FUN_008f95c0 SetSize, exactly 2 Init-side call sites (0x90738f, 0x907852 = area-object ctor walk; ECX = area+0x90 sub-object owns the +0x18 float / +0x38 u16 grids)** — grids are Init-built and cached, chunk loads READ them | 🔬 |
 | 4 | Area objects (biome components) | FUN_00904b10 (0x154 B; +0x4c fill seed) | 🔬 |
 | 5 | Wang fill (Init-time, thread pool) | driver FUN_00904c20 → Threaded FUN_008eda10 → stbhw FUN_008ec9f0; hasPath FUN_00901780 | 🔬 + ✅ (chain 12/12 spawn eqs; hasPath oracle 8/8, re-run 4/4 on 2026-09-18) |
-| 6 | Accept/retry + out_map mutations | hasPath port (`lib/has-path.mjs`, noitool-derived) — ✅ now matched in-binary: driver tail = skip-flag gate → hasPath FUN_00901780 ("ProceduralPathFind", on wang_image, coalmine start mark 0xFF420000, ClearPath warn path) → apply FUN_0090150; fillBlockedRooms = C0FFEE walker FUN_00900560 family (u16 deltas 0x2/0x5, rect-push FUN_00929850, 'checked_places'); CheckForGaps = FUN_00900a50 (start-pos flood w/ "couldn’t clear start path" warning); fallback Threaded fill = FUN_008ed860 (0x13276ba flag); coalmine-hax = biome-XML `<BitmapCaves>` flags `do_beginning_paths`/`do_beginning_down` — noitool separate hax/start_x obsolete | 🔬 mostly (whole finalize family located in-binary; the 9-color blockOutRooms table + ClearPath exact range read pending) |
+| 6 | Accept/retry + out_map mutations | hasPath port (`lib/has-path.mjs`) — ✅ matched in-binary + **ported 2026-09-19**: driver tail = skip-flag gate → hasPath FUN_00901780 ("ProceduralPathFind", on wang_image, coalmine start mark 0xFF420000/C1, ClearPath warn path) → apply FUN_0090150; fillBlockedRooms = C0FFEE walker FUN_00900560 family (u16 deltas 0x2/0x5, rect-push FUN_00929850, 'checked_places'); CheckForGaps = FUN_00900a50 (start-pos flood w/ "couldn't clear start path" warning); fallback Threaded fill = FUN_008ed860 (0x13276ba flag); blockOutRooms walker FUN_00901580 = 11-color table (C3) + ray-walk room growth FUN_00901510 (C16) + record fill FUN_009013f0 (C18) — **ported binary-exact 2026-09-19, ShadeOfGrey eliminated**; finalize black blit FUN_0090450-family (C17); coalmine-hax = biome-XML `<BitmapCaves>` flags | 🔬 port-side complete; **special-case BIOME SELECTION determined 2026-09-19 (8)** — template-path equality, C19–C21 (name-list flags retired in `lib/biomes.mjs`); remaining in-binary reads: stairs-band→path-start consumption detail + ClearPath exact range + C0FFEE/fillMainPath walk details |
 | 7 | Area cache (once per area) | FUN_0090c1f0 (w,h,seed) | 🔬 |
 | 8 | Spawn-trigger walker + queue | FUN_00904c20 tail → 1 draw/px → FUN_00900c70 → processor FUN_0085d7b0 | 🔬 |
 | 9 | Runtime streaming / chunk loads | **VA-CORRECTED 2026-09-18 (see ledger)**: ProceduralTerrain::Update() = FUN_0090b8a0 (profiler 0x11753ac @0x90b8cf) → DoBufferedPixelScenes() = FUN_00910c20 (profiler 0x11764ac @0x910c59); buffered-scene enqueue w/ dedup + flush = FUN_0090c1f0 (call sites 0x818c6e LoadPixelScene binding, 0x907fc9 Init, 0x90bd1e). Earlier "0x50b0a0/0x510420" were shifted-slab VAs (+0x400800 correction, byte-pinned) | 🔬 (pixel-scene arm fully read: scene executes only when ALL FOUR overlapping 512-chunks present — 4-corner probe of the chunk bit-grid DAT_0x132aed8; STREAMING_CHUNK_TARGET readers found at 0x79e65a/f1/74f = per-frame budget regulator); **chunk-request consumer arm ➜ next read (chunk bit-grid 0x132aed8 imm families + 0x79xxxx frame-tick)** |
@@ -236,16 +246,15 @@ binary side unread) · ❌ unexplored.
    wang-cell↔world anchor constants live in the map-class draw path
    (FUN_008e6d50 consumer / the fill's copy-out walk) — that read completes
    the anchor story (genmap's ~exact fitted (3,3) → canon).
-2. **F2 decision point (2026-09-18):** stage 9's read shows the runtime
-   path is *layer compositing*, not re-generation — the hasPath-accepted
-   out_map is the unique terrainer input. The noitool-derived finalize port
-   (validated 8/8 on oracles) is load-bearing for everything visual, but its
-   non-wang-family parts (`fillMainPath`, `fillC0ffee`, `fillRandomMaterials`,
-   `ClearPath`, extract-hair-rooms exact form) must be re-derived in-binary
-   before they are trusted beyond coalmine/excavationsite — each eliminates a
-   class of our current colorize approximations. Order within F2: blockOutRooms
-   colors + hax overlay semantics first (they gate the colorize layer's
-   remaining 0.24% unknown + the (3,3)-anchor story), then ClearPath/C0ffee.
+2. **F2 decision point (2026-09-18; update 2026-09-19):** blockOutRooms
+   colors (C3) + hax overlay + **the ray-walk room-growth semantics (C16–C18)
+   are DONE — ported binary-exact into `lib/has-path.mjs` (2026-09-19),
+   oracle 4/4, tests 143/143, cache r3d → r3e** (ABOUT_MATH 2026-09-19 (7)).
+   Remaining F2 queue: **ClearPath / fillC0ffee / fillRandomMaterials — the
+   next reads** (isCoalMine/shouldBlockOutRooms selection DETERMINED
+   2026-09-19 dig #2, C19–C21), plus the driver's u16
+   copy loop at slab 0x5057xx (SESSION_CONTEXT 2026-09-19 (2)) and the
+   stairs band's consumption into the path start (C20 arm 2).
 3. **F4 — DEBUG flag plumbing** (identification first: readers of the
    registered flags; then whether magic-numbers.xml can set them). If
    togglable → first-class wang-only ground truth (in-engine full wang maps),

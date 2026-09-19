@@ -86,8 +86,17 @@ function parseBiomeDefinition(dataDir, filename) {
     templateFile,
     randomMaterials: flatRandomMaterials,
     materialBands,
-    isCoalMine: false, // set below from name — @prov noitool NAME-LIST flag; DATA-CHECK 2026-09-19: coalmine.xml's <BitmapCaves> carries NO do_beginning_paths attr (only hills/desert/forest family do) — so this flag's in-binary selection rule is UNDETERMINED; do not re-derive from XML without a binary read (correction to the F2 dig #4 phrasing, see ISSUES.md note)
-    shouldBlockOutRooms: false, // @prov noitool NAME-LIST flag; binary canon for the marker table itself = fillBlockedRooms (CONSTANTS.md C3) — but WHICH biomes it applies to is not yet in-binary; name-list = approximation debt
+    // Binary-exact flag derivation (2026-09-19 dig #2, ABOUT_MATH 2026-09-19
+    // (8); CONSTANTS.md C19/C20 — replaces the @prov noitool NAME-LIST flags):
+    // the driver gates blockOutRooms by std::string/template-path equality
+    // against "data/wang_tiles/{coalmine,excavationsite}.png" (only these 3
+    // template-path literals exist in the whole binary), and hasPath's
+    // coalmine arms (mark walk + stairs band) gate on the coalmine.png path
+    // via the same compare. The biome NAME is never consulted in-binary —
+    // e.g. every tower_* sub-biome maps to one of the two paths regardless
+    // of its name.
+    isCoalMine: false, // set below from templateFile == coalmine.png (C20)
+    shouldBlockOutRooms: false, // set below from templateFile ∈ {coalmine.png, excavationsite.png} (C19)
   };
 }
 
@@ -172,13 +181,16 @@ export function loadBiomeConfig(dataDir) {
   for (const entry of entries) {
     if (biomes.has(entry.color)) continue;
     const def = parseBiomeDefinition(dataDir, entry.filename);
-    def.isCoalMine = ["coalmine", "solid_wall_tower_1"].includes(def.name);
-    def.shouldBlockOutRooms = [
-      "coalmine",
-      "excavationsite",
-      "solid_wall_tower_1",
-      "solid_wall_tower_2",
-    ].includes(def.name);
+    // 2026-09-19 dig: flags key off the wang TEMPLATE PATH (the binary's own
+    // selection rule; CONSTANTS.md C19/C20), not the biome name. Currently
+    // resolves the same 4 biomes as before for the rendered set — PLUS the
+    // ones the name lists missed: tower_* (name "tower" — out of the name
+    // namespace) and _EMPTY_ (color ffFF8080, also coalmine.png; no biome-map
+    // px today).
+    def.isCoalMine = def.templateFile === "data/wang_tiles/coalmine.png";
+    def.shouldBlockOutRooms =
+      def.templateFile === "data/wang_tiles/coalmine.png" ||
+      def.templateFile === "data/wang_tiles/excavationsite.png";
     // template biomes (no wang atlas) are drawn by the template renderer
     def.template = !def.templateFile;
     // Wang areas are computed over the CLAMPED virtual map (edge biomes extend

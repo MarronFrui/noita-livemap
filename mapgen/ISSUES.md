@@ -181,6 +181,19 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
 
 ## Data-audit note (2026-09-19, noitool sweep — user mandate)
 
+> **UPDATE 2026-09-19 (8): isCoalMine/shouldBlockOutRooms selection is now
+> DETERMINED in-binary** (ABOUT_MATH 2026-09-19 (8); CONSTANTS.md
+> C19–C21): the driver + hasPath gate both regimes by **template-file path
+> equality** against the literals `data/wang_tiles/coalmine.png` /
+> `data/wang_tiles/excavationsite.png` — never by biome name. The name-list
+> flags in `lib/biomes.mjs` are REPLACED by the path rule; affected biomes
+> (exhaustive): {coalmine, solid_wall_tower_1, _EMPTY_} (coalmine.png) ∪
+> {excavationsite, solid_wall_tower_2} (excavationsite.png). The name lists
+> were provably non-exhaustive (all tower_* share one name; _EMPTY_ missed).
+> The name-list @prov debt for these flags is RETIRED; remaining noitool
+> debt unchanged (wasm fill in bench/legacy tests, start_x=0x8e constant —
+> now understood as the stairs-band search, C20).
+
 - **isCoalMine / shouldBlockOutRooms selection is UNDETERMINED in-binary**
   (audit of `lib/biomes.mjs` name-list flags, tagged `@prov noitool`):
   - Fact-check result: `<BitmapCaves>` appears in 59 biome XMLs; the

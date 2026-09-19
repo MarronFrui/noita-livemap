@@ -24,8 +24,7 @@
 
 | ID | Constant | Meaning (short) |
 | -- | -------- | ---------------- |
-| C1 | `0xFF420000` | coalmine start-path mark color |
-| C2 | `0xFF000000` | hasPath start-cell overwrite |
+| C1 | `0xFF420000` | coalmine start-path mark color || C2 | `0xFF000000` | hasPath start-cell overwrite |
 | C3 | hasPath blockOutColors table | 11 RGBA marker colors @0x9015c4 |
 | C4 | `0x006400` / `0x000064` | coalmine-hax overlay real constants |
 | C5 | `0x66666667` | signed ÷10 magic |
@@ -38,6 +37,10 @@
 | C12 | `0x1179e90 / 0x1179ef0`, `0x116ea50 / 0x1179f1c`, `0x1151084` | cache-builder assert strings + field ptr |
 | C13 | VA map (slab offset +0x400800) | the objdump↔Ghidra address conversion |
 | C14 | stb / fill-subsystem ÷10 interior | fill's own ×10-scale sites (lab-corrected) |
+| C15 | `0x8e6d50` in-memory painter | per-record burn/paint copier (no anchor) |
+| C16 | `0xffffff` black-test + `0x2710` limit | FUN_00901510 ray-walk stop conditions |
+| C17 | `0x901450` finalize black blit | 16-byte record, exclusive ends, literal FF000000 |
+| C18 | `0x9013f0` rect fill conventions | exclusive-end record {x0,y0,x1,y1}, strict-< fill |
 
 ## Registry
 
@@ -172,8 +175,7 @@
   F-anchor funnel's last structural lead (Threaded true-FUN_008eda10
   = slab 0x4eda10 tail).
 
-### C15 — true 0x8e6d50 in-memory painter (slab 0x4e6550; read 2026-09-19 (5))
-- Per-record walker with 29-byte stride over a flat source blob with two
+### C15 — true 0x8e6d50 in-memory painter (slab 0x4e6550; read 2026-09-19 (5))- Per-record walker with 29-byte stride over a flat source blob with two
   stacked 512×512 byte-planes (offsets **+0x80001 / +0x80002 both
   R/W**: `sub%al,[ecx+0x80002]` = in-place erosion), per-record sqrt-
   luminance decay (`divss 0x11e0378` + sqrtf 0xc3322e...), composed
@@ -200,3 +202,125 @@
 - 0x11e0504 / 0x11e04ec normalizers for the mSeed-chain float (+0x94).
 - The 20-byte movdqu record-stride idiom (3 queue sites) — semantics
   recorded 2026-09-19; needs a name once assigned.
+
+### C16 — FUN_00901510 ray-walk stop conditions (read + ported 2026-09-19)
+- True **0x901510** = slab **0x500d10** (byte-pin anchor C13 verified at slab
+  0x50124d this session). Args (ECX = out_map {w,h,pixels@+0x18}; stack
+  startX, startY, ddx, ddy; returns EAX = black run length).
+- Semantics: step while the cell's low-24-bit color == 0
+  (`testl $0xffffff,(%eax)` @ slab 0x500d45); first non-black cell stops the
+  ray uncounted; per-step bounds check; **max 0x2710 = 10000 steps**
+  (`cmp $0x2710,%edi` @ slab 0x500d64).
+- Used as: map_check = "no ShadeOfGrey in-binary — grey does NOT extend
+  rooms". Port: `rayWalk()` in `lib/has-path.mjs`.
+- Status: read (2026-09-19). Source: ABOUT_MATH 2026-09-19 (7).
+
+### C17 — finalize black blit true **0x901450** (slab 0x500c50; read 2026-09-19)
+- Unconditional literal `0xFF000000` writes (slab 0x500ccc) over a vector of
+  **16-byte rect records (`sar 4` stride, `add $0x10`) with EXCLUSIVE ends**,
+  per-cell bounds guards (incl. negatives). The blocked-room finalizer
+  (our finalizeLite's blockList consumer) must use the same convention.
+- Status: read (2026-09-19). Source: ABOUT_MATH 2026-09-19 (7).
+
+### C18 — FUN_009013f0 rect-fill record convention (read 2026-09-19)
+- true **0x9013f0** = slab **0x500bf0**. Fill color is an ARG (single
+  blockOutRooms call site passes literal `0xFFFFFFFF` = WHITE, slab
+  0x500e51); loops strict-`<` over the rect record
+  {startX, startY, endX, endY} → **endX/endY are EXCLUSIVE**; degenerate
+  zero-area rects are valid and recorded by the marker walker (no filter);
+  per-cell bounds guards (slab 0x500c10–0x500c21).
+- Port: `blitRect()` in `lib/has-path.mjs`; marker walker rewritten same
+  session (ShadeOfGrey heuristic DELETED — eliminated as port-local).
+- Status: read + ported (2026-09-19). Source: ABOUT_MATH 2026-09-19 (7).
+
+### C3 re-confirmation (2026-09-19 (7))
+- The 11 marker colors were re-seen this session as the walker's compare
+  dwords at slab 0x500dc4–0x500e0a (exact forms with alpha byte 0xFF,
+  e.g. 0xffff00ff = #ff00ff). No value changes; C3 stays canon.
+
+### C19 — blockOutRooms trigger: template-path equality, TWO literals (read 2026-09-19, dig #2)
+- The driver (true 0x904c20 family) guards the blockOutRooms walker call
+  (FUN_00901580, slab 0x500d80; call at **slab 0x50505e**) with two inline
+  std::string path compares: **"data/wang_tiles/coalmine.png"** (len 0x1c,
+  literal @ .rdata **0x1173ec0**, compare at slab 0x504f2d..0x504f9d) and
+  **"data/wang_tiles/excavationsite.png"** (len 0x22, literal @
+  **0x11742a0**, compare at slab 0x504fad..0x50504b). Either match →
+  walker runs (union, not XOR). This is `shouldBlockOutRooms` in-binary.
+- **No standalone biome-name strings are used for this decision** ("coalmine"
+  never appears as its own string in .rdata) — the selection is by template
+  FILE PATH. The only wang-template path literals in the whole binary are
+  these 3 (incl. `data/wang_tiles/extra_layers/coalmine.png` @ 0x1174c58).
+- Hard truth: the only wang-template path literals in the whole binary are
+  these 3 (incl. `data/wang_tiles/extra_layers/coalmine.png` @ 0x1174c58).
+- Status: read (slab windows regenerated this session; proof anchor
+  C13 slab 0x50124d re-pinned first).
+
+### C20 — hasPath coalmine arms: same path compare inside hasPath (read 2026-09-19)
+- true 0x901780 body: ECX=str, EDX=literal call **0x43ff0** (std::string ==
+  const char* helper) with EDX = **0x1173ec0** ("data/wang_tiles/coalmine.png")
+  at **slab 0x5011a4** → guard for the MARK walk (full-map scan `cmp
+  0xFF420000` → write 0xFF000000, C1/C2 — the scan we already had).
+- Second arm at **slab 0x5017ab..0x50187f** (same compare, inline form): on
+  match, scan cells **x = 0x8c..0x9d (140..157), y = 0..14** and black-fill
+  every cell whose dword == **0xfffefefe** (#fefefe = the overlay's white
+  "stairs" color) via literal `cmpl $0xfffefefe` @ slab 0x501844. This is
+  the in-binary truth behind noitool's "start_x = 142" (142 = first stair
+  cell x in a 141-15 band search, not a fixed constant).
+- Init arm: per-biome object walk (slab **0x507061..0x50707b**): byte
+  [biome+0x1f8] → [obj+0x50]; if template == coalmine.png → load
+  "data/wang_tiles/extra_layers/coalmine.png" (0x1174c58, len 0x29) into
+  **[obj+0x8c]** (the hax overlay slot).
+- Status: read (2026-09-19). Source: ABOUT_MATH 2026-09-19 (8).
+
+### C21 — exhaustive wang-biome trigger census (data-side enumeration, binary rule applied; 2026-09-19)
+- Biomes triggering the special hasPath families = biomes whose
+  `wang_template_file` ∈ {coalmine.png, excavationsite.png}:
+  - coalmine.png → **coalmine (ffd57917), tower/solid_wall_tower_1
+    (ff3d3e37), _EMPTY_ (ffFF8080)**
+  - excavationsite.png → **excavationsite (ff124445),
+    tower/solid_wall_tower_2 (ff3d3e38)**
+- Census: 174 biome XMLs mapped in `_biomes_all.xml`, **42 with a wang
+  template** (32 `data/wang_tiles/*.png` + 5 static-tile fg + tower family
+  sharing the 7 standard atlases + the_end.png ×3 biomes), 132 without
+  (template/procedural biomes). The name-list flags this replaces were
+  structurally wrong: all tower sub-biomes share the name "tower" (name
+  namespace cannot distinguish them); _EMPTY_ was missing from both lists.
+- Status: data-verified this session (paths parsed from the game's own
+  XMLs = the binary's input); selection rule binary-verified (C19/C20).
+
+### C22 — FUN_00900560 = the hasPath C0FFEE walker, exact semantics (read 2026-09-19 (10))
+- true 0x900560 = slab **0x4ffd60**. (ECX = out_map incl. pixels@+0x18,
+  EDX = &start point; stack: out visited grid, out AABB.)
+- Semantics: assert start in-bounds (throws, string 0x1173c1c @ line 0x180);
+  out grid = fresh **w·h 4-byte cells ZEROED**; out AABB = the flood's
+  bounding box (seeded with start, grown per pop); BFS via an 8-byte
+  point-pair vector (FIFO — pop front, push back); neighbor order
+  **(x,y+1), (x−1,y), (x+1,y), (x,y−1)**; passable iff
+  `(dword & 0xffffff) == 0` OR `dword == 0xffeeffc0` (**#c0ffee; CORRECTS
+  dig #4's `0xFFEEC0FF` byte-reversed misread — pinned `cmp $0xffeeffc0`
+  @ slab 0x500088 ✔**); visited cells get the FLOW-FIELD direction code
+  **{2 down, 3 up, 4 right, 5 left} on the scratch OUT grid** (not the
+  map!) — dig #4's "u16 deltas 0x2/0x5" saw 2 of 4 deltas on the WRONG
+  grid. The real map is read-only in this walk.
+- Status: read + registered (2026-09-19). Source: ABOUT_MATH 2026-09-19 (10).
+
+### C23 — hasPath's overlay arms + driver-tail closure (read 2026-09-19 (10))
+- Arm (stairs): true 0x901780, slab 0x5017ab..0x50187f: on coalmine-template
+  match, scan cells **x = 0x8c..0x9d (140..157), y = 0..14**, cells whose
+  dword == **0xfffefefe** (`#fefefe` white stairs) → write 0xFF000000 to
+  the map cell. noitool's "start_x = 142" = this BAND SEARCH, not a
+  constant.
+- Arm (dark-green): slab 0x501ab4..0x501b09 (gated by the 0x1b flag byte,
+  the hasPath return value): scan the OVERLAY (arg EDX) map in full;
+  cells `cmp $0xff004200` = **#004200 dark-green** → write 0xFF000000 to
+  the corresponding out_map cell (slab 0x501aef).
+- **With the vendored overlay data (only #000000, #006400, #000064,
+  #545454), both arms are DEAD (0 px)** → oracle-pinned port unchanged,
+  no cache bump. Both constants registered here for future overlay data.
+- **Driver tail CLOSED:** slab 0x5056a4 = the second-grid SetSize (w·h,
+  4-byte elems = the float grid, C10 shape) + `call 0x4f92b0` = true
+  **0x8f9ab0 = FUN_008f9ab0** (cave/marker sweep, flag = `push $1` =
+  TRUE, 2nd of the two driver calls ✓) + ret @ 0x5057aa. **No u16 copy
+  loop exists** — the wrap-modulo 4-byte copy-out (0x505610..0x5056a4)
+  is the whole copy; u16 population lives inside FUN_008f9ab0.
+- Status: read + registered (2026-09-19). Source: ABOUT_MATH 2026-09-19 (10).

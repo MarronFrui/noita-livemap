@@ -12,9 +12,14 @@
 //     0x000064 — noitool's 0x004000/0x0040 made the hax a silent no-op here
 //     too; both mutations are now ACTIVE).
 // (3) undoCoalMineHax uses the corrected constants as well.
-// In-binary semantics still TODO (documented, not yet ported): exact
-// ray-walk room growth (FUN_00901510/FUN_009013f0) replacing the
-// ShadeOfGrey-based scan, and the fill walk ordering of FUN_0090450.
+// In-binary semantics still TODO (documented): the fill walk ordering of
+// FUN_0090450 (fillMainPath detail).
+// 2026-09-19 F2 dig: blockOutRooms rewritten to the binary's exact
+// ray-walk room-growth semantics (FUN_00901510 ray counts + FUN_009013f0
+// record fill, read this session; proof anchor CONSTANTS.md::C13
+// byte-pinned this session at slab 0x50124d). The old ShadeOfGrey-run-on
+// heuristic is GONE: rays stop at the first non-black cell, room rect ends
+// are EXCLUSIVE (record = {startX,startY,endX,endY}, strict-< fill).
 // Semantics (map = RGB, 3 bytes/px, w*h ATLAS px — 1 px = 10 world px):
 //   hasPath(map):
 //     shouldBlockOutRooms -> blockOutRooms(BLACK -> WHITE)   [mutates map]
@@ -70,11 +75,6 @@ const setPixel = (map, w, x, y, color) => {
   map[p + 1] = (color >> 8) & 0xff;
   map[p + 2] = color & 0xff;
 };
-
-function ShadeOfGrey(color, limit) {
-  const r = (color >> 16) & 0xff, g = (color >> 8) & 0xff, b = color & 0xff;
-  return r <= limit && r === g && g === b && color !== COLOR_BLACK && color !== COLOR_WHITE;
-}
 
 function isBlockedColor(color) {
   for (const c of blockedColors) if (c === color) return true;
@@ -265,37 +265,65 @@ function undoCoalMineHax(map, width, height) {
 export function finalizeLite(map, width, height, { isCoalMine, blockList }) {
   if (isCoalMine) undoCoalMineHax(map, width, height);
   for (const b of blockList) {
-    fill(map, width, b.startX, b.endX, b.startY, b.endY, COLOR_BLACK);
+    // 0x901450-family black blit (slab 0x500c50, read 2026-09-19): per
+    // 16-byte record, EXCLUSIVE ends, per-cell bounds check. blockList
+    // records (from blockOutRooms / hasPath) carry ends in that convention.
+    blitRect(map, width, height, b, COLOR_BLACK);
   }
 }
 
-function blockOutRooms(map, width, height, passableColor, targetColor, blockList) {
+// --- 2026-09-19 binary-exact room growth (FUN_00901510 / FUN_009013f0 /
+// FUN_00901580, bytes verified this session; semantics: ABOUT_MATH 2026-09-19
+// entry). ---
+
+// FUN_00901510 (slab 0x500d10, called twice from the marker walker at slab
+// 0x500e29/0x500e40): step from (x,y) by (dx,dy), counting while the cell's
+// low-24-bit color (`testl $0xffffff`) is BLACK; first non-black cell stops
+// the ray and is NOT counted; bounds-checked each step; max 0x2710 steps.
+// Returns the black run length N; the room rect end = start + N (exclusive).
+function rayWalk(map, width, height, x, y, dx, dy) {
+  let count = 0;
+  for (let i = 0; i < 0x2710; i++) {
+    if (x < 0 || y < 0 || x >= width || y >= height) break;
+    if (getPixel(map, width, x, y) !== 0) break;
+    count++;
+    x += dx; y += dy;
+  }
+  return count;
+}
+
+// FUN_009013f0 (slab 0x500bf0; the finalize black blit FUN_0090450-family at
+// slab 0x500c50 is the same exclusive-end, per-cell-bounds-checked record
+// loop): rect = { startX, startY, endX, endY } with EXCLUSIVE x/y ends,
+// strict-< fill.
+function blitRect(map, width, height, rect, color) {
+  for (let y = rect.startY; y < rect.endY; y++)
+    for (let x = rect.startX; x < rect.endX; x++) {
+      if (x < 0 || y < 0 || x >= width || y >= height) continue;
+      setPixel(map, width, x, y, color);
+    }
+}
+
+// FUN_00901580 (slab 0x500d80): scan row-major; on an 11-way marker dword
+// compare hit (the binary tests the full RGBA dword — on this RGB buffer the
+// 24-bit blockedColors test is equivalent), dispatch two rays from
+// (x+1, y+1): (1,0) right, then (0,1) down; rect =
+// {x+1, y+1, x+1+rightLen, y+1+downLen}; fill it targetColor (binary pushes
+// 0xFFFFFFFF = white at the single call site slab 0x500e51); push the record
+// (-- 16-byte record in-binary; degenerate zero-area records included).
+// NO ShadeOfGrey anywhere in-binary — the old grey-run-on heuristic is an
+// eliminated approximation; rays stop at the first non-black cell.
+function blockOutRooms(map, width, height, targetColor, blockList) {
   const posMax = width * height;
   for (let pos = 0; pos < posMax; pos++) {
     const color = getPixel3(map, pos * 3);
-    if (color === COLOR_BLACK) continue;
-    if (color === COLOR_WHITE) continue;
     if (!isBlockedColor(color)) continue;
     const x = pos % width, y = Math.floor(pos / width);
     const startX = x + 1, startY = y + 1;
-    let endX = x + 1, endY = y + 1, foundEnd = false;
-    while (!foundEnd && endX < width) {
-      const c = getPixel(map, width, endX, startY);
-      if (c === passableColor || ShadeOfGrey(c, 0x32)) { endX += 1; continue; }
-      endX -= 1;
-      foundEnd = true;
-    }
-    if (endX >= width) endX = width - 1;
-    foundEnd = false;
-    while (!foundEnd && endY < height) {
-      const c = getPixel(map, width, startX, endY);
-      if (c === passableColor || ShadeOfGrey(c, 0x32)) { endY += 1; continue; }
-      endY -= 1;
-      foundEnd = true;
-    }
-    if (endY >= height) endY = height - 1;
+    const endX = startX + rayWalk(map, width, height, startX, startY, 1, 0);
+    const endY = startY + rayWalk(map, width, height, startX, startY, 0, 1);
+    blitRect(map, width, height, { startX, startY, endX, endY }, targetColor);
     blockList.push({ startX, startY, endX, endY });
-    fill(map, width, startX, endX, startY, endY, targetColor);
   }
 }
 
@@ -308,7 +336,7 @@ export function hasPath(mapIn, width, height, opts) {
   const { isCoalMine = false, shouldBlockOutRooms = false, worldX = 0, worldY = 0 } = opts ?? {};
   const map = mapIn; // blockOutRooms/hax mutate in place, mirroring the C++
   const blockList = [];
-  if (shouldBlockOutRooms) blockOutRooms(map, width, height, COLOR_BLACK, COLOR_WHITE, blockList);
+  if (shouldBlockOutRooms) blockOutRooms(map, width, height, COLOR_WHITE, blockList);
   if (isCoalMine) doCoalMineHax(map, width, height);
 
   // the search paints PURPLE on visited cells — it must not touch the

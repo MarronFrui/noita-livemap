@@ -1779,3 +1779,217 @@ first use from now on):**
     confirm the harder "stbhw atlas blob is already at cell scale"
     postulate (the driver's [esi+0x3c]-family scaling shapes are the
     ✓ anchor in that version).]
+- **2026-09-19 (7) — F2 dig #1: blockOutRooms ray-walk semantics FULLY read
+  and ported (objdump, fresh slab regenerated this session; VA map per
+  2026-09-19 (2)).** Read targets: FUN_009013f0 = **slab 0x500bf0** (true
+  0x9013f0), FUN_00901510 = **slab 0x500d10** (true 0x901510), the 11-color
+  marker walker FUN_00901580 = **slab 0x500d80** (true 0x901580), plus the
+  finalize black blit family function at **slab 0x500c50** (true 0x901450).
+  Re-entry byte-pin (C13): `cmp eax,0xFF420000` @ **slab 0x50124d** ✓ (same
+  byte seen again this session, inside the dump's hasPath block).
+  - **FUN_00901510 (ray walker; ECX = 4-byte out_map object {w,h,...,pixels
+    @+0x18}; stack args (startX, startY, ddx, ddy); returns EAX):**
+    bounded walk — at each step, if x<0 ∨ y<0 ∨ x≥w ∨ y≥h → stop;
+    fetch cell via getter 0x549680; **`testl $0xffffff,(%eax)`** → stop on ANY
+    non-black 24-bit cell (alpha-agnostic); else count++ (EBX), step += (ddx,
+    ddy), while step-count (EDI) < **0x2710** (10000; `cmp $0x2710,%edi` @
+    slab 0x500d64 — matches ledger dig #5). Return = black run length N; the
+    terminating non-black cell and ANY grey cell stop the ray and are NOT
+    counted. **Slab 0x500d10–0x500d74 all read.**
+  - **FUN_009013f0 (record fill; ECX = out_map, EDX = rect ptr(stack 0x8 = the
+    fill COLOR)):** strict-`<` loops, x from rect[0] while < rect[8], y from
+    rect[4] while < rect[0xc] → **the 16-byte record is
+    {startX, startY, endX, endY} with EXCLUSIVE ends**; per-cell bounds check
+    (negative + w/h guards at slab 0x500c10–0x500c21) then 4-byte color
+    write via getter 0x549680.
+  - **The marker walker body (slab 0x500d80 = true 0x901580), dispatch on a
+    marker hit — EXACT code path (slab 0x500e15..0x500e56):**
+    1. EDI = x+1, ESI = y+1 (marker pixel +1 in both axes);
+    2. `FUN_00901510(map, x+1, y+1, dx=1, dy=0)` → rightLen (stored
+       rect[2] = x+1+rightLen at slab 0x500e3d);
+    3. `FUN_00901510(map, x+1, y+1, dx=0, dy=1)` → downLen;
+    4. rect[3] = y+1+downLen (slab 0x500e4f/0x500e53);
+    5. `push $0xffffffff` (slab 0x500e51) → the fill color is the LITERAL
+       WHITE (not a parameter at this site), call FUN_009013f0;
+    6. push the record into the EDX/ECX-owned vector (movdqu 16-byte copy at
+       slab 0x500ec7/0x500f33; reserve/expand call 0x57ed10; stride +0x10
+       at slab 0x500f46) — **degenerate zero-area rects ARE recorded** (no
+       non-empty filter anywhere).
+    NO black/white pre-skip, NO ShadeOfGrey, NO width/height clamping on the
+    rect ends (the guards inside FUN_009013f0 handle edges). The "black/white
+    skip + scanner-found grey run-on" of our previous port was port-local
+    approximation, not binary.
+  - **The finalize black blit (slab 0x500c50 = true 0x901450):** iterates a
+    16-byte-record vector (stride `sar 4` + `add $0x10`), for each record the
+    same strict-`<` exclusive-end cell fill with per-cell bounds guards,
+    writing the literal `0xFF000000` (slab 0x500ccc) — i.e. blockList
+    consumers use the SAME rect convention. **Our finalizeLite's
+    inclusive-end fill must and did switch to this exclusive convention
+    together with the record value change.**
+  - **PORTED same session into `mapgen/lib/has-path.mjs`**
+    (`rayWalk` + `blitRect` + rewritten `blockOutRooms`; ShadeOfGrey deleted).
+    Validation: hasPath oracle **4/4** re-run (excav 91→0, 92→3, 93→1;
+    coalmine 91→1 — first accepted unchanged); `npm test` **143/143** green
+    (13 files; +1 new pin for the grey-run-off elimination). A/B on the four
+    oracle fixtures: whites dropped 14727→13203 (91), 14332→12437 (92),
+    14872→13152 (93), 9227→7350 (coalmine) = **~10-13% fewer whites** — the
+    old heuristic extended rooms through ≤0x32 grey runs; in-binary they stop
+    at the first non-black cell. **Observable output CHANGED → genmap cache
+    revision bumped r3d → r3e (server/genmap-server.mjs, 2026-09-19).**
+  - Constants used: C13 (VA map), C1 (proof anchor), and the C3 11-color
+    table (re-confirmed as the walker's compare dwords at slab
+    0x500dc4–0x500e0a, exact dword forms incl. alpha FF — no new rows needed
+    beyond these; the 0x2710 limit and 0xffffff test are recorded here only,
+    in-table candidate if a later session needs them).
+- **2026-09-19 (8) — F2 dig #2: the biome special-case SELECTION is
+  template-path equality (isCoalMine/shouldBlockOutRooms determined;
+  exhaustive biome census).** Fresh slab; proof anchor C13 re-pinned
+  (cmp eax,0xFF420000 @ slab 0x50124d) before every named-target read.
+  - Refs of the THREE wang-template path literals in .rdata ("coalmine.png"
+    @0x1173ec0, "excavationsite.png" @0x11742a0, "extra_layers/coalmine.png"
+    @0x1174c58; only these three exist in the entire binary) → four code
+    sites, all read this session:
+    1. **Driver blockOutRooms guard (slab 0x504f2d..0x50504b):** an inline
+       std::string compare with len 0x1c against "data/wang_tiles/
+       coalmine.png" then a SECOND inline compare len 0x22 against
+       "data/wang_tiles/excavationsite.png"; either match falls into the
+       **same call site of FUN_00901580 (slab 0x50505e)** — the two matches
+       UNION to trigger the room-marker walker (matches the port's
+       shouldBlockOutRooms as coalmine∪excavationsite — NOT a name lookup!).
+    2. **hasPath mark arm (slab 0x5011a4..0x5011b2):** 0x43ff0(str,"data/
+       wang_tiles/coalmine.png") → the 0xFF420000/0xFF000000 mark walk.
+    3. **hasPath stairs arm (slab 0x5017ab..0x50187f):** same compare inline;
+       scans cells **x = 0x8c..0x9d (140..157), y = 0..14**, black-filling
+       any cell == **0xfffefefe** (the overlay's white stairs color,
+       `cmpl $0xfffefefe` @ slab 0x501844). THE in-binary meaning of
+       noitool's "start_x = 142": it is a BAND SEARCH for stairs cells
+       (141 wide, 15 tall), whose first hit defines the path start —
+       not a constant x.
+    4. **Init overlay loader (slab 0x507061..0x50707b):** per biome object
+       ([biome+0x1f8] byte → [obj+0x50]; template==coalmine.png) →
+       loads "data/wang_tiles/extra_layers/coalmine.png" into **[obj+0x8c]**
+       — the vendered coalmine_hax.cpp overlay's in-binary home; byte
+       row 0.
+  - **EXHAUSTIVE CENSUS (data-side, binary rule applied):** 174 biome XMLs
+    in `_biomes_all.xml`; **42 carry wang_template_file** (registering 33
+    tile atlases; a tower file family reuses the 7 standard atlases;
+    the_end.png serves the_end/boss_victoryroom/magic_gate; 5 special
+    static-tile fg). NO OTHER biome can ever hit the coalmine/excavationsite
+    regimes: the selection compares TEMPLATE PATHS, and only those 3 path
+    literals exist in-binary. Affected biomes = the union across
+    `_biomes_all.xml`: coalmine (ffd57917) + tower_1 (ff3d3e37) +
+    _EMPTY_ (ffFF8080) → coalmine.png; excavationsite (ff124445) +
+    tower_2 (ff3d3e38) → excavationsite.png.
+  - **PORT-FIXED same session** (`lib/biomes.mjs`): the @prov noitool
+    NAME-LIST flags replaced with the binary rule (`templateFile ===
+    "data/wang_tiles/coalmine.png"` → isCoalMine; ∨ excavationsite.png →
+    shouldBlockOutRooms). Same 4 biomes resolve for the rendered set, PLUS
+    the name-lists' blind spots: tower sub-biomes (the name namespace says
+    "tower" for ALL solid_wall_tower_* — name lists could never be
+    exhaustive by construction) and _EMPTY_. Validated: `npm test` **143/143**
+    green; hasPath oracle fixture regions (excav/coalmine) are exactly the
+    same in both rule variants — no behavior change for the current tests;
+    the flags now follow the binary so modbiome names can never desync.
+  - Registrations: C19 (trigger compares), C20 (hasPath coalmine arms incl.
+    the stairs band + overlay loader), C21 (the census + the two
+    name-list corrections).
+- **2026-09-19 (9) — REFERENCE-FRAME AUDIT (user question): is coalmine still
+  a reference set? Also "no wang template ⇒ predictable spawn" tested.**
+  - **Historical check (disk this session):** noitool's own validation bench
+    mapped 23—24 biome fixtures (theirs `verify-vs-noitool.mjs` PARAM_MAP,
+    all seeds = CAPTURE_SEED 78633191), coalmine their flagship; our early
+    template walk diff used coalmine + winter_caves params; the hax overlay
+    data container = the vendored coalmine_hax.cpp; the hasPath oracle
+    carries a coalmine-91 corroborator (first accepted A=1). So YES —
+    coalmine entered the project as THE reference biome inherited from
+    noitool's work.
+  - **Why it is no longer fit as a general reference:** (1) coalmine is the
+    MOST special-cased wang biome in-binary — the mark walk (C1/C2), the
+    stairs band (C20 arm 2), the overlay loader ([obj+0x8c]) and the
+    blockOutRooms union trigger (C19) all exist ONLY for biomes whose
+    template == coalmine.png/excavationsite.png (2026-09-19 (8)). A model
+    tuned on coalmine inherits port-local artifacts (the ShadeOfGrey
+    heuristic was exactly such a coalmine heuristic — eliminated 2026-09-19
+    (7)). (2) noitool's coalmine "authority" shipped a SILENT NO-OP hax
+    (0x004000/0x0040 vs the data's 0x006400/0x000064 — C4); trusting that
+    reference cost the pipeline a behavior correction a full day of
+    digging later. (3) The regular-biome reference we now hold is STRONGER:
+    the runtime-confirmed asm chain (12/12 spawn equations, ws×16807^115 CE
+    read) + the oracle-validated hasPath port + generateAreaExact ~10 ms.
+  - **VERDICT:** coalmine is DEMOTED from reference set to a **stage-6
+    special-case FIXTURE** — it remains the only bench exercising hax/mark/
+    stairs/room-blocking behavior, keep it for exactly that. The absolute
+    references stay, per the user's ruling: **`mapgen/VERIFIED.md` (canon)
+    and the reference seeds 78633191/92/93** (captures + CE anchors + entity
+    dumps + spawn equations). `vendor/noita-tools` stays READ-ONLY data
+    containers (overlay asset), never a reference.
+  - **"Any non-wang-tiled biome is a predictable spawn" — REFINE:** the
+    no-template census (unique files, color ≠ 00000000) = 55 biomes;
+    **47 carry mGradient/mInsidePerlin poro-noise params (seed-DEPENDENT —
+    the F3/I1 frontier, NOT predictable)**, 4 bare, 0 with <PixelScene>
+    entries in the XML (scenes load from the lua scripts side, I15 class).
+    Correct taxonomy: no-template biomes = static-template content (the
+    ~95% seed-independent capture zones, PREDICTABLE_ZONES.md — predictable)
+    UNION poro-noise procedural terrain (seed-dependent, F3). The
+    predictable part is exactly what `template-render.mjs` blits today; the
+    noise part is I1. Enumerated source: this census + C21 (wang side).
+- **2026-09-19 (10) — F2 dig #3: the hasPath search-side machinery decoded
+  (C0FFEE walker exact semantics + overlay arms + driver tail closed).**
+  - **FUN_00900560 (slab 0x4ffd60, true 0x900560; the hasPath C0FFEE walker)
+    FULLY read:** signature (ECX = out_map {w,h,pixels@+0x18}, EDX = &start
+    point, stack arg1 = OUT visited grid, arg2 = OUT AABB). Body: assert
+    start in-bounds (throws ✓ string 0x1173c1c at line 0x180 = interior
+    line 384 of procedural_terrain.cpp); OUT grid = **fresh w·h array of
+    4-byte zero cells** (realloc + memset 0 via 0xc3325e); OUT AABB init =
+    {start.x, start.y, start.x, start.y}; queue = 8-byte point vector
+    seeded with (start.x, start.y); BFS: pop from the FRONT (read cursor
+    edx, stride 8), union the AABB, then judge each 4-neighbor
+    **(x, y+1) then (x−1, y) then (x+1, y) then (x, y−1)**: passable iff
+    `(cell dword & 0xffffff) == 0` (BLACK) **or cell dword == 0xffeeffc0**
+    (#c0ffee — CORRECTION: dig #4 recorded the constant as `0xFFEEC0FF`,
+    a byte-reversed misread; the pinned compare is `cmp $0xffeeffc0` @
+    slab 0x500088) AND the OUT grid cell == 0 (unvisited); on pass write
+    the OUT cell = direction code {2 = down, 3 = up, 4 = right, 5 = left}
+    (the flow-field/reconstruction artifact) and QUEUE the neighbor.
+    The map itself is READ-ONLY in this walk — the earlier dig #4 phrases
+    "writes u16 deltas 0x2/0x5 (top/left)" were: (a) only 2 of 4 deltas
+    seen, (b) attributed to the WRONG grid — the deltas {2,3,4,5} live on
+    the OUT scratch/visited grid, and the colors mage the flood short-
+    circuiting of the search's traversal rules, not map pixel writes.
+  - **hasPath (true 0x901780) tail read (slab 0x501881..0x501b3e):** the
+    third coalmine flag arm (0x1b(%esp)) → flag != 0 = the SCAN OF THE
+    OVERLAY (arg EDX/0x54 object): full map scan writing **0xFF200000-family
+    → not that**: `cmpl $0xff004200` = **#004200 dark-green** overlay cell →
+    write 0xFF000000 into the out_map cell (slab 0x501aef..0x501b09).
+    Overlay arms vs data: the vendored overlay contains ONLY {#000000,
+    #006400, #000064, #545454} (0× `#004200`, 0× `#fefefe`, 0× `#000042`)
+    → **both in-binary arms (#fefefe stairs-band + #004200 overlay scan)
+    are DEAD with the current data**; the port's `doCoalMineHax` handles
+    all three constants anyway (future-proof, oracle-pinned) — **no port
+    change, no cache bump**.
+  - **hasPath tail hygiene (slab 0x50188c..0x501a76):** copy-map ctor
+    0x52c390(w,h) + `call 0x500a60` (= true 0x901260, a new CheckForGaps-
+    family stub, ECX = map, EDX = &0x64/%esp-region local) + std dtor/free
+    chains (0x114a358/348/1a0) — bookkeeping; return value = al from the
+    0x1b flag byte (0x501a8d).
+  - **DRIVER TAIL CLOSED (slab 0x5056a4..0x5057ab):** there is NO separate
+    u16 copy loop — 0x5056a4 = the SECOND grid SetSize (w·h, **4-byte
+    elements** — the float grid, C10 shape ✓), then `call 0x4f92b0` =
+    **true 0x8f9ab0 = FUN_008f9ab0** (the cave/marker sweep, called with
+    flag = `push $1` = TRUE — the second of the two driver calls, ✓ dig
+    (6)), then two frees + security-cookie ret at 0x5057aa. The u16 grid's
+    population lives entirely INSIDE FUN_008f9ab0. The SESSION_CONTEXT
+    "u16 copy loop at slab 0x5057xx" pointer was a Phantom lead — the
+    wrap-modulo 4-byte copy-out (0x505610..0x5056a4) IS the whole copy.
+    F-anchor's open contract resolves consistent in the negative again:
+    NO anchor arithmetic anywhere in the out_map/area-grid write path.
+  - Scope note (honest): the SEARCH machinery inside hasPath (segment
+    walks, visited-delta consumption, the FUN_00943da0 rect-pooler) is
+    now partially read (arms + call ordering + the two mark-color arms)
+    but NOT fully instruction-decoded; the port stays LIFO-stack flood +
+    best-first search = oracle-pinned (4/4 + 8/8) — a full re-derivation
+    is queued only if the oracles or gen-vs-capture regressions demand it.
+  - Registrations: C22 (FUN_00900560 semantics + the dig #4 misreads it
+    corrects), C23 (the overlay arms + the driver-tail closure), and the
+    two NEW pinned color constants 0xffeeffc0 / 0xFF004200 live inside
+    C22/C23 notes (skip C24+ until next use).

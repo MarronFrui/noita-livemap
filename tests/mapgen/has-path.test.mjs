@@ -112,16 +112,36 @@ describe("hasPath API shape and basic verdicts", () => {
 });
 
 describe("blockOutRooms (room-marker whites)", () => {
-  test("blocked room-marker pixel terminal metrics land in the blockList", () => {
-    const map = solidMap(40, 20, [37, 37, 37]); // non-black, non-white, not blocked color
+  // 2026-09-19 binary-exact rewrite (FUN_00901510/009013f0/00901580): rays
+  // count BLACK cells only (`test $0xffffff`), stop at the first non-black
+  // cell, rect ends are EXCLUSIVE. ShadeOfGrey run-on is eliminated in-binary.
+  test("grey run-on does NOT extend a room (ShadeOfGrey heuristic eliminated)", () => {
+    const map = solidMap(40, 20, [37, 37, 37]); // 0x252525 grey, non-black
     setPx(map, 40, 5, 5, 0xff, 0x00, 0x80); // 0xff0080 — in the binary marker table
     const r = hasPath(map, 40, 20, { shouldBlockOutRooms: true, worldY: 29 });
+    // both rays hit the non-black grey at (6,6) immediately -> zero-length
+    // runs on both axes -> degenerate rect {6,6,6,6}, nothing filled.
     const hit = r.blockList.find((b) => b.startX === 6 && b.startY === 6);
     expect(hit).toBeTruthy();
-    expect(hit.startX).toBeGreaterThan(5);
-    expect(hit.startY).toBeGreaterThan(5);
-    // the room region is painted white on the map (final input state)
-    expect(getPx(map, 40, 6, 6)).toEqual([255, 255, 255]);
+    expect(hit.endX).toBe(6);
+    expect(hit.endY).toBe(6);
+    expect(getPx(map, 40, 6, 6)).toEqual([37, 37, 37]); // NOT painted white
+    expect(r.blockList).toHaveLength(1);
+  });
+
+  test("a black run from the marker's corner sets the room; a far break ends it", () => {
+    const map = solidMap(40, 20, [0, 0, 0]);
+    setPx(map, 40, 5, 5, 0xff, 0x00, 0x80);
+    setPx(map, 40, 8, 6, 37, 37, 37); // first non-black -> right ray stops
+    const r = hasPath(map, 40, 20, { shouldBlockOutRooms: true, worldY: 29 });
+    const hit = r.blockList[0];
+    expect(hit.startX).toBe(6);
+    expect(hit.startY).toBe(6);
+    expect(hit.endX).toBe(8); // start 6 + 2 black cells (6,7), EXCLUSIVE end
+    expect(hit.endY).toBe(20); // down ray runs to the bottom edge
+    expect(getPx(map, 40, 7, 6)).toEqual([255, 255, 255]); // inside the run
+    expect(getPx(map, 40, 8, 6)).toEqual([37, 37, 37]); // break cell untouched
+    expect(getPx(map, 40, 9, 6)).toEqual([0, 0, 0]); // beyond untouched
   });
 
   test("the binary-verified 11-entry marker table covers 0x00ac64 and 0x70d7a0", () => {
@@ -138,11 +158,12 @@ describe("blockOutRooms (room-marker whites)", () => {
   });
 
   test("finalizeLite re-blacks the blocked-room ranges on top of blockOut whites", () => {
-    const map = solidMap(40, 20, [37, 37, 37]);
+    const map = solidMap(40, 20, [0, 0, 0]);
     setPx(map, 40, 5, 5, 0xff, 0x00, 0x80);
     const r = hasPath(map, 40, 20, { shouldBlockOutRooms: true, worldY: 29 });
     finalizeLite(map, 40, 20, { isCoalMine: false, blockList: r.blockList });
     expect(getPx(map, 40, 6, 6)).toEqual([0, 0, 0]); // blocked room -> air
+    expect(getPx(map, 40, 39, 19)).toEqual([0, 0, 0]); // exclusive-end rect internals too
   });
 });
 
