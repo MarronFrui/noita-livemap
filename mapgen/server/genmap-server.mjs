@@ -31,7 +31,7 @@ import {
 
 const PORT = Number(process.env.GENMAP_PORT ?? 8082);
 const dataDir = findNoitaDataDir();
-const cacheDir = path.join(repoRoot, "mapgen/out/gen-cache/r3e"); // r3e: blockOutRooms binary-exact ray-walk (F2 dig 2026-09-19 — ShadeOfGrey run-on eliminated)
+const cacheDir = path.join(repoRoot, "mapgen/out/gen-cache/r3f"); // r3f: F3 noise-terrain integration (procedural-biome evaluator chain, 2026-09-20 — observable change: noise bands render)
 
 const worlds = new Map(); // seed -> { world, progress, ready }
 let cacheEpoch = 0; // bumped on every /gen/clear — the viewer appends it to tile URLs to bust the browser's immutable tile cache

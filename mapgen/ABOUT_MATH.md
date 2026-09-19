@@ -2241,3 +2241,173 @@ first use from now on):**
     Prototype skeleton: `mapgen/lib/noise-proto.mjs` (constants +
     perm heads landed; runnable port queued dig #4 with the two open
     inputs: the runtime gradient table 0x12eec08 and the C30 clamp).
+
+- **2026-09-20 (15) — F3 dig #4: the noise port LANDED (runnable) + three
+  canon corrections.** C13 anchor re-pinned first (slab 0x50124d =
+  true 0x901a4d, file bytes `3d 00 00 42 ff` ✓). Perm tables byte-verified
+  from the raw exe (VA→file_off = VA−0x400e00): simplex @0x114ced0 starts
+  151,160,137,91,90,15,131,13; lattice @0x114d700 starts 23,125,161,52;
+  both 256-unique mirrored to 512 ✓ (note: an old C25 note said
+  `f[262] = 151` — actual mirror gives 131 (=perm[6]); the MIRROR property
+  is the verified fact, the 151 value was the wrap-misread).
+  - **FULL EXE GRADIENT-TABLE HUNT — NEGATIVE (settled):** whole-file scan
+    for imm32 `0x12eec08`/`0x12eec0c` → exactly 8 hits each, all at file
+    0x4fbbec..0x4fbc98 = **true 0x8fc7ec..0x8fc898**, i.e. inside the
+    quintic lattice noise itself (the `movss` loads). No in-binary
+    initializer exists; byte-pin of the table's file image @0xeede08 =
+    .rdata string bytes (ASCII "666440", "VarRe…" etc), NOT gradient
+    floats. ⇒ the table is genuinely runtime-only; the port runs
+    latticeGrad against a CLEARLY-SUBSCRIPTED placeholder (see the placeholder paragraph below) until a Cheat-Engine read supply fills 0x12eec08/0x12eec0c
+    (16 floats). NO value from the placeholder may ever be cited.
+  - **true 0x900900 = slab 0x4fc100 — CORRECTION vs (13): it is NOT a
+    gradient-perlin "latticeB". Full byte-trace (slab 0x4fc100..0x4fc25f):
+    corner values are RAW perm bytes** (`perm[perm[i±1]+j±1]`, table
+    0x114d700, mirrored ✓), each divided by **255.0 f32 (@0x11e0378,
+    byte-pinned `0x00007f43` this session)**, quintic bilinear (6/15/10
+    fade, symmetric — the second column lerps against v(i+1)'s OWN low
+    endpoint), then `(v−0.5)·2.0` (constants 0.5 @0x11dfa94, 2.0
+    @0x11dfe68; slab 0x4fc240..0x4fc248) ⇒ **quintic VALUE noise,
+    output range [−1, +1]**. No gradient table access anywhere in it.
+    (13)'s "latticeB (0x4fc100), normal order" label survives (it follows
+    the same arg convention), but every gradient attribution is deleted.
+  - **true 0x8fc740 = slab 0x4fbf40 fully decoded (gradient perlin):**
+    4-corner hashes perm², gradient pairs loaded `movss 0x12eec08(,h,8)`
+    (gx) / `0x12eec0c(,h,8)` (gy); **second y-blend asymmetry CONFIRMED
+    in bytes — the high column lerps between `dot_SE` and the ALREADY
+    BLENDED `vy0` as the low endpoint: `vy1 = (dot_SE − vy0)·qy + dNE`**
+    (slab 0x4fc0b4..0x4fc0c8) — ported verbatim; (13)'s symmetric-bilinear
+    reading was wrong there.
+  - **FUN_00908cb0 (slab 0x5084b0) — CORRECTION of (13)'s out-lines:**
+    the two lattice results CROSS relative to (13)'s output pairing:
+    ```
+    w  = simplex2d(adjX·0.13715, adjY·0.13717)·0.45 + 0.1      (unchanged)
+    Rg = latticeGrad(adjY/9, adjX/9)      // 0x4fbf40, SWAPPED (kept!)
+    Rv = latticeVal(adjX/9, adjY/9)       // 0x4fc100, normal (kept)
+    out[0] = u + Rv·(w·a)                 // 0x508628/0x508638/0x50864b/0x50864f
+    out[1] = v + Rg·[((1−w)·0.33) + 0.111]·a    // 0x5085de..0x508662
+    ```
+    (the 0.33-chain binds to the SWAPPED-ARG GRADIENT call and w·a to the
+    VALUE call — (13) had them assigned the other way around; asm is
+    authority). Register details unchanged from (13): out = ECX f32 pair;
+    inX/inY = xmm2/xmm3 f64; a = xmm1 f32; early return when 0 ≥ a;
+    u,v via f64 (adj±0.5)·0.1; floor helper 0x44d0b0 ×2 (iu, jv) feed only
+    the frac reconstruction (identity in real arithmetic); ninth IS NOT
+    exact 1/9 — **0x11dfd20 = 0.1111111119389534 = f32(0.11111111) widened
+    to f64** (byte-pinned this session, replaces C26's "1/9 (f64)" gloss).
+  - **true 0x908e70 (slab 0x508670) — clamp direction settled (C30 OPEN
+    arm):** `q = latticeVal(f32(x·0.035), f32(y·0.07))` (anisotropic);
+    `warp = ((f32)axis + q·15.5)·0.0489275` for BOTH axes (yes, same q;
+    slab 0x5086c2..0x5086f2 re-verified byte-exact); `s = simplex(wx, wy)`;
+    then `t = ((a−0.5)·0.5)²·5.35·0.95` (f32; 0x11dfa94 kernel, gain
+    0x11e00b4, gamma 0x11dfbac); `val = s·t + a`; tail `comiss %xmm1,%xmm0
+    + ja` (slab 0x50872c..0x508731) ⇒ **`val < 0.5 ? 0.5 : val` — LOWER
+    clamp at 0.5** (C30's OPEN question closed; (13)-heading surgical
+    reading confirmed).
+  - **Input mapping (dig #4 target (d) — WALKS READ):** the sole ctor
+    caller (true 0x90f680 = slab 0x50ee80 walk) plants per-cell
+    generators with `malloc(0x1ec)` (`push $0x1ec; call *0x114a34c` @
+    0x50ee54), ctor = FUN_0090ce20 with seed = `WORLDSEED::GetSeed()` (e8
+    → true 0x9119d0 @0x50ee78 ✓), then `[gen+0x90] = -0x358(%ebp)` /
+    `[gen+0x94] = ebx` = the CELL COORDS (loop state; NOT the RNG state — the +0x94-float chain of C27 lives in the
+    +0x98 sub-object → bigobj +0x12c); registered via 0x39dc40/0x50c7b0
+    into the cell-grid registry (obj at [registry+0x84]), profiler string
+    "IMPL_DoBufferedPixelScene - add to cell grid" (0x1175e04 @slab
+    0x50ef5a) ✓. **Consumer arm slab 0x50c9d5 (true 0x90d1d5):** the walk
+    calls the sampler FUN_0090d860 (0x50c90a), extracts an object via a
+    virtual `+0x58` call (0x50c9c7), then for each sample: coord
+    `([ebp−0x4c]/[ebp−0x58]` ints, round-half-÷2 via `cltd/sub/sar`)
+    `+ origin [edi+8]/[edi+4]` → cvtdq2pd doubles → the chunk-map
+    accessor **true 0x909da0 (slab 0x5095a0)** (C27) resolves the
+    generator by wrap-mod over `[+0x50]/[+0x54]`, gated `+0xc4 == 0` —
+    i.e. the noise input = (generator cell coords + the per-biome C24
+    "Wang offset" doubles) resolved through the cell-grid registry.
+    The RNG-chain link is CLOSED for the noise (per-cell seed = the ONE
+    FUN_008f9470 draw, spatial diversity location-driven — C27/C28
+    reconfirmed; no further RNG reads needed for the noise band).
+  - **PORT:** `mapgen/lib/noise-proto.mjs` — runnable, 4 f32-exact cores
+    (simplex2d / latticeGrad2d / latticeVal2d / noiseTransform /
+    evaluator2), Math.fround at every SSE f32 step; f64 ops left in
+    double; full 512-mirrored perm tables embedded byte-exact.
+    VALIDATION vs the reference capture is **PLACEHOLDER-GATED**: the
+    flat-region rms / density check (I1/I3/I5/I6) can only run once the
+    runtime gradient table is extracted (CE read design queued; the
+    hunt-negative is settled, not a failure of the port). Tests: 143/143
+    intact; the noise is NOT chained into the genmap pipeline, so the
+    cache stays at r3e (no observable change was introduced).
+  - **Standalone smoke (2026-09-20, placeholder-limited — NOT capture
+    validation):** 6.6M samples over [−500,500]² — all outputs finite;
+    noiseTransform outputs ≈ the ×0.1 grid coordinate ± displacement
+    (observed ±50.3 / ±51.6 envelope for inX/inY = ±500 — consistent with
+    |disp| ≤ ~1.4·a); evaluator2 @a=1: [0.719, 1.281] ⊂ [1 ± 0.318] (the
+    theoretical ((a−0.5)·0.5)²·5.35·0.95·|s_max| envelope — kernel order
+    consistent); simplex2d: ±0.8843, symmetric as expected for the
+    8-direction construct. Capture-level validation (flat-region rms vs
+    seed 78633191) remains GATED on the runtime gradient table.
+
+- **2026-09-20 (16) — F3 dig #4 addendum / CLOSURE: the gradient table
+  FOUND IN-FILE + the sampler paint arm read + the .data file-rule
+  corrected.** All four reads on F3's list are closed; the port is
+  fully binary-derived with no placeholder.
+  - **.DATA FILE-RULE AMENDMENT (C13):** the PE section table shows
+    imageBase 0x400000 and per-section raw deltas **.text = VA−0x400C00
+    · .rdata = VA−0x400E00 · .data = VA−0x401A00**. The standing
+    ".rdata/.data reads: file_off = VA − 0x400e00" rule is RDATA-ONLY.
+    .data raw backing spans VA 0x12EB000..0x1327400 (vsize 0x612F0 → VA
+    up to 0x134C2F0; the tail = BSS/no file bytes). Re-checked
+    runtime-only verdicts against the map this session: C24
+    (0x1327670/0x13289a8), 0x13276ba, 0x132aed8 are all beyond 0x1327400
+    → BSS → runtime-confirmed (their verdicts stand via the map, not
+    merely via a garbage read).
+  - **GRADIENT TABLE @0x12eec08 FOUND (file 0xEED208)** — byte-pinned
+    8 f32 pairs (gx @0x12eec08 / gy @0x12eec0c, stride 8):
+    `0:(−1,0) 1:(1,0) 2:(0,−1) 3:(0,1) 4:(−1,−1) 5:(−1,1) 6:(1,−1)
+    7:(1,1)` — static .data, no randomness. The (13)/dig #4
+    "runtime-only / CE read required" negative was a section-rule
+    artifact; the imm32 hunt result stands as recorded (only the 8 load
+    sites — no runtime init code exists; the table is compile-time data).
+    `lib/noise-proto.mjs` GRADIENTS = these exact bytes.
+  - **SAMPLER PAINT ARM (FUN_0090d860 tail, slab 0x50d5b8..0x50d84c) —
+    read (last open item on F3's list):** dispatcher 0x4f4830 (@0x50d57a
+    family) returns the sampled material; per sample: u16 grid write
+    (+0x1e0 via 0x559de0, indexed `w·row + x`, `mov %ecx,(%eax)` @
+    0x50d69a = the DISPLACED material id); then the RGBA grid [+0x180
+    via 0x549680] bounds-checked (+0x168 w / +0x16c h) with
+    `testl $0xff000000` alpha guard (@0x50d6d0) → vtable *0x1c color
+    paint dispatch (0x50d6fa); else the 0x342040 material lookup +
+    mark-flag buffers (+0x1a0 / +0x1c0, byte=1 @0x50d823/0x50d851).
+    The noise → (displaced u,v) → floor-interp → material select →
+    u16/RGBA paint chain is mechanically complete in-binary (material
+    naming 0xb78e0/0x603fd0 is config-side — outside the noise
+    mechanism window).
+  - **F3 STATUS: READ-CLOSED + PORT FULLY BINARY-DERIVED.** Every byte
+    of the five cores pinned; `lib/noise-proto.mjs` carries zero
+    placeholders. Remaining pipeline steps (recorded here, NOT F3
+    reads): capture validation (I1/I3/I5/I6) + genmap integration
+    (cache r3e→r3f ONLY on an observable change). Tests: 143/143
+    intact (module smoke: 6.6M finite samples; evaluator2 range =
+    theoretical envelope).
+
+- **2026-09-20 (17) — generator update wired (F3 integration, shape-first)
+  + an honest boundary marked:** `mapgen/lib/noise-terrain.mjs` plugs the
+  binary noise chain into `world-gen.mjs`'s fallback path (procedural
+  biomes, C21 census: 132 non-template): per wang cell,
+  `evaluator2(gx + cfgMinX, gy + cfgMaxX, 1.0)` (the 0x908e70 binary
+  recipe; cfg = the C24 ConfigRegistry defaults 159/223, @prov noitool),
+  gated by the sampler's own `> 0.5` test (slab 0x50d3c3); solid cells
+  paint one baseline shade per band (shape-first mandate — colors to be
+  calibrated after the data-material naming pass 0xb78e0/0x603fd0).
+  - **SMOKE RESULT (seed 78633191, chunk desert@45,48):** the chain
+    RUNS (mask built, tests 143/143, cache r3e → r3f bumped — the noise
+    bands now render visibly), BUT the mask is ALL-SOLID (2704/2704):
+    a lower-clamped-at-0.5 evaluator can never fail the >0.5 gate —
+    the gate is a smoothstep/interp precondition, NOT the content mask.
+    ⇒ the game's solid/air CONTENT decision lives in the **u16 DECOR
+    material grid** — which is filled by the fillRandomMaterials /
+    colorize family (named OPEN in VERIFIED's F2/F3 perimeter since
+    2026-09-19). The integration is therefore flagged a provisional
+    first cut; the honest next read = fillRandomMaterials' u16 write
+    walk + the float-field [+0xb4] source (+0x94 chain consumption),
+    after which the gate/field separation can produce real shape.
+  - ISSUE-tracking note: the world smoke surfacing "5 area errors" is
+    the preexisting no-attempt areas (lake / rainforest_dark family,
+    VERIFIED §4 residual); unchanged this session.

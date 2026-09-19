@@ -12,6 +12,7 @@ import { generateAreaExact } from "./generate-exact.mjs";
 import { colorizeArea } from "./colorize.mjs";
 import { renderTemplateWorld } from "./template-render.mjs";
 import { readPng } from "./images.mjs";
+import { attachNoiseTerrain } from "./noise-terrain.mjs"; // F3 (2026-09-20)
 
 export const CHUNK = 512;
 export const WORLD_CHUNKS_W = 71;
@@ -84,7 +85,26 @@ export function worldColorAt(world, wx, wy) {
       return [buf[o], buf[o + 1], buf[o + 2]];
     }
   }
+  // F3 noise-terrain (2026-09-20, ABOUT_MATH (15)/(16)): procedural biomes
+  // get the binary evaluator chain per wang cell (shape-first priority:
+  // the >0.5 gate value decides solidity, material naming is config-side).
+  const nz = world.noiseSolidAt?.(wx, wy);
+  if (nz != null) {
+    return noiseColor(world, tx, ty, nz);
+  }
   return null;
+}
+
+// Noise-terrain display color (shape-first, user mandate 2026-09-20):
+// solid cells get one baseline shade per band until the data-material
+// naming pass (0xb78e0/0x603fd0 config side, ABOUT_MATH (16)); air cells
+// return null so the renderer's own background rules apply.
+function noiseColor(world, tx, ty, solid) {
+  if (!solid) return null;
+  void tx; void ty; void world;
+  const dark = ty - SKY_ROWS > 26 || ty - SKY_ROWS < -6;
+  const hex = dark ? 0x1b1b1b : 0x6a5a44; // deep rock band vs provisional surface
+  return [(hex >> 16) & 0xff, (hex >> 8) & 0xff, hex & 0xff];
 }
 
 function readCache(cacheFile) {
@@ -103,6 +123,7 @@ export function ensureWorld(seed, dataDir, { cacheDir = null, onProgress = () =>
   const world = loadWangWorld(dataDir);
   world.maps = new Map();
   world.templates = renderTemplateWorld(dataDir, world.config, seed); // template biomes (sync, cached art)
+  attachNoiseTerrain(world, dataDir); // F3 noise terrain (2026-09-20)
   world.ready = Promise.all(
     world.areas.map(
       (a) =>

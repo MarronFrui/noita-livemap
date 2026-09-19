@@ -182,6 +182,22 @@
   objdump read → cite slab VA and true VA both, even for below-base
   e8 targets; always verify a named target by first byte-pinning a
   prior-verified constant inside it.
+- **SECTION-BY-SECTION FILE MAP (PE header, 2026-09-20 dig #4 — AMENDS
+  the "VA − 0x400e00" rule above):** imageBase 0x400000; true_VA =
+  0x400000 + RVA. Raw-offset deltas per section: **.text file = VA −
+  0x400C00 · .rdata file = VA − 0x400E00 · .data file = VA − 0x401A00**
+  (the −0x400E00 rule is .rdata-ONLY; applying it to .data VAs reads the
+  wrong bytes). .data raw backing covers only RVA 0xEEB000..0xF27400 =
+  VA 0x12EB000..0x1327400; the .data tail (vsize 0x612F0 → up to VA
+  0x134C2F0) has NO file bytes = BSS/runtime-only. That is where C24's
+  0x1327670/0x13289a8 and F1's bit-grid 0x132aed8 live — their
+  "runtime-only" status is now CONFIRMED by the section map itself (not
+  just by a garbage read). Proof of the amendment: the C29 gradient
+  table (VA 0x12eec08) IS inside raw-backed .data — read at file
+  0xEED208 (see C29). Any prior "runtime-only" verdict that used the
+  −0x400E00 rule on a .data VA < 0x1327400 must be re-checked per this
+  map (checked this session: C24 + 0x13276ba + 0x132aed8 are all beyond
+  0x1327400 → BSS → runtime — their verdicts stand).
 
 ### C14 — stb / fill-subsystem ÷10 interior sites (label corrected 2026-09-19 (5))
 - 3 hits at SLAB 0x8ec1b8 / 0x8ec1e8 / 0x8ec999 → **true 0xcec9b8 /
@@ -369,6 +385,16 @@
 - Status: read (2026-09-19). Source: ABOUT_MATH 2026-09-19 (11).
 
 ### C25 — poro noise cores: 2D SIMPLEX, 3D simplex, quintic lattice noise (F3 dig #1, read 2026-09-19)
+- **ADDENDUM (2026-09-20 dig #4):** the perm-table mirror note's
+  `f[262] = 151` was a wrap-misread — actual verification (session):
+  both tables are 256 unique entries mirrored to 512, so table[262] =
+  table[6] = 131 (lattice) — the MIRROR property is the fact. Simplex
+  corner orientation byte-settled this session: hash inner index =
+  `perm[j0] + i0` where i = floor(arg0-x), j = floor(arg1-y); corner1 =
+  `perm[perm[j0+j1] + i0+i1]`; corner2 = `perm[perm[j0+1] + 1 + i0]`
+  (loaded via table base 0x114ced1). Gradient construct from hash bits:
+  mask4 = swap comps, mask1 = negate comp1, mask2 = comp2 ×−2.0.
+
 - **2D simplex core = true FUN_008fca60 (slab 0x4fc260).** NOT value noise
   (ledger prose guess corrected). SSE-XMM0/XMM1 float args, returns f32.
   Identity anchors in-binary: the C12 assert idiom is absent here (pure SSE
@@ -394,6 +420,9 @@
   family; 0.94/0.95/15.5 recorded in ledger prose belong here/elsewhere,
   NOT yet pinned — do not cite as read).
 - Status: read + pinned (2026-09-19). Source: ABOUT_MATH 2026-09-19 (12).
+- **ADDENDUM (2026-09-20 dig #4):** `0x11dfd20` ("1/9 f64") is NOT exactly
+  1/9 — byte-pin this session: **0.1111111119389534 = f32(0.11111111)
+  widened to f64**. Use that exact value (K.ninth in `lib/noise-proto.mjs`).
 
 ### C26 — FUN_00908cb0 noise-transform constants (slab 0x5084b0; F3 dig #1)
 - The per-cell sampler FUN_0090d860's noise evaluator. Reads the C24
@@ -473,6 +502,32 @@
 - The 0.94 ledger-prose remnant: NOT found in either lattice function —
   still UNPINNED anywhere in the noise family.
 - Status: read + pinned (2026-09-19). Source: ABOUT_MATH 2026-09-19 (13).
+- **MAJOR CORRECTION (2026-09-20 dig #4, full byte-trace of both lattice
+  functions):**
+  - **true 0x900900 (slab 0x4fc100) is quintic VALUE noise, NOT a
+    gradient-perlin twin**: corner values = raw perm bytes
+    `perm[perm[i±1]+j±1]`, divided by **255.0 f32 @0x11e0378** (byte-pinned
+    `0x00007f43` this session), symmetric quintic bilinear (fade 6.0/15.0/
+    10.0 @0x11e00e8/0x11e01a0/0x11e015c), then `(v − 0.5)·2.0`
+    (0.5 @0x11dfa94, 2.0 @0x11dfe68; slab 0x4fc240..0x4fc248) — output
+    range [−1,+1]. It does NOT touch the gradient table.
+  - The gradient pair table (`perm[perm[i±1]+j±1] & 7` index) belongs
+    **ONLY to true 0x8fc740 (slab 0x4fbf40)**.
+  - **0x8fc740's second y-blend is ASYMMETRIC** (byte-settled): the high
+    column lerps between `dot_SE` and the ALREADY-BLENDED column-i value
+    (`vy1 = (dSE − vy0)·qy + dNE`, slab 0x4fc0b4..0x4fc0c8) — ported
+    verbatim in `lib/noise-proto.mjs`.
+  - **GRADIENT TABLE FOUND IN-FILE (2026-09-20, closes the dig #4 hunt):**
+    the earlier "runtime-only / CE read required" verdict was an artifact
+    of reading with the .rdata file-rule (VA−0x400E00) on a .data VA.
+    Per the C13 section map: .data file = VA − 0x401A00 → the table
+    @VA 0x12eec08 sits at **file 0xEED208** and contains 8 REAL gradient
+    pairs (byte-pinned this session, f32 pairs, stride 8):
+    `0:(−1,0) 1:(1,0) 2:(0,−1) 3:(0,1) 4:(−1,−1) 5:(−1,1) 6:(1,−1) 7:(1,1)`
+    — gy @0x12eec0c = the second dword of each pair ✓. NO placeholder,
+    NO randomness, NO CE read needed. `lib/noise-proto.mjs` GRADIENTS =
+    these exact bytes. (Also note: 0x12EEC08 has no `.data` zero-fill —
+    raw-backed content is authoritative.)
 
 ### C30 — true 0x908e70 second-noise evaluator constants (slab 0x508670; dig #2)
 - Constants (byte-pinned 2026-09-19): `0.07 f64 @0x11dfce8`, `0.035 f64

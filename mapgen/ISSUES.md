@@ -37,6 +37,67 @@
 
 ## Issue registry
 
+### 0. User priority ranking (2026-09-20 — SHAPE over colors, strict order)
+> Current state (user-verified): generation is "really fucking close from
+> reality". The following missing pieces are the user's ranked priorities.
+> Note: some bands render partially because the capture extension covers
+> both Work bands (heaven/hell).
+
+1. **[P1] Surface level** (refines I1 hierarchy): the mountain
+   (mountain*), the watchtower, the pyramid (I2 overlap), and the WEST
+   frozen plain. These are the template/procedural biome biomes
+   (hills.lua/desert/winter/lake family) — noise terrain + static art.
+   The F3 noise mechanism is read-closed; this is the shape-consumer side
+   (I6).
+2. **[P2] The Work — hell & heaven bands proper generation** (refines
+   I3/I5/I6) + the **moon / dark moon as POI anchors** (I4/I7 — the moon
+   art already lands via SPLICE_PNGS blur; POI role = registration
+   anchors + rotation/alignment targets for the band).
+3. **[P3] Portal-zone grey noise vs missing liquid** (NEW, observed):
+   the per-layer portal zones connecting to the next holy-mountain shop
+   render grey noise in our gen where the game loads NO liquid — user
+   hypothesis: the band renders a POSSIBLE-liquid fill (liquid-carrier
+   biome region) and IS correct when the liquid exists (lava/blood pools
+   render right). Tie-in: same mechanism class as the tea pools item
+   below — the u16 DECOR material grid's liquid-fill branch
+   (fillRandomMaterials family — the named open read in VERIFIED frontier
+   item 5, ABOUT_MATH (17)).
+4. **[P4] Solid rocks / corrupted rocks at chunk-area EDGES** (NEW,
+   observed): seed-INDEPENDENT edge structures — user inference: they do
+   not respond to wang tiles (not a template path). Mechanism candidate:
+   the area-EDGE post-fill layer (finalize black blit C17 family /
+   biome_implement edges or a static edge-painter), NOT noise, not wang.
+   Needs: identify the writer of the u16 edge/rock bands in-binary —
+   possibly the FUN_008f9ab0 marker-family (C14/C15 read already sketches
+   "erosion/edge painter" behavior at true 0x8e6d50).
+5. **[P5] Tea pools / rectangle liquid structures in layer 1** (NEW):
+   same liquid-mechanism family as P3 (rect + random liquid) — likely
+   fills via the same u16 material-grid branch (liquid variant).
+6. **[P5] Lava bands above the Work (HELL) still wrong** (I5 refinement:
+   must be PURE lava; needs the liquid-fill predicate from the DECOR
+   grid, same mechanism as P3/P5).
+
+**Read-entry cross-links for the next dig session**
+(what is already landable vs still needs reads):
+- P1: needs the u16 DECOR material-grid content read (fillRandomMaterials
+  walk) + per-biome layout params from `scripts/biomes/*.lua`
+  (⚠️ stage-11 data side).
+- P2: needs the P1 grid read + the moon/dark-moon anchors are ALREADY
+  splited (I4 note); hell/heaven noise bands will follow the same
+  fillRandomMaterials read as P1.
+- P3/P5: the fillRandomMaterials liquid branch (the SAME read as P1 —
+  user's "possible liquid but wasn't loaded" hypothesis matches the
+  Init-time grid fill vs runtime-consumption split from F1: chunk loads
+  never regenerate — Init builds, runtime consumes; a portal zone whose
+  area grid holds LIQUID-marked cells renders grey noise in our port
+  because our material grid lacks the liquid classification impl).
+- P4: the level-inpainting rock edges = seed-independent — likely the
+  "always same every seed" ⇒ a NON-RNG deterministic painter (bounded
+  ray-walks like the finalize family or the 0xe6d50 erosion painter).
+  Candidate next read: the TRUE 0xd3a403/0xcee0cf wrapper family names
+  (C5's "eliminated as anchor but names unknown" row) — those sit in the
+  Update-frame record area where edge painters would live.
+
 Legend: [ ] open · [x] fixed · (A) = approximation to replace by
 reconstruction · priority HIGH/MED/LOW, user-weighted.
 

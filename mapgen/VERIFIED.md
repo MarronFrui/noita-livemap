@@ -221,7 +221,17 @@ binary side unread) · ❌ unexplored.
 | 8 | Spawn-trigger walker + queue | FUN_00904c20 tail → 1 draw/px → FUN_00900c70 → processor FUN_0085d7b0 | 🔬 |
 | 9 | Runtime streaming / chunk loads | **VA-CORRECTED 2026-09-18 (see ledger)**: ProceduralTerrain::Update() = FUN_0090b8a0 (profiler 0x11753ac @0x90b8cf) → DoBufferedPixelScenes() = FUN_00910c20 (profiler 0x11764ac @0x910c59); buffered-scene enqueue w/ dedup + flush = FUN_0090c1f0 (call sites 0x818c6e LoadPixelScene binding, 0x907fc9 Init, 0x90bd1e). Earlier "0x50b0a0/0x510420" were shifted-slab VAs (+0x400800 correction, byte-pinned) | 🔬 (pixel-scene arm fully read: scene executes only when ALL FOUR overlapping 512-chunks present — 4-corner probe of the chunk bit-grid DAT_0x132aed8; STREAMING_CHUNK_TARGET readers found at 0x79e65a/f1/74f = per-frame budget regulator); **chunk-request consumer arm ➜ next read (chunk bit-grid 0x132aed8 imm families + 0x79xxxx frame-tick)** |
 | 10 | Pixel scenes (biome-script loaders) | bindings region 0x806000–0x80c000 (partially read); data: `data/biome_impl/*.xml`, `_pixel_scenes.xml`, spliced `.plz` (compressor FUN_004225f0/b50, dispatcher FUN_00422e20) | ⚠️/❓ (plz codec not reproduced; per-scene art rendered via source-PNG blit) |
-| 11 | Template biomes + procedural noise terrain | data `scripts/biomes/*.lua` (⚠️); binary noise terrain = funcs reading generator +0x94 / DECOR float/u16 grids (FUN_0090e840, FUN_008f9ab0, mSeed ctor FUN_00904730) | ❌→🔬 **F3 dig #1 (2026-09-19): core READ** — 2D **simplex** core true FUN_008fca60 (F2/G2, perm 0x114ced0, ×40) + 3D twin + quintic-lattice family (perm 0x114d700, 6/15 quintic); transform FUN_00908cb0 ×0.1/0.13717/1/9/0.45/0.33 etc pinned (C25–C27); sampler FUN_0090d860 flow read (float-field gate >0.5 → eval → u16/RGBA paint). **Not closed:** FUN_00908cb0 line-by-line decompile, lattice gradients, sampler paint constants, generator-planting walk; noise not yet ported |
+  f32; x,y = f64 args). Re-verify the clamp direction when porting.
+- Status: read + pinned (2026-09-19). Source: ABOUT_MATH 2026-09-19 (13).
+- **ADDENDUM (2026-09-20 dig #4): the clamp arm is SETTLED** (byte re-read
+  slab 0x50872c..0x508734): `comiss %xmm1,%xmm0` + `ja` keeps 0.5 only
+  when `0.5 > val` ⇒ **`val < 0.5 ? 0.5 : val` — a LOWER clamp at 0.5**
+  (matches the pre-registered per-asm form). Both axes' warp re-verified
+  byte-exact (same single q, cvtsd2ss BEFORE the addss per axis):
+  `w(axis) = ((f32)axis + q·15.5)·0.0489275`. Ported
+  (`lib/noise-proto.mjs` evaluator2); this row is fully closed — the only
+  remaining OPEN input of the noise family is the 0x8fc740 gradient table
+  (see the C29 correction).</think>C30 clamp addendum landed. Now the last edit — fix my earlier "warp = (axis + q…)" line in C29 result claim only if needed. The C29 row is fine. Next: VERIFIED.md — distill the settled corrections into §11 row 11 / row C lines:<tool_call>edit<arg_key>newString</arg_key><arg_value>| 11 | Template biomes + procedural noise terrain | data `scripts/biomes/*.lua` (⚠️); binary noise terrain = funcs reading generator +0x94 / DECOR float/u16 grids (FUN_0090e840, FUN_008f9ab0, mSeed ctor FUN_00904730) | ✅🔬/✅ **F3 READ-CLOSED + PORTED (2026-09-20, digs #1–#4 + closure)** — 2D simplex core true FUN_008fca60 (C25); quintic **GRADIENT** lattice = true 0x8fc740 with the byte-pinned IN-FILE gradient pair table @.data VA 0x12eec08 (file 0xEED208 via the corrected **.data file rule VA−0x401A00**, pairs above); quintic **VALUE** lattice = true 0x900900 (perm/255·2−1); transform FUN_00908cb0 full recipe (C26, results cross the outputs, ninth = f32-1/9 widened f64); evaluator true 0x908e70 closed (lower clamp 0.5, same-q dual-axis warp); sampler FUN_0090d860 paint arm read (dispatcher → u16 material write +0x1e0, RGBA alpha-gated vtable color dispatch, mark flags); generator plant walk = cell-grid job, ONE seed draw from.WorldSeed (C27/C28). **Runnable fully-binary-derived port: `mapgen/lib/noise-proto.mjs` (no placeholder remains).** Generator update next; capture validation = the I1/I3/I5/I6 pipeline step (gates the r3e→r3f bump only on an observable change) | |
 | 12 | Material/coloring paint | data materials.xml + biome MaterialComponents (`lib/colorize.mjs`) | ⚠️ faithful approximation; exact grey-band noise OPEN (ISSUES I1) |
 | 13 | Engine debug toggles | flags DEBUG_GENERATE_BIG_WANG_MAP / DEBUG_FULL_WANG_MAPS registered ~0x472ee0/0x4742d0; REGEN_WANG_MAPS 0x118f924 (0 imm refs) | 🔬 sites found; **storage + readers unknown** — frontier F4 (potential in-game wang ground-truth oracle) |
 
@@ -270,46 +280,46 @@ binary side unread) · ❌ unexplored.
    togglable → first-class wang-only ground truth (in-engine full wang maps),
    eliminating the capture's non-wang-layer confound for every future check.
 4. **F-anchor — ✅ CLOSED (negatively resolved, 2026-09-19 (6), byte-pinned).** The game has NO additive wang-cell↔world anchor constant: the fill driver (true 0x904c20 = slab 0x504420, single thunk caller) copies the accepted out_map's cells into the area grids by a per-cell wrap-modulo copy (`idiv`-based repetition, dst `y·W+x`, 4 bytes/cell), and the Init area-grid sizing is `[chunkExtent·512]÷10`. Our genmap's fitted (3,3) px anchor is a PORT-LOCAL artifact (about-math entries 2026-09-19 (2)–(6); investigations: driver slab 0x505610..0x5056a4). Stage-8 walker emission byte-pinned IN the driver (slab 0x5054fc → true 0x900c70): spawn triggers follow the fill in one driver.
-5. **F3 — procedural noise terrain** (poro perlin from the generator +0x94
-   state; mSeed/×200000−100000 chain): unblocks the entire surface band →
-   I1/I2/I3/I5/I6. The noise terrain materializes from the Update region,
-   not from Init. **2026-09-19 (dig #1): CORE READ — it is 2D SIMPLEX
-   noise** (true FUN_008fca60, F2/G2 skew, perm 0x114ced0, ×40 out-scale;
-   3D twin 0x8fcce0) plus a separate quintic-lattice family (perm
-   0x114d700, 6.0/15.0 quintic), coupled by the transform FUN_00908cb0
-   (×0.1, 0.13717/0.13715, 1/9, 0.45/0.33/0.11 — C25/C26); the
-   `+0x94` state = f32(Next()·200000−100000) per generator object (C27),
-   the same object class whose `+0x38/+0x40` "Wang offset" doubles feed
-   C24 (C28). **Remaining reads:** quintic-lattice gradients + out
-   scale; FUN_00908cb0 exact decompile; sampler paint arm; the walk that
-   plants the generator objects. Then port + validate vs captures.
-   *(The old "F-anchor" bullet that used to stand here is superseded by
-   item 4 above — its named read targets are now all read out or pinned.)*
+5. **F3 — noise terrain** — status split (2026-09-20): **noise-mechanism
+   family READ-CLOSED + ported** (ALL five cores byte-pinned incl. the
+   in-file gradient table @0x12eec08 file 0xEED208; sampler/plant walks
+   read; runnable `lib/noise-proto.mjs`, zero placeholders — see §11) —
+   **still OPEN inside F3's own perimeter: the random-material /
+   colorize family + fillRandomMaterials' u16 writes** (the solid/air
+   CONTENT mask source — the integration smoke 2026-09-20 (17)
+   demonstrated the >0.5 gate alone cannot produce shape), plus capture
+   validation (I1/I3/I5/I6). Generator integration is WIRED
+   (`lib/noise-terrain.mjs`; cache r3e→r3f bumped, visible first cut:
+   all-solid procedural bands) pending that read.
 
-   **Dig #4 plan (handover, 2026-09-20, cursor: reconstruct → port →
-   validate):**
-   1. Write the runnable JS port in `mapgen/lib/noise-proto.mjs` from
-      the ABOUT_MATH (13) recipes (simplex2d, quintic lattice with the
-      builtin perm bytes, FUN_00908cb0 transform, true 0x908e70
-      evaluator) — all SSE f32 steps via Math.fround; coefficient set =
-      C25–C30 verbatim (perm head arrays are already byte-extracted
-      inside the module).
-   2. Resolve the lattice gradient VALUES: the table is *runtime* .data
-      @0x12eec08 (not statically in-file — read attempt gives garbage).
-      Options in order: (a) scan the WHOLE exe (not just the slab) for
-      imm32 writes to 0x12eec08/0x12eec0c — its initializer; (b) CE
-      memory dump; (c) reproduce the CPerlinNoise-style init walk found.
-   3. Per-cell NOISE INPUT mapping: what feeds [gen+0x90]/[+0x94] in the
-      plant walk (sole caller of FUN_0090ce20 = true 0x90f680) and the
-      consumer walk at slab 0x50c9d5 (true 0x90d1d5) — this gives the
-      world-cell → FUN_00908cb0 input mapping (inX,inY,a = the call-site
-      weight, observed 1.0) + the per-biome C24/Wang-offset doubles.
-   4. Validate the noise band vs the reference seed (78633191 capture,
-      flat-region rms, spawn-equation-free surfaces) → ISSUES I1/I3/I5/I6.
-      Cache r3e → r3f ONLY on an observable change.
-   5. Skip-list: do NOT re-read FUN_008f9ab0 (F2's marker sweep), the
-      F2 closure rows, or doit the 0.94 prose — the first two are
-      closed, the third is unverified and unassigned.
+   **Dig #4 plan (handover 2026-09-20 — EXECUTED + F3 read-CLOSED same
+   day; full detail ABOUT_MATH 2026-09-20 (15)/(16)):
+   1. ✅ Runnable JS port in `mapgen/lib/noise-proto.mjs` — simplex2d,
+      latticeGrad2d, latticeVal2d, noiseTransform, evaluator2, f32-exact
+      via Math.fround; perm tables = full byte-verified 512-mirrors.
+   2. ✅✅ Gradient table FOUND IN-FILE: the whole-exe imm32 "no
+      initializer" verdict was right AND the "runtime-only" conclusion
+      was a read-convention artifact — .data maps file = VA − 0x401A00
+      (NOT the .rdata −0x400E00 rule; see C13 amendment). Table
+      @VA 0x12eec08 → file 0xEED208 = 8 REAL gradient pairs:
+      0:(−1,0) 1:(1,0) 2:(0,−1) 3:(0,1) 4:(−1,−1) 5:(−1,1) 6:(1,−1)
+      7:(1,1). NO CE read, NO placeholder — `lib/noise-proto.mjs`
+      GRADIENTS = these bytes (C29 correction).
+   3. ✅ Input-mapping walks read: plant = true 0x90f680 (seed =
+      WORLDSEED::GetSeed(), ONE draw — C27/C28; cell coords at
+      [gen+0x90/0x94]), consumer = true 0x90d1d5 (chunk-map accessor
+      0x909da0 + per-biome C24 doubles). NO further RNG reads needed.
+   4. ✅ Sampler paint arm read (last named read on the F3 list):
+      dispatcher result → u16 material write (+0x1e0 via 0x559de0),
+      RGBA-grid [+0x180] alpha check testl 0xff000000 → vtable *0x1c color
+      dispatch; mark-flag buffers +0x1a0/+0x1c0 (byte set 1) = the
+      "un-materialed" grids; the noise→paint chain is mechanically
+      complete in-binary.
+   5. ✅ Canon corrections landed: ABOUT_MATH (15)/(16) + C13 (section
+      map) + C29/C30 corrections. REMAINING (pipeline, not reads):
+      the capture validation (flat-region rms vs seed 78633191) feeding
+      I1/I3/I5/I6 + the genmap integration (cache bump r3e→r3f ONLY on
+      an observable change) — recorded as the generator-update step.
 
    **VA conventions for dig #4** (C13 as amended 2026-09-20):
    - true = slab + 0x400800, **universally, including e8 targets printed
