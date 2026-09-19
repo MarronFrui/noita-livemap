@@ -60,6 +60,31 @@ Default write path:
 - [x] Experiments: transform fit, anchor sweep, positional sweep — all negative; evidence in `ABOUT_MATH.md` §6
 - [x] Tests: determinism, seed sensitivity, golden hash (`npm test`)
 
+### Generated-map pipeline (2026-09-08 →, evolution of the bench)
+
+- [x] Exact JS wang fill (`generate-exact.mjs` + `wang-js.mjs`) — replaces the
+      obsolete wasm for the live pipeline; prediction-solved end-to-end
+      (chain → fill → hasPath; oracle-validated; `VERIFIED.md`).
+- [x] Genmap MVP: `world-gen.mjs` (all wang areas + disk cache
+      `gen-cache/<rev>/<seed>/*.bin`, manual revision bump r3c→r3d) +
+      `server/genmap-server.mjs` (tile server :8082, `npm run gen:server`) +
+      `public/genmap.html` canvas viewer (`?seed=`, live telemetry marker,
+      follow toggle, zones overlay, regen button).
+- [x] Cache invalidation tooling: `npm run gen:clear [-- --seed N]`,
+      `/gen/clear/:seed` + `epoch` busting in the viewer.
+- [x] Coloring layer (`colorize.mjs`: random-block floods, trigger→air,
+      material shades, grey-fill fBm; I8 single-material lake fix landed).
+- [x] Spliced pixel-scene blits (`template-render.mjs`): tree, mountains,
+      boss arenas, moon/dark-moon, HM-band art — validated pixel-shape-exact
+      vs capture.
+- [x] Test battery: vitest in `tests/` (13 files / 142 tests, 2026-09-18;
+      data-dependent suites auto-skip).
+- [x] Issue registry phase ("purification"): all known defects enumerated as
+      I1–I17 in `mapgen/ISSUES.md` with per-issue status; governance rules:
+      binary-derived constants must be registered in `mapgen/CONSTANTS.md`
+      (2026-09-19), remaining noitool-provenance code is tagged `@prov
+      noitool` inline.
+
 ---
 
 ## How to run
@@ -173,9 +198,26 @@ colors — and what seeds the fill**. Resolution (evidence: `mapgen/VERIFIED.md`
   replaces the wasm fork entirely.
 - [~] **Community ask** — never needed.
 
-**Remaining to full prediction:** hasPath emulation (which attempt is accepted —
-~1–2 days), cascade spawn offsets (altar scenes; item overlays only), and the
-paint layers below.
+**Remaining to full prediction (statuses from `mapgen/VERIFIED.md` §11 +
+`mapgen/ISSUES.md`):**
+
+- [x] **hasPath emulation — done** (2026-09-18 port rewrite, oracle 4/4
+      after rewrite; 8/8 previously): 11-entry blocked-marker table, hax
+      constants corrected and active. In-binary location: hasPath =
+      FUN_00901780.
+- [~] **`MapGen` post-processing** — located in-binary (F2 dig §1–§5,
+      `ghidra-ledger.md`); `fillMainPath` / `fillC0ffee` /
+      `fillRandomMaterials` / `ClearPath` / room-growth ray-walk
+      semantics remain noitool-derived approximations (`@prov noitool`,
+      oracle-pinned) until re-derived from the binary. Open queue under F2.
+- [~] **Wang↔world anchor story** — genmap's fitted (3,3) anchor suspect
+      to be a port artifact: the Init grid walk sizes the area grids
+      `[chunkExtent·512]÷10` with no additive constant (2026-09-19 read,
+      `CONSTANTS.md` C9–C11); closure needs the values-write read.
+- [~] **Cascade spawn offsets** (altar scenes; item overlays) — pending
+      the offset model.
+- [~] **Paint layers below** — coloring layer shipped (approximation);
+      exact grey-band noise = open (I1).
 
 ### Phase 0.6 — Capture-based ground truth ✅ (2026-09-04)
 
@@ -197,42 +239,87 @@ paint layers below.
 
 ### Phase 0.7 — Wang-model iteration ladder (current focus, 2026-09-04 →)
 
-Each level is cheaper than the next; paint-immunity increases:
-
-1. **L0 determinism gate** — `npm test` goldens; gen twice = byte-identical.
-2. **L1 spawn equations (decisive judge)** — ✅ **PASSED for direct triggers
-   (2026-09-08)**: 12/12 heart/chest constraints across seeds 91/92/93 with
+1. **L0 determinism gate** — ✅ `npm test` goldens; gen twice = byte-identical.
+2. **L1 spawn equations (decisive judge)** — ✅ **PASSED for direct triggers**
+   (2026-09-08): 12/12 heart/chest constraints across seeds 91/92/93 with
    chain-derived fills, unique attempts, consistent anchor; cascade classes
    (potions) await the altar-scene offset model.
-3. **L2 divergence calibration** — our generator's adjacent-seed foreground
-   divergence must match the game's 26.5%; HM bands must be 100% seed-independent.
-4. **L3 geometry IoU in wang bands only** — air/solid after global-shift fit,
-   excluding HM/sky/solid_wall zones (`mapcap/PREDICTABLE_ZONES.md`).
+3. **L2 divergence calibration** — instrument ready (mapcap adjacent-seed
+   pairs, target = the measured 26.5% foreground class); **not yet passed
+   by the exact-model generator** (re-run pending the F2/F-anchor items).
+4. **L3 geometry IoU in wang bands only** — instrument ready (foreground
+   masks from mapcap); pending F2 completion + anchor closure.
 
 Accept a knob only if L1 holds and L3 improves; else revert + log to the
-mismatch DB.
+mismatch DB. Current work ordering follows the dependency-ranked frontier in
+`mapgen/VERIFIED.md` §11 (F-anchor → F2 → F4 → F3; details in Phase 2
+below).
 
 ### Phase 1 — Map Generation Engine
 
-- [x] Add noita-tools as a git submodule (`vendor/noita-tools`).
-- [~] Tile generation — bench-level done (`mapgen/pipeline/2-generate.mjs`, chunk-on-demand by `(seed, biome-map px)`); server endpoint pending until the builder is faithful.
-- [~] Coordinate mapping — implemented + fitted (`mapgen/lib/coords.mjs`); alignment proven **not** to be the blocker; world-px crop semantics correct.
-- [ ] Render a viewport of generated tiles with OpenSeadragon.
-- [ ] Validate generated output live against the game.
+- [x] noita-tools vendored as a git submodule (`vendor/noita-tools`) —
+      since demoted to an **obsolete reference** (data container only).
+- [x] **Genmap tile server shipped** (`genmap-server.mjs` :8082; per-seed
+      disk cache with manual revision bump + `/gen/clear` tooling). The
+      wang layer renders for arbitrary seeds (cold-validated 2026-09-08:
+      seed 999123, 57 areas in ~25 s).
+- [~] Template/procedural layers — predictable-zone spliced scenes +
+      HM-band art render (pixel-exact shapes vs capture); full surface/
+      sky terrain requires the poro-noise reconstruction (I1/I3, = F3).
+- [x] Coordinate mapping — implemented + capture-validated; chunk↔tile
+      mapping exact; the (3,3) wang-cell anchor is pending closure via
+      the Init values-write read (suspected port-local constant).
+- [ ] Render a viewport of generated tiles with OpenSeadragon (current
+      genmap viewer is a plain canvas; noitamap iframe still serves the
+      captured DZI).
+- [ ] Validate generated output live against the game (in-game playtest
+      pass reported for the reference seed: shape-correct everywhere;
+      systematic re-validation pending L2/L3).
 
 ### Phase 2 — Reverse-Engineering Loop
 
-- [~] Mismatch database — embryonic: `mapgen/out/stats.json` + per-chunk scoring + noise-floor calibration; no persistent DB yet.
-- [ ] Use Ghidra + AI to decompile the specific Noita functions causing mismatches (fallback — see Phase 0.5).
-- [ ] Reconstruct missing logic and validate against the game.
-- [ ] Focus areas (updated 2026-09-03): vertex-coloring scheme, non-wang layers (walls/scenes/edges), pre-placement ruleset (`blockedColors`, `coalmine_hax`), terrain-dependent spawns (deprioritized — not needed for visual terrain).
+Current authority documents: `mapgen/VERIFIED.md` (canon + lifecycle §11 +
+ranked frontier), `mapgen/ISSUES.md` (I1–I17 defect registry),
+`mapgen/ghidra-ledger.md` (binary dig history), `mapgen/CONSTANTS.md`
+(constant registry — the standing rule: register before use).
+
+- [x] Binary digs — fill subsystem read end-to-end (ledger h33–h35, h46+);
+      finalize family located (F2 dig §1–§5); runtime streaming side read
+      (F1 closed: chunk materialization reads Init-built grids, never
+      regenerates; pixel-scene arm fully read).
+- [~] Finalize semantics — `fillBlockedRooms`/`fillC0ffee`/`ClearPath`/
+      `fillRandomMaterials`/ray-walk room growth: located in-binary, still
+      noitool-derived in the port (`@prov noitool`) — F2 queue: blockOutRooms
+      ray-walk first, then ClearPath/C0ffee. The isCoalMine /
+      shouldBlockOutRooms selection rule is UNDETERMINED in-binary
+      (2026-09-19 data-audit note, `ISSUES.md`).
+- [~] The fill's copy-out walk + perlin core (FUN_008fca60 constants) —
+      leads recorded, unread; on-target reads must pin via
+      `CONSTANTS.md` (slab = true − 0x400800; C13).
+- [ ] Mismatch database — scores land in `mapgen/out/stats.json` +
+      `mapgen/out/report.html` (bench) and mapcap reports; a persistent
+      DB is still pending (embryonic).
+- [ ] Focus areas (superseded by the frontier order in `VERIFIED.md` §11,
+      2026-09-18): (1) F-anchor — read FUN_008e6d50 / values-write walk;
+      (2) F2 remainder — exact finalize semantics; (3) F4 — engine debug
+      flags (potential in-game wang-only ground truth); (4) F3 — poro
+      perlin noise terrain (unblocks I1/I3/I5/I6). Terrain-dependent
+      spawns remain deprioritized (not needed for visual terrain).
 
 ### Phase 3 — Livemap Integration
 
-- [ ] Use the live seed from mod telemetry as the map seed.
-- [ ] Render the live player position on the generated map.
-- [ ] Add `?seed=...` URL parameter for shareable seed views.
-- [ ] Define fallback behavior for incomplete/failed generation.
+- [~] Use the live seed from mod telemetry as the map seed — **shipped in
+      the genmap viewer** (live button loads the current run's seed from
+      the bridge, auto-jumps to the player); the noitamap iframe still
+      serves captured tiles.
+- [x] Render the live player position on the generated map (genmap
+      viewer: marker + follow toggle).
+- [ ] Add `?seed=...` URL parameter for shareable seed views — genmap
+      supports `?seed=`; integration into the noitamap iframe view open.
+- [ ] Define fallback behavior for incomplete/failed generation (current
+      behavior: no-attempt areas render black and are marked in the
+      zones overlay; the lake/rainforest_dark no-acceptance families are
+      I13/ISSUES tracked).
 
 ### Phase 4 — Seed Prediction Overlays
 
@@ -253,7 +340,7 @@ mismatch DB.
 2. **Map viewer hosting:** Do we want the map viewer to open automatically in a browser window, or run as a standalone Electron/Tauri app later?
 3. **Save slot support:** Noita has multiple save slots (`save00`, `save01`, ...). Should the bridge support switching slots, or hardcode `save00` for the MVP?
 4. **Tile generation hosting:** Should generated tiles run client-side (WASM) or server-side (Node/Python)? Starting server-side for debugging.
-5. **Accuracy tolerance:** What level of mismatch is acceptable before falling back to captured tiles? Update 2026-09-03: the bare-wang-vs-capture comparison is confounded by non-wang layers (~24% density gap) — "acceptable mismatch" can only be defined once the full layer stack (wang + walls/scenes/edges) is modeled or a wang-only ground truth exists.
+5. **Accuracy tolerance:** What level of mismatch is acceptable before falling back to captured tiles? Update 2026-09-03: the bare-wang-vs-capture comparison is confounded by non-wang layers (~24% density gap) — "acceptable mismatch" can only be defined once the full layer stack (wang + walls/scenes/edges) is modeled or a wang-only ground truth exists. Update 2026-09-18: capture-side divergence statistics (26.5% foreground class, 3-way classes) now define the calibration targets, and F4's engine debug flags are the located-but-unprobed candidate for an in-engine wang-only ground truth.
 
 ---
 

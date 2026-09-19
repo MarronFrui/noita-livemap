@@ -37,7 +37,7 @@
 | C11 | area grid dims formula | `[chunkW << 9] ÷ 10` — no additive anchor |
 | C12 | `0x1179e90 / 0x1179ef0`, `0x116ea50 / 0x1179f1c`, `0x1151084` | cache-builder assert strings + field ptr |
 | C13 | VA map (slab offset +0x400800) | the objdump↔Ghidra address conversion |
-| C14 | stbhw fill ÷10 interior | fill's own ×10-scale sites |
+| C14 | stb / fill-subsystem ÷10 interior | fill's own ×10-scale sites (lab-corrected) |
 
 ## Registry
 
@@ -156,13 +156,33 @@
   objdump read → cite slab VA **and** true VA both; always verify a
   named target by first byte-pinning a prior-verified constant inside it.
 
-### C14 — stbhw fill interior ÷10 sites
-- 3 hits near true 0x8ec1b8 / 0x8ec1e8 / 0x8ec999 (slab 0x4ec1b8 / 0x4ec1e8
-  / 0x4ec199), INSIDE the stb/HBW fill subsystem (true ~0x8ec1a0..0x8ed000).
-  Not yet read for semantics (queued — F3/F-anchor followup). Likely the
-  ×10 scale's principal occurrence (MapHandlerToBig's row/col indexing ×10,
-  the "one true ×10" claim from dig #2).
-- Status: located (2026-09-19); **unread**.
+### C14 — stb / fill-subsystem ÷10 interior sites (label corrected 2026-09-19 (5))
+- 3 hits at SLAB 0x8ec1b8 / 0x8ec1e8 / 0x8ec999 → **true 0xcec9b8 /
+  0xcec9e8 / 0xcec999** — identity UNKNOWN (the earlier "inside the stbhw
+  fill subsystem" label was wrong — those slab VAs were never re-pinned).
+  Verified this session: the true stbhw fill block (FUN_008ec9f0 = slab
+  0x4ec1f0..0x4ec900) contains NO ÷10 magic. The ENTIRE slab has only TWO
+  ×10 multipliers (`imul $0xa` byte-forms) — slab 0xdbb8a3 / 0xdbbe06,
+  unnamed — and the 10.0f constant appears 32×, none inside the fill.
+  **Implication: the ×10 bijection lives in stbhw's own generate
+  step as address/lea arithmetic, OR the MapHandlerToBig-toBig upscale
+  step is a noitool-side reconstruction that doesn't exist in-binary —
+  F-anchor's open contract.**
+- Status: located-slab (dig #2); identity + semantics **unread** — the
+  F-anchor funnel's last structural lead (Threaded true-FUN_008eda10
+  = slab 0x4eda10 tail).
+
+### C15 — true 0x8e6d50 in-memory painter (slab 0x4e6550; read 2026-09-19 (5))
+- Per-record walker with 29-byte stride over a flat source blob with two
+  stacked 512×512 byte-planes (offsets **+0x80001 / +0x80002 both
+  R/W**: `sub%al,[ecx+0x80002]` = in-place erosion), per-record sqrt-
+  luminance decay (`divss 0x11e0378` + sqrtf 0xc3322e...), composed
+  0xAARRGGBB pixel writes into `[edi+0x3c]`-based image (`shl/or` at
+  0x4e66a1..0x4e66c5), `[edi+0x34]=3` state mark, guard byte +0x12 flips
+  after each record.
+- Candidate identity (NOT canon): a per-burn aesthetics/lighting
+  (darkness/erosion) painter over the 2-byte-plane source. NOT the
+  wang→grid copier; NO anchor arithmetic.
 
 ## Values read but NOT yet meaningfully connected (do not re-scan)
 

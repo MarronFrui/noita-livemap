@@ -250,19 +250,17 @@ binary side unread) · ❌ unexplored.
    registered flags; then whether magic-numbers.xml can set them). If
    togglable → first-class wang-only ground truth (in-engine full wang maps),
    eliminating the capture's non-wang-layer confound for every future check.
-4. **F3 — procedural noise terrain** (poro perlin from the generator +0x94
+4. **F-anchor — ✅ CLOSED (negatively resolved, 2026-09-19 (6), byte-pinned).** The game has NO additive wang-cell↔world anchor constant: the fill driver (true 0x904c20 = slab 0x504420, single thunk caller) copies the accepted out_map's cells into the area grids by a per-cell wrap-modulo copy (`idiv`-based repetition, dst `y·W+x`, 4 bytes/cell), and the Init area-grid sizing is `[chunkExtent·512]÷10`. Our genmap's fitted (3,3) px anchor is a PORT-LOCAL artifact (about-math entries 2026-09-19 (2)–(6); investigations: driver slab 0x505610..0x5056a4). Stage-8 walker emission byte-pinned IN the driver (slab 0x5054fc → true 0x900c70): spawn triggers follow the fill in one driver.
+5. **F3 — procedural noise terrain** (poro perlin from the generator +0x94
    state; mSeed/×200000−100000 chain): unblocks the entire surface band →
-   I1/I2/I3/I5/I6. Ride the F1 next read — the noise terrain materializes
-   from the Update region, not from Init. **F1-side anchors already known:**
-   perlin core = FUN_008fca60 family, consumer = per-cell sampler
-   FUN_0090d860 (read u16/float grids only); the noise write side is the
-   Init's float/u16 area fills (FUN_008f9ab0 family).
-5. **F-anchor — the last unknown of stage 9:** the wang-cell↔world anchor
-   constants ((3,3) fitted / (+5,+13) hinted) belong to the map-class draw
-   path — read FUN_008e6d50 (chunk-map consumer of the cache builder
-   FUN_00939b80) and the fill's copy-out walk. This is what upgrades the
-   genmap's ~exact fitted (3,3) anchor to canon; directly unblocks
-   colorize's grey-band read + test acceptance (F2 item 1).
+   I1/I2/I3/I5/I6. The noise terrain materializes from the Update region,
+   not from Init. **Anchors already known:** perlin core = FUN_008fca60
+   family, consumer = per-cell sampler FUN_0090d860 (read u16/float
+   grids only); the noise write side includes the Init area fills
+   (FUN_008f9ab0 family — dig #4: a seedless 4-neighbour marker sweep
+   writing float −1.0 / u16 1; caller identity open).
+   *(The old "F-anchor" bullet that used to stand here is superseded by
+   item 4 above — its named read targets are now all read out or pinned.)*
 
 
 

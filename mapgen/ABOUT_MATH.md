@@ -1652,3 +1652,130 @@ first use from now on):**
     GRIDS-ALLOCATION only — the terrain VALUES write walk was never
     traced; the anchor may simply be `area origin` with the (3,3)
     being a property of our fill/geometry, not the game's).
+
+- **2026-09-19 (4) — F-anchor dig #4: FUN_008f9ab0 read (objdump slab
+  0x4f9ab0, true = slab + 0x400800; target from the F1 note "the noise
+  write side is the Init's float/u16 area fills, FUN_008f9ab0 family").
+  Byte-pin via the shared assert idiom (0x1151084 + `add $0x76c` guard
+  loads, C12's pattern). Partially read (head + main sweep + realloc
+  tail classified; full decode pending):**
+  - **Grid-write mechanism VERIFIED (Init-side, non-wang):** a per-cell
+    sweep over an object (ebx) owning THREE grids — float grid at
+    **+0x18**, u16 grid family at **+0x38** (element write `u16 = 1`
+    via helper 0x54a0f0), and a marker/byte band at **+0x40/+0x58**
+    (4-neighbourhood reads via helper 0x5fdce0 = (x±1, y±1), vote
+    aggregator 0x5fdd70 = match-count; write fires when vote == 1):
+    qualifying cells get **float −1.0 (0xBF800000 literal) into +0x18**
+    and **u16 1 into +0x38**; multi-band index forms across the sweep:
+    `[ebx+0x20]·y+x`, `[ebx+0x40]·y+x` (accessed 0x4f9b90..0x4f9dd3 via
+    0x5493b0/0x54a1d0/0x5491f0 getters).
+    - **NO RNG calls in the sweep, NO ÷10, NO anchor offset constants**
+      — pure `y·W + x` object-local cell indexing.
+  - Tail: realloc of `[ebx+0x1c]` records + memcpy (0xc12400, dst
+    `[ebx+0x18]`) + std::string ctor family (0xc31cea) — an
+    append/serialize step (pending full read).
+  - **INTERPRET-CAREFUL:** identity NOT established — candidates are the
+    `<BitmapCaves>`/`<structures>` seeding walk (cave-structure
+    companion), NOT yet the wang out_map copier. The caller feeding
+    (ebx) is the next read.
+  - **What IS established:** the area sub-object +0x18/+0x38 grids
+    ALSO receive non-wang, seedless per-cell marker sweeps with
+    cell-unit indexing and no anchor arithmetic — consistent with C11
+    ("no additive anchor"). Two grid-write families now known:
+    (a) this sweep, (b) the finalize family's u16-delta writes
+    (FUN_00949e80-family, ledger F2 dig #4). **The wang out_map→grid
+    copier is still UNLOCATED.**
+- **2026-09-19 (5) — F-anchor dig #5 addendum: FUN_008e6d50 FINALLY READ AT
+  ITS TRUE VA (slab 0x4e6550; earlier dig #2 ran the mislabeled wrapper at
+  slab 0x8e6cf0 and the #2-entry's identification was name garbage), plus C14
+  label correction:**
+  - **C14 CORRECTION (registry hygiene):** the stbhw / fill ÷10 hits
+    recorded as "true 0x8ec1b8/0x8ec1e8/0x8ec999" are actually SLAB
+    addresses (the scan output was slab-space): TRUE = **0xcec9b8 /
+    0xcec9e8 / 0xcec999** — identity unknown. C14's "inside the
+    stbhw fill subsystem" claim is UNVERIFIED; the true stbhw block
+    (FUN_008ec9f0 = slab 0x4ec1f0) contains NO ÷10 magic (verified by
+    grep of 0x4ec1a0..0x4ec900 today — imul rows only, scale-by-multiply
+    absent; the ×10 upscale is not a div-form either: only TWO `imul
+    $0xa`/`imul 10.0f` byte-forms exist in the whole slab (0xdbb8a3 /
+    0xdbbe06, unnamed), and the 10.0f constant appears 32×, none inside
+    the fill). **Implication: the ×10 bijection is done with multiplies
+    or address arithmetic — likely inside stbhw's generate step;
+    MapHandlerToBig may be a noitool-side reconstruction shape, not the
+    game's.**
+  - **true 0x8e6d50 semantics read (partial):** an in-memory per-record
+    walker on ONE flat buffer with the layout: base + 0x80000-backed
+    source planes (byte offsets **+0x80001** and **+0x80002**, both
+    modified in place: `sub [ecx+0x80002], al`), record stride **29
+    bytes** (imul $0x1d anchor cursor, 0x4e660f), per-record
+    luminance-decay via `divss 0x11e0378` + `sqrtf` via 0xc3322e +
+    re-multiply, and a WRITE of a composed 0xAARRGGBB pixel into
+    `[edi+0x3c]`-based table (`shl/or` triple at 0x4e66a1..0x4e66c5);
+    `[edi+0x34] = 3` state mark after a record; `cmp 0x12(%esp)`
+    end-guard; audio-printf-family calls (0xc3322e/0xc33234 CRT consts
+    at 0x11dfe80 double "10-ish" constant).
+    Spin-lock-mediated flag processing: the `+0x12 byte` guard flips
+    after each record, chunk-composite vtable call through
+    [edi+0x38]/[edi+0x3c] finds the pixel write target.
+    **Candidate identity (NOT canon): a per-cell-burn aesthetics/
+    lighting/darkness painter over one opaque 512×512 2-byte-plane
+    source (offsets +0x0/+0x80000); the byte `sub` = light erosion
+    accumulates per record. NOT the wang→grid copier; NO anchor
+    arithmetic anywhere in it.**
+  - **F-anchor VERDICT (funnel state after 5 digs):** the
+    wang-cell↔world grid anchor does NOT live in (a) the cache builder
+    (F-un read), (b) the 3 ÷10 queue sites, (c) the marker sweep
+    FUN_008f9ab0, or (d) true 0x8e6d50's painter — and the Init-area
+    grid sizing has NO additive constant (C9–C11). The remaining
+    structural leads are ALL inside the fill acceptance path: the exact
+    driver tail + a per-cell RS loop that receives stbhw's accepted
+    out_map and reaches the u16/float grids. Our own wasm happens to
+    have this exact "Apply + fallback" semantic implemented inside
+    noitool's MapHandlerGenerateMap — the fill's true copy-out may
+    therefore be defined by the driver tail (Jun sweep: (3,3) must
+    become a port-side measurement if the copy is a raw memcpy of an
+    already-X10-scaled stbhw image, i.e. the anchor question collapses
+    into a PORT-DETAIL question). Keep C11 as the leaning-canon row;
+    close F-anchor after the Threaded 0x8eda10-tail read.
+
+- **2026-09-19 (6) — F-anchor dig #6: the COPY-OUT FOUND — funnel CLOSED
+  (identification) + semantics read.** Driver = true 0x904c20 = **slab
+  0x504420** (clean prologue; the ONLY direct caller = thunk slab
+  0x6996a3 `mov 0x4(%ecx),%ecx; jmp driver` — thread-pool functor's
+  payload pointer IS the driver `this`). Head job-record prep
+  (slab 0x5044a0..0x50453f): fields [esi+0x34]/[esi+0x38] = source W/H
+  clamped to 1..0x400 (1024) — job dims are CAPPED, not area-anchored;
+  0x3c..0x4c register copies of scaled sizes; [esi+0x4c]/[esi+0x80]
+  pointers into a copy context.
+  - **THE COPY-OUT SWEEP (slab 0x505610..0x5056a4):**
+    `for y..H: for x..W:` cell x wrapped **modulo W** and y **mod H**
+    (`idiv` at slab 0x505637 / 0x505652 — wrap, NOT offset arithmetic),
+    dst idx = `y·W + x` (imul 0x505656), per-cell **4-byte copy**
+    (`mov (%esi),%ecx; mov %ecx,(%eax)`) with source cursor `%esi += 4`
+    (0x5056d0), dst via getter **0x549680** (double call = src read +
+    dst write), then the SECOND grid realloc'd (0x5056a4.., same
+    SetSize pattern as C10 — w/h stored, items = w·h). **Wrap-modulo
+    flat copy of a pre-scaled source blob — ZERO anchor arithmetic, no
+    (3,3), no additive constant anywhere in the copy path.**
+  - Driver additionally calls: **FUN_008f9ab0 twice** (slab 0x5055d7,
+    0x50571e — the flag=(1/bool?) cave-structure sweep, byte-pinned in
+    context), the stage-8 spawn walker (slab 0x5054fc → **true
+    0x900c70** — VERIFIED stage-8 table byte-pinned live ✓), and the
+    **0x52c820 copy helper** (also used in the Init area walk at slab
+    0x506bbd) — a shared Init/fill-apply primitive whose identity is a
+    followup row.
+  - **F-ANCHOR — CLOSED (negatively resolved, byte-pinned):** the game
+    contains NO additive wang-cell↔world anchor constant in any of the
+    now-read write paths (Init sizing C9–C11, copy-out with wrap, marker
+    sweep, painter, cache builder). Our genmap's fitted (3,3) is a
+    PORT-LOCAL artifact — the driver copies the accepted out_map
+    straight into the area grids with modulo repetition; the anchor
+    question has no binary side remaining. (Canon-level followup in
+    VERIFIED when the port's own out_map layout is verified against this
+    copy shape.)
+  - Registered helpers: dst getter 0x549680 (slab; float cell getter),
+    apply-pair 0x52c820 (shared primitive), driver = slab 0x504420;[
+    to follow: read the second set 0x5057xx for the u16 copy loop +
+    confirm the harder "stbhw atlas blob is already at cell scale"
+    postulate (the driver's [esi+0x3c]-family scaling shapes are the
+    ✓ anchor in that version).]
