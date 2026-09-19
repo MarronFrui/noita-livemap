@@ -246,15 +246,25 @@ binary side unread) · ❌ unexplored.
    wang-cell↔world anchor constants live in the map-class draw path
    (FUN_008e6d50 consumer / the fill's copy-out walk) — that read completes
    the anchor story (genmap's ~exact fitted (3,3) → canon).
-2. **F2 decision point (2026-09-18; update 2026-09-19):** blockOutRooms
-   colors (C3) + hax overlay + **the ray-walk room-growth semantics (C16–C18)
-   are DONE — ported binary-exact into `lib/has-path.mjs` (2026-09-19),
-   oracle 4/4, tests 143/143, cache r3d → r3e** (ABOUT_MATH 2026-09-19 (7)).
-   Remaining F2 queue: **ClearPath / fillC0ffee / fillRandomMaterials — the
-   next reads** (isCoalMine/shouldBlockOutRooms selection DETERMINED
-   2026-09-19 dig #2, C19–C21), plus the driver's u16
-   copy loop at slab 0x5057xx (SESSION_CONTEXT 2026-09-19 (2)) and the
-   stairs band's consumption into the path start (C20 arm 2).
+2. **F2 — ✅ CLOSED (2026-09-19, 4 digs).** The whole accept/retry +
+   out_map-mutation family is decoded binary-exact and ported/oracle-pinned:
+   hasPath blockOutRooms colors (C3) + ray-walk room growth (C16–C18)
+   ported `(lib/has-path.mjs)`, ShadeOfGrey eliminated; biome
+   special-case selection = template-path equality (C19–C21; name lists
+   retired); the C0FFEE walker FUN_00900560 = the FIFO BFS building the
+   gap-clearance/flow-field consumed by CheckForGaps (C22; corrects dig
+   #4's byte-reversed 0xFFEEC0FF and the "u16 deltas" wrong-grid note);
+   the overlay arms decoded (#fefefe stairs band = the true start_x=142
+   mechanism, #004200 dark-green arm; both dead with the current overlay
+   data — no behavior change, C23); driver tail closed (no u16 copy loop
+   — the wrap-modulo copy is the whole copy; FUN_008f9ab0 flag=1 call #2,
+   C23); ClearPath = logging-only, no spatial mutation (nil contract,
+   C23); BIOME_PATH_FIND_WORLD_POS_MIN/MAX_X = runtime config doubles
+   parsed from the biome-def object (C24 — the 159/223 constants remain
+   `@prov noitool`, values engine-side). Cache r3e stands (digs #3–#4
+   generated no observable changes). Remaining frontier = F3 (noise
+   terrain, incl. the random-material/colorize family and
+   fillRandomMaterials' u16 writes).
 3. **F4 — DEBUG flag plumbing** (identification first: readers of the
    registered flags; then whether magic-numbers.xml can set them). If
    togglable → first-class wang-only ground truth (in-engine full wang maps),

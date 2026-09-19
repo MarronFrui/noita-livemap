@@ -1993,3 +1993,48 @@ first use from now on):**
     corrects), C23 (the overlay arms + the driver-tail closure), and the
     two NEW pinned color constants 0xffeeffc0 / 0xFF004200 live inside
     C22/C23 notes (skip C24+ until next use).
+- **2026-09-19 (11) — F2 dig #4: F2 CLOSED.** The last two queued reads:
+  - **BIOME_PATH_FIND_WORLD_POS_MIN/MAX_X are RUNTIME GLOBALS, not
+    compile-time constants** (the 159/223 @prov noitool values were
+    approximation debt): the driver (ProceduralTerrain::Init family) stores
+    two doubles from the parsed biome-def object (`movsd [eax+0x38] →
+    0x1327670`, `[eax+0x40] → 0x13289a8` at slab 0x50693a/0x506947) and
+    LOGS both (format string 0x1174b1c at slab 0x506972). Every consumer
+    reads the same globals: hasPath's arg prep (slab 0x505061-0x50508e:
+    area<<9 − int(g1) / − int(g2) = the fillXFrom/fillXTo computation) and
+    the per-record area walker at slab 0x507746..0x5077f0 (per record:
+    `rec[0x78]−rec[0x74]` extended-range loop with the `10·v−5−int(g)`
+    edge transform: `lea 5x; add/edx → 10x; sub $5; sub int(g)` — the
+    atlas-cell→world centering applied per cell against the SAME globals).
+    Neither is present as static .data (VAs live beyond the mapped
+    image — runtime-allocated) → the static values must be resolved from
+    the parsed biome config; the port's 159/223 stays tagged
+    `@prov noitool` ± the mechanism is now the pinned fact. No game-data
+    XML carries 159/223 (grep, this session) → they're engine-side
+    computed/registered.
+  - **ClearPath = LOGGING-ONLY in-binary:** the hasPath tail's "couldn't
+    clear start path" arms (slab 0x5014d7/0x5014e0, strings
+    0x1173f28/0x1173f4c behind the gate `cmpb 0,0x1327699`) performs NO
+    spatial mutation — the "ClearPath exact range rules" contract
+    resolves to NIL (log + the reset byte toggling; the fills live in
+    the marker walker + record blit + the C0FFEE/CHECKFORGAPS neighborhood
+    already decoded C17/C22).
+  - **The C0FFEE flood's role pinned exactly** (C22 + this read): it
+    builds the **gap-clearance field consumed by CheckForGaps** (true
+    0x901260-family), i.e. it is a reachability/viz field, not a paint.
+    Our port's coffee→BLACK path-map flood is verdict-equivalent (the
+    region is traversable under both rules — coffee passes the flood's
+    `(cell & 0xffffff) == 0 ∨ == 0xffeeffc0` judge directly and black
+    is the search's home color; oracles 4/4 + 8/8 hold).
+  - **fillRandomMaterials is NOT an hasPath-family member:** in-binary the
+    RandomColor pairs are parsed by the biome-def XML handler (true
+    0x8eb3xx-family, literal "RandomColor" @ VA 0x1172f04; 4 instr refs
+    all in one parser block) and stored in the biome object; their
+    out-map/mected consumption = the biome materializer's u16-grid writes
+    = the F3/stage-12 frontier (COLORIZE family), not this finalize
+    family. F2's scope = the accept/retry + out_map-mutation machinery:
+    fully read now (fillMainPath's walk-loop internals remain abstracted
+    as the oracle-pinned search; per dig #3's scope note, re-derivation
+    only on regression).
+  - Registration: C24 (the runtime MinX/MaxX globals + the biome-def
+    parse family). VERIFIED §11 frontier item 2 → F2 CLOSED.

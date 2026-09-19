@@ -41,6 +41,12 @@
 | C16 | `0xffffff` black-test + `0x2710` limit | FUN_00901510 ray-walk stop conditions |
 | C17 | `0x901450` finalize black blit | 16-byte record, exclusive ends, literal FF000000 |
 | C18 | `0x9013f0` rect fill conventions | exclusive-end record {x0,y0,x1,y1}, strict-< fill |
+| C19 | `0x1173ec0` / `0x11742a0` | blockOutRooms trigger: template-path equality literals |
+| C20 | hasPath coalmine arms | mark walk gate + `0xfffefefe` stairs band + overlay loader |
+| C21 | wang-biome census | 42 wang-template biomes; the trigger-biome exhaustive list |
+| C22 | FUN_00900560 C0FFEE walker | FIFO BFS, flow-field deltas {2,3,4,5}, `0xffeeffc0` judge |
+| C23 | overlay arms + driver tail | dark-green `0xFF004200` arm; ClearPath = logging-only; no u16 copy loop |
+| C24 | `0x1327670` / `0x13289a8` | runtime MinX/MaxX config doubles (source of the 159/223 family) |
 
 ## Registry
 
@@ -324,3 +330,19 @@
   loop exists** — the wrap-modulo 4-byte copy-out (0x505610..0x5056a4)
   is the whole copy; u16 population lives inside FUN_008f9ab0.
 - Status: read + registered (2026-09-19). Source: ABOUT_MATH 2026-09-19 (10).
+
+### C24 — BIOME_PATH_FIND_WORLD_POS_MIN/MAX_X = runtime config globals (read 2026-09-19 (11))
+- Not compile-time constants: stored at driver/init (slab **0x50693a /
+  0x506947**) as `movsd [biome+0x38] → 0x1327670`, `[biome+0x40] →
+  0x13289a8`, then logged (format 0x1174b1c @ slab 0x506972). The VAs are
+  beyond the mapped file sections (runtime-allocated).
+- Consumers (all read the same globals): hasPath arg prep slab
+  0x505061–0x50508e = `area<<9 − int(g1)/− int(g2)` (the fillXFrom/fillXTo
+  source); the per-record area walker slab 0x507746..0x5077f0 =
+  `10·v−5−int(g)` per-cell edge transform (the same long-division magic
+  `0x38e38e39` + sar 5 controls the record-range loop).
+- The port's 159/223 (`lib/has-path.mjs`
+  `BIOME_PATH_FIND_WORLD_POS_*`) stays tagged `@prov noitool` — mechanism
+  now pinned, static values remain unvalidated. No game-data XML carries
+  them (grep this session); engine-side computed/registered.
+- Status: read (2026-09-19). Source: ABOUT_MATH 2026-09-19 (11).
