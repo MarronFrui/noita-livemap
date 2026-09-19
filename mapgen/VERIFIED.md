@@ -221,7 +221,7 @@ binary side unread) · ❌ unexplored.
 | 8 | Spawn-trigger walker + queue | FUN_00904c20 tail → 1 draw/px → FUN_00900c70 → processor FUN_0085d7b0 | 🔬 |
 | 9 | Runtime streaming / chunk loads | **VA-CORRECTED 2026-09-18 (see ledger)**: ProceduralTerrain::Update() = FUN_0090b8a0 (profiler 0x11753ac @0x90b8cf) → DoBufferedPixelScenes() = FUN_00910c20 (profiler 0x11764ac @0x910c59); buffered-scene enqueue w/ dedup + flush = FUN_0090c1f0 (call sites 0x818c6e LoadPixelScene binding, 0x907fc9 Init, 0x90bd1e). Earlier "0x50b0a0/0x510420" were shifted-slab VAs (+0x400800 correction, byte-pinned) | 🔬 (pixel-scene arm fully read: scene executes only when ALL FOUR overlapping 512-chunks present — 4-corner probe of the chunk bit-grid DAT_0x132aed8; STREAMING_CHUNK_TARGET readers found at 0x79e65a/f1/74f = per-frame budget regulator); **chunk-request consumer arm ➜ next read (chunk bit-grid 0x132aed8 imm families + 0x79xxxx frame-tick)** |
 | 10 | Pixel scenes (biome-script loaders) | bindings region 0x806000–0x80c000 (partially read); data: `data/biome_impl/*.xml`, `_pixel_scenes.xml`, spliced `.plz` (compressor FUN_004225f0/b50, dispatcher FUN_00422e20) | ⚠️/❓ (plz codec not reproduced; per-scene art rendered via source-PNG blit) |
-| 11 | Template biomes + procedural noise terrain | data `scripts/biomes/*.lua` (⚠️); binary noise terrain = funcs reading generator +0x94 / DECOR float/u16 grids (FUN_0090e840, FUN_008f9ab0, mSeed ctor FUN_00904730) | ❌ noise math UNREAD — frontier F3 (ISSUES I1/I3/I5/I6) |
+| 11 | Template biomes + procedural noise terrain | data `scripts/biomes/*.lua` (⚠️); binary noise terrain = funcs reading generator +0x94 / DECOR float/u16 grids (FUN_0090e840, FUN_008f9ab0, mSeed ctor FUN_00904730) | ❌→🔬 **F3 dig #1 (2026-09-19): core READ** — 2D **simplex** core true FUN_008fca60 (F2/G2, perm 0x114ced0, ×40) + 3D twin + quintic-lattice family (perm 0x114d700, 6/15 quintic); transform FUN_00908cb0 ×0.1/0.13717/1/9/0.45/0.33 etc pinned (C25–C27); sampler FUN_0090d860 flow read (float-field gate >0.5 → eval → u16/RGBA paint). **Not closed:** FUN_00908cb0 line-by-line decompile, lattice gradients, sampler paint constants, generator-planting walk; noise not yet ported |
 | 12 | Material/coloring paint | data materials.xml + biome MaterialComponents (`lib/colorize.mjs`) | ⚠️ faithful approximation; exact grey-band noise OPEN (ISSUES I1) |
 | 13 | Engine debug toggles | flags DEBUG_GENERATE_BIG_WANG_MAP / DEBUG_FULL_WANG_MAPS registered ~0x472ee0/0x4742d0; REGEN_WANG_MAPS 0x118f924 (0 imm refs) | 🔬 sites found; **storage + readers unknown** — frontier F4 (potential in-game wang ground-truth oracle) |
 
@@ -273,13 +273,52 @@ binary side unread) · ❌ unexplored.
 5. **F3 — procedural noise terrain** (poro perlin from the generator +0x94
    state; mSeed/×200000−100000 chain): unblocks the entire surface band →
    I1/I2/I3/I5/I6. The noise terrain materializes from the Update region,
-   not from Init. **Anchors already known:** perlin core = FUN_008fca60
-   family, consumer = per-cell sampler FUN_0090d860 (read u16/float
-   grids only); the noise write side includes the Init area fills
-   (FUN_008f9ab0 family — dig #4: a seedless 4-neighbour marker sweep
-   writing float −1.0 / u16 1; caller identity open).
+   not from Init. **2026-09-19 (dig #1): CORE READ — it is 2D SIMPLEX
+   noise** (true FUN_008fca60, F2/G2 skew, perm 0x114ced0, ×40 out-scale;
+   3D twin 0x8fcce0) plus a separate quintic-lattice family (perm
+   0x114d700, 6.0/15.0 quintic), coupled by the transform FUN_00908cb0
+   (×0.1, 0.13717/0.13715, 1/9, 0.45/0.33/0.11 — C25/C26); the
+   `+0x94` state = f32(Next()·200000−100000) per generator object (C27),
+   the same object class whose `+0x38/+0x40` "Wang offset" doubles feed
+   C24 (C28). **Remaining reads:** quintic-lattice gradients + out
+   scale; FUN_00908cb0 exact decompile; sampler paint arm; the walk that
+   plants the generator objects. Then port + validate vs captures.
    *(The old "F-anchor" bullet that used to stand here is superseded by
    item 4 above — its named read targets are now all read out or pinned.)*
+
+   **Dig #4 plan (handover, 2026-09-20, cursor: reconstruct → port →
+   validate):**
+   1. Write the runnable JS port in `mapgen/lib/noise-proto.mjs` from
+      the ABOUT_MATH (13) recipes (simplex2d, quintic lattice with the
+      builtin perm bytes, FUN_00908cb0 transform, true 0x908e70
+      evaluator) — all SSE f32 steps via Math.fround; coefficient set =
+      C25–C30 verbatim (perm head arrays are already byte-extracted
+      inside the module).
+   2. Resolve the lattice gradient VALUES: the table is *runtime* .data
+      @0x12eec08 (not statically in-file — read attempt gives garbage).
+      Options in order: (a) scan the WHOLE exe (not just the slab) for
+      imm32 writes to 0x12eec08/0x12eec0c — its initializer; (b) CE
+      memory dump; (c) reproduce the CPerlinNoise-style init walk found.
+   3. Per-cell NOISE INPUT mapping: what feeds [gen+0x90]/[+0x94] in the
+      plant walk (sole caller of FUN_0090ce20 = true 0x90f680) and the
+      consumer walk at slab 0x50c9d5 (true 0x90d1d5) — this gives the
+      world-cell → FUN_00908cb0 input mapping (inX,inY,a = the call-site
+      weight, observed 1.0) + the per-biome C24/Wang-offset doubles.
+   4. Validate the noise band vs the reference seed (78633191 capture,
+      flat-region rms, spawn-equation-free surfaces) → ISSUES I1/I3/I5/I6.
+      Cache r3e → r3f ONLY on an observable change.
+   5. Skip-list: do NOT re-read FUN_008f9ab0 (F2's marker sweep), the
+      F2 closure rows, or doit the 0.94 prose — the first two are
+      closed, the third is unverified and unassigned.
+
+   **VA conventions for dig #4** (C13 as amended 2026-09-20):
+   - true = slab + 0x400800, **universally, including e8 targets printed
+     below the slab base** (the lower .text half, file < 0x400c00, is
+     absent from the slab — the whole old anomaly, CLOSED via the
+     byte-tested floor helper at true 0x44d0b0).
+   - .rdata/.data constants: file_off = VA − 0x400e00 (verified vs the
+     200000.0f pin); runtime-only .data addresses are NOT in-file.
+   - The C20 string-helper VA correction (0x4447f0) is canon.
 
 
 

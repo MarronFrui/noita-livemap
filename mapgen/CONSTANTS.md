@@ -47,6 +47,12 @@
 | C22 | FUN_00900560 C0FFEE walker | FIFO BFS, flow-field deltas {2,3,4,5}, `0xffeeffc0` judge |
 | C23 | overlay arms + driver tail | dark-green `0xFF004200` arm; ClearPath = logging-only; no u16 copy loop |
 | C24 | `0x1327670` / `0x13289a8` | runtime MinX/MaxX config doubles (source of the 159/223 family) |
+| C25 | simplex cores + perm tables | 2D simplex true 0x8fca60 (F2/G2/ktn/×40), 3D twin, quintic lattice noise |
+| C26 | FUN_00908cb0 noise consts | ×0.1, 0.13717/0.13715, 1/9, 0.45/0.33/0.11 (+0.1/+0.111) |
+| C27 | generator state chain | +0x94 = f32(draw·200000−100000); FUN_0090ce20 ctor; +0x94 read site |
+| C28 | "Wang offset" config keys | BIOME_PATH_FIND_WORLD_POS_* = ConfigRegistry runtime keys |
+| C29 | quintic lattice consts | 6.0/15.0/10.0 pentiad; perm 0x114d700; runtime gradient tables 0x12eec08 |
+| C30 | true 0x908e70 consts | 0.07/0.035, 15.5, 0.0489275, 5.35, 0.95 (the ledger trio lives HERE) |
 
 ## Registry
 
@@ -161,9 +167,21 @@
 - **Proof anchor (do not re-derive):** byte `cmp eax, 0xFF420000` is at
   file 0x500e4d; Ghidra calls it 0x901a4d; slab 0x50124d (0x400800
   different).
+- **E8-TARGET CONVENTION SETTLED (2026-09-20 dig #3, byte-tested):**
+  the slab spans only .text's SECOND half (file 0x400c00.. = true
+  0x801800..) — .text's LOWER region (file 0x400..0x400c00 = true
+  0x401000..0x801800) is NOT in the slab. objdump therefore prints e8
+  targets into that lower region as BELOW-BASE values, and the C13 rule
+  still applies to them unchanged. Byte-verified: the floor helper
+  called from FUN_00908cb0 prints `0x4c8b0` → true **0x44d0b0** = exe
+  file 0x4c4b0 = a real SSE fp-round helper (`55 8b ec 83 e4 c0 83 ec
+  40 … cvtss2sd … fld/fistp`), matches the call-site contract
+  (xmm0 f32 in → float out → cvttss2si). Also corrects canon C20: its
+  `call 0x43ff0` (slab print) = true **0x4447f0**, NOT "FUN_0043ff0".
 - Mixing convention: any Ghidra-derived name → use true VA; any fresh
-  objdump read → cite slab VA **and** true VA both; always verify a
-  named target by first byte-pinning a prior-verified constant inside it.
+  objdump read → cite slab VA and true VA both, even for below-base
+  e8 targets; always verify a named target by first byte-pinning a
+  prior-verified constant inside it.
 
 ### C14 — stb / fill-subsystem ÷10 interior sites (label corrected 2026-09-19 (5))
 - 3 hits at SLAB 0x8ec1b8 / 0x8ec1e8 / 0x8ec999 → **true 0xcec9b8 /
@@ -202,9 +220,10 @@
 
 ## Not in this table (yet) — flagged as future registrations
 
-- The perlin core FUN_008fca60 family constants (×0.1, 1/9, 0.5,
-  0.45/0.33/0.11, 0.94/0.95, 15.5) — recorded in ledger prose, need
-  pinning + rows when F3 starts.
+- ~~The perlin core FUN_008fca60 family constants — need pinning + rows
+  when F3 starts~~ → DONE 2026-09-19: registered as C25/C26/C27/C28
+  (the 0.94/0.95/15.5 prose trio remains UNPINNED — do not use until
+  byte-checked).
 - 0x11e0504 / 0x11e04ec normalizers for the mSeed-chain float (+0x94).
 - The 20-byte movdqu record-stride idiom (3 queue sites) — semantics
   recorded 2026-09-19; needs a name once assigned.
@@ -261,11 +280,13 @@
 - Status: read (slab windows regenerated this session; proof anchor
   C13 slab 0x50124d re-pinned first).
 
-### C20 — hasPath coalmine arms: same path compare inside hasPath (read 2026-09-19)
-- true 0x901780 body: ECX=str, EDX=literal call **0x43ff0** (std::string ==
-  const char* helper) with EDX = **0x1173ec0** ("data/wang_tiles/coalmine.png")
-  at **slab 0x5011a4** → guard for the MARK walk (full-map scan `cmp
-  0xFF420000` → write 0xFF000000, C1/C2 — the scan we already had).
+### C20 — hasPath coalmine arms: same path compare inside hasPath (read 2026-09-19; VA CORRECTED 2026-09-20)
+- true 0x901780 body: ECX=str, EDX=literal call with EDX = **0x4447f0**
+  (std::string == const char* helper; fastpath-arg prep loads EDX with
+  the path literal **0x1173ec0** "data/wang_tiles/coalmine.png" — for the
+  remaining path compares — then `call`S the helper) at **slab
+  0x5011a4** → guard for the MARK walk (full-map scan `cmp 0xFF420000` →
+  write 0xFF000000, C1/C2 — the scan we already had).
 - Second arm at **slab 0x5017ab..0x50187f** (same compare, inline form): on
   match, scan cells **x = 0x8c..0x9d (140..157), y = 0..14** and black-fill
   every cell whose dword == **0xfffefefe** (#fefefe = the overlay's white
@@ -346,3 +367,129 @@
   now pinned, static values remain unvalidated. No game-data XML carries
   them (grep this session); engine-side computed/registered.
 - Status: read (2026-09-19). Source: ABOUT_MATH 2026-09-19 (11).
+
+### C25 — poro noise cores: 2D SIMPLEX, 3D simplex, quintic lattice noise (F3 dig #1, read 2026-09-19)
+- **2D simplex core = true FUN_008fca60 (slab 0x4fc260).** NOT value noise
+  (ledger prose guess corrected). SSE-XMM0/XMM1 float args, returns f32.
+  Identity anchors in-binary: the C12 assert idiom is absent here (pure SSE
+  fn) — identity proven by its multiple previously-pinned constants
+  (0.3660254/0.2113249/0.5 @0x11dfa34/0x11df9c0/0x11dfa94, all below).
+- Constants (byte-pinned in .rdata this session, file_off = VA − 0x400e00):
+  - `0x11dfa34` = 0.36602540 (= (√3−1)/2, F2 skew); `0x11df9c0` = 0.21132487
+    (= (3−√3)/6, G2 unskew); `0x11dfa4c` = 0.42264974 (= 2·G2).
+  - kernel `0.5 @0x11dfa94`; contribution = dot·t⁴ (t = 0.5−d², two
+    `mulss %xmm6,%xmm6` squarings, Gustavson-style; slab 0x4fc372/0x4fc3bb).
+  - gradient set: hash `perm[perm[j]+i] & 7`, `&7` → ≥4 axis-swap, bit0
+    sign-flip `xorps 0x11e0c50` (−0.0), bit2 multiplier `−2.0 @0x11e05f0` /
+    `+2.0 @0x11dfe68`.
+  - final scale `×40.0 @0x11e0270` (slab 0x4fc4cd).
+  - perm table @ **0x114ced0**: 256 bytes, mirrored to 512 (f[262]=151
+    verified = wraps), starts 151,160,137,91,90,15,131,13,…
+- **3D simplex twin = true 0x8fcce0 (slab 0x4fc4e0)** — F3 = 0.33333334
+  (@0x11dfa18), G3 = 0.16666667 (@0x11df9a0), same perm 0x114ced0 family.
+- **Quintic lattice noise (separate family) = true 0x8fc740 (slab 0x4fbf40)
+  + true 0x900900 (slab 0x4fc100)** — perm table @ **0x114d700**
+  (starts 23,125,161,52,103,117,70,37,…), `&0xff` wrap indices, quintic
+  smoothstep constants `6.0 @0x11e00e8` / `15.0 @0x11e01a0` (t³(t(6t−15)+10)
+  family; 0.94/0.95/15.5 recorded in ledger prose belong here/elsewhere,
+  NOT yet pinned — do not cite as read).
+- Status: read + pinned (2026-09-19). Source: ABOUT_MATH 2026-09-19 (12).
+
+### C26 — FUN_00908cb0 noise-transform constants (slab 0x5084b0; F3 dig #1)
+- The per-cell sampler FUN_0090d860's noise evaluator. Reads the C24
+  runtime config globals `0x1327670`/`0x13289a8` as coordinate offsets
+  (slab 0x5084b6/0x5084c1 — they ALSO feed the noise args, not just
+  hasPath), plus the previously-pinned diddle/÷ constants, and calls the
+  pinned cores (byte-pin rule satisfied in-binary): `call 0x4c8b0`
+  (floorf-family) twice @0x50853e/0x50854e, **`call 0x4fc260` (2D simplex)
+  @0x50857a**, **`call 0x4fbf40` @0x5085c1**, **`call 0x4fc100` @0x50861b**
+  (both quintic-lattice).
+- Constants (byte-pinned in .rdata, `mulsd`→read as f64, `mulss`→f32):
+  - `0x11dfd08` = **0.1 (DOUBLE)** — the ×0.1 record (ledger prose ✓).
+  - `0x11dfd38` = 0.13717; `0x11dfd30` = 0.13715 (f64 pair feeding the
+    simplex call at 0x50857a).
+  - `0x11dfd20` = **0.11111111 = 1/9 (f64)** — feeds the 0x4fbf40/0x4fc100
+    lattice-noise args (ledger prose ✓).
+  - After the first simplex: `×0.45 @0x11dfa5c` then `+0.1 @0x11df974`
+    (slab 0x50857f/0x508594).
+  - Weight block: `(1.0 − w)·0.33 [+0.111]`: `0.33 @0x11dfa10`,
+    `0.111 @0x11df97c`, `1.0 @0x11dfbf0` (slab 0x5085d1..0x50860e).
+  - smoothstep-x block in the caller (FUN_0090d860): `3.0 @0x11dff70`,
+    `2.0 @0x11dfe68`, `0.5 @0x11dfa94` (slab 0x50d456/0x50d484/0x50d4ae).
+- Status: read + pinned (2026-09-19). Source: ABOUT_MATH 2026-09-19 (12).
+
+### C27 — generator-object state chain (F3 dig #1, read 2026-09-19)
+- **Per-cell generator ctor FUN_008f9470 = slab 0x4f8c70** (identity
+  confirmed: diddle `0x11e0ba0` ref @slab 0x4f8d5d inside it). Body: zero
+  ~0xb8; `[obj+0x8c]` = raw seed arg; diddled ws = (double)ws + diddle[hi]
+  (`addps 0x11e0ba0(,%eax,8)`), `comisd 0x11e0220` → halve if ≥ 2³¹
+  (`mulsd 0x11dfdd8`); TWO `call 0xc090c0` on a stack-local Random at
+  [esp+8] (Random ctor/setRandomSeed + ONE Next draw); finally
+  `[obj+0x94] = f32(draw × 200000.0f[@0x11e0504] − 100000.0f[@0x11e04ec])`
+  (slab 0x4f8da1..0x4f8db1). canon with VERIFIED §7 mSeed family.
+- **FUN_0090ce20 = slab 0x50c620** — the 0x1ec-byte world-grid generator
+  object ctor; `+0x98` sub-object ctor `call 0x4f8c70` with the pushed
+  seed ([ebp+0x8]); init walk zeroes to +0x1e8. (= VERIFIED §11 stage 3.)
+- **A +0x94 READ site = slab 0x50c9d5 (true 0x90d1d5)**, inside a walk that
+  also reads `[edi+0x58]` (virtual call) and adds `[edi+8]/[edi+4]`
+  origins, converts int→double and calls **0x5095a0; true 0x909DA0**
+  (chunk-map accessor: adds the object's OWN `[this+0x38]`/`[this+0x40]`
+  doubles to the coords (slab 0x5095b6/0x5095bf), wraps mod `[0x50]`=W /
+  `[0x54]`=h via `sar 9`+`idiv`, indexes vector `0x68` via 0x54bf00,
+  requires slot->`+0xc4` byte == 0 to return the entry). ⇒ the
+  `mInsidePerlin`-family noise args = per-cell generator +0x94 state
+  (+0x1000-scaled? — the ±0x1000 mark move not read) + object origin,
+  offset by a per-biome double pair.
+- Status: read (2026-09-19). Source: ABOUT_MATH 2026-09-19 (12).
+
+### C28 — "Wang offset" = the config-keyed source of C24's doubles (resolved statically)
+- The biome-def `[biome+0x38]`/`[+0x40]` doubles live in objects that ALSO
+  carry `[+0x50]/[+0x54]` (w/h ints) and a `+0x68` vector (see C27's
+  true-0x909DA0 accessor) — i.e. the +0x38/+0x40 convention belongs to the
+  same per-biome map class, not just one struct.
+- Config KEY names in .rdata (byte-pinned this session):
+  `BIOME_USE_BIG_WANG` @0x116c762, `BIOME_PATH_FIND_HEIGHT_LIMIT`
+  @0x116c776, `BIOME_PATH_FIND_WORLD_POS_MIN_X` @0x116c7da,
+  `BIOME_PATH_FIND_WORLD_POS_MAX_X` @0x116c85e. **Name strings are NOT
+  referenced by any imm32 anywhere in the binary exe (whole-file scan,
+  verified vs the C19 literal control which finds 4/4 hits) — they are
+  ConfigRegistry entries resolved at runtime by name (engine config
+  defaults), NOT parsed from any game-data XML** (grep of extracted
+  data dir this session: zero `path_find` matches).
+- Consequence: the C24 159/223 port values = engine runtime config;
+  static re-derivation stops here without a runtime config dump or
+  cheat-engine read. Port `@prov noitool` tag remains + now has a defined
+  mechanism statement: registry-default doubles, per-biome "Wang offset".
+- Status: read (2026-09-19). Source: ABOUT_MATH 2026-09-19 (12).
+
+### C29 — quintic lattice constants + runtime gradient tables (F3 dig #2, 2026-09-19)
+- Quintic-lattice perlin = true 0x8fc740 (slab 0x4fbf40) + true 0x900900
+  (slab 0x4fc100): 2D gradient perlin, quintic fade
+  `6.0 @0x11e00e8 / 15.0 @0x11e01a0 / 10.0 @0x11e015c` (byte-pinned
+  2026-09-19), perm 0x114d700 with `&0xff` wrap, 4-corner bilinear.
+- Gradient VALUE table = RUNTIME .data: `0x12eec08` (gx per grad, stride
+  8) vs `0x12eec0c` (gy) — contents not statically readable
+  (runtime-initialized); gradient index = `perm2[perm[perm[i]+j]] & 7`.
+- The 0.94 ledger-prose remnant: NOT found in either lattice function —
+  still UNPINNED anywhere in the noise family.
+- Status: read + pinned (2026-09-19). Source: ABOUT_MATH 2026-09-19 (13).
+
+### C30 — true 0x908e70 second-noise evaluator constants (slab 0x508670; dig #2)
+- Constants (byte-pinned 2026-09-19): `0.07 f64 @0x11dfce8`, `0.035 f64
+  @0x11dfc98`, **`15.5 f32 @0x11e01b0`**, `0.0489275 f32 @0x11df944`,
+  `5.35 f32 @0x11e00b4`, `0.95 f32 @0x11dfbac` — the ledger trio
+  15.5/0.95 is pinned HERE (in the sampler's second evaluator), not in
+  the cores.
+- Recipe (slab refs): `q = lattice2d(x·0.035, y·0.07)` (0x4fc100 call
+  @0x5086ac, anisotropic); warp `(x,y) := (x + q·15.5)·0.0489275` each;
+  `s = simplex2d(warp)` (0x4fc260 call @0x5086fa); return the comiss
+  tail @0x50872c: `if (0.5 > val) ret 0.5 else val` — per-asm = a LOWER
+  clamp at 0.5 of `a + s·((a−0.5)·0.5)²·5.35·0.95` (a = the incoming
+  f32; x,y = f64 args). Re-verify the clamp direction when porting.
+- Status: read + pinned (2026-09-19). Source: ABOUT_MATH 2026-09-19 (13).
+
+### OPEN — e8-target VA-convention question (**RESOLVED 2026-09-20, see C13**)
+- Byte-tested: the floor helper's below-base print `0x4c8b0` = true
+  **0x44d0b0** = exe file 0x4c4b0 = a real SSE fp-round helper. The slab
+  never contained .text's lower half (true < 0x801800) — that is the
+  whole anomaly. C20's helper corrected to true 0x4447f0. CLOSED.

@@ -2038,3 +2038,206 @@ first use from now on):**
     only on regression).
   - Registration: C24 (the runtime MinX/MaxX globals + the biome-def
     parse family). VERIFIED §11 frontier item 2 → F2 CLOSED.
+- **2026-09-19 (12) — F3 dig #1: the poro noise core READ — 2D SIMPLEX +
+  quintic lattice noise identified; the noise-transform constants pinned;
+  the config-key chain behind C24 resolved statically. Slab regenerated
+  this session; C13 proof anchor re-pinned first (`cmp eax,0xFF420000` @
+  slab 0x50124d = true 0x901a4d ✓). VA rule for this entry: true VA =
+  slab VA + 0x400800; .rdata constants read from the raw file at
+  `file_off = VA − 0x400e00` (convention verified against the
+  200000.0f/100000.0f/0.5/2147483647.0 pins).**
+
+  - **The "perlin" core is 2D SIMPLEX noise (true FUN_008fca60 = slab
+    0x4fc260)** — the ledger-prose "smoothed value noise" label was
+    wrong. Float args (xmm0, xmm1) → xmm0 out. Op order (slab refs):
+    skew `s=(x+y)·F2` → floor i,j (negative-adjust `comiss`+`dec` @
+    0x4fc289..0x4fc29c) → unskew by `G2·(i+j)` (0x4fc2ac..0x4fc2d2) →
+    corner choice `(i1,j1)` = (1,0)|(0,1) (0x4fc2d3..0x4fc2e6) → per-
+    corner `t = 0.5 − x² − y²` (0.5 @0x11dfa94; t≤0 → contribute 0)
+    → gradient `g = perm[perm[j]+i] & 7` via perm **0x114ced0** (8-dir
+    gradient: ≥4 axis-swap, bit0 sign-flip `xorps −0.0`, bit2
+    multiplier ±2.0 @0x11e05f0/0x11dfe68) → contribution `dot·t⁴` (two
+    squarings, Gustavson-style; 0x4fc372/0x4fc3bb) → sum × **40.0**
+    (0x11e0270 @0x4fc4cd). Pinned constants: F2=0.3660254@0x11dfa34,
+    G2=0.2113249@0x11df9c0, 2G2=0.4226497@0x11dfa4c, kernel 0.5,
+    scale 40.0 → registered C25.
+
+  - **3D simplex twin = true 0x8fcce0 (slab 0x4fc4e0):** F3 = 1/3
+    @0x11dfa18, G3 = 1/6 @0x11df9a0, same perm table (C25).
+
+  - **A second, separate noise family = quintic lattice noise:** true
+    0x8fc740 (slab 0x4fbf40) and true 0x900900 (slab 0x4fc100); OWN perm
+    table **0x114d700** (`&0xff` wrap; starts 23,125,161,52,…), quintic
+    smoothstep constants **6.0 @0x11e00e8 / 15.0 @0x11e01a0** (C25). Its
+    gradient set / final scale unread (funnel item).
+
+  - **The noise transform = true FUN_00908cb0 (slab 0x5084b0)** — the
+    per-cell sampler's evaluator; registered C26. It READS the C24
+    runtime globals 0x1327670/0x13289a8 as coordinate offsets (slab
+    0x5084b6/0x5084c1 — C24's doubles feed the noise args too ⇒ C24's
+    159/223 family and the noise args are CONFIG-coupled), and mixes:
+    floorf cells `i = floor((X+gMin+0.5)×0.1)`, `j = …` (0.1 as an
+    f64 **DOUBLE** @0x11dfd08; floorf 0x4c8b0 @0x50853e/0x50854e);
+    `w = pure2dSimplex(X×0.13715, Y×0.13717)×0.45 + 0.1`
+    (0.13715@0x11dfd30 / 0.13717@0x11dfd38 doubles; 0.45@0x11dfa5c,
+    0.1@0x11df974); lattice-noise args × **1/9** (f64 @0x11dfd20) →
+    two quintic-lattice calls (0x4fbf40 @0x5085c1, 0x4fc100 @0x50861b)
+    weighted by `((1−w)×0.33 + 0.111)×a` (0.33@0x11dfa10,
+    0.111@0x11df97c; a = caller float, =1.0 from the sampler), then an
+    integer-lattice fractional-mixing tail (0x508612..0x50865e). Instruction
+    refs recorded in C26; the line-by-line decompilation is funnel
+    item (b) below.
+
+  - **Sampler FUN_0090d860 (slab 0x50d060) read (head + noise arm):**
+    profiler scope "IMPL_DoBufferedPixelScene - bitmap noise loop job"
+    (string 0x1175638 @ slab 0x50d0a4); identity double-anchored by the
+    C12 assert idiom (`push $0x1151084` + `add $0x76c` @ slab 0x50d1c2)
+    AND the driver's copy-out getter 0x549680 (@ slab 0x50d112).
+    Per-cell flow: u16 guard (@0x50d117) → marker grids (+0xd4 u16 via
+    0x54a0f0, +0xf4 byte via 0x5493b0, `== 0xff` check @0x50d364) →
+    **float field [+0xb4] gate: process only if v > 0.5** (comiss
+    0x11dfa94 @0x50d3c3) → material select [+0x1d4] → **call
+    0x5084b0 = true FUN_00908cb0** (@0x50d419) → smoothstep interp
+    (3.0@0x11dff70, 2.0@0x11dfe68, 0.5@0x11dfa94) → second noise call
+    0x508670 (true 0x908e70 @0x50d524) + CRT floorf pair (0x114a434
+    @0x50d53f/0x50d55e) + dispatcher 0x4f4830 → **paint arm:** u16
+    write [+0x1e0] via 0x559de0 (@0x50d693), RGBA grid [+0x180]
+    alpha check (@0x50d6d0), vtable dispatch. Grid-contract facts for
+    the port are in place; material-naming call 0xb78e0 (@0x50d392)
+    unread.
+
+  - **C28 — mystery #2 RESOLVED statically:** the biome-def parse
+    doubles `[+0x38]/[+0x40]` (C24's source) belong to a per-biome map
+    class whose accessor **true 0x909DA0 (slab 0x5095a0)** consumes the
+    same `[+0x38]/[+0x40]` doubles as additive offsets over a
+    `[+0x50]×[+0x54]` wrap-mod (`sar 9` + `idiv`) vector table at +0x68 —
+    i.e. that double pair is a per-biome "Wang offset" (log string
+    "Wang offset: " 0x1174b1c @ slab 0x506972). The config-key name
+    strings (BIOME_USE_BIG_WANG @0x116c762,
+    BIOME_PATH_FIND_HEIGHT_LIMIT @0x116c776,
+    BIOME_PATH_FIND_WORLD_POS_MIN_X @0x116c7da, MAX_X @0x116c85e) have
+    ZERO imm32 references across the whole exe file (scan verified
+    against the control literal 0x1173ec0 which finds its 4 known
+    hits) ⇒ the values live in the engine's runtime ConfigRegistry
+    defaults, not in any game-data XML (grep of the extracted data dir:
+    no `path_find` matches). Static resolution stops here; numbers need
+    a runtime probe. The C24/`@prov noitool` tag on the port's 159/223
+    REMAINS.
+
+  - **F3 funnel status after dig #1:** core math + state chain + the
+    noise-args coupling are READ. Remaining binary reads: (a) the
+    quintic-lattice gradient set / final scale; (b) FUN_00908cb0's
+    exact line-by-line de-compilation; (c) the sampler's paint arm
+    constants; (d) the Init caller of FUN_0090ce20/0x50c9d5 (what
+    plants the per-cell generator objects and sources its seed arg).
+    After those: port the FUN_00908cb0 transform + grid contract to
+    JS and validate vs captures (I1/I3/I5/I6).
+
+  - Tests: baseline intact this dig (no port changes expected).
+- **2026-09-19 (13) — F3 dig #2: FUN_00908cb0 FULLY DECOMPILED (slab
+  0x5084b0..0x50866f, every op transcribed; constants C26) + the
+  quintic-lattice noise completed + the second evaluator + the
+  generator-plant walk.** Slab unchanged from dig #1 (C13 anchor
+  re-verified at entry ✓).
+  - **QUINTIC LATTICE NOISE (true 0x8fc740 = slab 0x4fbf40; true 0x900900
+    = slab 0x4fc100 reads identically in head) = CLASSIC 2D GRADIENT
+    PERLIN with quintic fade** (not value noise): floor each axis with
+    the comiss/dec negative-adjust (slab 0x4fbf4c..0x4fbf6d); lattice
+    indices `&0xff` (i∈{0..255}, wrap ±1 via `lea 1`+`and 0xff`,
+    slab 0x4fbf7a/0x4fbfb2); hash = `perm2[perm[perm[i]+j]] & 7` chain
+    (perm table 0x114d700, slab 0x4fbf99..0x4fbfd1); gradient = PAIRS
+    from the runtime .data table (VA **0x12eec08 = g_x, 0x12eec0c =
+    g_y, stride 8**, loaded `movss 0x12eec08(,%g,8)` slab 0x4fbfe7 —
+    table contents are runtime-initialized, NOT statically readable);
+    dot = gx·dx + gy·dy; quintic smoothing f(t) = t·t·(6t²−15t+10)
+    (constants 6.0 @0x11e00e8, 15.0 @0x11e01a0, 10.0 @0x11e015c —
+    byte-pinned this session; slab 0x4fbfba/0x4fbfdc/0x4fc00c) and the
+    classic 2×2 bilinear of 4 corner dots (slab 0x4fc0d4..0x4fc0e8).
+    The 0.94/0.95/15.5 ledger trio does NOT appear in either lattice
+    function — still UNPINNED anywhere in this family.
+  - **FUN_00908cb0 (slab 0x5084b0) — exact recipe (JS-ready):**
+    ```
+    adjX = inX + gMin;  adjY = inY + gMax      // C24 f64 globals
+    u = f32((adjX + 0.5) * 0.1)                // 0.5 f64 @0x11dfdd8; 0.1 f64 @0x11dfd08
+    v = f32((adjY + 0.5) * 0.1)
+    out := {u, v}                              // preliminary stores (%ebx)=u out[0] @0x508515, out[1]=v @0x50852a
+    if (a <= 0) return                          // comiss/jae @0x508532: a = caller float (xmm1)
+    w = simplex2d(adjX * 0.13715, adjY * 0.13717) * 0.45 + 0.1
+        // call 0x4fc260 @0x50857a; 0.13715/0.13717 = f64 @0x11dfd30/0x11dfd38;
+        // *0.45 @0x11dfa5c; +0.1 @0x11df974; stored -0xc
+    nX = lattice2d(adjY * (1/9), adjX * (1/9))  // call 0x4fbf40 @0x5085c1 — ARG ORDER SWAPPED (x = adjY/9)
+    nY = latticeB(adjX * (1/9), adjY * (1/9))   // call 0x4fc100 @0x50861b — normal order
+    out[0] = u + nX * (1 - w) * a               // mulss -0x8(a) then addss @0x50864b/0x50864f: floor+frac reconstruct = u
+    out[1] = v + nY * ((1 - w) * 0.33 + 0.111) * a  // 0.33 @0x11dfa10, 0.111 @0x11df97c @0x5085e5/0x5085ed
+    // iu/jv floor-CS 0x508543/0x508556 feed only the frac reconstruction:
+    // out[0] = (float)iu + (u - iu) + dx == u + dx; out[1] = (float)jv + (v - jv) + dy == v + dy
+    ```
+    Semantics: **the function computes the ×0.1-scaled lattice coordinate
+    (u,v) of the sample and returns it NOISE-DISPLACED along both axes**
+    (x-displacement weight (1−w)·a; y-displacement weight
+    ((1−w)·0.33+0.111)·a). The caller (FUN_0090d860) then floor-interps
+    these displaced coords between grid corners (smoothstep 3.0/2.0/0.5,
+    slab 0x50d456..0x50d4c5) to pick material samples — a perlin
+    domain-warp of the material grid lookup, with a = the call-site
+    weight (1.0 in the observed call at slab 0x50d419).
+  - **Second evaluator true 0x908e70 (slab 0x508670) read** — the
+    solitary second noise in the sampler: constants +0.07 (f64
+    @0x11dfce8), 0.035 (f64 @0x11dfc98), **15.5 (f32 @0x11e01b0)**,
+    0.0489275 (f32 @0x11df944), 5.35 (@0x11e00b4), **0.95 (@0x11dfbac)**
+    (all byte-pinned; two of the ledger trio 15.5/0.95 are now pinned
+    HERE, not in the core). Recipe: `q = lattice(x*0.035, y*0.07)` (call
+    0x4fc100 @0x5086ac, ANISOTROPIC) → warp = `(x + q*15.5) * 0.0489275`,
+    `(y + q*15.5) * 0.0489275` → `s = simplex2d(warp.x, warp.y)` (call
+    0x4fc260 @0x5086fa) → return `min(0.5, a + s * ((a-0.5)*0.5)^2 * 5.35 * 0.95)` (clamp via comiss/max @0x50872c..0x508731).
+    The "min" direction: comiss keeps 0.5 when 0.5 > value ⇒ result
+    floor-clamps AT 0.5 (upper-clamp: value ≤ 0.5 ⇒ 0.5 kept ≥ — record
+    the ASM form `if (0.5 > val) ret 0.5 else val` = **max(0.5? v) is
+    WRONG; per-asm = ret val unless val < 0.5 in which case 0.5** =
+    clamp to ≥ 0.5) — CAREFUL: reads as `ret = (0.5 > val) ? 0.5 : val`
+    = a LOWER clamp at 0.5 (values < 0.5 → 0.5): re-verify on port.
+  - **Generator plant WALK (F3 target (d)):** FUN_0090ce20 has EXACTLY
+    ONE e8 caller (**slab 0x50ee80 = true 0x90f680**); prologue walk =
+    `malloc(0x1ec)` (`push 0x1ec; call *0x114a34c` @0x50ee54), ctor =
+    FUN_0090ce20(obj, seed) with **seed = raw WORLDSEED::GetSeed()**
+    (e8 → true 0x9119d0 @0x50ee78 = the VERIFIED §7 GetSeed ✓), then
+    [obj+0x90]/[obj+0x94] = the cell coords (explicit per-cell identity,
+    `-0x358(ebp)`/ebx), registered via 0x39dc40/0x50c7b0 into the
+    cellular-grid context; profiler string
+    **"IMPL_DoBufferedPixelScene - add to cell grid"** (0x1175e04 -
+    slab 0x50ef5a) ⇒ the generators are planted by the buffered
+    pixel-scene cell-grid job during Init's job walk (not one generator
+    per pixel). Per-cell noise DIVERSITY therefore comes from the cell
+    coords + the per-biome "Wang offset" doubles (C28), NOT from a
+    per-cell seed: the +0x94 float chain is uniform per worldseed, the
+    spatial variation is coordinate-driven. (This collapses the F3 RNG
+    question: the noise layer is ws-seeded ONCE per cell-planting and
+    location-varying, like the mSeed family.)
+  - **VA-CONVENTION WARNING (open item, do not trust):** the floor
+    helper's objdump target prints as `0x4c8b0` (= a value BELOW the
+    slab base 0x401000); the same anomaly appears in canon row C20's
+    `call 0x43ff0` std::string helper. Both imply either (a) objdump
+    prints e8 targets RAW (unadjusted) inside binary mode — which would
+    give TRUE VA = the printed value − 0x400 + offset?? unresolved — or
+    (b) they are TRUE VAs of the low-CRT region (0x44d0b0 via +0x400800
+    = in-image for 0x4c8b0?? — the +0x400800 algebra gives true
+    0x44d0b0 = in-image, C13-CONSISTENT; but for 0x43ff0 it gives
+    0x847ff0 — unverifiable without a Ghidra name check). **No true-VA
+    claim for these two helpers is canon; they are used only as
+    floor/strcmp by call-site context.** First dig #3 item: settle the
+    e8-target VA convention with a harness dump (byte-equate a known
+    Ghidra helper through its bytes).
+  - Tests: unchanged 143/143 (no port changes this dig).
+  - **2026-09-20 (14) — F3 dig #3 addendum: the e8-target VA convention
+    SETTLED (byte-tested)** — the slab spans only .text's second half
+    (file 0x400c00.. = true 0x801800..); e8 targets printed BELOW the
+    slab base = calls into .text's lower region (file 0x400..0x400c00 =
+    true 0x401000..0x801800), which the extract never contained. Byte
+    verification: the floor helper (slab print `0x4c8b0`) = true
+    **0x44d0b0** = exe file 0x4c4b0 = a real SSE fp-round helper
+    (`55 8b ec 83 e4 c0 83 ec 40 … cvtss2sd … fld/fistp`) matching the
+    call-site contract; canon C20's `call 0x4cff0`?? — the row's
+    `0x43ff0` = true **0x4447f0** (correction recorded in C20/C13).
+    ⇒ C13's `true = slab + 0x400800` is UNIVERSAL for these targets.
+    Prototype skeleton: `mapgen/lib/noise-proto.mjs` (constants +
+    perm heads landed; runnable port queued dig #4 with the two open
+    inputs: the runtime gradient table 0x12eec08 and the C30 clamp).
