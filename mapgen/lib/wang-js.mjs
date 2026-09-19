@@ -324,9 +324,9 @@ export function generateCorner(ts, w, h, colorSource, choiceSource, repReduce) {
 
 // One legacy-model attempt (sequential stream, GetRNG seeding) for a biome
 // area — the JS twin of what the obsolete noitool wasm does per attempt
-// (kept for regression comparisons only, not a game reference).
+// (kept for regression comparisons only, not a game reference). @prov noitool
 // Output RGB is 1 cell per px; the top 4 rows of the (h+4)-row generation are
-// discarded, mirroring wang.cpp's memcpy skip.
+// discarded, mirroring wang.cpp's memcpy skip. @prov noitool (wang.cpp:854)
 export function seqAttempt(ts, wCells, hCells, seed) {
   const rng = new NollaPrng(0);
   rng.setRandomFromWorldSeed(seed >>> 0);

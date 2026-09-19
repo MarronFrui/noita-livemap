@@ -1,5 +1,11 @@
 // Generate wang-layer chunks for a seed: biome-map pixel window -> PNGs in out/gen/.
 // Usage: node mapgen/render.mjs [--seed N] [--x0 N --x1 N --y0 N --y1 N] [--out dir]
+//
+// @prov noitool: the wang fill used here is the legacy wasm (noitool's
+// prebuilt module, via lib/wang-wasm.mjs). The genmap server uses OUR exact
+// model (generate-exact); this bench script still runs the legacy model so
+// its diffs describe the legacy fill, not the current pipeline (known
+// drift, tracked under the F2/F-anchor work).
 
 import fs from "node:fs";
 import path from "node:path";
@@ -70,6 +76,12 @@ for (let ty = y0; ty <= y1; ty++) {
     const entry = biomeAt(config, tx, ty);
     if (!entry) {
       manifest.chunks[`${tx}_${ty}`] = { biome: null };
+      continue;
+    }
+    // Template biomes (no wang atlas: winter, desert, orbroom, holymountain,
+    // mountain_tree, ...) are drawn by the template renderer, not this script.
+    if (entry.biome.template) {
+      manifest.chunks[`${tx}_${ty}`] = { biome: entry.biome.name, template: true };
       continue;
     }
 

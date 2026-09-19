@@ -21,6 +21,9 @@
 //     isCoalMine          -> doCoalMineHax(overlay)          [mutates map]
 //     path_map = copy; isValid():
 //       coalmine -> start_x = 142; else mainPath -> fillMainPath() (fills band, start_x)
+//       [start_x=142 (0x8e) is @prov noitool — the binary shows the mark is
+//        a cell COLOR (0xFF420000), not a hardcoded x; the 142 constant is
+//        unverified approximation debt, see CONSTANTS rule + ledger F2]
 //       HasPathToBottom(start_x, fixed_x = mainPath):
 //         fixed_x -> findPath(start_x, 0)
 //         else    -> scan x from start_x: coffee -> floodfill to black & retry same x;
@@ -255,7 +258,10 @@ function undoCoalMineHax(map, width, height) {
 
 // finalize-lite for the renderer: the parts of the game's finalize() we can
 // already apply deterministically (undoCoalMineHax + fillBlockedRooms(BLACK)).
-// ClearPath / fillC0ffee / fillRandomMaterials remain TODO.
+// ClearPath / fillC0ffee / fillRandomMaterials remain TODO. @prov noitool:
+// everything in this block below the 2026-09-18 REWRITE corrections is
+// structurally noitool-derived and only pinned via oracle — tag carries the
+// no-guessing debt until F2 replaces them from the binary.
 export function finalizeLite(map, width, height, { isCoalMine, blockList }) {
   if (isCoalMine) undoCoalMineHax(map, width, height);
   for (const b of blockList) {
@@ -319,7 +325,7 @@ export function hasPath(mapIn, width, height, opts) {
 
   let pathStartX = 0;
   if (isCoalMine) {
-    pathStartX = 0x8e;
+    pathStartX = 0x8e; // @prov noitool (start_x=142): approximation debt (see header)
   } else if (mainPath) {
     // fillMainPath runs under usemap = path → band fill on path_map
     fill(pathMap, width, fillXFrom, fillXTo, 0, 6, COLOR_BLACK);

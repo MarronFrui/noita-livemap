@@ -4,8 +4,12 @@
 //  - biome definition XMLs (name, wang template, random materials)
 //  - connected-component areas per biome color (generation happens per area)
 //
-// Counterpart of noita-tools' dataScripts-generated maps.json, but read
-// directly from data.wak contents. This is OUR wrapper; vendor/ stays read-only.
+// mapgen/biomes.mjs — parses _biomes_all.xml + biome XMLs + biome_map.png
+// (70×48, RGB); connected-component areas per color. This is OUR wrapper;
+// vendor/ stays read-only. @prov noitool traces (annotated inline): the
+// randomMaterials int-encoding note and the isCoalMine/shouldBlockOutRooms
+// name-list flags below are noitool-derived approximations pending
+// binary pinning (see the 2026-09-19 standing rule in CONSTANTS.md).
 
 import fs from "node:fs";
 import path from "node:path";
@@ -50,7 +54,10 @@ function parseBiomeDefinition(dataDir, filename) {
     const to = parseAttr(rc[1], "output_colors");
     if (!from || !to) continue;
     // C++ compares 24-bit RGB ints (see noita-tools hexRGBAtoIntRGB:
-    // parseInt(hex.slice(0,6),16)), not RGBA ints.
+    // parseInt(hex.slice(0,6),16)), not RGBA ints. @prov noitool (the
+    // int encoding claim; validated against noitool's C++ — the in-binary
+    // 24-bit compare form is NOT yet independently pinned; treat as
+    // approximation until pinned — see CONSTANTS.md rule).
     const toRgb24 = (hex) => {
       const v = argbHexToRgbaInt(hex);
       return (v >>> 8); // drop alpha byte: r<<16|g<<8|b
@@ -79,8 +86,8 @@ function parseBiomeDefinition(dataDir, filename) {
     templateFile,
     randomMaterials: flatRandomMaterials,
     materialBands,
-    isCoalMine: false, // set below from name, mirrors noita-tools flags
-    shouldBlockOutRooms: false,
+    isCoalMine: false, // set below from name — @prov noitool NAME-LIST flag; DATA-CHECK 2026-09-19: coalmine.xml's <BitmapCaves> carries NO do_beginning_paths attr (only hills/desert/forest family do) — so this flag's in-binary selection rule is UNDETERMINED; do not re-derive from XML without a binary read (correction to the F2 dig #4 phrasing, see ISSUES.md note)
+    shouldBlockOutRooms: false, // @prov noitool NAME-LIST flag; binary canon for the marker table itself = fillBlockedRooms (CONSTANTS.md C3) — but WHICH biomes it applies to is not yet in-binary; name-list = approximation debt
   };
 }
 

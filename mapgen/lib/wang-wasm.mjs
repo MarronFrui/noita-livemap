@@ -1,6 +1,9 @@
 // Node loader for the OBSOLETE noitool prebuilt noita_random.wasm.
 // ABI mirrors vendor/noita-tools/.../mapWasm.ts (see wasm_in.cpp for the C++ side).
 // WASM built by noitool's author from the decompiled game; treated as a black box.
+// @prov noitool — this LOADER is noitool-provenance end-to-end: it may only be
+// used for regression/bench comparisons against our own exact model
+// (wang-js/generate-exact), never as the reference for new behavior.
 // LEGACY ONLY: regression baseline (goldens/tests) — NOT a game reference;
 // superseded by lib/generate-exact.mjs (our asm-verified JS pipeline).
 

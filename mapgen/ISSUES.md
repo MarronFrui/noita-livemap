@@ -18,6 +18,14 @@
 
 ## Fixed known facts to anchor the work
 
+> **Standing rule (2026-09-19, user mandate — no-guessing phase):** every
+> binary-derived constant/byte-pin must be registered in **`CONSTANTS.md`**
+> (with its VA(s), meaning, and verification date) BEFORE it is used in
+> code, in another doc entry, or in a hypothesis. Code comments reference
+> entries as `CONSTANTS.md::<C##>`. If a value is needed and is not
+> already in that table, it must be re-verified on disk this session and
+> then registered — no re-scans.
+
 - **Predictable spawns in The Work:** the **moon** (top/heaven band) and the
   **dark moon** (bottom/hell band). Seed-independent → registration anchors +
   validation targets (same role as the HM bands, mapcap/PREDICTABLE_ZONES.md).
@@ -170,6 +178,46 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   viewer shows east/west segments from the hosted ref; our generator only
   builds the main (middle) world. Main world first; PW = clone with
   minor spawn variations later.
+
+## Data-audit note (2026-09-19, noitool sweep — user mandate)
+
+- **isCoalMine / shouldBlockOutRooms selection is UNDETERMINED in-binary**
+  (audit of `lib/biomes.mjs` name-list flags, tagged `@prov noitool`):
+  - Fact-check result: `<BitmapCaves>` appears in 59 biome XMLs; the
+    `do_beginning_paths`/`do_beginning_down` attributes exist ONLY in
+    desert.xml:48, forest.xml:37, hills.xml:41-42, hills2.xml:36,
+    hills_flat.xml:40-41, mountain_right_stub.xml:44-45,
+    mountain_tree.xml:47 (grep, extracted data) — **coalmine.xml carries
+    NO do_beginning attributes** (its `<BitmapCaves>` = plain
+    structures). Corrects the SESSION_CONTEXT F2-dig #4 phrasing that
+    implied the coalmine hax is selected by those flags.
+  - Consequence: how the binary decides "this biome gets the coalmine
+    fallback/hax path" is an OPEN read target (queue under F2, before
+    trusting isCoalMine beyond coalmine/excavationsite fixtures).
+  - Constant placeholders elsewhere verified clean: has-path C3/C4
+    constants (binary-derived), coords.mjs legacy mode = label only,
+    wang-js seqAttempt = regression twin only. The only LIVE noitool
+    artifacts: lib/wang-wasm.mjs's wasm (bench + legacy tests) and the
+    start_x=0x8e constant (both tagged, listed as debt).
+
+### 6. Bench pipeline coverage
+- [ ] **I17. Bench wang-layer script skips all template biomes** (LOW,
+  registered 2026-09-19 after user sanity check): `2-generate.mjs`
+  (`npm run bench:gen`) used to CRASH on the first template biome in the
+  window (`templateFile` undefined); now it records them in the manifest as
+  `{ biome, template: true }` and emits no PNG — so `3-compare.mjs`
+  scores wang chunks only. Affected default-window biomes: winter,
+  _EMPTY_/mountain_tree, desert, orbroom, holymountain. This is CORRECT
+  scope for the bench (it measures the wang layer), but it means:
+  (a) bench reports cannot validate template-biome rendering — that
+  validation lives in the genmap pipeline (`template-render.mjs`;
+  captured tiles). (b) The underlying knowledge gaps are the existing
+  open issues: poro-noise procedural terrain = **I1** (Ghidra RE, not yet
+  done), static spliced scenes = I9-family (partially rendered),
+  HM band template pieces = I10/I11. No new RE target; close this issue
+  when I1-family lands and 2-generate can be pointed at the full
+  pipeline if wanted (e.g. a `--template` flag delegating to
+  template-render.mjs).
 
 ## Strategy (agreed)
 

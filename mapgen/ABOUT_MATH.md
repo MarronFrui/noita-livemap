@@ -1512,3 +1512,143 @@ first use from now on):**
   FUN_008e6d50 consumer — F-anchor stays open with that as its read target;
   the current genmap's empirically-fitted (3,3) px anchor remains the only
   bracketed value (x ∈ [−1..3], y ∈ [0..2] from the spawn equations).
+
+- **2026-09-19 (2) — F-anchor dig #2 CORRECTION + re-anchoring of the VA
+  map (same session, before any further reads).** While re-reading the dig's
+  artifacts I re-derived the slab mapping empirically instead of trusting the
+  adjust-vma formula: the in-binary pin of the hasPath coalmine start mark
+  (`cmp eax, 0xFF420000`) is at **slab VA 0x50124d**, which the ledger (from
+  Ghidra) records at true **0x901a4d** ⇒ **true VA = slab VA + 0x400800**
+  (slab convention: file[0x400c00:0xdd0000] placed at adjust-vma 0x401000 ⇒
+  slab VA = file_off + 0x400; true VA = file_off + 0x400c00 — the Sep-18 (2)
+  note's "+0x400800 correction" applies to ALL Ghidra-derived names, not just
+  stage 9). Consequences for dig #2's entries above:
+  - The "FUN_008e6d50 / FUN_008e6cf0 functor wrapper" read was executed at
+    SLAB 0x8e6cf0 = true 0xce74f0 — i.e. the wrapper/its callers/its
+    singleton 0x132a32c WRITE-UP IS MISLABELED; the structural findings
+    (functor post-wrapper + 7 callers) belong to true 0xce74f0, whose
+    identity is UNKNOWN (not the ledger's cached-draw consumer).
+  - Likewise dig (b)/(c): I read slab 0x939b80 / slab 0x8ed860 = true
+    0xd3a380 / 0xcee060 — NOT FUN_00939b80 / FUN_008ed860. The
+    "record-queue ×10 idiom" elimination therefore applies to three
+    UNNAMED true-VA functions (0xd0b902-family inside true-FUN_0090b8a0 ✓
+    correct; 0xd3a403; 0xced8cf) whose queue semantics were read correctly
+    but names were wrong. The elimination's CONCLUSION may still hold, but
+    it must be re-verified on the true functions before being canon.
+  - The read targets must be re-run at slab = true − 0x400800:
+    FUN_00939b80→0x539380, FUN_008ed860→0x4ed060, FUN_008ec9f0→0x4ec1f0,
+    FUN_00904c20→0x504c20, SetSize call sites→0x50738f/0x507852.
+  - **Method note (new):** when mixing Ghidra names with objdump output,
+    ALWAYS convert: objdump slab VA + 0x400800 = Ghidra VA. Verify each
+    named target by byte-pinning a previously-verified constant in the
+    function before trusting a read.
+
+- **2026-09-19 (3) — F-anchor dig #3: FIRST TRUE-VA READS, anchor rule of the
+  Init grid walk READ (objdump slab, true = slab + 0x400800, verified
+  by byte-pinning hasPath's `cmp eax, ~0xFF420000` @slab 0x50124d = true
+  0x901a4d and SetSize @slab 0x4f8dc0 = true 0x8f95c0).**
+  1. **FUN_00939b80 (chunk cache-builder) = ELIMINATED as the anchor.**
+     Read at slab 0x539380; its assert strings (0x1179e90 = the
+     "chunk_top_left" family; 0x116ea50 / 0x1179f1c the offset asserts)
+     byte-pin it. Semantics: takes world (x, y), yields
+     `chunk = (x>>9, y>>9)` (sar 9 ×2), `quarterCell = (y&0xff)<<8 |
+     (x&0xff)` (the ±0x100 chunk-half quadrant-prep of F1's stage-9 read),
+     bounds-asserts, then a flat cache lookup `tbl[quarterCell]`. **NO
+     ÷10, NO (3,3), NO per-area origin**: this instrument LATTICE-INDEXES
+     the 512-frame directly. The wang-cell ↄ-world anchoring does NOT
+     happen here.
+  2. **hasPath-body constants verified live this session** (slab 0x501780
+     = true 0x901780): the blockOutColors cmp cascade
+     (`0xfffefefe`, `0xffffffff`, `0xfffffffe`…), the coalmine start mark
+     `cmpl $0xff004200` @slab 0x501aef (= true 0x901aef; ledger's
+     0x901a4d family), `imul`-indexed RGBA rows, the ÷8 (sar 3) room-growth
+     helpers @slab 0x501b66.. — the port's read environments match.
+  3. **THE INIT GRID-SIZE WALK — the (3,3)-question narrows to our own
+     truncation semantics. ProceduralTerrain::Init (true 0x9073xx-family,
+     read at slab 0x506600..0x5072a0):**
+     - Pre-walk: unique-double normalizer (cmp `0x11e0220` bounds, mul
+       `0x11dfdd8`) + the **Random(min,max) closed form IN-BINARY**:
+       magic ÷100000 `0x834e0b5f` then the 127773/2836/16719
+       (0x1f31d/0xb14/0x41a7) decomposition — VERIFIED twice
+       (slab 0x506a22 / 0x506aa1, = true 0x907222 / 0x9072a1); this is
+       the mSeed/RegistrantRandom closed form, F2-relevant, byte-pinned.
+     - Area-ctor walk (esi = the biome area; [esi+0x50] = **WIDTH in
+       chunks** (outer row index used as `imul width` in the per-chunk
+       lookup at slab 0x506c35), [esi+0x54] = HEIGHT, chunk loop bounds
+       at slab 0x506c1a/0x506c2b):
+       - `new(nested 0xb8 bytes)` + ctor slab 0x4f8c70 (= true 0x8f8c70?
+         UNRESOLVED name; contains a THREE-slot grid layout at +0x00,
+         +0x20, +0x40/+0x60, a seed slot +0x8c and an RNG-normalized
+         float +0x94 — the VERIFIED +0x94 generator chain, with the
+         SAME closed form constants (0x11e0504/0x11e04ec)) → **this is
+         the mSeed/×200000−100000 construction, IN-BINARY, in the same
+         walk** (re-confirms stage-3/4 shapes).
+       - **`SetSize(grid, w, h)` at slab 0x506b8f (= true 0x90738f** —
+         the first F1 SetSize call site ✓✓) with
+         **`w = ([esi+0x50] << 9) ÷ 10`** and **`h = ([esi+0x54] << 9) ÷ 10`**
+         (signed ÷10 via magic 0x66666667 + sar-2 sign-correcting; the
+         second ÷10 in effect). **NO offset constant anywhere in the
+         sizing expression.** The float grid = `w·h·4` B realloc
+         (verified by reading true 0x8f95c0 = slab 0x4f8dc0: it stores w/h,
+         allocates 4·w·h bytes ⇒ **the +0x18 grid is FLOAT32, w·h
+         elements, cell = 10 world px**). The second SetSize call site
+         (true 0x907852 = slab 0x507052) sits right after — the u16 twin
+         (not yet read in detail this session).
+     - **IMPLICATION for F-anchor (pending final confirmation):** the
+       game's AREA GRID is sized from the chunk-rect WIDTH/HEIGHT ONLY
+       (`chunkExtent*512÷10`), with NO additive constant. Our port's
+       column semantics: `widthCells = trunc(b·512/10) − trunc(a·512/10)`
+       (= per-endpoint truncation). For biome areas whose chunk extents
+       are already ÷5-aligned both are equal; for odd extents they can
+       differ by a cell. **No in-binary (3,+3/13) additive constant has
+       been found in any area-grid-geometry read so far.** The (3,3) is
+       therefore INCREASINGLY LOCAL TO OUR PORT's out_map serial artifact
+       (e.g. arising from `MapGen`'s +3 start-cell scanfactor), NOT a
+       game-side wang→world offset. Next read closes it: the VALUES write
+       into the SetSize'd grids + FUN_00939b80's neighbors (is the wang
+       out_map ever re-read? or is the u16 grid filled by the noise
+       generator objects, not by the fill?).
+
+- **2026-09-19 — F-anchor dig #2 (objdump, fresh correct slab; genesis: user
+  go-ahead). Objectives partially met, one ledger correction + one
+  elimination. ⚠ NB: some function-name labels in THIS entry were later
+  proven wrong — read entry (2) (same date, lower) FIRST; (3) is the
+  on-target re-run:**
+  - **LEDGER CORRECTION: FUN_008e6d50 is NOT a function entry.** Fresh
+    `text.bin` (method note: `f[0x400c00:0xdd0000]` + adjust-vma 0x401000,
+    asserted live this session) shows 0x8e6d50 sits INSIDE **FUN_008e6cf0**
+    (new prologue at 0x8e6cf0, SEH setup, ends ret 0x4 @0x8e6da2).
+    FUN_008e6cf0 = a tiny functor POST-wrapper: allocates 0x38 bytes,
+    constructs a std::function from imm vt 0x1198840 via 0x1c6b0, stores it
+    to global 0x132a32c, deletes the previous global consumer;
+    **7 direct callers, all in the 0x8e7xxx chunk-draw cluster
+    (0x8e73b6, 0x8e7665, 0x8e76d8, 0x8e77da, 0x8e794d, 0x8e7a95) +
+    0x411e72 (global flush path, singleton reset 0x132a32c ← caller of
+    0x4a0d80−family).** So the "map-class draw consumer" is a per-frame
+    posted-task FUNNEL, not where the cell anchor arithmetic lives.
+  - **ELIMINATION: the /10 (0x66666667) magic clusters are NOT the wang
+    anchor.** exhaustive .text scan for the divide-by-10 magic (296 hits)
+    at exactly 3 pattern-identical sites — the SAME generic record-queue
+    consumption: (a)
+    **ProceduralTerrain::Update's frame scan** (FUN_0090b8a0 family,
+    slab 0x50b1xx: [edi+0x18]/[edi+0x1c] record-list start/end →
+    pop records via movdqu (20-byte strides, ×5 lea), count/10 via
+    66666667+magic-sar-3); (b) **the quadrant-cache builder FUN_00939b80** same
+    shape ([edi+0x630]/[edi+0x634]); (c) **the fallback fill
+    FUN_008ed860** same shape ([esi+0x154]/[esi+0x158] + record queue +
+    state 3 re-arm @0x8ed945 + caller-check via vtable call). Verdict:
+    pixel-scene/rect **pending-queue step accounting, NOT cell anchoring**;
+    do not re-read these /10 sites for the anchor.
+  - **Confirm again: no pairwise `add imm 5/13 + shr 9`** anywhere (consistent
+    with 2026-09-18 (3): noitool's +5/+13 drawImageData is not in-binary).
+  - **STATUS: F-anchor STAYS OPEN.** Remaining candidate read targets
+    (next session): (1) stbhw-block interior 0x8ec999's context
+    (MapHandlerToBig family — the one true ×10 in the fill
+    subsystem — plus its consumer of row indices for the (3,3) candidate);
+    (2) the 0x8e7xxx chunk-draw cluster's actual painter functions (find
+    who CONSUMES 0x132a32c task per frame and what transform it applies);
+    (3) the Init-side write of the accepted out_map into area +0x18/+0x38
+    grids (SetSize call-site context 0x90738f/0x907852 was read for
+    GRIDS-ALLOCATION only — the terrain VALUES write walk was never
+    traced; the anchor may simply be `area origin` with the (3,3)
+    being a property of our fill/geometry, not the game's).

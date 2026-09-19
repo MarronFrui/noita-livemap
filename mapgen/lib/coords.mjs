@@ -36,7 +36,9 @@ export function chunkToBigMapRect(wangModule, big, area, tx, ty) {
 
   let originX, originY;
   if (ANCHOR.mode === "noitool") {
-    // status quo: cells measured on raw biome-map px via the wasm function
+    // status quo: cells measured on raw biome-map px via the wasm function.
+    // @prov noitool — legacy label; legacy mode kept for regression
+    // comparisons only (never the shipped mapping).
     const dx = wangModule.wasm.GetWidthFromPixRaw(area.x1, tx);
     const dy = wangModule.wasm.GetWidthFromPixRaw(area.y1, ty);
     originX = wx - dx * CELL;
