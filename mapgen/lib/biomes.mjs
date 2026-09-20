@@ -85,6 +85,33 @@ function parseBiomeDefinition(dataDir, filename) {
     name: name || path.basename(filename, ".xml"),
     templateFile,
     randomMaterials: flatRandomMaterials,
+
+  // Per-biome procedural-terrain noise params (shape side, P1 surface level).
+  // Read directly from the biome XMLs' <Topology> block (2026-09-20 dig #8 —
+  // the params the binary's noise-terrain family consumes). @data-verified:
+  // extracted config = the engine's own input; the BLEND structure
+  // (gradient ramp + noise) is a recorded TODO, not yet wired to the port.
+  noiseType: parseAttr(attrs, "noise_type"),
+  mGradientAddNoise: parseAttr(attrs, "mGradientAddNoise"),
+  mGradientEndY: parseAttr(attrs, "mGradientEndY"),
+  mGradientStartY: parseAttr(attrs, "mGradientStartY"),
+  mGradientHighNoise: parseAttr(attrs, "mGradientHighNoise"),
+  mGradientLowNoise: parseAttr(attrs, "mGradientLowNoise"),
+  mGradientMaxY: parseAttr(attrs, "mGradientMaxY"),
+  mGradientMinY: parseAttr(attrs, "mGradientMinY"),
+  mGradientNoiseScale: parseAttr(attrs, "mGradientNoiseScale"),
+  mGradientSinMultipleMax: parseAttr(attrs, "mGradientSinMultipleMax"),
+  mGradientSinMultipleMin: parseAttr(attrs, "mGradientSinMultipleMin"),
+  mGradientType: parseAttr(attrs, "mGradientType"),
+  mInsidePerlinClamped: parseAttr(attrs, "mInsidePerlinClamped"),
+  mInsidePerlinFunc: parseAttr(attrs, "mInsidePerlinFunc"),
+  mInsidePerlinScaleMax: parseAttr(attrs, "mInsidePerlinScaleMax"),
+  mInsidePerlinScaleMin: parseAttr(attrs, "mInsidePerlinScaleMin"),
+  mInsidePerlinScaleX: parseAttr(attrs, "mInsidePerlinScaleX"),
+  mInsidePerlinScaleY: parseAttr(attrs, "mInsidePerlinScaleY"),
+  mInsidePerlinScaled: parseAttr(attrs, "mInsidePerlinScaled"),
+  mInsidePerlinSquared: parseAttr(attrs, "mInsidePerlinSquared"),
+  mMultiplierGradient: parseAttr(attrs, "mMultiplierGradient"),
     materialBands,
     // Binary-exact flag derivation (2026-09-19 dig #2, ABOUT_MATH 2026-09-19
     // (8); CONSTANTS.md C19/C20 — replaces the @prov noitool NAME-LIST flags):

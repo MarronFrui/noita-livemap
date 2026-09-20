@@ -2657,3 +2657,35 @@ first use from now on):**
   - Registration: C35 (the new tables + the unknown cores true
     0x8fc020/0x8fbe60/0xc08ea0-slab 0x4c4ea0). The C33 row's byte
     traps stand as amended in-place.
+
+- **2026-09-20 (22) — dig #8: the P1 SURFACE-SHAPE param family FOUND in
+  the game's own data (no new asm needed).** The per-biome procedural
+  noise block = the biome XMLs' `<Topology>` attrs (winter/hills.xml =
+  the I1 issue's "mGradient/mInsidePerlin* XML params" — the actual
+  values, data-side, zero binary guess):
+  - common: `noise_type="SIN_CAPPED_SIMPLEX"` (hills/hills2/desert/
+    mountain_*/astral*.xml family), `mGradientAddNoise` 1|2,
+    `mGradientStartY=-1024` / `mGradientEndY=1024`,
+    `mGradientNoiseScale` 0.00128571 (=9/7000) / 0.0068571 (hills2,
+    = 9/7000 × 16/3),
+    `mInsidePerlinScaleMin=0.057143` `mInsidePerlinScaleMax=2`
+    `mInsidePerlinScaleX/Y=0.9999` (desert: 0.009999) `Clamped=0`
+    `Scaled=1`, `mInsidePerlinSquared=0|1`,
+    `mMultiplierGradient=0.871429` (hills).
+  - per-biome value bands: hills/mountain*: HighNoise 234.057 /
+    LowNoise −292.571; hills2: 75.123/−12.0564; desert: ±100.123.
+  - winter.xml (the west frozen plain class!) carries the SIN
+    machinery alone (no noise_type): `mGradientType="1"`,
+    `mGradientMaxY=0.498571` / `mGradientMinY=0.25`,
+    `mGradientSinMultipleMin=0.00667143` / `Max=0.006153`,
+    `mInsidePerlinFunc="x*(1.0-x)"` — an evaluable closed form.
+  - **Notable: our evaluator2's lower clamp at 0.5 (C30) = the
+    "CAPPED" in the data's own noise_type name — the binary core we
+    ported is CONSISTENT with the surface class's declared type.**
+  - Port state: `lib/biomes.mjs::parseBiomeDefinition` now EXTRACTS the
+    full param set (noiseType + 16 mGradient/mInsidePerlin fields;
+    hills-XML round-trip verified). NOT yet wired into noise-terrain.mjs
+    — the gradient-ramp:noise blend stays a recorded TODO, exactly the
+    byte question to settle next session (the binary's shape formula
+    over the mGradient family, likely the C18/finalize-style ramp +
+    the mGradientNoiseScale-scaled evaluator2 call).
