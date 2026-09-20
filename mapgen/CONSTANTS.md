@@ -57,6 +57,7 @@
 | C32 | true 0x8f9ab0 = BitmapNoise::LoadFromImageData | the u16 DECOR writer: image color → resolver [+0xb0] / map [+0xb4] → u16 / byte / float |
 | C33 | true 0x8f4830 biome-def DECOR classifier | noise re-eval with mod-512 wrap (×1/512 @0x11df8b4), gate [+0x24]/[+0x28], result material [+0x4] |
 | C34 | per-chunk DECOR owner layout | [+0xb4] float field (raw >0.5 gate), [+0xd4] u16 grid, [+0x1e0] DECOR write; evaluator2's `a` = the field value |
+| C35 | lazy noise-table pair + 2nd core | init true 0x8fbfd0: [0x1327bd0]=perm u16, [0x1327720]=perm%12; true 0x8fc020 = unread noise core; ÷132 count fix |
 
 ## Registry
 
@@ -601,9 +602,13 @@
   biome_materials.cpp module); helper strings 0x118c9f4
   ("mInitialized"), 0x11732c0 ("mCellFactory").
 - Read: gate consts [this+0x0]/[+0x4] (comiss vs xmm0=arg f32,
-  0x4f4919/0x4f4922); the per-cell job runs over a 26-stride array
-  (`magic 0x3e0f83e1`, imul sar 5 = the ÷-26.0 idiom; loop
-  0x4f4960/0x4f4f3b, stride `add $0x84,%esi`) whose members carry:
+  0x4f4919/0x4f4922); the per-cell job runs over an array of
+  **132-byte-stride records** (`magic 0x3e0f83e1` = 1041204193 imul,
+  sar 5 = the signed >>37 reciprocal — **the count = (end−start) ÷
+  132, NOT "÷26"; byte-computed 2026-09-20 dig #7, the earlier
+  "÷-26.0" row-gloss retracted** — M·132/2³⁷ = 1.0000000000; the
+  per-iteration stride `add $0x84,%esi` = 132 B/record ✓); loop
+  0x4f4960/0x4f4f3b, members per record (0x84-stride):
   noise weights [this+0x30]/[+0x34] (X/Y f32 mulss — y = [ebp+0xc] = X
   ✓ CORRECTED call-site map: [ebp+8]=Y-int, [ebp+0xc]=X-int), the wrap
   window (C `% 512` signed idiom + `mulss 1/512 = 0.001953125
@@ -649,3 +654,26 @@
   validate `call 0x363cd0` (slab 0x50d651; C33's "mCellFactory" unit)
   and the old-value release (`*0x114a348` slab 0x50d669).
 - Status: read + registered (2026-09-20 (20)).
+
+### C35 — the lazy noise-table pair + the second noise core (dig #7 audit)
+- **true 0x8fbfd0** (slab 0x4fb7d0) = one-time lazy init (BSS flag
+  **0x13289bd**, cmpb/movb-1 guard): for i<256, from .rdata
+  **u16[0x114cc50] (stride 2 — starts 151,160,137,91 = the C25 simplex
+  perm copy as u16)**:
+  - **[BSS 0x1327bd0][i] = perm_val** (u16 ×512)
+  - **[BSS 0x1327720][i] = perm_val % 12** (idiv esi=12, dx rem) — the
+    mod-12 derivative table (12 = direction-count hypothesis,
+    UNVERIFIED; readers of 0x1327720 = the pinned next read).
+  Both targets beyond .data raw backing (0x1327400) = BSS/runtime ✓ C13.
+- **true 0x8fc020** (slab 0x4fb820) = UNREAD 2nd noise core used by the
+  C33 classifier's re-eval: f64 args (`esi·rec[+0x34]` arg1, `edi·
+  rec[+0x30]` arg2), calls the init above, runtime f64 consts
+  **0x132ab68 / 0x132ac70** (BSS — unpinnable statically), comisd
+  corner rule, movzbl perm-indexing. NOT the 0x900900 value-lattice
+  (retracted gloss).
+- **true 0x8fbe60** (slab 0x4fb660) = UNREAD ("Phase-2 noise" label is
+  ours — flag only). **call 0xc08ea0** (slab 0x4fb660-adjacent region;
+  lower-half fn) = UNREAD ("alpha walk" label — flag only).
+- Status: audit-registered (2026-09-20 (21)). POISONED retracted in
+  C33: "÷-26.0" (real: **÷132** — M·132/2³⁷ = 1.0 exactly) and the
+  "0x900900 family" attribution for 0x4fb820.

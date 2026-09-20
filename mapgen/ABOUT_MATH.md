@@ -2507,8 +2507,14 @@ first use from now on):**
     "mCellFactory/couldn't find material '").
   - Per-call: (this = the biome def; xmm0 = arg0 f32; stack ints edx =
     X, ecx…). Guard: const f32 [ebx+0x0]/[+0x4] gate (comiss xmm1/xmm0
-    at 0x4f4919/0x4f4922); ±26-cell index magic 0x3e0f83e1 imul + sar 5
-    (the engine's area-÷26.0 idiom, sar 5) and the **sub-cell noise**
+    at 0x4f4919/0x4f4922); **RECORDED-CORRECTED (dig #7): the record
+    COUNT = (end − start) ÷ 132 — magic 0x3e0f83e1 (= 1041204193;
+    imul + sar 5 = the signed >>37 reciprocal; M·132/2³⁷ =
+    1.0000000000 exactly) — an earlier "÷-26.0 / ±26-cell" gloss here
+    was WRONG (2³⁷/26 = 5.29e9 doesn't fit 32 bits; the magic was
+    pattern-matched, not computed) and is RETRACTED. The loop-stride
+    `add $0x84,%esi` = 132 bytes per record CONFIRMS the ÷132
+    count**; and then the **sub-cell noise**
     re-eval: `noise2arg = X·[this+0x30] + Y·[this+0x34]` (f32 mulss;
     y from esi=[ebp+0xc] = X, edi=[ebp+8] = Y — CORRECTED call-site
     mapping: [ebp+8] = Y-int (push nos 0x5087af = cvttsd2si of the
@@ -2603,3 +2609,51 @@ first use from now on):**
     structure now individualized, port wiring deferrable to the next
     integration pass.**
   - Tests: 143/143 unchanged (no port change this dig).
+
+- **2026-09-20 (21) — dig #7: C33-ROW AUDIT (user challenge "careful not
+  to poison the well") — three poisoned glosses RETRACTED, one real
+  finding LANDED.** All re-verified against the raw slabs this session.
+  - **POISON 1 — "÷-26.0 / ±26-cell index magic"** (ABOUT_MATH (19) +
+    CONSTANTS C33): WRONG. Recomputed: magic 0x3e0f83e1 = 1,041,204,193;
+    the idiom `imul %ecx; sar $0x5` = signed **>>37**, and
+    **M·132/2³⁷ = 1.0000000000 exactly → the divisor is 132** (the
+    count of 0x84 = 132-byte-stride records; 2³⁷/26 = 5.29e9 doesn't
+    even fit 32 bits — the "26" was pattern-matched, never computed).
+  - **POISON 2 — "noise2arg = X·[+0x30] + Y·[+0x34]"** (the sum form):
+    WRONG. The dump (slab 0x4f4d87..0x4f4da5) shows a **TWO-ARG f64
+    call**: `call 0x4fb820( esi·rec[+0x34] , edi·rec[+0x30] )` (two
+    cvtps2pd args, register 1 = esi-family, register 2 = edi-family),
+    then `cvtsd2ss + addss -0x8(%ebp)` = result + the base a f32. The
+    +0x30/+0x34 slots are per-record arg weights, and the
+    truncated-sum reading is retracted.
+  - **POISON 2 — "call 0x4fb820 = the 0.900900-value-lattice family"**:
+    FALSE. slab 0x4fb820 → **true 0x8fc020** (not 0x900900 = slab
+    0x4fc100). Its body = an UNREAD second noise core: f64 args, first
+    sub-caller `call 0x4fb7d0` (see below), runtime f64 constants
+    **0x132ab68 / 0x132ac70** (both beyond .data raw backing
+    0x1327400 = BSS = runtime-only per C13 — static bytes are
+    garbage/0, cannot be pinned), a `comisd` corner rule
+    (slab 0x4fb8af), `movzbl`-byte perm-indexing (0x4fb8cf..). Do NOT
+    call it "value noise" until read.
+  - **NEUTRALIZED / still unanchored labels (flagged, do not cite):**
+    "512-chunk lattice" semantics (the 1/512 constant 0.001953125
+    @0x11df8b4 IS byte-pinned, but the lattice interpretation is
+    mine); "Phase-2 noise" = label for true 0x8fbe60 (slab 0x4fb660,
+    unread!); "alpha walk" = label for `call 0xc08ea0` (unread!).
+  - **LANDED FIND (the audit's positive result): the lazy noise-table
+    init = true 0x8fbfd0 (slab 0x4fb7d0)**, guarded by the BSS flag
+    byte **0x13289bd** (read-set-once: `cmpb 0; jne done; movb 1`):
+    for i in 0..255: from the .rdata u16 table **0x114cc50** (stride 2,
+    256 entries — its values START 151,160,137,91 = a SECOND copy of
+    the simplex-permutation C25 as u16):
+      **[0x1327bd0][i] = u16[0x114cc50 + 2i]** (the perm value)
+      **[0x1327720][i] = perm_val % 12** (idiv by 12, `lea 0xc(0),%esi`;
+          the remainder in dx) — a lazily-built mod-12 derivative table.
+    Both targets = BSS (beyond 0x1327400, C13) = runtime-only ✓.
+    The mod-12 table is a REAL, previously-unknown constant family
+    (12 = likely the direction count of the consuming noise core;
+    consumed by true 0x8fc020 family and possibly the simplex cores —
+    NOT yet traced; the 0x1327720 READERS are the pinned follow-up).
+  - Registration: C35 (the new tables + the unknown cores true
+    0x8fc020/0x8fbe60/0xc08ea0-slab 0x4c4ea0). The C33 row's byte
+    traps stand as amended in-place.
