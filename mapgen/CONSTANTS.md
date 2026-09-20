@@ -53,6 +53,9 @@
 | C28 | "Wang offset" config keys | BIOME_PATH_FIND_WORLD_POS_* = ConfigRegistry runtime keys |
 | C29 | quintic lattice consts | 6.0/15.0/10.0 pentiad; perm 0x114d700; runtime gradient tables 0x12eec08 |
 | C30 | true 0x908e70 consts | 0.07/0.035, 15.5, 0.0489275, 5.35, 0.95 (the ledger trio lives HERE) |
+| C31 | area BitmapNoise grids | SetSize true 0x8f95c0: float +0x18 / u16 DECOR +0x38 / byte +0x58, all zero-init |
+| C32 | true 0x8f9ab0 = BitmapNoise::LoadFromImageData | the u16 DECOR writer: image color → resolver [+0xb0] / map [+0xb4] → u16 / byte / float |
+| C33 | true 0x8f4830 biome-def DECOR classifier | noise re-eval with mod-512 wrap (×1/512 @0x11df8b4), gate [+0x24]/[+0x28], result material [+0x4] |
 
 ## Registry
 
@@ -548,3 +551,65 @@
   **0x44d0b0** = exe file 0x4c4b0 = a real SSE fp-round helper. The slab
   never contained .text's lower half (true < 0x801800) — that is the
   whole anomaly. C20's helper corrected to true 0x4447f0. CLOSED.
+
+### C31 — area BitmapNoise grids: SetSize true **0x8f95c0** (slab 0x4f8dc0)
+- (ECX=this, w=[ebp+8], h=[ebp+0xc]): `[+0x0]=w [+0x4]=h`, then THREE
+  zero-init grids (alloc 0x114a35c, free 0x114a358, memset 0xc3325e):
+  **[+0x18] float (4·w·h B, cnt [+0x1c]) · [+0x38] u16 (2·w·h B, cnt
+  [+0x3c]) = the DECOR material grid · [+0x58] byte (w·h, cnt [+0x5c])**.
+- Call sites = the two area-walk sites true 0x90738f/0x907852 (C9;
+  targets byte-confirmed: `e8 2c 22 ff ff` → 0x4f8dc0 and
+  `e8 69 1d ff ff` → 0x4f8dc0).
+- Status: read (2026-09-20 (18)). Pairs with C32 (the grid's writer).
+
+### C32 — true **0x8f9ab0** = `BitmapNoise::LoadFromImageData` (slab 0x4f92b0)
+- Assert strings: base 0x1173720; part 1 @0x1173750 (line 548,
+  "mDataFloat.IsValid"); part 2 @0x11737fc (line 612,
+  "material_id < USHRT_MAX"); part 3 @0x11738dc. VERIFIED §9 item 5's
+  "random-material fill" for the area class = THIS.
+- Per-cell recipe (slab 0x4f93f1..0x4f9962): color via the wrap-mod
+  u32 getter **true 0x9fe3c0** (slab 0x5fdbc0); alpha
+  `& 0xff000000 == 0xfe000000` → byte-mark 1 (+0x60 wrapper, 0x54a1d0,
+  resize gate [+0x7c]); skip iff color==0 ∨ RGB==0 ∨ alpha==0;
+  **A-channel = fn-ptr [this+0xb0]** (color→material id ≤ 0xfffe) →
+  **u16 grid [+0x38] (0x54a0f0) = A+1** (`inc %eax` @0x4f96bc, write
+  @0x4f9751), float grid [+0x18] = ±1.0 (−1.0 iff A+1==1,
+  consts 0xbf800000/0x3f800000); **B-channel = map [this+0xb4]**
+  (find 0x5fdc50; "script_id < 255" line 611) → byte grid [+0x58] =
+  B (0x5493b0, low byte @0x4f98af) + record {x,y,B,B−1} pushed to
+  the +0x80 vector (0x52e370); fallback = float-only grey
+  `(R+2G)/3.0` (mulss 0x11df8bc ×2, div 3.0 @0x11dff70), + u16 resize
+  gate [+0x3c] (helpers 0x52e000/0x52e050).
+- Part 2 (flag [ebp+0x10]≠0, slab 0x4f9994): per-marked-cell neighbor
+  pass over the wrap-mod u16/wrapped getter; homogeneous-adjacency
+  predicate = **true 0x9fe570 (majority-of-nonzero)**; on hit write
+  **u16=1 + float=−1.0** (slab 0x4f9c28..0x4f9c53). Part 3
+  (slab 0x4f9f17): reload into a DOUBLED alloc array (2× cnt
+  `add %eax,%eax`, ptr [edi+0x18]) gated by
+  `material(x,y)==0 && float(x,y)!=0` (float getter **true 0x9fe620**,
+  slab 0x5fde20 — same wrap-mod).
+- Driver calls (2×, flag=1): slab 0x5055d7 / 0x50571e = true
+  **0x905dd7/0x905f1e** — sources: the accepted out_map (edi) and the
+  wrap-copy twin; dims (w,h) at [edi+0]/[edi+4].
+- Status: read + registered (2026-09-20 (18)/(19)). Resolver bodies
+  ([+0xb0]/[+0xb4] config side) remain OPEN (17 .rdata "RandomMaterials"
+  parse sites true 0x496a2e..0x4a97ed — data-side, config).
+
+### C33 — the biome-def DECOR classifier **true 0x8f4830** (slab 0x4f4830)
+- Unit string "…procedural_utils/biome_ma…" @0x1173240 (the
+  biome_materials.cpp module); helper strings 0x118c9f4
+  ("mInitialized"), 0x11732c0 ("mCellFactory").
+- Read: gate consts [this+0x0]/[+0x4] (comiss vs xmm0=arg f32,
+  0x4f4919/0x4f4922); the per-cell job runs over a 26-stride array
+  (`magic 0x3e0f83e1`, imul sar 5 = the ÷-26.0 idiom; loop
+  0x4f4960/0x4f4f3b, stride `add $0x84,%esi`) whose members carry:
+  noise weights [this+0x30]/[+0x34] (X/Y f32 mulss — y = [ebp+0xc] = X
+  ✓ CORRECTED call-site map: [ebp+8]=Y-int, [ebp+0xc]=X-int), the wrap
+  window (C `% 512` signed idiom + `mulss 1/512 = 0.001953125
+  @0x11df8b4`), alpha/misc config bytes [+0x38..+0x46], gate window
+  [+0x24]/[+0x28], and the RESULT **material id = [this+0x4]**.
+- Status: read (2026-09-20 (19)) — NOT ported; body semantics (the
+  liq-selector family) = the P3/P5/P6 open read. Call sites (slab
+  0x5087b0 → true 0x908fb0 (the per-cell cell-object walk);
+  0x508b5b → true 0x90935b; 0x50d57e → true 0x90dd7e = the (16)
+  sampler paint arm ✓).

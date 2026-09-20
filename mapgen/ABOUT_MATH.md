@@ -2411,3 +2411,130 @@ first use from now on):**
   - ISSUE-tracking note: the world smoke surfacing "5 area errors" is
     the preexisting no-attempt areas (lake / rainforest_dark family,
     VERIFIED §4 residual); unchanged this session.
+
+- **2026-09-20 (18) — F3 dig #5: the u16 DECOR material-grid fill found —
+  `BitmapNoise::LoadFromImageData` (true FUN_008f9ab0) READ end-to-end.**
+  Anchor re-pinned first (C13: file 0x500e4d = `3d 00 00 42 ff` = true
+  0x901a4d ✓). All addresses below verified in the fresh slab.
+  - **SetSize = true 0x8f95c0 (slab 0x4f8dc0)** — read fully (both C9
+    sites call it, target byte-confirmed `e8 69 1d ff ff`). The area
+    grid class: dims `[+0x0]=w [+0x4]=h`; **three zero-initialized grids:
+    [+0x18] FLOAT (4·w·h bytes, cnt [+0x1c]) · [+0x38] U16 (2·w·h bytes,
+    cnt [+0x3c] = the DECOR material grid) · [+0x58] BYTE (w·h, cnt
+    [+0x5c])** — each memset(0) (0xc3325e). Alloc/free via
+    **0x114a358/0x114a35c** (the engine allocator pair). u16 stride
+    `lea (%ebx,%ebx,1)` byte-confirms 2-byte elems.
+  - **The writer = true 0x8f9ab0** (slab 0x4f92b0): identity proven by its
+    own assert strings — `BitmapNoise::LoadFromImageData` @0x1173720,
+    part 1 @0x1173750 (line 548), part 2 @0x11737fc (line 612), part 3
+    @0x11738dc. This is VERIFIED §9 frontier item 5's "random-material
+    fill" for the area class.
+  - **Who/when**: called TWICE from the fill driver (slab 0x5055d7 and
+    0x50571e = true **0x905dd7/0x905f1e**) with `flag byte = 1` (part 2
+    3 ON), per call: `(this=<area BitmapNoise>, src-image, count,
+    hole-align, w=xEnd [ebp+0x1c], h=yEnd [ebp+0x20])`; the src-image
+    objects are the driver's accepted out_map (edi) and the wrap-copy
+    twin. ⇒ corrects C23's "u16 population lives inside FUN_008f9ab0"
+    to a precise mechanism (below), and closes the F2→F3 handoff cell.
+  - **Part 1 per-cell recipe (slab 0x4f93f1..0x4f9962), byte-exact:**
+    1. `color = u32 getter (true 0x9fe3c0, slab 0x5fdbc0)(src, x, y)`
+       — full wrap-mod image fetch, same module as the u16 reader.
+    2. `alpha = color & 0xff000000`; if `alpha == 0xfe000000` → set
+       byte grid mark 1 at (x,y) (helper 0x54a1d0 on the +0x60 wrapper;
+       one-time resize gated by [+0x7c]) — the 0xFE = "unpainted marker".
+    3. Skip rules: `color == 0` → skip; `(color & 0xffffff) == 0` →
+       skip; `alpha == 0` → skip (no u16 write; zeroed stays 0).
+    4. Resolver fan: last-color memo ([-0x7c]/[-0x78]); **A-channel =
+       fn ptr [this+0xb0]** (`call *eax` with (color); NULL → skip),
+       result = material id (−1 = none, u32 bound 0xfffe under assert
+       "material_id < USHRT_MAX" line 612). B-channel = **std::map
+       [this+0xb4]** (find 0x5fdc50, slab 0x4fdc50-family → true
+       0x9fe450); assert "script_id < 255" (line 611) then **byte grid
+       (= script id) at (x,y) + record {x, y, id, id−1}** pushed to the
+       +0x80 vector (0x52e370).
+    5. u16 write (A channel, slab 0x4f96f4/0x4f9729): grid `[this+0x38]`
+       (helper 0x54a0f0, idx w·y+x) gets **A+1** (`inc %eax` at 0x4f96bc,
+       stored at 0x4f9751); parallel float grid `[this+0x18]` (0x5491f0)
+       gets **−1.0f when A+1 == 1 (i.e. A == 0), else +1.0f**. u16
+       resize gate [+0x3c] == 0 (helpers 0x52e000/0x52e050).
+    6. Fallback (no A, no B, or id>0xfffe → jump 0x4f98df/0x4f98dc):
+       **float-only "grey" write**: `(f32)R + 2·f32(G))/3.0f` (mulss
+       pair×2 @0x11df8bc + divss 3.0 @0x11dff70), NO u16 write.
+  - **Part 2 (gated by the flag byte, [ebp+0x10] != 0 → slab 0x4f9994):
+    the per-marked-cell neighbor pass:** cells carry a byte-mark grid;
+    per cell reads the 4 neighbor MATERIALS via the **wrap-mod u16
+    getter true 0x9fe4e0 (slab 0x5fdce0)** — VERIFIED §7's "u16 reader
+    FUN_009fe4e0" CONFIRMED exactly (dims obj +0x0/+0x4, ptr +0x18,
+    full modulo on both coords incl. negative `+ (1 − trunc(x/w))·w`),
+    a predicate helper (slab 0x5fdd70 = true 0x9fe570), and when the
+    predicate says the neighborhood is homogeneous → **write u16 = 1 +
+    float −1.0 at the cell** (slab 0x4f9c28..0x4f9c53) = the
+    empty-classification of the interior.
+  - **Predicate = TRUE 0x9fe570 (slab 0x5fdd70) read fully:** input =
+    4 stacked u16 materials (L/R/U/D); builds a length-4 u16 list, then
+    a **std::map<u16,int32>** (ctor 0x640fd0, operator[] 0x60e690):
+    skips entries == 0 (`cmpw $0x0`), counts occurrences, keeps the
+    **material with the STRICT-first-maximum count** (best = −1 init;
+    `count > best` only), NOTQ frees the map; returns that material
+    (or −1 if all-zero). So part 2/3 = "an unpainted/mark cell surrounded
+    by ≥-one material (or fully homogeneous neighbors) adopts the
+    neighbors' majority material". **part 3** (slab 0x4f9f17-family)
+    re-runs the same majority pass writing **into a doubled (2×)
+    re-allocated material array** ("part 3" assert line passes
+    a rebuilt array ptr in ECX to 0x54a0f0); requires
+    `material(x,y) == 0 && float(x,y) != 0` before the neighbor fill
+    (float getter = true 0x9fe620 (slab 0x5fde20), same wrap-mod).
+  - **The driver's u16-grid content = ART-COLOR resolution**, not noise:
+    the DECOR material id at each wang-tile cell comes from the tile's
+    own pixel color through the per-biome resolver tables [this+0xb0]
+    ("RandomMaterials" family — 17 .rdata parse sites at true
+    0x496a2e..0x4a97ed, config-side; NOT read yet) and [this+0xb4]
+    (color→script). The noise-driven family (the sampler dispatcher
+    true 0x8f4830, "biome_ma…terials.cpp" string @0x1173240) is a
+    separate entity — deferred.
+  - Consequence for I1/I3/I5/I6 (P1/P3/P5): our port's shape story is
+    not the >0.5 gate alone — it is **image-color → resolver → u16**
+    plus part-2/3 neighbor averaging; the ±1.0 field (the [+0x18]
+    float grid) is the "solid lattice weight" that entry (17) profited
+    from (all-solid = uninitialized +0x18/±1.0-empty port side).
+- **2026-09-20 (19) — F3 dig #5 second kill: the LIQUID-selector
+  (the P3/P5/P6 portal-zone/tea/lava mechanism) = TRUE 0x8f4830 aspect,
+  slab 0x4f4830.** (Read through its SETUP; classification math fully
+  read; body 0x4f4a21..0x4f4f54.)
+  - asserts: file "…procedural_utils/biome_ma…" (@0x1173240, the
+    biome_materials unit!) + per-call site strings (0x118c9f4
+    "mInitialized", 0x1151e28 "component" family, 0x11732c0/0x11732d0
+    "mCellFactory/couldn't find material '").
+  - Per-call: (this = the biome def; xmm0 = arg0 f32; stack ints edx =
+    X, ecx…). Guard: const f32 [ebx+0x0]/[+0x4] gate (comiss xmm1/xmm0
+    at 0x4f4919/0x4f4922); ±26-cell index magic 0x3e0f83e1 imul + sar 5
+    (the engine's area-÷26.0 idiom, sar 5) and the **sub-cell noise**
+    re-eval: `noise2arg = X·[this+0x30] + Y·[this+0x34]` (f32 mulss;
+    y from esi=[ebp+0xc] = X, edi=[ebp+8] = Y — CORRECTED call-site
+    mapping: [ebp+8] = Y-int (push nos 0x5087af = cvttsd2si of the
+    second double), [ebp+0xc] = X-int). The noise walk:
+    `wrapmod(≈)': both coords reduced by the **signed mod-512 idiom**
+    (`and $0x800001ff` → if negative `or $0xfffffe00`+inc + `add $0x200`
+    fallback = C `% 512` on ±512), then scaled by f32 1/512 =
+    0.001953125 @0x11df8b4 (0x4f4d39) — the 512-chunk lattice scaled to
+    [−1, +1) f32 per axis; and two more calls (`call 0xc08ea0` alpha
+    walk; `call 0x4fb820` = the 0x900900-family lattice; `call 0x4fb660`
+    "Phase-2 noise" args xmm0..x3 = X·[+0x16-family], Y·[+0x4c],
+    push [+0x64] = alpha) → the re-evaluated f32
+    (X·0x30 + Y·0x34 + warp-noise) gated by [this+0x24] (≥ jb abort) and
+    [this+0x28] (≤ comiss jbe abort), finally the **material id
+    [this+0x4]** returned (0x4f4f40).
+  - WAIT — the big-CONSTANT story: 0x11dfa70 = 1.53841e-05 and
+    0x11dfa88 = 2.50832e-05 (f64, mulsd ×2 in the "…7f-bits" noise at
+    0x5111d0 = a noise eval — the ±0x4/0xc stack floats): these are
+    per-area **0.001953125/512-family**-scaled warp coefficients —
+    recorded UN-claimed until the deciding WRAP-WINDOW read is done
+    (deferred — not a re-open of F3 noise core, a NEW cell class the
+    DECOR uses).
+  - So a **parallel DECOR-material classifier EXISTS beside
+    LoadFromImageData** (the biome-def `+0x30..+0x70` floating config
+    family, per-cell gate [this+0x24]/[+0x28] window + material id
+    [+0x4]): this is the function the portal/tea/lava P3/P5/P6
+    "noise-that-didn't-load" zones resolve through in a future dig.
+    NOT ported this session (port unchanged; no cache bump — the
+    noise-output contract of (17) is untouched).

@@ -213,7 +213,7 @@ binary side unread) · ❌ unexplored.
 | 0 | New-game seed generation | FUN_00911730/009118b0 (entropy) | 🔬 n/a for prediction (seed is input) |
 | 1 | Global reset + biome map load | ProceduralTerrain::Init FUN_00905fb0; biome-map reset FUN_009233d0 zeroes NEW_GAME_PLUS_COUNT | 🔬 |
 | 2 | Color→Biome lookup, biome grid alloc | FUN_00904230 (32-byte entries) | 🔬 |
-| 3 | Per-cell generator objects (float/u16 grids) | FUN_0090ce20→FUN_008f9470 (0x1ec B); stores per world-grid cell; **grid ALLOCATION = FUN_008f95c0 SetSize, exactly 2 Init-side call sites (0x90738f, 0x907852 = area-object ctor walk; ECX = area+0x90 sub-object owns the +0x18 float / +0x38 u16 grids)** — grids are Init-built and cached, chunk loads READ them | 🔬 |
+| 3 | Per-cell generator objects (float/u16 grids) | FUN_0090ce20→FUN_008f9470 (0x1ec B); stores per world-grid cell; **grid ALLOCATION = FUN_008f95c0 SetSize (read fully 2026-09-20 (18): three zero-init grids — +0x18 float 4B / +0x38 u16 DECOR (2·w·h) / +0x58 byte; C31), 2 Init-side call sites (0x90738f, 0x907852 = area-object ctor walk; ECX = area+0x90 sub-object owns them — grids are Init-built and cached, chunk loads READ them); U16 FILL = BitmapNoise::LoadFromImageData true 0x8f9ab0 (C32): the driver feeds the accepted wang out_map in 2× (true 0x905dd7/0x905f1e, flag=1) and every painted pixel becomes a MATERIAL ID via resolver [this+0xb0] / script map [this+0xb4]; zeroed cells stay 0** | 🔬 |
 | 4 | Area objects (biome components) | FUN_00904b10 (0x154 B; +0x4c fill seed) | 🔬 |
 | 5 | Wang fill (Init-time, thread pool) | driver FUN_00904c20 → Threaded FUN_008eda10 → stbhw FUN_008ec9f0; hasPath FUN_00901780 | 🔬 + ✅ (chain 12/12 spawn eqs; hasPath oracle 8/8, re-run 4/4 on 2026-09-18) |
 | 6 | Accept/retry + out_map mutations | hasPath port (`lib/has-path.mjs`) — ✅ matched in-binary + **ported 2026-09-19**: driver tail = skip-flag gate → hasPath FUN_00901780 ("ProceduralPathFind", on wang_image, coalmine start mark 0xFF420000/C1, ClearPath warn path) → apply FUN_0090150; fillBlockedRooms = C0FFEE walker FUN_00900560 family (u16 deltas 0x2/0x5, rect-push FUN_00929850, 'checked_places'); CheckForGaps = FUN_00900a50 (start-pos flood w/ "couldn't clear start path" warning); fallback Threaded fill = FUN_008ed860 (0x13276ba flag); blockOutRooms walker FUN_00901580 = 11-color table (C3) + ray-walk room growth FUN_00901510 (C16) + record fill FUN_009013f0 (C18) — **ported binary-exact 2026-09-19, ShadeOfGrey eliminated**; finalize black blit FUN_0090450-family (C17); coalmine-hax = biome-XML `<BitmapCaves>` flags | 🔬 port-side complete; **special-case BIOME SELECTION determined 2026-09-19 (8)** — template-path equality, C19–C21 (name-list flags retired in `lib/biomes.mjs`); remaining in-binary reads: stairs-band→path-start consumption detail + ClearPath exact range + C0FFEE/fillMainPath walk details |
@@ -284,13 +284,21 @@ binary side unread) · ❌ unexplored.
    family READ-CLOSED + ported** (ALL five cores byte-pinned incl. the
    in-file gradient table @0x12eec08 file 0xEED208; sampler/plant walks
    read; runnable `lib/noise-proto.mjs`, zero placeholders — see §11) —
-   **still OPEN inside F3's own perimeter: the random-material /
-   colorize family + fillRandomMaterials' u16 writes** (the solid/air
-   CONTENT mask source — the integration smoke 2026-09-20 (17)
-   demonstrated the >0.5 gate alone cannot produce shape), plus capture
-   validation (I1/I3/I5/I6). Generator integration is WIRED
-   (`lib/noise-terrain.mjs`; cache r3e→r3f bumped, visible first cut:
-   all-solid procedural bands) pending that read.
+   **the u16 DECOR material-grid fill is now READ (2026-09-20 (18),
+   C31/C32): `BitmapNoise::LoadFromImageData` (true 0x8f9ab0)** — the
+   driver feeds the wang out_map into it (2 calls, flag=1, true
+   0x905dd7/0x905f1e); per cell: image color (wrap-mod getter true
+   0x9fe3c0) → alpha 0xFE marker → **A-channel resolver [this+0xb0]
+   → u16 = id+1** (float ±1.0), **B-channel map [this+0xb4] → script
+   byte + record list**, part-2/3 = wrap-mod-neighborhood
+   majority-classification (true 0x9fe570/0x9fe620). **Still OPEN in
+   the F3 perimeter: the RESOLVER bodies ([+0xb0] fn ptr and [+0xb4]
+   map — config-side, 17 "RandomMaterials" .rdata parse sites true
+   0x496a2e..0x4a97ed unread)** and the parallel noise classifier
+   true 0x8f4830 (C33, biome_materials.cpp — the P3/P5/P6
+   liquid-selector); plus capture validation (I1/I3/I5/I6).
+   Generator integration WIRED (`lib/noise-terrain.mjs`; r3f) pending
+   that read.
 
    **Dig #4 plan (handover 2026-09-20 — EXECUTED + F3 read-CLOSED same
    day; full detail ABOUT_MATH 2026-09-20 (15)/(16)):

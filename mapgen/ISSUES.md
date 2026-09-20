@@ -85,12 +85,13 @@
 - P2: needs the P1 grid read + the moon/dark-moon anchors are ALREADY
   splited (I4 note); hell/heaven noise bands will follow the same
   fillRandomMaterials read as P1.
-- P3/P5: the fillRandomMaterials liquid branch (the SAME read as P1 —
-  user's "possible liquid but wasn't loaded" hypothesis matches the
-  Init-time grid fill vs runtime-consumption split from F1: chunk loads
-  never regenerate — Init builds, runtime consumes; a portal zone whose
-  area grid holds LIQUID-marked cells renders grey noise in our port
-  because our material grid lacks the liquid classification impl).
+- P1/P3/P5: **MECHANISM READ DONE (ABOUT_MATH (18), C32): the u16 DECOR
+  grid = `BitmapNoise::LoadFromImageData` (the driver's out_map →
+  per-color resolver→uid), so a portal zone's area grid carries liquid
+  whitening iff the WANG TILE ART's color-resolver assigns liquid —
+  user's "possible liquid but wasn't loaded" hypothesis = the
+  unresolved piece is the per-biome RESOLVER TABLE ([+0xb0] bodies, the
+  config "RandomMaterials" side), ONE remaining read family.**
 - P4: the level-inpainting rock edges = seed-independent — likely the
   "always same every seed" ⇒ a NON-RNG deterministic painter (bounded
   ray-walks like the finalize family or the 0xe6d50 erosion painter).
