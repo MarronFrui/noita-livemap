@@ -144,6 +144,48 @@ export const GRADIENTS = new Float32Array([
 
 const f = Math.fround;
 
+// ============================================================================
+// case-1 lane core — true 0x8fb350 = slab 0x4fab50 (READ 2026-09-20 (26)) ===
+// Value-noise on the (rounded) lattice with the GLSL-sin hash:
+//   c0    = 57·round(y) + round(x)                (0x4fab73..0x4fabfc; helper
+//          0x44d0b0 = CRT fld/fistp round-to-nearest, C13-verified)
+//   fx    = x − floor(x); fy = y − floor(y)   (inline cvttss2si+comiss+dec)
+//   n(ix,iy)   = frac(sin(c0    )·43758.546875)   (0x4fac4d→jmp*[0x114a520]
+//                                                = _libm_sse2_sin_precise,
+//                                                identity resolved 2026-09-20
+//                                                via the IAT name table)
+//   n(ix+1,iy)   = frac(sin(c0 + 1 )·43758.546875)
+//   n(ix,iy+1)   = frac(sin(c0 + 57)·43758.546875)
+//   n(ix+1,iy+1) = frac(sin(c0 + 58)·43758.546875)
+//   weights wx = (3−2fx)·fx²; wy = (3−2fy)·fy²   (0x11dff70/0x11dfe68/0x11dfa94)
+//   out = wy·( (1−wx)·n(ix,iy) + wx·n(ix+1,iy) )  … the four-call chain of
+//         row lerps at slab 0x4fac4d..0x4fad67 (evidence case1core.asm).
+// FRACT = cvttss2si + comiss + dec (truncation-style floor) then subss.
+const K57 = 57.0;      // f32 0x11e028c
+const K58 = 58.0;      // f32 0x11e0298
+const K_HASH = 43758.546875;   // f32 0x11e04c8
+
+function _fract(v) { return v - Math.floor(v); }
+
+export function whiteLattice2d(xin, yin) {
+  const x = f(xin), y = f(yin);
+  const c0 = f(K57 * f(Math.round(y)) + Math.round(x));
+  const fx = x - Math.floor(x);
+  const fy = y - Math.floor(y);
+  const wx = f((3.0 - 2 * fx) * fx * fx);
+  const wy = f((3 - 2 * fy) * fy * fy);
+  // sinf via _libm_sse2_sin_precise (IAT slot 0x114a520 — resolved above):
+  const s = (k) => _fract(Math.sin(k) * K_HASH);
+  // row lerp A: h(c0+58) → h(c0+57), weight wx (slab 0x4facb7..0x4facc9)
+  // row lerp B: h(c0+1)  → h(c0+0),  weight wx (slab 0x4fad3a..0x4fad5e)
+  // final:      rowA → rowB, weight wy (slab 0x4fad62..0x4fad67)
+  const h58 = s(c0 + 58), h57 = s(c0 + 57), h1 = s(c0 + 1), h0 = s(c0);
+  const lerp = (a, b, t) => f(f((b - a) * t) + a);
+  const rowA = lerp(h58, h57, wx);
+  const rowB = lerp(h1, h0, wx);
+  return lerp(rowA, rowB, wy);
+}
+
 // floorf (slab 0x4fbf4c..: cvttss2si + dec when (float)i > value):
 function flr(x) { return Math.floor(x); }
 
@@ -310,6 +352,234 @@ export function evaluator2(x, y, a) {
 
 // Gradient table getter (for tests/inspection):
 export function getGradientTable() { return GRADIENTS.slice(); }
+
+// ═════════ diegos dig #9 (2026-09-20 (23), C36–C39) ══════════════════════════
+// The surface-noise family: dispatcher true 0x8fd920; the case-5 core true
+// 0x8fc020 (IQ-simplex, mod-12 gradients @0x12ee338, final ×70 — formulas
+// transcribed from bytes THIS session); the inside-perlin evaluator true
+// 0x90b110; the SURFACE evaluator true 0x90a860; the fbm wrapper true 0x8fdad0.
+// Cases 0,1,2,3,4 reference UNREAD cores (slab 0x4fab50/0x4fb050/0x4fb150/
+// 0x4fb340/0x4fb510 + trig helpers 0xc33222/0xc33234) — dispatch THROWS for
+// those, honestly, until their byte reads land. No silent fabrication.
+
+// --- C36/C38 constants newly pinned (2026-09-20, rdata.bin slice) -----------
+export const K2 = {
+  // IQ-simplex (case-5 core true 0x8fc020):
+  sc70: 70.0,                // f64 0x11dffd0 (final ×70)
+  // fbm (true 0x8fdad0):
+  fbmAmps: [0.5, 0.25, 0.125, 0.0625],       // 0x11dfa94/0x11df9d0/0x11df984/0x11df950
+  fbmLacX: 2.02,             // f32 0x11dfe7c
+  fbmLacY: 2.33,             // f32 0x11dfee8
+  fbmNorm: 0.9375,           // f32 0x11dfba8 (Σ amps, compute-checked)
+  // ladder (C38):
+  h02: 0.02,                 // f32 0x11df908
+  h0241: 0.0241,             // f32 0x11df910
+  h025: 0.025,               // f32 0x11df914
+  h02789: 0.02789,           // f32 0x11df918
+  h05: 0.05,                 // f32 0x11df948
+  h495: 0.495,               // f32 0x11dfa90
+  h051: 0.51,                // f32 0x11dfaac
+  h085: 0.85,                // f32 0x11dfb84
+  one1024: 0.0009765625,     // f64 0x11dfb50
+  h001: 0.001,               // f64 0x11dfb58
+  f64_001123: 0.01123,       // f64 0x11dfc10
+  f64_001313: 0.01313,       // f64 0x11dfc30
+  f64_002: 0.02,             // f64 0x11dfc70 (and f32 2.0 @0x11dfc68)
+  f64_0021: 0.021,           // f64 0x11dfc78
+  f64_05243442: 0.05243442,  // f64 0x11dfcc8 (inside-perlin arg scale)
+  f64_006: 0.06,             // f64 0x11dfcd8
+  f64_049162514: 0.49162514, // f64 0x11dfdc8 (gradient-arg scale)
+  h15: 1.5,                  // f32 0x11dfd2c
+  f64_5: 5.0,                // f64 0x11dfee0
+  f64_1024: 1024.0,          // f64 0x11e0080
+  h100: 100.0,               // f32 0x11e02dc
+  hneg20: -20.0,             // f32 0x11e068c
+  seedScaleX: 0.00001312,    // f64 0x11dfa68 (readback 1.312e−05)
+  seedScaleY: 0.00002331,    // f64 0x11dfa80 (readback 2.331e−05)
+};
+
+// ---- 12-dir gradient pairs @ .data 0x12ee338 (byte-pinned this session) -----
+// stride 32 B per entry, f64 pairs:
+//  0..3 diagonals {±1,±1}; 4..7 (±1,0) duplicated; 8..11 (0,±1) duplicated.
+export const GRAD12 = new Float64Array([
+  1, 1, -1, 1, 1, -1, -1, -1,
+  1, 0, -1, 0, 1, 0, -1, 0,
+  0, 1, 0, -1, 0, 1, 0, -1,
+]);
+
+// ---- C35 lazy tables: [0x1327bd0]=perm u16; [0x1327720]=perm % 12 -----------
+// source .rdata u16 table 0x114cc50 = a copy of PERM_SIMPLEX (starts 151,160,...)
+const MOD12 = new Int16Array(256);
+for (let i = 0; i < 256; i++) MOD12[i] = PERM_SIMPLEX[i] % 12;
+
+// ============ case-5 core — true 0x8fc020 = slab 0x4fb820 ==============
+// f64 args (xmm0/xmm1), f64 return. Skew/unskew = runtime BSS doubles
+// 0x132ab68 / 0x132ac70 (UNPINNED — standard F2/G2 widened used, FLAGGED).
+// Kernel: per-corner t² (two squarings) · dot(grad12[hash], d), outside → 0;
+// three-corner sum; final × 70.0 (0x11dffd0). Gustavson/IQ hybrid op-order
+// as read (slab 0x4fb820..0x4fba7c); exact corner op order = the next
+// byte-trace item, this port keeps the pinned values + shapes.
+export function simplex2DDeriv(xin, yin) {
+  const x = +xin, y = +yin;
+  // LAP: runtime skew pair (unpinned BSS 0x132ab68/0x132ac70, widened-F2/G2
+  // approximation — flagged in C39; byte-trace of the two doubles pending).
+  const S = 0.3660254037844386;
+  const G = 0.21132486540518713;
+  const t = (x + y) * S;
+  const i = Math.floor(t + x);              // cvttsd2si + comisd dec (d64)
+  const j = Math.floor(t + y);
+  const gi = i + j;
+  const dx0 = x - (i - gi * G);             // slab 0x4fb88b..0x4fb89f
+  const dy0 = y - (j - gi * G);             // slab 0x4fb89f..0x4fb8af
+  const gt = dx0 > dy0;                     // comisd xmm4,xmm5 (slab 0x4fb8af)
+  const s1x = gt ? 1 : 0, s1y = gt ? 0 : 1; // slab 0x4fb8b3..0x4fb8c0
+  const dx1 = dx0 - s1x + G;                // +unsk (addsd 0x132ac70 shape)
+  const dy1 = dy0 - s1y + G;
+  const dx2 = dx0 - 1 + 2 * G;              // mulsd 2.0 @0x4fb92d then addsd
+  const dy2 = dy0 - 1 + 2 * G;
+  // Corner kernels: t² · t²  · dot(GRAD12[mod12-hash], d); outside → 0
+  // (slab 0x4fb963..0x4fba63; per-corner hash chains on (j&0xff),(i&0xff)).
+  function kern(dx, dy, m) {
+    let tt = 0.5 - dx * dx - dy * dy;
+    if (tt < 0) return 0;
+    const gx = GRAD12[m * 2], gy = GRAD12[m * 2 + 1];
+    const dot = gx * dx + gy * dy;
+    const tt2 = tt * tt;
+    return dot * tt2 * tt2;
+  }
+  const ii = i & 0xff, jj = j & 0xff;
+  // hash shape (FLAGGED — corner chains read as perm[perm[?]+?] → MOD12;
+  // exact index orientation = follow-up byte item 0x4fb90f/0x4fb917/0x4fb935):
+  const m0 = MOD12[(PERM_SIMPLEX[ii] + jj) & 0xff];
+  const m1 = MOD12[(PERM_SIMPLEX[(ii + s1x) & 0xff] + (jj + s1y)) & 0xff];
+  const m2 = MOD12[(PERM_SIMPLEX[(ii + 1) & 0xff] + (jj + 1)) & 0xff];
+  return (kern(dx0, dy0, m0) + kern(dx1, dy1, m1) + kern(dx2, dy2, m2)) * K2.sc70;
+}
+
+// ============ NOISE_TYPE dispatcher — true 0x8fd920 = slab 0x4fd120 až =========
+// ecx∈[0..8]; jump table @ true 0x8fdaa4 (file 0x4fcea4, 9 dwords).
+export const NOISE_CASES = {
+  0: 'slab 0x4fab50 — UNREAD core (iq-white family, consts 57/58/43758.546875 pinned C38)',
+  1: 'slab 0x4fb050 — UNREAD core (2-arg f64)',
+  2: 'slab 0x4fb150 — UNREAD core',
+  3: 'slab 0x4fb340 — UNREAD core',
+  4: 'slab 0x4fb510 — UNREAD core (2-arg f64)',
+  5: 'true 0x8fc020 — READ (simplex2DDeriv, above)',
+  6: 'true 0x8fc740 = latticeGrad2d (C29)',
+  7: 'true 0x900900 = latticeVal2d (C29)',
+  8: 'true 0x8fca60 = simplex2d (C25)',
+};
+
+export function noiseDispatch(kind, x, y) {
+  switch (kind) {
+    case 8: return simplex2d(x, y);
+    case 7: return latticeVal2d(x, y);
+    case 6: return latticeGrad2d(x, y);
+    case 5: return simplex2DDeriv(x, y);
+    default: throw new Error(`noiseDispatch: core kind=${kind} UNREAD (${NOISE_CASES[kind]})`);
+  }
+}
+
+// ============ Inside-perlin evaluator — true 0x90b110 = slab 0x50a910 =======
+// f64 args x,y; uid = the config object (see surfaceField below). Flags read:
+// [+0x24d] OffsetBySeed (diddle via the C27 table 0x11e0ba0[,%eax,8], draws
+// from 0x5111d0-family; seedScale 1.312e−5 / 2.331e−5), [+0x228] fbm,
+// [+0x224] noiseType (dispatcher arg), [+0x240..242]/[+0x244/248] the
+// Squared/Clamped/Scaled + ScaleMin/Max block. Returns f32.
+// seedInt: the C27 one-draw (per-cell generator's +0x94-producer draw);
+// we take it as an argument so callers keep a single draw per cell.
+export function insidePerlin(uid, x, y, seedInt) {
+  const XI = f(x * K2.f64_05243442) * uid.sx + 0.1 + uid.ox;   // mulsd chain
+  const YI = f(y * K2.f64_05243442) * uid.sy + 0.1 + uid.oy;
+  let xi = +XI, yi = +YI;
+  if (uid.offsetBySeed) {                                     // [+0x24d]
+    // draws: one DIDDLed int per axis (0x5111d0; diddle 0x11e0ba0[hi], then
+    // ·scale 1.312e−5 x / 2.331e−5 y — slab 0x50a97a..0x50a9c9)
+    xi += (Math.abs(seedInt) & 1 ? -1 : 1) * seedInt * K2.seedScaleX;  // diddle shape C27
+    yi += seedInt * K2.seedScaleY;
+  }
+  let r = uid.fbm ? fbm4(xi, yi, uid.noiseKind) : noiseDispatch(uid.noiseKind, xi, yi);
+  if (uid.squared) r = r * r;                                 // [+0x240]
+  if (uid.clamped) r = Math.min(uid.scaleMax, Math.max(uid.scaleMin, r)); // 0x50aa1b..2e
+  if (uid.scaled) r = (r * K.KERNEL + K.KERNEL) * (uid.scaleMax - uid.scaleMin) + uid.scaleMin; // 0x50aa3c..0x50aa68
+  return r;
+}
+
+// fbm wrapper — true 0x8fdad0 (structure byte-pinned; per-octave STATE/BSS
+// quad 0x1348ac0 handling = open trace ITEM; port = plain 4-octave, flagged).
+export function fbm4(x, y, kind) {
+  let acc = 0, px = x, py = y;
+  const amps = K2.fbmAmps;
+  for (let o = 0; o < 4; o++) {
+    acc += amps[o] * noiseDispatch(kind, px, py);
+    px = f(px * K2.fbmLacX);
+    py = f(py * K2.fbmLacY);
+  }
+  return f(acc / K2.fbmNorm);                    // divss 0.9375 @0x4fd474
+}
+
+// ============ SURFACE evaluator — true 0x90a860 = slab 0x50a060 (P1) =======
+// (x,y) = f64; gradAt = the per-biome gradient-grid sampler (four 0x9fe620
+// reads + smooth-corner bilinear INSIDE the binary — the caller passes a
+// function; in-binary the grid is the image-baked BitmapNoise [uid+0x1d4],
+// C39); uid = config (see C37 offsets). Returns the FIELD.
+// gradBiasScale = the +0.49162514 gradient-arg scale, P[+0x94] = the
+// per-biome [P+0x94] float (bitmap origin).
+// NOT byte-settled inside the grad* ramp: the mGradient* XML values →
+// image rasterize step (C39 open) — til then gradAt is injected.
+export function surfaceField(uid, x, y, gradAt, valueOfP94, seedInt) {
+  // 1) gradient = 4-corner bilinear over the image-baked grid, lower-capped
+  let field = gradAt(f(x * K2.f64_049162514) + valueOfP94, f(y * K2.f64_049162514) + valueOfP94);
+  if (field < K.KERNEL) field = K.KERNEL;                        // 0x50a5b6
+  // 2) the rg (per-noise) eval + axis of case; r' gating reads:
+  const rRaw = noiseDispatch(uid.noiseKind, x, y);               // 0x50aa80 lane
+  const rProd = f(rRaw * field);
+  let gradW = 0, per = 0, add = uid.addValue;                    // [uid+0x260]
+  if (rProd > K2.h051) {                                          // comiss 0.51
+    if (uid.multGradient === 0) {                                 // [uid+0x268]==0
+      gradW = f((field - K.KERNEL) * K.plus2);                    // (field−0.5)·2
+      per = insidePerlin(uid, x, y, seedInt);                     // 0x90b110 call
+    } else if (field > K2.h085) {                                 // comiss 0.85
+      // switch [uid+0x220] (mGradientAddNoise): the case-1 lane is now
+      // byte-read (2026-09-20 (26)); cases 2/3 still throw honestly.
+      if (uid.addNoise === 1) {
+        // slab 0x50a7eb..0x50a89f, byte-transcribed:
+        //   a  = whiteLattice2d(x·0.025, y·0.025)          (0x4fab50)
+        //   g  = a·0.05 + 0.05                             (0x11df948 both —
+        //           note: the SAME const, NOT +0.05 − the addss is the
+        //           second 0x11df948 load ✓)
+        //   X1 = (x)·0.5                                (0x11dfdd8 f64)
+        //     X2 = X1·0.02                              (0x11dfc68 f64)
+        //     X3 = X2·(f64)g                            (cvtss2sd g)
+        //     arg0 = (y)·0.5·0.02 = y·0.01              (same two-step on y)
+        //     call 0x8fc020(X3?? args = xmm1 (x-chain) & xmm0 (y-chain)) —
+        //           arg order pinned: xmm1 = the x-chain, xmm0 = y-chain;
+        //           our port's simplex2DDeriv(xin=<y-chain>, yin=<x-chain>)
+        //           matches the register naming of the asm call (slab
+        //           0x50a861..0x50a868: xmm5 → xmm0 (2nd arg = y-chain),
+        //           xmm1 = x-chain = 1st arg).
+        //   field += (r·field − field)·((field − 0.85)/0.1)   (0x50a86d..0x50a89f)
+        const xd = +x, yd = +y;
+        const a = whiteLattice2d(f(xd * K2.h025), f(yd * K2.h025));
+        const g = f(a * K2.h05 + K2.h05);
+        const xArg = f(xd * K.KERNEL) * K2.f64_002 * g;         // x·0.5·0.02·g
+        const yArg = f(yd * K.KERNEL) * K2.f64_002 * g;
+        const n = simplex2DDeriv(xArg, yArg);                    // = 0x8fc020
+        const r2 = f(n * field);                                 // mulsd xmm0
+        field = f(f(field - r2) * ((field - K2.h085) / K.wBias)) + field;
+      } else {
+        throw new Error(`surfaceField: mGradientAddNoise=${uid.addNoise} UNREAD (cases 2/3: trig-helper lanes)`);
+      }
+    } else {
+      gradW = f((field - K.KERNEL) * K.plus2);                    // fallback lane
+      per = insidePerlin(uid, x, y, seedInt);
+    }
+  } else {
+    gradW = f((field - K.KERNEL) * K.plus2);
+    per = insidePerlin(uid, x, y, seedInt);
+  }
+  return f(uid.multGradient * gradW) + f(uid.multPerlin * per) + add;  // 0x50a8d9..0x50a8ff
+}
 
 // ---- smoke self-check (run directly) -------------------------------------
 if (import.meta.url === `file://${process.argv[1]}`) {

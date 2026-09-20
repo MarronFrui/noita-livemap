@@ -58,6 +58,12 @@
 | C33 | true 0x8f4830 biome-def DECOR classifier | noise re-eval with mod-512 wrap (×1/512 @0x11df8b4), gate [+0x24]/[+0x28], result material [+0x4] |
 | C34 | per-chunk DECOR owner layout | [+0xb4] float field (raw >0.5 gate), [+0xd4] u16 grid, [+0x1e0] DECOR write; evaluator2's `a` = the field value |
 | C35 | lazy noise-table pair + 2nd core | init true 0x8fbfd0: [0x1327bd0]=perm u16, [0x1327720]=perm%12; true 0x8fc020 = unread noise core; ÷132 count fix |
+| C36 | NOISE_TYPE dispatch + fbm | true 0x8fd920 switch @table true 0x8fdaa4 (cases 0..8); true 0x8fdad0 = 4-octave fbm (amps 0.5/0.25/0.125/0.0625, lac 2.02/2.33, ÷0.9375) |
+| C37 | surface-field evaluator (P1 blend) | true 0x90a860 recipe + uid offset map ([+0x1d4]=BitmapNoise, [+0x220..0x268] config, final = MultGrad·gradW + MultPerlin·r + AddValue) |
+| C38 | surface-math .rdata pins | 0.02/0.0241/0.025/0.02789, 0.05, 0.51, 0.85, 0.495, 0.49162514, 0.05243442, 2.02/2.33, 1.0e-3/9.765625e-4, seed scales |
+| C39 | the [uid+0x1d4] fill chain + 0x8fc020 decoder | SetSize+Load wrapper true 0x8fa930; loader true 0x90e060 ("plz"→LoadImageFastLZ); case-5 core READ (mod-12 grads @0x12ee338, ×70); port in noise-proto.mjs |
+| C40 | case-1 lane core (sin-hash lattice) + IAT math table | true 0x8fb350 = whiteLattice2d: c0=57·round(y)+round(x), corners frac(sin(c0+k)·43758.546875) k∈{0,1,57,58}; 0x44d110=libm sin-precise (slot 0x114a520); 0x44d0b0 = fld/fistp round |
+| C43 | gradient-grid setter stacks (W5 core) | 0x4edf50 = float-grid setter; 3 layer-callers with fraction-bands (0.32·d+0.35 / 0.35·d+0.65), the mGradient* = likely these stacks' params; remaining: the per-arg CE read |
 
 ## Registry
 
@@ -675,5 +681,200 @@
   ours — flag only). **call 0xc08ea0** (slab 0x4fb660-adjacent region;
   lower-half fn) = UNREAD ("alpha walk" label — flag only).
 - Status: audit-registered (2026-09-20 (21)). POISONED retracted in
-  C33: "÷-26.0" (real: **÷132** — M·132/2³⁷ = 1.0 exactly) and the
-  "0x900900 family" attribution for 0x4fb820.
+  C33: "÷-26.0" (real: **÷132** — M·132/2³⁷ = 1.0 exactly)
+  and the "0x900900 family" attribution for 0x4fb820.
+
+### C36 — NOISE_TYPE dispatcher true **0x8fd920** (slab 0x4fd120) + fbm true **0x8fdad0** (slab 0x4fd2d0)
+- Dispatcher: switch on ecx ∈ [0..8], jump table @ true **0x8fdaa4**
+  (exe file 0x4fcea4; entries stored AS true VAs; byte-pinned
+  2026-09-20 (23)): case 0 → core slab 0x4fab50, 1 → 2-arg-f64 slab
+  0x4fb050, 2 → slab 0x4fb150, 3 → slab 0x4fb340, 4 → 2-arg-f64 slab
+  0x4fb510, 5 → slab 0x4fb820 (**= true 0x8fc020: C35's 2nd core is
+  dispatch case 5**), 6 → slab 0x4fbf40 (C29 gradient lattice),
+  7 → slab 0x4fc100 (C29 value lattice), 8 → slab 0x4fc260 (C25 2D
+  simplex). Default → assert (unit 0x1173678 = noise_utils.cpp).
+- Fbm wrapper (true 0x8fdad0): lazy BSS flag **0x134874c**; state quad
+  BSS **0x1348ac0** seeded from .rdata quad **0x11e0c70** (first f32 =
+  0.8414700031 = sin(1.0)); 4 dispatcher calls; amplitudes 0.5/0.25/
+  0.125/0.0625 (@0x11dfa94/0x11df9d0/0x11df984/0x11df950); per-axis
+  growth 2.02(@0x11dfe7c)/2.33(@0x11dfee8); output = Σ ÷ 0.9375
+  (@0x11dfba8; Σ amps = 0.9375 compute-checked ✓). Per-octave state
+  trace = port-time TODO.
+- Status: read + registered (2026-09-20 (23)).
+
+### C37 — surface-field evaluator true **0x90a860** (slab 0x50a060) — the P1 blend
+- Evidence: `mapgen/out/d_2026-09-20-surface-evaluator.asm`. ebx = the
+  per-biome config object ("uid"); xmm2/xmm3 = (x,y) f64; [ebp+8] = the
+  IN/OUT field cell (scratch float).
+- Gradient source: P = [uid+0x1d4] = a **BitmapNoise-class instance** —
+  4× wrap-mod float getter **true 0x9fe620 (C32)** over P's float grid;
+  g = (x·0.11dfdc8 (0.49162514 f64)) + (f64)(f32)[P+0x94]; inline floors
+  (+1 neighbors); smooth-corner weights (3.0−2f)·f²; 4-corner bilinear
+  → field; **lower clamp field ≥ 0.5** (the "CAPPED").
+- r = true 0x90b280 (slab 0x50aa80); r' = r·field; the inner switch runs
+  only when r' > 0.51 (@0x11dfaac) AND field > 0.85 (@0x11dfb84).
+- Switch [uid+0x220] = **mGradientAddNoise** (1/2/3 per .rdata docs):
+  case 1: x·0.025 → core slab 0x4fab50; r = core·0.05(@0x11df948)+0.05;
+  math helpers slab 0xc33234/0xc33222 (true 0x1033a34/0x1033a22; ids
+  1024.0 @0x11e0080, ·0.5 @0x11dfdd8, ·0.06 @0x11dfcd8) → **true
+  0x8fc020**; tail `field += (r − field)·((field−0.85)/0.1)`. Cases
+  2/3: same skeleton with cores slab 0x4fab50/0x4fb340/0x4fc260/0x4fb820
+  and consts 0.0241/0.02789 (@0x11df910/@0x11df918), ÷100 (@0x11e02dc),
+  ×5.0 (@0x11dfee0), f64 0.01123/0.01313/0.02/0.021 (@0x11dfc10/c30/
+  c70/c78).
+- Slope arm (byte [uid+0x24c]): field += (x·0.001 @0x11dfb58 f64)·
+  (field − field_old); slope-start/delta slots beyond the bool UNREAD.
+- FINAL: **field_out = [uid+0x268]·gradW + [uid+0x264]·r + [uid+0x260]**
+  (gradW = (field−0.5)·2 in the [uid+0x268]==0 lane; that lane's r =
+  true 0x90b110's output).
+- **uid offset map (byte-settled):** [+0x1d4] BitmapNoise ptr ·
+  [+0x220] mGradientAddNoise · [+0x224] mInsideNoiseType (dispatcher
+  arg) · [+0x228] mInsideNoiseFBM · [+0x230]/[+0x238] ScaleX/Y ·
+  [+0x240]/[+0x241]/[+0x242] Squared/Clamped/Scaled · [+0x244]/[+0x248]
+  ScaleMin/Max (clamp + map [−1,1]→[Min,Max]) · [+0x24c] slope flag ·
+  [+0x24d] OffsetBySeed (diddle 0x11e0ba0 ✓; f64 scales 1.312e−05
+  @0x11dfa68 / 2.331e−05 @0x11dfa80) · [+0x250]/[+0x258] OffsetX/Y ·
+  [+0x260] mInsideAddValue · [+0x264] mMultiplierPerlin · [+0x268]
+  mMultiplierGradient.
+- Attribute names in .rdata = doc-strings only: whole-exe imm32 scan
+  (incl. .data + full .rdata halves) = ZERO non-assert refs
+  (mInsidePerlinScaleY/OffsetY/mGradientEndY only inside vector
+  asserts; "Topology"/"_biomes_all.xml" zero) — attr lookup is
+  runtime-driven; the layout is proven from the consumer side.
+- Status: read + registered (2026-09-20 (23)). NEXT OPEN: the per-biome
+  fill of [uid+0x1d4] (mBitmapNoise) for biomes without
+  bitmap_noise_file.
+
+### C38 — surface-math .rdata pins (2026-09-20 (23), byte-read; f32 unless noted)
+- ladder 0.02(@0x11df908) / 0.0241(@0x11df910) / 0.025(@0x11df914) /
+  0.02789(@0x11df918); **0.05 @0x11df948**; fbm amps 0.0625/0.125/0.25
+  (@0x11df950/0x11df984/0x11df9d0).
+- 0.495(@0x11dfa90); **0.51(@0x11dfaac)**; f64 1/1024(@0x11dfb50);
+  0.001(@0x11dfb58); **0.85(@0x11dfb84)**; fbm ÷0.9375(@0x11dfba8).
+- f64 0.01123(@0x11dfc10) / 0.01313(@0x11dfc30) / 0.02(@0x11dfc70) /
+  0.021(@0x11dfc78); 2.0(@0x11dfc68 f32); f64 0.05243442(@0x11dfcc8);
+  f64 0.06(@0x11dfcd8); f64 0.49162514(@0x11dfdc8); 1.5(@0x11dfd2c).
+- f64 5.0(@0x11dfee0); 2.02(@0x11dfe7c); 2.33(@0x11dfee8); f64
+  1024.0(@0x11e0080); 100.0(@0x11e02dc); −20.0(@0x11e068c);
+  f64 1.312e−05(@0x11dfa68) / 2.331e−05(@0x11dfa80); f64 6.86e−07
+  (@0x11dfa08, mulsd — semantics open).
+- 0x11e0c70 quad head = 0.8414700031 (= sin(1.0)) — fbm state seed.
+- **CANON RE-VERIFICATION:** every C25–C30 noise-constant pin re-read
+  from the exe this session and matched (0.5/2.0/3.0/1.0/0.1/10.0/
+  0.1-f64/0.5-f64/0.45/0.33/0.111/0.36602540/0.21132487/0.42264974/
+  0.035/0.07/15.5/0.0489275/5.35/0.95). Coverage: the 0x11df800..
+  0x11e0c70 band = exe f[0xdd0000:0xee9600] = NEW `rdata.bin` slice
+  (adjust-vma 0x11d0e00); .data raw = f[0xee9600:0xf25a00]
+  (`data_raw.bin`); PE header rules re-confirmed (C13).
+
+### C39 — the [uid+0x1d4] fill chain (2026-09-20 dig #9b, same night)
+- **true 0x8fa930** (slab 0x4fa130) = SetSize+Load wrapper: (this,
+  src{w,h,pixels}, flag) → realloc own float grid w·h ×4 B + memset,
+  then LoadFromImageData true 0x8f9ab0 (third+1 call site: slab 0x4fa19b).
+  Direct e8 callers (only two): **true 0x90d1b1** (the per-cell-generator
+  walk true 0x90cfb0, profiler "IMPL_DoBufferedPixelScene - bitmap noise
+  loop" @0x11754c4, "LoadImage - material_image" @0x1175574, config
+  fetch 0x4ce6a0 keyed by byte **0x13289b4**) and **true 0x8ee6bb**
+  (biome.cpp; cite 0x1172ea8 "…RandomColor input_color output_colors"
+  line 0x18d; news 0xb8 B; calls the C27 ctor **FUN_008f9470** →
+  sets **[gen+0xb0] = 0x8ee1b0** (C32's A-resolver slot) + [gen+0xb4]
+  B-map, then the same SetSize+Load).
+- **true 0x90e060** (slab 0x50d860) = the file loader: `endsWith("plz")`
+  ("plz" @0x1165fc4 vs C20's helper true 0x4447f0) → LoadImageFastLZ
+  (assert 0x1175844 "LoadImageFastLZ() - Failed to load image:");
+  else error "Error - loading file:" (0x11758e4) / 0x14000-limit assert
+  ("ptr_to_file <= end_of_file" @0x1175974, lines 0x1163/0x1165/0x1167/
+  0x116e/0x1186/0x1197 all f[0x1173a10] = procedural_terrain.cpp);
+  outputs the {w,h,cnt,pixels} record into the caller's struct.
+- Identity state: the surface evaluator's uid = the 0x1ec-B generator
+  family (biome.cpp-built); [uid+0x1d4] float grid = image-baked
+  (the Load/.plz pipeline above), sampled 4-corner by 0x9fe620.
+- **ADDENDUM (dig #9c): the case-5 core true 0x8fc020 DECODED to
+  formulas** (slab 0x4fb820..0x4fba7c): f64 args; telescoped skew t =
+  ((x+y)·[0x132ab68]); i/j = floor(t+x)/floor(t+y); unskew [0x132ac70]
+  → dx0/dy0 corner rule comisd (dx0>dy0 → (1,0) else (0,1)); G2/2·G2
+  stride adds (single `2.0` mulsd @0x4fb92d then re-add); per-corner
+  kernel t² · t² · dot(GRAD12[mod12-hash],d) with outside → 0; final
+  ×70.0 (@0x11dffd0 f64). Gradient source = the C35 lazy tables
+  ([0x1327bd0] perm-u16 from .rdata 0x114cc50, [0x1327720] = perm%12)
+  → `shl 5 + 0x12ee338` = the 12-dir f64 pairs (stride 32 B, all 12
+  byte-pinned this session: diagonals 0..3, axis-dirs 4..11 with
+  duplicates). The two skew doubles = BSS runtime (UNPINNED — widened
+  F2/G2 approximation flagged in the port's comment). Ported as
+  `simplex2DDeriv` in `lib/noise-proto.mjs`.
+- OPEN: per-biome material_image path resolution for hills/winter and
+  the mGradient rasterize step (if any) inside biome.cpp before load.
+- Status: read + registered (2026-09-20 (23)/9b/9c/26 (with the 0x8fc020
+  decoder addendum)).
+
+### C40 — the case-1 lane core true **0x8fb350** (slab 0x4fab50) — sin-hash value noise
+- Read and ported 2026-09-20 (26). Formula:
+  - `c0 = 57.0·round(y) + round(x)` — round = the C13-verified CRT
+    fld/fistp wrapper true 0x44d0b0; 57.0 = f32 0x11e028c (pinned).
+  - `fx = x − floor(x)`, `fy = y − floor(y)` (inline cvttss2si + comisd).
+  - corner hashes `n = frac(sin(c0 + k)·43758.546875)`,
+    k ∈ {0, 1, 57, 58} — the four-corner ±1/±57 lattice; sin via
+    **true 0x44d110 (slab 0x4c910) = jmp*[0x114a520] =
+    _libm_sse2_sin_precise** — identity RESOLVED via the MSVCR120.dll
+    import-name records in .rdata tail: slots 0x114a514..0x114a530 =
+    acos/log10/pow/sin/sqrt/tan/ceil/floor (the whole math-thunk family
+    named this session; .rdata VAs = file+0x400e00 ✓ C13).
+  - weights (3−2f)·f² per axis; the row lerp = rowA(wx: h58→h57), rowB =
+    wx-lerp(h1→h0), FINAL = wy-lerp(rowA→rowB).
+- The case-1 blend (slab 0x50a7eb..0x50a8a2): a = core(x·0.025, y·0.025);
+  g = a·0.05 + 0.05 (both = 0x11df948); 0x8fc020 args = (x·0.5·0.02·g,
+  y·0.5·0.02·g) (mulsd 0x11dfdd8 then 0x11dfc68); tail
+  `field += (r' − field)·((field − 0.85)/0.1)`; then the [uid+0x24c]
+  slope arm + the FINAL combine (all per (23)).
+- Port: `whiteLattice2d` in `lib/noise-proto.mjs`; wired into
+  surfaceField's case-1 lane (47 live XMLs); the V2 full-map smoke now
+  computes 2194 chunks (winter/desert/pyramid/snowcastle = real texture,
+  ~48–51% densities; honest throws remain only for cases 2/3 = 5 XMLs).
+- Status: read + ported (2026-09-20 (26)); capture-check = the
+  instruments' gate (WIRING_SURFACE.md §4).
+
+### C41 — dispatcher-lane cores (cases 1–4) + the FNV/gradient tables (dig #12, 2026-09-20)
+- **case 1 (true 0x8fd850, slab 0x4fb050) = "FastBlock" hash white noise**:
+  seed = trunc(x)·**0x67577458** + trunc(y)·**0x5b**(91); then
+  `h = (h^(h>>13))·0x343fd(214013) + 0x269ec3(2531011)`;
+  out = (((h >> (1 + (trunc(x)&15))) ^ h) & 0x7fff) − 0x3fff (±16383 int)
+  × **6.103515625e−05 = 2⁻¹⁴ = 1/16384** (@0x11dfae0 f64). = the
+  fq-in/f64-out core; LCG constants byte-pinned.
+- **case 2 (true 0x8fc550, slab 0x4fb150) = whiteLattice2d twin** —
+  same skeleton as 0x4fab50; 57.0-mul; constant-lane diff open (flagged).
+- **case 3 (true 0x8fc940, slab 0x4fb340) = FNV24-lattice w/ 12-dir
+  .data pairs @ **VA 0x12eb950** (file .data+0x950; byte-pinned —
+  12 f64 pairs, stride 16 B:
+  [(−0.714286,0.301587),(0.333333,−1.0),(0.396825,−0.0793651),
+  (−0.968254,−0.047619),(0.301587,−0.111111),(0.015873,0.968254),
+  (−0.428571,0.428571),(0.047619,0.84127),(−0.015873,−0.746032),
+  (−0.809524,−0.619048),(−0.301587,−0.68254),(0.777778,0.365079)]):
+  hash = FNV-1a over 24 B {x_d64, y_d64, **1234567.0 f64 sentinel
+  @0x11e0180**}; fnv bias 0x811c9dc5, prime 0x1000193, 24 B loop;
+  idx = ((h>>8)&0xff) ^ (h&0xff); pair = lea 0x12eb950(,%eax,8) —
+  the exact index map (mod 12?) walks via true 0xc31cea = UNREAD.
+  Four-corner smoothstep bilinear of (gPair · dXY) dots.
+- case 4 (true 0x8fd110, slab 0x4fb510): head mulsd 0x11e0240 unnamed —
+  detail UNREAD (2-arg-f64 family, W2-lane only).
+- Status: read + registered (2026-09-20 (27)). Compute-first verified:
+  case-1's shift window [1..16] & ±16383/16384 == [−1,1) ✓; the
+  FN24 sentinel f64 = 1234567.0 exact-byte read ✓.
+
+### C42 — the noise_type enum reflection blob (dig #13, 2026-09-20)
+- .rdata string pool, in ORDER (allVA/file = −0x400e00 from the exe):
+  IQ2_SIMPLEX1234 (0xd77a0c) · IQ_SIMPLEX (0xd77a34) ·
+  SIN_CAPPED_EVERYTHING (0xd77a50) · SIN_CAPPED_SIMPLEX (0xd77a78) ·
+  [label NOISE_TYPE @0xd77aa8] · IQNoise (0xd77ad0) ·
+  DirtyPeeNoise (0xd77af0) · QemNoise (0xd77b10) · WhiteNoise (0xd77b34) ·
+  MixNoise (0xd77b50) · SimplexNoise (0xd77b78) · STB_Perlin (0xd77ba0) ·
+  FastBlockNoise (0xd77bc4) · SimplexNoise1234 (0xd77bf0) ·
+  [label GENERAL_NOISE @0xd77c1c] — then the FOG_OF_WAR family block.
+- Whole-exe imm32 scans (text.bin + rdata.bin + data_raw.bin): ZERO
+  pointer refs to ANY of these names ⇒ **no static name→int table
+  exists**; the mapping = a cengser reflection-hashed Runtime op.
+  (The earlier "second noise_type" needle = the materials.xml attr
+  **wang_noise_type** @0xd9e9f0 — unrelated.)
+- Status: registered (2026-09-20 (28)). W2's port-side rule: the
+  noisetype→kind-map stays a CE/cengser read; the port mapping
+  (NoiseType name → dispatcher kind) uses kind=8 (SIMPLEX-kernel proxy)
+  flagged non-canon until then.

@@ -303,7 +303,38 @@ binary side unread) · ❌ unexplored.
    u16==0 cells under the +0x2a4 flag → C33 classifier (true
    0x8f4830) → DECOR write.** The (17) smoke's all-solid = EXPECTED
    (a=1.0 hard-coded); the correct wiring is the recorded next
-   integration step. **Still OPEN in the F3 perimeter: the RESOLVER
+   integration step. **The surface-blend is now READ too (2026-09-20
+   (23), C36–C38):** per-biome field = true 0x90a860 (4-corner
+   bilinear over a per-biome BitmapNoise float grid, lower clamp 0.5,
+   mGradientAddNoise switch, final mMultiplierGradient/Perlin/AddValue
+   combine; config offsets [+0x220..0x268] byte-mapped). Exe reachable
+   this session (rdata.bin + data_raw.bin slices; C25–C30 pins all
+   re-verified). The [uid+0x1d4] FILL
+   CHAIN read (C39). Gradient = an image-baked float grid. Still
+   open: per-biome image path resolution for surface biomes + whether
+   mGradient* rasterizes into that image inside biome.cpp.
+   **CASE-1 LANE CLOSED (2026-09-20 (26), C40):** the whiteLattice2d
+   core (sin-hash value noise, IAT-named libm sin) + the case-1 blend
+   ported → the 47-biome lane computes; V2 full-map smoke = 2194
+   chunks with real texture (winter/desert/pyramid ~48–51% density).
+   **钩 dispatcher cores READ (2026-09-20 (27), C41):** case 1 = the
+   FastBlock LCG-hash (214013/2531011-pinned, ÷16384), case 3 = the
+   FNV24 + the 12-dir .data pairs @0x12eb950 (all pinned; the
+   1234567.0 sentinel @0x11e0180), case 2 = whiteLattice twin
+   skeleton-pinned.
+   OPEN: cases 2 constant-diff, case 4 head, noise-type int map (W2).
+   **W5 REFRAMED (2026-09-20 (32), C43):** [uid+0x1d4]'s float grid = a
+   THREE-layer Random(min,max)-FRACTION ramp-stack written in biome.cpp
+   (layer-1 = 0.32·d+0.35 ⇒ [0.35, 0.67]; layers 2/3 = 0.35·d+0.65 ⇒
+   [0.65, 1.0)) via the 0x4edf50 grid-setter — the mGradient* XML
+   family = most plausibly these stacks' parameters (not a PNG bake).
+   Remaining: the per-arg CE/cengser read; then the shape instruments
+   (bench:ref + flat-region rms vs frozen91) — the genuine r3f→r3g gate.
+   now carries K2/GRAD12 (12-dir pairs byte-pinned), simplex2DDeriv
+   (0x8fc020 read to formulas, ×70, skew BSS flagged), noiseDispatch
+   (honest throws for cases 0..4), insidePerlin, fbm4, surfaceField —
+   143/143 unchanged, not capture-validated (mGradient rasterize +
+   case-1 inner cores + shape instruments = the remaining gates).** **Still OPEN in the F3 perimeter: the RESOLVER
    bodies ([+0xb0] fn ptr and [+0xb4] map — config-side; the 17
    "RandomMaterials" .rdata sites true 0x496a2e..0x4a97ed are ConfigLua
    name-REGISTRATIONS, not consumers)** + capture validation

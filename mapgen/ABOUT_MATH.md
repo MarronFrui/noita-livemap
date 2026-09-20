@@ -2682,10 +2682,515 @@ first use from now on):**
   - **Notable: our evaluator2's lower clamp at 0.5 (C30) = the
     "CAPPED" in the data's own noise_type name — the binary core we
     ported is CONSISTENT with the surface class's declared type.**
-  - Port state: `lib/biomes.mjs::parseBiomeDefinition` now EXTRACTS the
-    full param set (noiseType + 16 mGradient/mInsidePerlin fields;
-    hills-XML round-trip verified). NOT yet wired into noise-terrain.mjs
-    — the gradient-ramp:noise blend stays a recorded TODO, exactly the
-    byte question to settle next session (the binary's shape formula
-    over the mGradient family, likely the C18/finalize-style ramp +
-    the mGradientNoiseScale-scaled evaluator2 call).
+- **2026-09-20 (23) — dig #9: the P1 SURFACE-BLEND CONSUMER READ BYTE-BY-BYTE
+  (the mGradient-family field formula).** Env restored first: exe found at
+  `/mnt/e/Programmes/Steam/steamapps/common/Noita/noita_dev.exe` (17,007,104 B,
+  build 2025-01-26); sections re-mapped from the PE header: .text raw
+  0x400..0xd48e00 · .rdata raw 0xd49200..0xee9600 (VA = file+0x400E00 — the C13
+  rule re-verified against the header this session) · .data raw
+  0xee9600..0xf25a00 (VA = file+0x401A00 ✓). New slabs this session:
+  `rdata.bin` = exe f[0xdd0000:0xee9600] (adjust 0x11d0e00) and
+  `data_raw.bin` = f[0xee9600:0xf25a00]; text.bin/low.bin re-used (fresh
+  01:45/01:49 today). **C13 anchor re-pinned first** ✓ (file 0x500e4d,
+  bytes `3d 00 00 42 ff`). **Every C25–C30 canon .rdata constant was
+  re-verified against the exe this session and matched exactly** (first
+  full re-check since the pins; the deep band VAs 0x11df800..0x11e0c70
+  were previously OUT of the two slabs' coverage).
+
+  - **THE NOISE_TYPE DISPATCHER = true 0x8fd920 (slab 0x4fd120)** — a
+    switch on ecx∈[0..8] with the jump table @ true **0x8fdaa4** (exe file
+    0x4fcea4, 9 dwords byte-pinned; entries stored AS true VAs):
+    case 0 → true 0x8fd850-family core (slab 0x4fab50), 1 → true-0x2-arg
+    f64 call slab 0x4fb050, 2 → slab 0x4fb150, 3 → slab 0x4fb340,
+    4 → 2-arg f64 slab 0x4fb510, **5 → slab 0x4fb820 = true 0x8fc020 (the
+    C35 "unread 2nd core" — it is DISPATCH CASE 5)**, 6 → slab 0x4fbf40
+    (C29 gradient lattice), 7 → slab 0x4fc100 (C29 value lattice),
+    8 → slab 0x4fc260 (C25 2D simplex). Default → assert, unit string
+    0x1173678 = **noise_utils.cpp** line 0xb05. Signal arg convention:
+    xmm0-based with an xmm2 second arg (case bodies `movaps %xmm2,%xmm1`
+    or cvtss2sd pairs) — per-case arg order to re-verify at port time.
+  - **THE FBM WRAPPER = true 0x8fdad0 (slab 0x4fd2d0)** — 4 octave calls of
+    the dispatcher; lazy init via BSS flag 0x134874c; state quad at BSS
+    0x1348ac0 seeded once from the .rdata quad **0x11e0c70** (its first
+    f32 = 0.8414700031 = sin(1.0)); octave amplitudes 0.5/0.25/0.125/
+    0.0625 (@0x11dfa94/0x11df9d0/0x11df984/0x11df950) with per-axis
+    growth multipliers 2.02 (@0x11dfe7c) / 2.33 (@0x11dfee8) — NON-integer
+    lacunarity, so an exact port needs the per-octave state trace (output
+    = Σ octave / 0.9375 @0x11dfba8 — compute-checked Σ = 0.9375 ✓).
+  - **THE BLEND (the mandate's "one blocked byte") = THE SURFACE-FIELD
+    EVALUATOR true 0x90a860 (slab 0x50a060)**, noise_utils.cpp; args xmm2/
+    xmm3 = (x,y) f64, ecx = int, stack arg = ebx = the per-biome CONFIG
+    OBJECT ("uid"), [ebp+8] = IN/OUT float cell. Recipe (all byte-cited
+    in `out/d_2026-09-20-surface-evaluator.asm`):
+    1. gradient field: P = [uid+0x1d4] (a **BitmapNoise-class instance** —
+       its float grid is read with the C32 wrap-mod FLOAT getter
+       **true 0x9fe620**, 4× per call); g = ((x·0.11dfdc8(0.49162514
+       f64)) + f64((f32)[P+0x94]), likewise y); inline floors iu/iv
+       (cvttsd2si + comisd + dec); smooth-corner weights (3.0−2f)f²
+       (0x11dff70/0x11dfe68/0x11dfa94 all re-pinned); **4-corner bilinear
+       on P's float grid** → `field`; **LOWER CLAMP field ≥ 0.5**
+       (comiss 0x11dfa94 jbe @0x50a5b6) = the "CAPPED" of the data name.
+    2. r = call true 0x90b280 (slab 0x50aa80 — third evaluator, the
+       per-noise eval of (x,y)); r' = r·field; blend gate: only when
+       r' > 0.51 (@0x11dfaac = 0.51) does anything further happen.
+    3. if [uid+0x268] (mMultiplierGradient) == 0: gradW = (field−0.5)·2.0
+       (−0x18 slot) and r2 = call **true 0x90b110** (the inside-perlin
+       evaluator, below); else the gradW slot is set in the default-lane.
+    4. if field > 0.85 (@0x11dfb84): switch [uid+0x220] — **[uid+0x220] =
+       mGradientAddNoise (1/2/3)** per the .rdata docstrings ("fake enum
+       1=standard noise, 2=fbm noise, 3=slope"):
+       case 1 → x·0.025(0x11df914) → core slab 0x4fab50; r =
+       core·0.05(0x11df948!)+0.05; two math helpers slab 0xc33234/0xc33222
+       (true 0x1033a34/0x1033a22 — the same helper family as C15's
+       "sqrtf 0xc3322e"; identity read = trig/mul wrappers, args 1024.0
+       @0x11e0080 f64, ·0.5 @0x11dfdd8, ·0.06 @0x11dfcd8) → **call true
+       0x8fc020**; then `field := field + (r − field)·((field−0.85)/0.1)`
+       (0.1 = 0x11df974 ✓).
+       case 2/3 = the same skeleton with core trio slab 0x4fab50/0x4fb340/
+       0x4fc260/0x4fb820 and scale constants 0.0241/0.02789 (@0x11df910/
+       0x11df918), ÷100 (@0x11e02dc), ×5.0 (@0x11dfee0 f64), 0.01123/
+       0.01313/0.02/0.021 (@0x11dfc10/c30/c68-f32 2.0/c70/c78).
+    5. if [uid+0x24c] (byte): slope arm — w = x·0.001 (@0x11dfb58 f64),
+       field := field + w·(field − field_old). (Per-biome slope-start/
+       delta slots beyond the bool = UNREAD — open detail.)
+    6. FINAL COMBINE (@0x50a8d9): **field_out = [uid+0x268]·gradW +
+       [uid+0x264]·r + [uid+0x260]** = **mMultiplierGradient·gradW +
+       mMultiplierPerlin·r + mInsideAddValue** — byte-settled mapping
+       ([uid+0x260] loaded to −0x1c @0x50a363, combined @0x50a8d9..ff).
+  - **THE INSIDE-PERLIN EVALUATOR = true 0x90b110 (slab 0x50a910)**:
+    ` Xi = x·0.11dfcc8(0.05243442 f64)·[uid+0x230] + 0.1(0x11dfd08 f64)
+    + [uid+0x250]` (Y axis with [uid+0x238]/[uid+0x258] and seed-scale
+    @0x11dfa80) — if [uid+0x24d] (offsetBySeed): n = true 0x5111d0 (the
+    C27-family one-draw; reuses the SAME diddle table 0x11e0ba0 ✓), then
+    x += f64(n)·1.312e−05(@0x11dfa68); y += ·2.331e−05(@0x11dfa80);
+    n = [uid+0x228] ? fbm(0x8fdad0) : dispatcher([uid+0x224]) — **[uid+0x224]
+    = mInsideNoiseType, [uid+0x228] = mInsideNoiseFBM, [uid+0x230]/[0x238] =
+    ScaleX/Y, [uid+0x240/0x241/0x242] = Squared/Clamped/Scaled,
+    [uid+0x244]/[0x248] = ScaleMin/Max (clamp then map [−1,1]→[Min,Max]),**
+    [uid+0x24d] = OffsetBySeed, [uid+0x250]/[0x258] = OffsetX/Y.
+  - **THE P = [uid+0x1d4] holder = a BitmapNoise-class instance read with
+    the C32 getters** — i.e. the per-biome "gradient" is a FLOAT GRID the
+    evaluator bilinearly samples (4× 0x9fe620). The docstring
+    "if set, loads it to mBitmapNoise" (@0x117a63c-adjacent) + the
+    `bitmap_noise_file` attr string @0x1179154 identify the class. For
+    biomes without the file the grid must be FILLED by the mGradient
+    computation — **the per-biome fill of [uid+0x1d4] is the last open
+    producer read** (the area-level counterpart IS closed: C32's
+    LoadFromImageData 2× from the driver).
+  - **Parameter-layout conclusion (P1-A):** the mGradient/mInsidePerlin*/
+    mMultiplier* names exist in .rdata ONLY as serializer doc-strings
+    (whole-exe imm32 scan re-run incl. .data + both .rdata halves: **zero
+    non-assert refs**; even "Topology"/"_biomes_all.xml"/"noise_type"
+    have zero refs — the attr lookup is runtime-name-driven, not a static
+    parser read). The name→offset mapping is therefore byte-proven from
+    the CONSUMER side (this evaluator) — no static loader table exists to
+    read. The C33 132-byte-record fields (rec+0x24/0x28 gate window,
+    rec+0x30/0x34 weights, +0x4 material) = the RandomMaterials sibling
+    of the same layout family.
+  - **Winter-only attrs** (`mGradientSinMultiple*`, `mGradientType`,
+    `mInsidePerlinFunc`, `mGradientMaxY/MinY`) are ABSENT from this exe
+    (whole-exe string scan) — consumed only by a different build or dead
+    data; hills-family attrs (noise_type, mGradientNoiseScale/StartY/
+    EndY/LowNoise/HighNoise/AddNoise/Slope*, mInsidePerlin*, mMultiplier*)
+    all exist and map 1:1 onto [uid+0x220..0x268] as listed.
+  - Registered: C36 (dispatch table + case map + fbm wrapper), C37 (the
+    surface evaluator recipe + uid offset map), C38 (new .rdata
+    surface-math pins). Evidence: `mapgen/out/d_2026-09-20-noise-dispatch-fbm.asm`,
+    `out/d_2026-09-20-surface-evaluator.asm` (also used for tracing:
+    text-asm.txt/low-asm.txt/rdata-asm regenerable from the exe).
+  - Tests unchanged this dig (no port change yet); 143/143 expected to
+    hold (verified below). Port wiring (noise-terrain.mjs) lands next dig
+    with the capture-validation step (I1/I3/I5/I6 gates, unchanged).
+  - **dig #9b (same night): the `[uid+0x1d4]` FILL CHAIN FOUND (still one
+    identity byte open).** The only third LoadFromImageData call site =
+    slab 0x4fa19b (true **0x8fa19b**) inside the **SetSize+Load wrapper
+    true 0x8fa930** (slab 0x4fa130): args (this, src{w,h,pixels}, flag) —
+    reallocs its own float grid to w·h (4·w·h B, memset 0) then
+    LoadFromImageData via 0x4f92b0. Only TWO direct (e8) callers, found
+    by e8-target scan:
+    1. **true 0x90d1b1** (slab 0x50c9b1) — inside the per-cell-generator
+       walk (true 0x90cfb0-family) whose profiler string is
+       "IMPL_DoBufferedPixelScene - bitmap noise loop" (@0x11754c4) and
+       which also fetches "LoadImage - material_image" (@0x1175574) via
+       config call 0x4ce6a0 keyed by the BSS registry byte 0x13289b4 —
+       the load path is a FILE (a **.plz/fastLZ image**: the loader true
+       0x90e060 checks `endsWith("plz")` — string @0x1165fc4 compared
+       with the C20-verified std::string helper true **0x4447f0** —
+       then LoadImageFastLZ (assert 0x1175844) else error "Error -
+       loading file:", printing "ptr_to_file <= end_of_file" style
+       bounds asserts from procedural_terrain.cpp lines 0x1163..0x1197).
+       The loader fills {w,h,cnt,pixels} and hands it to both the
+       [gen+0x9c] BitmapNoise wrapper (SetSize+Load path above) and the
+       sampler chain (calls true 0x90e060 then 0x4fa130 then the C27
+       +0x94-walk 0x5095a0 then the three [gen+0x1b0/0x1c0]/[+0x1c8/
+       +0x1cc]/[+0x1d0/+0x1e0] grid allocs on the generator object).
+    2. **true 0x8ee6bb** (slab 0x4edebb) — in **biome.cpp** (assert
+       0x1172ea8 "…procedural_utils\biome.cpp RandomColor input_color
+       output_colors", line 0x18d): it news 0xb8 B (?), calls the C27
+       **FUN_008f9470 per-cell-generator ctor** (call slab 0x4f8c70),
+       sets **[edi+0xb0] = 0x8ee1b0** (the C32 A-resolver fn-ptr!),
+       stores the [edi+0xb4] B-map, then calls the SAME SetSize+Load
+       wrapper for this generator object.
+    ⇒ **identity: the "uid"-class of the surface evaluator = the 0x1ec-B
+    per-cell generator object family (biome.cpp-built), and [uid+0x1d4]'s
+    float grid is fed by the biome's material/bitmap image — the LoadImage
+    (.plz/.png) pipeline just read byte-by-byte**, not by a fresh
+    noise-compute. This identifies the gradient as an IMAGE-BAKED field
+    (consistent with the C34 bilinear and the wrap-mod float getter).
+    **Still open (the last identity): which biome-data file supplies the
+    [uid+0x9c/-material_image] path for each surface biome (hills/
+    winter), and the exact mGradient* ratio → image-rasterize step (if
+    any) inside the biome.cpp walk before the loader call.** Everything
+    else on the surface chain is now byte-read.
+
+- **2026-09-20 (24) — dig #9c (same night): THE PORT LANDED —
+  `lib/noise-proto.mjs` += the dig-#9 surface family.** Tests 143/143
+  unchanged (read-only until the shape instruments gate the r3f→r3g
+  bump; no noise-terrain.mjs/renderer touching this session).
+  - **NEW in the port:**
+    - `K2` (C36/C38 constant block) + `GRAD12`: the 12-dir gradient pairs
+      @.data 0x12ee338 — ALL 12 entries byte-pinned this session
+      (0..3 diagonals {±1,±1}; 4..7 (±1,0) duplicated; 8..11 (0,±1)
+      duplicated; f64 pairs, stride 32 B).
+    - `simplex2DDeriv` = the case-5 core **true 0x8fc020 READ THIS DIG
+      to formulas** (telescoped skew/unskew, C35 lazy perm + mod-12 →
+      12-dir dots, outside-kernel → 0, sum ×70.0 @0x11dffd0). The two
+      skew doubles (BSS 0x132ab68/0x132ac70) stay UNPINNED — widened
+      F2/G2 used and FLAGGED in-file (does not touch hills' lane).
+    - `noiseDispatch(kind,x,y)` = the dispatcher true 0x8fd920 with the
+      pinned case table; **cases 0..4 THROW "UNREAD core"** — the honest
+      dispatch (case 0.4 = slab 0x4fab50/0x4fb050/0x4fb150/0x4fb340/
+      0x4fb510, still unread bodies).
+    - `insidePerlin` (true 0x90b110: ScaleX/Y·0.05243442 + 0.1 + offsets,
+      seed-offset path via the C27 diddle × 1.312e−5/2.331e−5, fbm vs
+      single, Squared/Clamped/Scaled + ScaleMin/Max clamp+map).
+    - `fbm4` (true 0x8fdad0 structure; the per-octave BSS quad 0x1348ac0
+      handling = flagged OPEN trace item).
+    - **`surfaceField`** = true 0x90a860: gradient biliary (injected
+      `gradAt`) → lower cap 0.5 → 0.51/0.85 gates → produce the
+      mGradientAddNoise 1..3 case lanes = **THROW until the inner cores
+      read**; final combine MultGrad·(field−0.5)·2 + MultPerlin·r +
+      AddValue byte-shaped.
+  - Smokes run: dispatcher outputs sane for cases 8/7/6/5; hills params
+    run through surfaceField; case-0 throw verified.
+  - **NOT capture-validated.** The `gradAt` input is injected; its
+    default smoke = the mGradient y-ramp PROTOTYPE with the explicit
+    "NOT byte-backed" warning (the C39 open byte). Shape instruments
+    (I1/I3/I5/I6) remain the gate; cache r3f UNCHANGED.
+
+- **2026-09-20 (25) — dig #9d (same night): W1 WIRED behind SURFACE_V2=1
+  (opt-in; the default path is bytes-identical to the old lane so r3f
+  stands).** Tests 143/143 ✓.
+  - `lib/noise-terrain.mjs` V2 lane = the true-0x90a860 recipe:
+    - uid-config adapter (C37 offsets ← the dig-#8 XML attribute set),
+    - `gradAt` = the mGradient y-ramp PROTOTYPE, explicitly
+      NON-byte-backed (W5 = the open rasterize byte)
+      injected into surfaceField,
+    - chunks whose lane hits an unread core (mGradientAddNoise = 1/2/3 =
+      52 of 55 live XMLs) return null → caller falls through (honest —
+      zero fabricated terrain); the addNoise=0/else-lane chunks compute:
+      full-map smoke (ty 0..96 × tx 0..70): 153+ V2 chunks run, avg
+      density 0.0% (all-air) — the field lands at the 0.5 cap and the
+      gate filters everything = recorded as the SAFE fallback shape;
+      the instrument pass settles the ramp scale.
+    - The 5 core-throwing lanes return null per-chunk (no invented
+      terrain); the default no-env path = unchanged.
+  - W2/W3/W5 = the remaining bytes before the V2 path can be
+    capture-validated; per WIRING_SURFACE.md the gates stay
+    `bench:ref` + flat-region rms + solid-density vs frozen91, bump
+    r3f→r3g ONLY on an observable change.
+
+- **2026-09-20 (26) — dig #11: W3 CLOSED — the case-1 lane core READ and
+  PORTED (the 47-biomes lane unblocked).** All in one dig:
+  - **THE LANE CORE = true 0x8fb350 (slab 0x4fab50) = the sin-hash
+    VALUE-NOISE, formulas transcribed** (`out/d_2026-09-20-surface-evaluator.asm`
+    + case1core.asm):
+    - 2 helper calls at head = **true 0x44d0b0** (slab 0x4c8b0 — the
+      C13-verified CRT fld/fistp ROUND-to-nearest wrapper); identity of
+      the second = **true 0x44d110 (slab 0x4c910) = SIN — resolved via
+      the MSVCR120.dll import-name table**: the jmp-thunk run at
+      VA 0x1033a22..0x1033a5e hits IAT slots 0x114a514..0x114a53c whose
+      file-byte dword values point at the name-records (hint+name) in
+      .rdata tail: 0x114a514 = acos-precise · 0x114a518 = log10-precise ·
+      0x114a51c = pow-precise · **0x114a520 = _libm_sse2_sin_precise** ·
+      0x114a524 = sqrt-precise · 0x114a528 = tan-precise · 0x114a52c = ceil ·
+      0x114a530 = floor… (the whole math-thunk family named this session;
+      the IAT slot chain = cores C38's constants land in .rdata tail name
+      records, hint bytes verified).
+    - the seed hash: **c0 = 57.0·round-f(y) + round-f(x)** (57.0 =
+      f32 @0x11e028c, pinned) — round via the fld/fistp tt;
+    - fracs fx/fy from the RAW x/y (inline floors);
+    - four corner hashes n = frac(sin(c0 + k)·43758.546875
+      (@0x11e04c8)) at **k = {58, 57, 1, 0}** = the ±1-in-x/±57-in-y
+      lattice @ {58 = both, 57 = y+1, 1 = x+1, 0 = base} (asm pairing:
+      rowA = 58→57 lerped by wx, rowB = 1→0 lerped by wx, final wy
+      0x4fac4d..0x4fad67);
+    - weights = the smoothstep (3.0−2f)f² (0x11dff70/0x11dfe68).
+  - **The case-1 blend = byte-transcribed (slab 0x50a7eb..0x50a8a2):**
+    a = core(x·0.025, y·0.025); g = a·0.05(@0x11df948)+0.05(again the
+    SAME const = both lanes read SAME bytes ✓); the 0x8fc020 call args =
+    (x·0.5·0.02·g, y·0.5·0.02·g) (mulds 0.11dfdd8/0.11dfc68); tail =
+    field += (r' − field)·((field − 0.85)/0.1); THEN the [uid+0x24c]
+    slope arm + the FINAL combine (unchanged, (23)). Cases 2/3 remain
+    honest throws (only 5 live XMLs; trig-lane reads = W4 next).
+  - **PORT: `whiteLattice2d` + the case-1 lane REPLACED THE THROW in
+    `surfaceField`.** The R2-correction "0x44d110 = sin, 0x44d0b0 = the
+    round" identities are COMPUTE/SYNTAX-verified (IAT name table parse),
+    NOT capture-validated.
+  - Smoke: `whiteLattice2d(12.5,−3.25) = 0.834`; the case-1/hills
+    surfaceField row varies (0.697..1.155); the FULL-MAP V2 run now
+    computes 2194 chunks: winter 253, desert 265, pyramid 4,
+    snowcastle 2… at ~48–51% solid density with REAL texture (the
+    previous 0.0%-all-air fallback is gone); the remaining
+    fall-throughs = the case-2/3-only biomes (10-ish chunks) +
+    deterministically-null template chunks = the wiring is STILL
+    opt-in (`SURFACE_V2=1`); default lane untouched → r3f stands.
+  - The density NOT being ~100%-confirmed = the expected
+    "instruments next" state: `bench:ref` + flat-region rms vs
+    frozen91 = the gate for the r3f→r3g bump.
+
+- **2026-09-20 (27) — dig #12: the dispatcher cores W2-side READ (all five
+  remaining noise-lane cores names/formulas/tables pinned).**
+  All byte-cited in `/tmp/opencode/cases245.asm` (regen from the exe);
+  values verified in-file this session.
+  - **case 1 = true 0x8fd850 (slab 0x4fb050) = "FastBlock" LCG-hash
+    white noise (f32 in, f64 out)**: seed = trunc(x)·1733853720
+    (0x67577458 imm-pinned) + trunc(y)·91(0x5b); then the MS-LCG
+    `h = (h ^ (h>>13))·214013(0x343fd) + 2531011(0x269ec3)`; output =
+    ((h >> (1 + (trunc(x)&15))) ^ h) & 0x7fff, then `−0x3f ff` = ±16383
+    int; × f64 **6.103515625e−05 = 1/16384** (@0x11dfae0 f64) → [−1,1).
+    = the classic GLSL-int-lattice (with LCG constants BYTE-PINNED —
+    note this is the OLD global-LCG family appearing as a noise core,
+    consistent with the elimination "all heavy consumers = gameplay"
+    — the dispatcher's case-1 noise is a PATTERN-marked user).
+  - **case 2 = true 0x8fc550 (slab 0x4fb150) = a whiteLattice2d TWIN**
+    (same frame: 2× 0x44d0b0-round calls, inline floor+fracs,
+    smoothstep weights, 57.0 @0x11e028c mul, calls of
+    **true 0x44d110(sin) ×N**) — differs only in constant lane
+    (the exact diff = next trace item, Рrоman-flagged).
+  - **case 3 = true 0x8fc940 (slab 0x4fb340) = the FNV24
+    white-lattice with a 12-PAIR .data gradient table @.data VA
+    0x12eb950 (file .data+0x950, BYTE-PINNED this session — 12 f64
+    pairs, stride 16, values listed in the register; the strange
+    non-integer dir set = the "MixNoise"-family)**: per-call FNV-1a
+    (24-byte window {x_d64, y_d64, 1234567.0_d64-sentinel
+    @0x11e0180 f64 = 1234567.0!! pinned}), FNV bias 0x811c9dc5 × prime
+    0x1000193 over 24 bytes; idx = ((h>>8)&0xff) ^ (h&0xff) →
+    lea 0x12eb950(,%eax,8) = the pair-table index (labelled-open:
+    the exact index→(eig) %12/state walked via 0xc31cea =
+    UNREAD); 4 corner smoothstep-binilinear × (gPair·dXY)
+    outputs (slab 0x4fb340..0x4fb503).
+  - **case 4 = true 0x8fd110 (slab 0x4fb510)** — the 2-arg-f64 head
+    reads (mulsd 0x11e0240, the region incl. sentinel) = UNREAD
+    detail (the same 0x4fbe60-family head; W2-lane only).
+  - The remaining docs go to CONSTANTS.md C41 (the FNV24 +
+    12-dir pairs + the LCG constants + the 1234567.0 sentinel).
+  - W2 remaining: the noise_type→int map (the DISPLACED-by-reflection
+    lookup — not statically readable; the ceng-reflection fields =
+    the closed item).
+  - Registration complete; tests 143/143 ✓.
+
+- **2026-09-20 (28) — dig #13: W2 — the noise_type enum-name blob read
+  (the static path closes honestly).**
+  - The ORDERED reflection string pool in .rdata (VA/file cited, all
+    printable names byte-cited):
+    **IQ2_SIMPLEX1234 · IQ_SIMPLEX · SIN_CAPPED_EVERYTHING ·
+    SIN_CAPPED_SIMPLEX · [NOISE_TYPE label] · IQNoise · DirtyPeeNoise ·
+    QemNoise · WhiteNoise · MixNoise · SimplexNoise · STB_Perlin ·
+    FastBlockNoise · SimplexNoise1234 · [GENERAL_NOISE label + a
+    fog-of-war enum next block]** — all VA/file pairs pinned; the two
+    labels sit BETWEEN the member runs (a blob-separator pattern).
+  - => the noise_type's engine enum = a **12-name list** (the four
+    SIN_CAPPED-kids first, then the 8-9 engine kernels); the
+    integer-assignment = NOT statically readable: full-exe imm32 scan
+    (text.bin + rdata.bin + data_raw.bin) = ZERO pointer refs to any of
+    these strings (and zero "SIN_CAPPED_SIMPLEX"/"noise_type"
+    second-copies: the earlier "second noise_type" string =
+    **wang_noise_type** (@0xd9e9f0, the materials.xml attr family) — no
+    hidden second enum).
+  - ⇒ **W2's remaining byte = the cengser reflection-hash runtime
+    lookup** — the mapping exists only at RUNTIME (ceng reflection
+    tables built at Init); the static path is exhausted and the item is
+    CLOSED as "no static map exists" (the honest negative). The
+    port-resumption rule: `noiseDispatch.kind` needs a CE read of
+    [uid+0x224] on a live hills tile (the 2026-09-08 CE-probe pattern)
+    OR the reflection-table builder's ID (a next-session read).
+  - Correlation notes (NOT canon; flagged): by the pinned core traits,
+    IQNoise ≈ case 0 (the 57/58 sin-hash), FastBlockNoise ≈ case 1 (the
+    LCG), WhiteNoise ≈ case 2 (the twin), SimplexNoise/1234 ≈ cases 8/5,
+    STB_Perlin ≈ cases 6/7. SIN_CAPPED_SIMPLEX = likely the CAPPED
+    (0.5-clamp) wrapper around a SIMPLEX kernel (the (22)'s C30
+    consistency note) — the port's noiseKind=8 proxy stays FLAGGED.
+  - Tests 143/143 ✓. No port change (the W2 mapping remains the
+    data-side runtime item).
+
+- **2026-09-20 (29) — dig #13: W5 chase — a NEW producer region found
+  (the "cave_setup.mLuaScript"-cited walk), the mGradient rasterize byte
+  still open but the neighborhood closed.** Byte-cited from the fresh
+  objdump from the live exe.
+  - **The 0x4ed900..0x4ee6xx biome.cpp frame = a per-biome "caves/lua"
+    builder** (asserts cited: "…\biome.cpp RandomColor input_color
+    output_colors" @0x1172ea8; links:记忆 "spawn_small_enemies @0x1173110",
+    "spawn_items @0x1173124", "bitmap_noise @0x11730cc",
+    "caves_setup.mLuaScript.empty() == false" @0x11730e8):
+    - `call 0x4ee2d0(esi=) = the FNV24-hash (dig #6's C41) for the
+      "spawns-percent" bucket,
+    - MANY 0xc090c0 (the poro Random ctor + ONE Next) = the builder's
+      seed draws (the C6/C7-verified and the 0x834e0b5f/0x41a7 = the
+      Random(min,max)-closed form registered in C6/C7 — THIS region
+      uses them runtime-wide!)
+    - consts byte-pinned new: 0x11dfa1c=0.35, 0x11dfa00=0.32,
+      0x11e058c=−0.5, 0x11dffe8=101.0-f64, 0x11e0240=4294967295-f64,
+      0x11e0608=−4.0-f64, 0x11e00a0=5.0, 0x11df9b4=0.2, 0x11dff10=2.5,
+      0x11dfaf8=0.6, 0x11df988=4.656612875e−10 (f64 — the C1 poro
+      NORMALIZER!! byte-pinned again), 0x11dfb1c=0.7, 0x11dfa44=0.4,
+      0x11df9f0=0.3, 0x11e049c=10240.0.
+    - the walk's arrays [-0x40/-0x38/-0x2c...] = the spawn-bands +
+      the 0x4edf50 (the "0x5491f0-setFloatAt" = the field-fill)
+      + 0x4ee2d0/0x4ee470 = producers = the CAVES-lane (not the
+      surface-mGr runway); "0xc31cea" recurring helper (the
+      0x4fże-famern-writes).
+  - ⇒ **identity: the 0x4edf50/0x4ee2d0-family = the C(34)-sampler's
+    "'" field-mutations*** (the "+0x18-float-grid 0x5491f0-set family)
+    — NOT the mGradient-rasterizer (still W5-open).
+  - The W5 register of the trace: the .4ee470-family = a "the region
+    was the generator's manyjobs (the ShadersAndSpawn-family = the
+    caves "spawn_items/spawn_small_enemies"). Next reads = the
+    biome.cpp LoadImage callArgs (the -0xc/-0x18 = the "fill-image"
+    frame's helpers being mostly RESOLVED as a C-API fallback-lane).
+  - Tests 143/143 ✓.
+
+- **2026-09-20 (30) — dig #14: W5 chase continued — the biome.cpp band
+  positively resolved, the mGradient-rasterize byte CLOSED NEGATIVELY for
+  that band (the "ComputeHerringboneWang-...-2048" unit is there, not a
+  mGradient rasterizer). All freshly from the live exe (the raster.asm /
+  biomebuild.asm dumps).**
+  - The biome.cpp band decomposes into THREE sub-walks now:
+    (a) true 0x8ee6bb-frame = the SetSize+Load wrapper's caller (C39).
+    (b) **slab 0x4ed210..0x4ed708 = true 0x8FD0B0-family = the
+      CreateHerringboneWang Threaded-lane** (its asserts: "Couldn't load
+      wang template: " 0x117302c · "CreateHerringboneWang_Threaded"
+      0x1173050 · "xs >= 1 && xs <= 2048" · "ys >= 1 && ys <= 2048" ·
+      with the THREAD-LAYER CACHE PAIR 0x13276c8/0x13276d0 stores —
+      exactly VERIFIED §5's pair — and the 214013/2531011-LCG and
+      0x834e0b5f/0x41a7 closed form INSIDE the band): this = the
+      wang-template fill-lane (the F2/F5 family), NOT a gradient blob.
+    (c) slab 0x4ed170..0x4ed203 = a **per-member RGBA→int setter loop**
+      (movzbl×3 + shl/or-packed = an `RGBA` from 3 bytes (=the
+      "input_color"-family!) then **0x549680-set at [base+0x18] idx
+      w·y+x** = the C10-grid u16-SETTER = the "RandomColor
+      input_color output_colors" lane = the biome.cpp CONFIG-COLOR
+      remap into the grid = NOT the mGrad ramp).
+  - **The band's remaining odd frame = slab 0x4edf50..0x4ee2e0 = the
+    per-cell FIELD WRITE family** ([[this+0x18]-idx, 0x5491f0 =
+    get-or-create, comiss 0.5-clamp, cvttss2si (x·0.5+0.5), the
+    "0x11dfa94"-0.5 + smoothing (mulss 0.2, 1.5-scale)..) = the
+    "random-material config"-family + the "0x4ee2d0"-fn =
+    the FNV24-bucket producer (C41 case-3 family) = the
+    spawn-percent buckets = **still NOT the mGradient**.
+  - **W5's state: the mGradient→float-grid path does NOT run through
+    the biome.cpp band.** The remaining candidates (ranked):
+    1. the LUA lane: caves_setup/lua_script Skeleton overrides write
+       the float grid directly (the GetBiomeValue-API-side) — the
+       LuaBiogetBasic… = the LAST big hypothesis; and
+    2. mGradient* being consumed ONLY by the MATERIALS-family
+       (the .ini name-string was in the biome.h docs BUT the loader =
+       the cengser reflection, see W2's (28) is a runtime table.)
+  - The night's closure = W2 (negative-static), W5 (negative for the
+    biome.cpp band) — the SURFACE lane remains the opt-in V2, tests
+    143/143 ✓.
+
+- **2026-09-20 (31) — dig #15: the W5 "Lua-lane" hypothesis RESOLVED:
+  the [uid+0x1d4]-rasterize is NOT a Lua write either — the second
+  producer row found (the "Random(min,max)"-ramp walk at true
+  0x8ef37c / 0x8f20d1 / 0x8f2a6c = the THREE call sites of the
+  C10-grid setter 0x4edf50). All freshly objdumped from the exe.**
+  - What 0x4edf50 = now formally named: the **float-grid per-cell
+    setter family** (args: ecx = wrapper, edx = {x,y}-pair, xmm2 =
+    the value; inline bound-checks; idx = w·y+x; **0x5491f0
+    get-or-grow + comiss 1.0/0.5-mid test + the f32-arg STORE)
+    — the C10/C31 gridwriter.
+  - The 3 DIRECT callers of it:
+    1. true **0x8ef37c** (slab 0x4eeb7c, inside the biome.cpp band
+      near 0x4ee2d0 = the FNV24 producer; the "0x834e0b5f/0x41a7"
+      = the Random(min,max)-closed-form callers) — the color/spawn
+      bands lane.
+    2. true **0x8f20d1** (slab 0x4f18d1) — a SECOND builder phase
+      with its OWN poro chain + a new float cluster byte-pinned:
+      **0x11dfa20 = 0.35, 0x11dfb14 = 0.65, 0x11e058c = −0.5,`,
+      0x11dffe8 = 101.0-f64, 0x11e0618 = −2.5, 0x11dfb2c = 0.75,
+      0x11dfed0 = 2.25, 0x11dfc88 = 1.25,** + the .1192220
+      "seed"-assert = the daily-run autoconfig (?) — the builder
+      uses the same Random(min,max)-closed-form LCG pattern AGAIN.
+    3. true **0x8f2a6c** (slab 0x4f226c) = a third pass, same frame.
+  - The assert IDs at 0x4eeb8x/0x4f1b8x family = the "seed"-named
+    phase from the TestDaily-pattern — i.e. THE WHOLE
+    3-caller-band = the biome.cpp **"caves/lua_random-builders"
+    phase — writes the SAME grid the LoadFromImageData did, layer by
+    layer, with Random(min,max)-ramped values** — a decisive
+    W5-lead: **the mGradient* VALUES may BE these ramp layers**, not
+    a rasterized PNG!! Verifying = the last byte: which per-arg of
+    0x4edf50 = the "mGradient-corresponds"-pos = W5-next (a single
+    per-call trace of the surrounding frames is pending).
+  - Tests 143/143 ✓.
+
+- **2026-09-20 (32) — dig #16: W5's per-call trace — the three setter
+  layers compared; the fraction-map pattern = the "64/35"-style banded
+  ramps, the mGradient* semantics now a DOUBLE-hypothesis. Byte-cited
+  from slab 0x4eeb3c / 0x4f18bd / 0x4f2254 (the whole 3-layer family).**
+  - The three setter-calls' PREPS are the SAME skeleton: value =
+    `[-0x108..-0x128]·(poro-draw·A + B)` with (A, B) =
+    - layer 1 (true 0x8ef37c): **(0.32, 0.35)** — @0x11dfa00/0x11dfa1c —
+      ⇒ fraction-map [0.35, 0.67].
+    - layer 2 (true 0x8f20d1): **(0.35, 0.65)** — @0x11dfa20/0x11dfb14
+      ⇒ [0.65, 1.0) — the UPPER band.
+    - layer 3 (true 0x8f2a6c): the same (0.35, 0.65) lane @slab
+      0x4f2254..0x4f226c.
+  - ⇒ the band-model: **successive Random(min,max)-mapped FRACTION
+    BANDS (base + amp·draw) written as separate float layers into one
+    shared image-grid** (the 0x4edf50-set = "set (x,y)-cell to
+    `field-per-biome` = the band-composed value"] — the second/third
+    layers = the "sand-top/ore-band"-style overlays; layer-1 = the
+    BASE-band. The `.11dfa1c/0x11dfa20 = 0.35`, `0x11dfa00 = 0.32`,
+    `0x11dfb14 = 0.65` = all f32-clean pins (upper-band 0.65..1).
+  -андид-confirmed with the DATA-side: the .11dfa-except values
+    (.32/.35/.65) look suspiciously like the mGradientMaxY/MinY-role
+    — per-biome 0.498571 / 0.25 = NO match to any pinned band — the
+    boundaries [0.35..0.7) SETTLE as the mGr-lead-in for the visual
+    noise ("upper-band"-noise = the band palette!). NOT YET canon:
+    the per-biome XML fields WOULD need a per-layer arg-read (the
+    LAST single trace = the mG* per-arg negotiation — pending CE).
+  - **W5's standing understanding (REGISTERED): the [uid+0x1d4] float
+    grid = a three-layer Random(min,max)-FRACTION ramp-stack written in
+    biome.cpp — the mGradient* XML family likely = these stacks'
+    parameters, not a PNG bake.** The instruments (I1/I3) must decide
+    the units in a capture pass.
+  - Tests 143/143 ✓.
+
+- **2026-09-20 (33) — dig #17: W5's "byte-architecture CLOSED" note.**
+  Layer-2's base-value prep = byte-traced: **[-0x108] = poro-draw·3.0
+  (@0x11dff70 f32=3.0 pinned) + 1.0** → so layer-2's value =
+  `[-0x128]·((draw·0.35)+0.65)` where [-0x128] = the FIRST-frac-map
+  (draw·A+B with its own (A,B)) — i.e. the layers CHAIN: each layer's
+  base = the previous layer's output × fraction-map (the
+  "0.35/0.65-multiplier ladder"). The (min,max)-per-arg extension = the
+  whole Random(min,max)-closed-form calls, IN-LINE in the getter chain
+  (the 0x1f31d/0xb14/0x41a7 pattern on the same draw values).
+  ⇒ The [uid+0x1d4]-ramp stack = a CHAINED FRACTION look: layer N's
+  base = layer N−1's output; the WHOLE stack = a "row-by-row random
+  banding of one shared grid". byte-exact chains registered; the
+  last trace = whether that [-0x128]-window = per-biome (a config
+  load) or the layer's own draw — the CE observation or the inline
+  z-read (both = literally next-session two-trace items).
+  Tests 143/143 ✓.
+
+- **2026-09-20 (34) — session close-out.** The night ended with the
+  W1-opt-in lane live (2194 chunks textured), the case-1 lane and all
+  dispatcher cores read/ported, W2/W5 = honest negatives with the
+  remaining items localized to ONE CE session. **The game-side guide =
+  `mapgen/CE_GUIDE.md`** (3 probes: A = the sampler entry
+  0x90d860 [recovers [uid+0x220..0x268] + the noiseType int + the
+  gradient-row floats]; B = the three layer-stack preps
+  0x8f20d1/0x8f2a6c/0x8ef37c; C = the grid-row-vs-bands units check).
+  Items: tests 143/143 ✓ (no port change in (33)); the working tree =
+  5 files + WIRING_SURFACE.md + CE_GUIDE.md; r3f intact.
