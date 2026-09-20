@@ -85,7 +85,15 @@
 - P2: needs the P1 grid read + the moon/dark-moon anchors are ALREADY
   splited (I4 note); hell/heaven noise bands will follow the same
   fillRandomMaterials read as P1.
-- P1/P3/P5: **MECHANISM READ DONE (ABOUT_MATH (18), C32): the u16 DECOR
+- P1/P3/P5: **SAMPLER CHAIN CLOSED (ABOUT_MATH (20), C34): the
+  >0.5 gate reads a RAW per-chunk float field ([+0xb4]) — NOT the
+  evaluator's output; the u16 grid (id−1 bias) feeds a 4-corner
+  smoothstep-material interpolation; evaluator2's `a` = the FIELD
+  value (NOT constant 1.0 — the (17) all-solid root cause), and
+  unpainted cells go field → C33 classifier → u16 DECOR write.
+  Remaining = port wiring (field grids + C33 in noise-terrain.mjs)
+  and the config RESOLVER tables.**
+- P1/P3/P5 (older note): MECHANISM READ DONE (ABOUT_MATH (18), C32): the u16 DECOR
   grid = `BitmapNoise::LoadFromImageData` (the driver's out_map →
   per-color resolver→uid), so a portal zone's area grid carries liquid
   whitening iff the WANG TILE ART's color-resolver assigns liquid —

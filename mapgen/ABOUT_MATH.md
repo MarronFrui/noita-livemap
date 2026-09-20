@@ -2538,3 +2538,68 @@ first use from now on):**
     "noise-that-didn't-load" zones resolve through in a future dig.
     NOT ported this session (port unchanged; no cache bump — the
     noise-output contract of (17) is untouched).
+
+- **2026-09-20 (20) — F3 dig #6: the sampler (true 0x90d860 family) read
+  end-to-end — the gate/field/evaluator/DECOR-write chain is now CLOSED
+  in-binary.** Anchor re-pinned (file 0x500e4d = true 0x901a4d ✓). Slab
+  window 0x50d100..0x50d700 (true 0x90d900-family); cell loops at
+  0x50d104/0x50d0f3; the sampler's per-cell recipe:
+  1. **Owner pointer** = `[cell+0x18]` (a per-chunk world-grid owner;
+     its grid members: **+0x90 material-name registry · +0x9c float
+     dims · [+0xb4] FLOAT-grid wrapper · +0xd4 u16 wrapper · +0xd8
+     u16-init flag · [+0xf4] byte wrapper · +0x1c8 u16 DECOR dims ·
+     [+0x1e0] u16 DECOR grid · +0x38-near vtable family**).
+  2. **The gate field** (slab 0x50d3a5..0x50d3d0): idx =
+     `[owner+0x9c]`·y + x → FLOAT getter 0x5491f0 on `[owner+0xb4]` →
+     `comiss 0.5` → skip unless **field > 0.5**. This is the
+     (17)-entry's `>0.5` gate, and the field is NOT the evaluator's
+     output — it is an independent per-cell float field consumed raw.
+  3. **u16 material read** (slab 0x50d21c..0x50d24b): gated by
+     `[owner+0xd8] != 0`; U16 getter 0x54a0f0 on `[owner+0xd4]` with
+     idx = `[owner+0xbc]`·y + x; **value − 1 = the material id** (same
+     +1 store bias as C32's part-1 ✓ byte-confirmed); id > 0 →
+     `call 0xb78e0` on `[owner+0x90]` (the config-side name lookup) →
+     jump to the paint arm (0x50d58d).
+  4. **Byte-mark read** (slab 0x50d335..0x50d37f): byte getter
+     0x5493b0 on `[owner+0xf4]`; `== 0xff` → `call 0x543bb0` (a
+     POINT-ish call with stack {x,y}).
+  5. **noiseTransform** (slab 0x50d419): `call 0x5084b0` (C26), out =
+     [esp+0x4c] (u,v); X,Y doubles = `[ebx+0x24]`/`[ebx+0x28]`
+     ORIGIN + cell (i32→cvtdq2pd), `a = 1.0f` (0x11dfbf0).
+  6. **Smoothcorner snap** (slab 0x50d430..0x50d4c5): proper floor of
+     (u,v) (cvttss2si + comisd + dec — inline floor); frac = (u−iu,
+     v−jv) via cvtpd2ps; the C26 smoothstep trio byte-CONFIRMED here:
+     `fx2 = f²·2.0 (mulss 2.0 @0x11dfe68)`, `g = 3.0 − f²·2.0
+     (movss 3.0 @0x11dff70)`, weight = (3.0−2·fv)·fv² etc.; the
+     0.5-ist comparisons at 0x50d4ba/0x50d4c0 bump iu/jv (floor→cell
+     snap at the 0.5 midpoint; the SAME 3.0/2.0/0.5 constants C26
+     listed).
+  7. **Smooth-corner u16 fetch** (slab 0x50d4ce): WRAP-MOD u16 reader
+     (0x5fdce0 = true 0x9fe4e0 ✓ C32) on `[ebx+0x28]+0x20` subobj with
+     the snapped coords; `u16 − 1 = id`; id > 0 → the 0xb78e0 named
+     lookup → 0x50d589.
+  8. **UNPAINTED cells** (slab 0x50d4fc..0x50d585): gate `[cell+0x20]`
+     → `*ptr`, `[++0x2a4]` flag; then **`call 0x508670` = evaluator2
+     (C30!) with X/Y doubles and `xmm2 = [esp+0x24]` = the GATE FIELD
+     value as the `a` argument**; then per-axis logger calls
+     (`*0x114a434`, 0xc33170); then **`call 0x4f4830` (C33, the
+     per-material classifier) with ecx = `[that+0x2a4]`, args
+     (y-int, x-int)** — the returned material becomes the DECOR value.
+  9. **The paint** (slab 0x50d67e..0x50d69e): `idx = [owner+0x1c8]·y +
+     x` → U16 WRITER 0x559de0 on `[owner+0x1e0]` — `*grid = the
+     resolved id` (entry (16)'s displaced-material write, now with the
+     full kind/idx lineage: kind 1 family = `lock xadd` growable id
+     array `cmp $0x2000`, kind 3 = the global byte flag 0x1344ce1 +
+     the 0x603fd0-config call).
+  - **CONSEQUENCE FOR THE (17)-STATE SMOKE (root cause candidate):**
+    our port's fallback calls `evaluator2(gx+cfgMinX, gy+cfgMaxX, 1.0)`
+    — the hardcoded `a = 1.0` bypasses the REAL `a` (the gate field /
+    the kind-idx-driven value); the binary's `>0.5` test reads a
+    SEPARATE per-owner float field first (offsets +0xd8-byte gate then
+    field>0.5). The all-solid mask was EXPECTED under a=1.0 because a
+    constant a=1.0 gives val ≥ 0.719 — the gate survives every cell.
+    **The port fix = feed the ACTUAL per-cell field (from the u16/f42
+    grid family) as `a` and gate on field > 0.5 BEFORE the evaluator —
+    structure now individualized, port wiring deferrable to the next
+    integration pass.**
+  - Tests: 143/143 unchanged (no port change this dig).

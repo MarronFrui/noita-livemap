@@ -291,14 +291,24 @@ binary side unread) · ❌ unexplored.
    0x9fe3c0) → alpha 0xFE marker → **A-channel resolver [this+0xb0]
    → u16 = id+1** (float ±1.0), **B-channel map [this+0xb4] → script
    byte + record list**, part-2/3 = wrap-mod-neighborhood
-   majority-classification (true 0x9fe570/0x9fe620). **Still OPEN in
-   the F3 perimeter: the RESOLVER bodies ([+0xb0] fn ptr and [+0xb4]
-   map — config-side, 17 "RandomMaterials" .rdata parse sites true
-   0x496a2e..0x4a97ed unread)** and the parallel noise classifier
-   true 0x8f4830 (C33, biome_materials.cpp — the P3/P5/P6
-   liquid-selector); plus capture validation (I1/I3/I5/I6).
-   Generator integration WIRED (`lib/noise-terrain.mjs`; r3f) pending
-   that read.
+   majority-classification (true 0x9fe570/0x9fe620). **The sampler
+   chain is CLOSED (2026-09-20 (20), C34): per-chunk owner layout —
+   [+0xb4] float field (raw >0.5 gate = the (17)-gate, read BEFORE the
+   evaluator), [+0xd4] u16 grid (id−1 bias of the u16 fill!), [+0x90]
+   names (0xb78e0), [+0x1e0] u16 DECOR write (0x559de0); the
+   noiseTransform (C26) output (u,v) drives an iu/jv smoothstep
+   floor-snap (3.0/2.0/0.5 trio re-pinned) into a 4-corner bilinear
+   MATERIAL INTERP on the [+0xd4] u16 grid; the evaluator2 `a` arg =
+   the FIELD VALUE (not a constant 1.0), consumed only for
+   u16==0 cells under the +0x2a4 flag → C33 classifier (true
+   0x8f4830) → DECOR write.** The (17) smoke's all-solid = EXPECTED
+   (a=1.0 hard-coded); the correct wiring is the recorded next
+   integration step. **Still OPEN in the F3 perimeter: the RESOLVER
+   bodies ([+0xb0] fn ptr and [+0xb4] map — config-side; the 17
+   "RandomMaterials" .rdata sites true 0x496a2e..0x4a97ed are ConfigLua
+   name-REGISTRATIONS, not consumers)** + capture validation
+   (I1/I3/I5/I6). Generator WIRED (`lib/noise-terrain.mjs`; r3f)
+   pending the field-source wiring.
 
    **Dig #4 plan (handover 2026-09-20 — EXECUTED + F3 read-CLOSED same
    day; full detail ABOUT_MATH 2026-09-20 (15)/(16)):

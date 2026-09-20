@@ -56,6 +56,7 @@
 | C31 | area BitmapNoise grids | SetSize true 0x8f95c0: float +0x18 / u16 DECOR +0x38 / byte +0x58, all zero-init |
 | C32 | true 0x8f9ab0 = BitmapNoise::LoadFromImageData | the u16 DECOR writer: image color → resolver [+0xb0] / map [+0xb4] → u16 / byte / float |
 | C33 | true 0x8f4830 biome-def DECOR classifier | noise re-eval with mod-512 wrap (×1/512 @0x11df8b4), gate [+0x24]/[+0x28], result material [+0x4] |
+| C34 | per-chunk DECOR owner layout | [+0xb4] float field (raw >0.5 gate), [+0xd4] u16 grid, [+0x1e0] DECOR write; evaluator2's `a` = the field value |
 
 ## Registry
 
@@ -613,3 +614,38 @@
   0x5087b0 → true 0x908fb0 (the per-cell cell-object walk);
   0x508b5b → true 0x90935b; 0x50d57e → true 0x90dd7e = the (16)
   sampler paint arm ✓).
+
+### C34 — the per-chunk DECOR owner layout (sampler true 0x90d860 family)
+- Owner = `[cell+0x18]` (per-chunk aggregate; layout byte-pinned at slab
+  0x50d21c..0x50d698): name registry [+0x90] (reader 0xb78e0) · float
+  dims [+0x9c] · **[+0xb4] FLOAT-field grid wrapper (getter 0x5491f0)** ·
+  u16 dims +0xbc · **[+0xd4] u16 grid wrapper (getter 0x54a0f0;
+  [owner+0xbc] = w) · [+0xd8] = the u16-init flag (cmp 0)** · byte dims
+  +0xf0/+0xf8-flag · **[+0xf4] byte-grid wrapper (getter 0x5493b0, the
+  0xFF-mark gate at slab 0x50d360..0x50d369)** · +0x1c8 u16 DECOR dims ·
+  **[+0x1e0] u16 DECOR grid (writer 0x559de0)** — idx =
+  `[owner+0x1c8]`·y + x.
+- **The sampler's > 0.5 gate = the [+0xb4] field read raw** (comiss 0.5
+  @0x11dfa94, slab 0x50d3c3) — NOT the evaluator's output. The
+  evaluator2 call (slab 0x50d50e, true 0x508670 = C30) consumes this
+  SAME loaded value as its `a` argument (`xmm2 = [esp+0x24]`), for
+  unpainted (u16==0) cells only, and goes through the +0x2a4-flag check
+  (`cmpl $0x0,0x2a4(%eax)` slab 0x50d501) first — then the C33
+  classifier `call 0x4f4830` (slab 0x50d57e, ecx = `[obj+0x2a4]`,
+  stack y-int/x-int).
+- C26's smoothstep 3.0/2.0/0.5 constants re-byte-confirmed INSIDE this
+  walk (slab 0x50d456/0x50d484/0x50d4ae: 3.0 @0x11dff70, 2.0
+  @0x11dfe68, 0.5 @0x11dfa94) — but they build an iu/jv FLOOR-SNAP
+  (smooth-corner un-interp: mulss 2.0 on the f², movss 3.0 →
+  (3.0−2·f)·f² weight, comiss 0.5 → iu/jv bump), i.e. the (u,v)-pair
+  from noiseTransform drives a **4-corner bilinear material
+  interpolation on the [+0xd4] u16 grid**, whose per-corner reading is
+  the C32 WRAP-MOD u16 reader (slab 0x50d4ce, ECX = `[ebx+0x28]+0x20`).
+- The sampler's named-material lineage: kind from `[rés+0x38]` (returned
+  by the paint arm's vtable get) == 1 → growable
+  (`lock xadd`, cmp $0x2000) index array `mov 0x4(%edx,%eax,4)` name
+  pick (slab 0x50d61b..0x50d62a); == 3 → global byte flag 0x1344ce1 +
+  `call 0x603fd0` (slab 0x50d595..0x50d5ab); then CellFactory
+  validate `call 0x363cd0` (slab 0x50d651; C33's "mCellFactory" unit)
+  and the old-value release (`*0x114a348` slab 0x50d669).
+- Status: read + registered (2026-09-20 (20)).
