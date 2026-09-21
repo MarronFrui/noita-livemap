@@ -4341,3 +4341,45 @@ first use from now on):**
     exact [−0x128]/[−0x108] consumption is pinned bytes-side for the
     fnA field phase, the composed field stays the standing instrument
     (NOT shipped); the render's caves lane remains opt-in SURFACE_V3=1.
+
+- **2026-09-21 (61) — fnB dig #61: the CaveStructure RECORD-WALK byte
+  decode (the load-phase producer, slab 0x4f0b23..0x4f0ee8 window; true =
+  slab + 0x400800):**
+  - Per CaveStructure record (the 28-byte arena member; −0x110 = the
+    pattern object):
+    1. count pair read: [obj+0x28] → −0x108, [obj+0x30] → −0x100
+       (a (min,max) count pair, byte-cited).
+    2. one poro draw per iteration via the C6/C7 closed form, converted
+       phimulsd 0x11e0578 = **−4.656612875e-10 = NEGATIVE NextU scale**
+       (the sign-flipped draw! semantic = the roll inside the (max−min+1)
+       span = value draws, PINNED — the first byte use of a negative
+       fraction scale).
+    3. **[obj+0x34]/[obj+0x38] = the record's own f32 STRENGTH PAIR** →
+       [−0x140]/[−0x100]: the C50 form A + draw·(B − A) composed INLINE
+       (subss/mulss/addss @0x4f0e84..0x4f0eb7) — so EVERY CaveStructure
+       record carries its own (min,max) strength pair, and the C50
+       interp runs PER RECORD on its own span (NOT the blob-strength
+       knobs — the C50's note "the knob WRITER = not in this family"
+       stays: this IS the record's own pair, the +0x34/+0x38 f32s the
+       C49 CE keys read).
+    4. the writes → **0x4ef150 = the 0x8EF950 BYTE-GRID blend twin**
+       (stack (v, [−0x154·?]…)) — records stamp into the BYTE grid
+       ([P+0x58]) ⇒ the byte-lane = the CaveStructure overlay; the C49's
+       "byte allocation, first-64 all-zero" = the not-yet-written rows ✓.
+    5. loop driver: `decl −0x120(%ebp)` + `jne 0x4f0a95` (the per-iteration
+       count), the record cursor +0x3c per record (−0x12c advance @0x4f0f03),
+       the list-scan via {begin,end} = [obj+0x7c]/[+0x80] — the
+       (56)-counted "÷12 = 12-byte record countdown"... correction:
+       here the byte magic 0x88888889 (= ÷12×4-byte elems) counts the byte
+       RECORD list; the two counts co-exist (28-byte arena records + a
+       12-byte {x,y,B,B−1} record family), matching the two lanes
+       (the arena + the C32 +0x80 record vector).
+    6. the post-loop byte at [obj+0x30] (0x4f0f3c = the springboard to
+       0x4f271e) and [obj+0x98] `cmp 0` — the per-record flags (the
+       beginning-paths-family byte = the C50's "+0x34 struct" note).
+  - Port consequence: **the correct record-lane writer = the BYTE grid
+    × stamp value; the smoothstep LERP twin (0x8EE930) remains the base
+    for the FN-A window path.** The caves-field port's composition still
+    needs (a) the CaveStructure byte-lane stamp writer + record draws
+    (b) the strength pair [[+0x34]/[+0x38]] from the DATA XML per pattern.
+    SURFACE_V3 stays opt-in; the byte bar remains the oracle compare.
