@@ -4648,3 +4648,19 @@ first use from now on):**
   (the [−0x104] cursor's own advance = per-band weights), registered
   but not to be applied at the stamp walk until the fnA window's
   own y-drift is read (the standing y-drift lane).
+
+- **2026-09-21 (75) — dig #75 (the fn C1↔fnB HAND-OFF closed at the
+  boundary; the composition's one standing unknown now spans ONLY the
+  byte-cloned byte-lane): the fn C1 factory (slab 0x4f2860 window) —
+  reads the sub-obj dims {x, y} at [esi+0xc0/0xc0] → the base 0xb8
+  grid's {+0x20=+0x1c, +0x24} / the grid's +0x94 tile; the fn B call
+  at 0x4f2a3c (the self-call + the fn C2's child walk `jne 0x4f2a55`)
+  = the cave_childs recursion of the same record family (the dig #61
+  byte facts). The whole fn C1→fnB chain = byte-cited via the census.
+  The composition byte-lanes currently: L1 base × chain forms (dig 64)
+  + the record lane's byte grid + the walk's step bytes (dig 68) —
+  the standing byte bar: the y224 byte-exact row + the deep carve
+  rows; the per-phase ORDER (the dunno lane) = the standing
+  composition question. The port climb = the byte-lane order vs its
+  budget (the standing phase budget pair = the fnB head's count pair,
+  bytes ready).**
