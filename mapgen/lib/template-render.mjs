@@ -9,6 +9,7 @@
 import { readPng, rgbToRgbaInt } from "./images.mjs";
 import { SHADES, MATERIAL_SHADE, pick, loadMaterials } from "./colorize.mjs";
 import { seededPrng } from "./wang-js.mjs";
+import { biomeAt } from "./biomes.mjs"; // the OWNERSHIP GATE source (dig 52)
 import path from "node:path";
 
 // ---------------------------------------------------------------- caches ---
@@ -339,6 +340,17 @@ export function renderTemplateWorld(dataDir, config, seed) {
     for (const area of def.areas) {
       for (let ty = area.y1; ty <= area.y2; ty++) {
         for (let tx = area.x1; tx <= area.x2; tx++) {
+          // OWNERSHIP GATE (the cross-biome overpaint fix, dig 52): areas are
+          // bounding boxes of connected biome-map components and a concave
+          // component's rect reaches far into OTHER biomes' chunks (the
+          // solid_wall edge-matrix bbox = {41,0}..{68,47} covers the east
+          // surface's hills chunks; its DEEP_ROCK fill painted "solid rock in
+          // the sky" over the whole west/east surface + pyramid surroundings —
+          // histogram-pinned 6:3:2:1 DEEP_ROCK in foreign chunks). Paint ONLY
+          // chunks whose own biome is THIS def; per-biomeApprox-rect chunk
+          // ownership stays in the biome map (biomeAt).
+          const at = biomeAt(config, tx, ty);
+          if (!at || at.biome !== def) continue;
           const wx = (tx - 35) * 512, wy = (ty - 14) * 512;
           try {
             renderTemplateChunk(buffers, dataDir, file, def, wx, wy, seed);
