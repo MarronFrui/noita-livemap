@@ -73,6 +73,7 @@
 
 | C49 | pinpoint pickup v5.2 results | [P+0x8c] = the RAW worldseed runtime-pinned both seeds (C27 confirmed in-memory); hills-class knobs [+0x34]=0.546875 / [+0x74]=1.549988 (seed-independent, hills.xml 1.55-family); [+0x2c/0x30/0x38] = pointer slots; [+0x58] deref = a REAL per-grid byte allocation (first64 all-zero); the 0x132aae8 RBTree layout cracked (L/P/R/color_isnil/key-SSO/size/cap, VALUE@0x28 = the cave-grid ptr; keys = the CaveStructure FILE PATTERNS incl. "eye_0$[1-4]"); the V4d A-resolver hunt RESOLVED: [P+0xb0] = 0x008EE1B0 on the 0-dim uids (a real fn entry, objdump next); [P+0x94] draw ADVANCES per build instance; the 1x1 struct P = 0132B518 STATIC |## Registry
 
+| C50 | the +0x34/+0x74 knob pair (dig #29) | [P+0x74]/[P+0x78] = the blob-strength (min,max) pair consumed by fnB (slab 0x4f0931..0x4f0958: v = A + d·(B−A) → the 0x4ee130 blob-setter v_arg; decl-loop = the blob-count phase); CE:(+0x74,+0x78)=(1.549988,0.0) hills-class / (0,0) on the second 512x256 class — the C48 bump peak lives INSIDE the span ✓; [+0x34] = a DIFFERENT struct (the CaveStructure PATTERN record window +0x24/0x2c/0x34/0x38, the f32-read vs int-read sites differ, NOT a contradiction); the knob WRITER = not in the fnB/fnA/ctor family — the named hunt = fn C2 body + the XML-parse family (0x496a2e..0x4a97ed) |
 ### C1 — coalmine start-path mark `0xFF420000`
 - `cmp eax, 0xFF420000` @ true **0x901a4d** (byte-pinned — slab 0x50124d).
   Written as cell value in the coalmine hax overlay; NOT the same thing as

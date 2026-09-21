@@ -3980,3 +3980,48 @@ first use from now on):**
   6. The 1×1 placeholders ALL share **P = 0x0132B518 = a STATic never-
      initialized cell** (a single shared placeholder object), and the
      real grid allocations happen per (seed, name).
+
+- **2026-09-21 (49) — dig #29: the [+0x34]/[+0x74] knob-pair CONSUMER
+  side decoded byte-exact (objdump-only, fresh slabs):**
+  - **fnB's blob phase (slab 0x4f0862..0x4f0965, true 0x8F8062..) READ
+    END-TO-END:**
+    ```
+    eax = [ebp-0x114]           ; the CAVE-GRID object P ([uid+0x1d4])
+    xmm6 = movss 0x74(%eax)     ; [P+0x74]  = the strength A knob
+    xmm4 = movss 0x78(%eax)     ; [P+0x78]  = the strength B knob
+    ... poro draw d (the edi-state, closed form 0x834e0b5f)
+    xmm4 = (B − A)              ; subss %xmm6,%xmm4  @0x4f0931
+    xmm4 = d·(B − A)            ; mulss %xmm0,%xmm4  @0x4f0954
+    xmm4 = A + d·(B − A)        ; addss %xmm6,%xmm4  @0x4f0958
+    xmm2 := xmm4                ; the INTERPOLATED STRENGTH
+    call 0x4ee130               ; the blob-setter smoothstep twin (value = the interp!)
+    decl -0x110(%ebp)           ; the per-phase BLOB-COUNT loop counter
+    ```
+    **⇒ [P+0x74]/[P+0x78] = the blob-strength (min,max) pair** consumed
+    in a standard Random(A,B) interpolation feeding the blob-setter's
+    v_arg. CE pins (both seeds): (+0x74, +0x78) = (1.549988, 0.0) on the
+    hills-class grid, (0,0) on the OTHER 512×256 class — a INVERTED-lookup
+    pair (A = max?/B = min?) → the interp spans [0, 1.549988] as d runs;
+    the C48 bump's ≤1.45-peak lives INSIDE this strength range ✓ (the
+    first byte-level MODEL of the bump's construction: the blob strengths
+    are DRAWN from [0, 1.55] per placement).
+  - **the list-scanner (slab 0x4f0989..0x4f09a5)**: count =
+    ([P+0x80] − [P+0x7c]) with the magic 0x88888889 + sar 5 family and a
+    zero-check (je 0x4f0f36 = the skip when the list is empty) — the
+    SAME [+0x7c/+0x80] slot family the CE dump showed (the seed-91 CE
+    guard tripped on [+0x7c] = 0: the pair sits OFFSET in the real
+    layout; the list at THIS phase reads ZERO-length → skips — the
+    record vectors fill only at the later per-phase stages).
+  - **[+0x34]'s consumer context (slab 0x4f0d34..0x4f0dfb)**: a
+    DIFFERENT object (the CaveStructure PATTERN record, loaded into
+    [-0x110]) carries [+0x24]/[+0x2c]/[+0x34]/[+0x38] as a mixed
+    int/f32 knob window (the "0.546875" f32 read @0x4f0dfb vs the
+    int-read @fnB 0x4ef736 = TWO DIFFERENT structs — the cave-grid P
+    vs the pattern record — NOT a contradiction).
+  - **the knob WRITER = NOT in the fnB/fnA/ctor family** (no store to
+    [+0x34]/[+0x74] anywhere in the 0x4ee000-0x4f9000 range). The
+    named writer-hunt next: the fn C2 body (0x8F3260..) + the XML-parse
+    consumer family (C32's "RandomMaterials" .rdata sites true
+    0x496a2e..0x4a97ed) — the knobs are parse-time writes from the
+    <CaveStructure strength_min/max> XML attrs.
+  - Tests unchanged 143/143; no port changes.
