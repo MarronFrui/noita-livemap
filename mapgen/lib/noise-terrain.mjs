@@ -47,14 +47,15 @@ function ensureCavesField(dataDir, def, seed) {
 const CHUNK = 512; // (matches world-gen CHUNK; local to avoid the ESM cycle)
 const CELLS_PER_CHUNK = CHUNK / 10; // 51.2 → subrect 0..51 (C11 grid shape — cell 51 is the 20px remainder)
 
-// V2 wiring flag (2026-09-20 dig #9c, initially opt-in): the true 0x90a860
-// lane (surfaceField + noiseDispatch, dig #9 port) is the DEFAULT since
-// 2026-09-21 (post-dig #21/#22 wiring: kind-5 + CE-verified mult slots +
-// FINAL-combine remap) — the genmap r3g bump represented the V2 lane but
-// was only active under SURFACE_V2=1, which the server never set (audit
-// 2026-09-21: mixed-provenance r3g bins). Now: on unless SURFACE_V2=0
-// (the env knob stays as an explicit opt-OUT for A/B lane comparisons).
-const SURFACE_V2 = process.env.SURFACE_V2 !== "0";
+// dig #31 revert made canonical (VERIFIED.md §12, the no-guessing mandate):
+// the true-0x90a860 lane is OPT-IN again — the ramp `gradAt` placeholder (and
+// the un-carve'd caves lane) all-solid masks must not ship as default; the
+// honest default render = template painter + the art scenes + wang areas,
+// with the procedural-noise band deprecated to env opt-in for A/B
+// instruments. Flip with SURFACE_V2=1 (V2 lane) and/or SURFACE_V3=1 (the
+// caves-field composition lane, still flagged placement).
+const SURFACE_V2 = process.env.SURFACE_V2 === "1";
+const SURFACE_V3 = process.env.SURFACE_V3 === "1";
 
 // Per-biome "Wang offset" (C24/C28): ConfigRegistry defaults, engine-side.
 // Tagged @prov noitool (the 159/223 family); validated only at runtime.
@@ -177,16 +178,8 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
     // gradAt when a bitmap_noise_file exists (the lake family), else the
     // ramp instrument.
     let gradAt = null;
-    // dig #31 (2026-09-21, REVERTED same day; see VERIFIED.md §12): the
-    // caves-field lane is OPT-IN via SURFACE_V3=1 — the default stays the
-    // C39 image-lane / ramp instruments. Reason: the caves field carries
-    // byte-exact PRIMITIVES but a FLAGGED placement composition; the
-    // renderer-default wiring painted a speckle cloud over the band
-    // instead of the real terrain (the surface's visible shape = the
-    // LoadPixelScene art lane, NOT the caves field — see VERIFIED.md §12),
-    // and the no-guessing mandate forbids the
-    // un-validated lane in the shipped render.
-    const SURFACE_V3 = process.env.SURFACE_V3 === "1";
+    // THE open lane: the caves-field composition is still a model (the
+    // fn B per-phase placement is un-read) — visual = VERIFIED.md §12.
     if (SURFACE_V3 && def.bitmapCaves && def.bitmapCaves.sizeX) {
       const caves = ensureCavesField(dataDirRef.dataDir, def, seed);
       const { w: fw, h: fh, field } = caves;
@@ -236,6 +229,10 @@ const DEF_SEED = 0;
 // deterministic per the binary's ctor chain — the C49 proof), so the
 // ensureWorld caller passes the run's worldseed here.
 export function attachNoiseTerrain(world, dataDir, seed = 0) {
+  // OPT-IN (VERIFIED.md §12): with neither lane flag set the noise branch
+  // never attaches and the procedural band renders as honest air (the
+  // art-scenes + wang areas carry the whole visible band).
+  if (!SURFACE_V2 && !SURFACE_V3) return world;
   const cache = new Map(); // "tx,ty" -> {mask, def} | null
   world.noiseAt = (tx, ty) => {
     const key = `${tx},${ty}`;

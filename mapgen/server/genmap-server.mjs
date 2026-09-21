@@ -34,7 +34,11 @@ const dataDir = findNoitaDataDir();
 const cacheDir = path.join(repoRoot, "mapgen/out/gen-cache/r3i"); // r3i: this cache dir stores ONLY the wang-area bins (world.maps, seed+area-keyed) — independent of the cave-field lane. The caves-field lane is OPT-IN via SURFACE_V3=1 (noise-terrain.mjs); the default render is the template painter + static-tile + wang lanes (see VERIFIED.md §12). Bump to a fresh rev only when a cached build's output observably changes.
 
 const worlds = new Map(); // seed -> { world, progress, ready }
-let cacheEpoch = 0; // bumped on every /gen/clear — the viewer appends it to tile URLs to bust the browser's immutable tile cache
+// Bump-per-start epoch (Date.now()): every server restart invalidates the
+// browser's immutable `?e=` tile URLs, so no stale pre-fix tiles can
+// survive a deploy; /gen/clear still explicit-bumps (epoch is monotonic
+// within a session).
+let cacheEpoch = Date.now(); // bumped on every /gen/clear — the viewer appends it to tile URLs to bust the browser's immutable tile cache
 
 function getWorld(seed) {
   let entry = worlds.get(seed);
@@ -56,20 +60,62 @@ function getWorld(seed) {
   return entry;
 }
 
+// Tile rendering. Zoom semantics dig (52) — the moiré fix:
+// z=0: 1:1 per world px (the canonical paint).
+// z>0: a tile's scale-block covers `scale` world px per axis. The global
+// point-sample `(y*512+j)*scale` aliases badly across lanes (art px, wang
+// cells and the old noise speckle) — it made the zoomed-out map "pop"
+// solid/air inconsistently with zoom level (the dense-rock-at-out-zoom
+// report). The honest downsample: per output pixel, enumerate the distinct
+// 10-world-px wang cells inside the block (steps of 10, cell centers),
+// count solid vs air, and emit the majority's color (air = transparent).
 function renderTile(world, z, x, y) {
-  const scale = 2 ** z;
   const png = new PNG({ width: 512, height: 512 });
   const data = png.data;
   let p = 0;
+  if (z === 0) {
+    for (let j = 0; j < 512; j++) {
+      const wy = (y * 512 + j);
+      for (let i = 0; i < 512; i++) {
+        const wx = (x * 512 + i);
+        const c = worldColorAt(world, wx, wy);
+        if (c) {
+          data[p] = c[0];
+          data[p + 1] = c[1];
+          data[p + 2] = c[2];
+        }
+        data[p + 3] = 255;
+        p += 4;
+      }
+    }
+    return PNG.sync.write(png);
+  }
+  const scale = 2 ** z;
+  const step = Math.min(scale, 10);
+  // one reused tally scratch (cleared per pixel — no 512² Map churn)
+  const tally = new Map();
   for (let j = 0; j < 512; j++) {
-    const wy = (y * 512 + j) * scale;
+    const wy0 = (y * 512 + j) * scale;
     for (let i = 0; i < 512; i++) {
-      const wx = (x * 512 + i) * scale;
-      const c = worldColorAt(world, wx, wy);
-      if (c) {
-        data[p] = c[0];
-        data[p + 1] = c[1];
-        data[p + 2] = c[2];
+      const wx0 = (x * 512 + i) * scale;
+      let solid = 0, total = 0, best = null, bestN = 0;
+      tally.clear();
+      for (let sy = 0; sy < scale; sy += step) {
+        const wy = wy0 + Math.min(sy + (step >> 1), scale - 1);
+        for (let sx = 0; sx < scale; sx += step) {
+          const wx = wx0 + Math.min(sx + (step >> 1), scale - 1);
+          const c = worldColorAt(world, wx, wy);
+          total++;
+          if (!c) continue;
+          solid++;
+          const key = ((c[0] >> 2) << 10) | ((c[1] >> 2) << 5) | (c[2] >> 2);
+          const it = (tally.get(key) ?? 0) + 1;
+          tally.set(key, it);
+          if (it > bestN) { bestN = it; best = c; }
+        }
+      }
+      if (solid * 2 >= total && best) {
+        data[p] = best[0]; data[p + 1] = best[1]; data[p + 2] = best[2];
       }
       data[p + 3] = 255;
       p += 4;
