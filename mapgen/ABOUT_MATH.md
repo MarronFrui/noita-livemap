@@ -4123,3 +4123,30 @@ first use from now on):**
     fn B per-phase read (the caves-field placement = the AIR-carve
     machinery) + the A-resolver/colorize material ladder — no display
     patches in between.
+
+- **2026-09-21 (54) — fnB dig restart (fresh slabs; C13 anchor re-pinned ✓).
+  First windows against the standing phase map (dig #27 fnB callee census):
+  - The two `0x4ee130` blob-setter call sites sit inside per-phase loops:
+    call #1 @slab 0x4f036d (doc window slab 0x4f02cb..0x4f036d), call #2
+    @0x4f095f in the DECL-loop the C50 row names (`decl -0x110(%ebp)`
+    @0x4f0964, back-edge `jne 0x4f0660`). The pre-roll window around each
+    call = the SAME Random(min,max) closed form (0x834e0b5f imul +
+    127773/2836/16719 decomposition, C6/C7) + a `mulsd 0x11dffe8
+    (101.0-f64)` / `cvttsd2si` / `cmp $0x14 (20)` cap @0x4f02f5 — a NEW
+    pinned constant: **the blob radius cap = 20** in this phase.
+    New consts: 0x11e0578 (f64 next to the 100.0/−4.0 pins — semantic
+    open, flagged), +0x11df9d0 (0.25, canon) + 0x11dfd2c (1.5, canon).
+  - The CaveStructure-RECORD WALK (slab 0x4f097b..): extracts the
+    record vector (+0x7c/+0x80 on the cave-grid object; ÷12 record
+    count via magic 0x88888889, DR: each record 12 bytes — matches
+    C46's 12-byte {x,y,B,B−1} family at the cave-grid +0x80 vector),
+    dedup counts, skips empty (`je 0x4f0f36` = the "list empty → skip"
+    of the C50), then per-record reads [rec+0x1c]/[rec+0x20] into
+    the frame window (−0x120/−0x100) and runs the SAME Random
+    interpolation before the 0x4ee130 setter call. The per-record
+    +0x1c/+0x20 f32/int window = the CaveStructure pattern's count/
+    strength fields (C50's "DIFFERENT struct" note lives HERE).
+  - Artifact: /tmp/opencode/fnb.dis (3551 lines, the full fn B slab).
+  - NEXT (unchanged): per-phase block semantics between the call sites
+    (the layer-2/3 setter arg masks, the aabb arithmetic, the
+    beginning-paths lane), then the port against the C48 oracle.
