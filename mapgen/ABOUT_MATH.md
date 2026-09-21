@@ -4098,3 +4098,28 @@ first use from now on):**
     exact band noise = the C32 open read; pyramid's entrance/wall pieces =
     the scene-art lane; the deficit areas = everything around the perimeter
     the solid_wall approx fills). NOT resolved in-binary; registered debt.
+
+- **2026-09-21 (53) — the AIR-oVERFILL photographer (forensics + ownership
+  fix; render-lane processes, no new binary claims):**
+  - **Evidence:** the west lake / east hills / desert / pyramid-surroundings
+    AIR chunks carried a single up-256k px paint per chunk whose color
+    distribution is EXACTLY the DEEP_ROCK ladder of `fillChunk(...,
+    DEEP_ROCK)` (37,21,17×6 : 55,34,29×3 : 64,35,28×2 : 98,59,50×1, pixels
+    130955/65358/43974/21857 = the 6:3:2:1 ratio over 262144). Their
+    biomeAt = hills/desert/lake — NOT wall biomes.
+  - **Mechanism:** areas = bounding boxes of connected biome-map
+    components, and the renderer iterated every chunk inside each def's
+    rect — solid_wall's edge-matrix component decomposes the WHOLE band:
+    bbox {x1:41,y1:0,x2:68,y2:47} swallowed the east surface + pyramid
+    surroundings; the twin {1,0}..{28,43} covers the west. Same for any
+    concave component (the mountain_tree flat 1.27M-px fill seen at
+    area@(31,10..32,14) = another bbbox-overpaint instance).
+  - **Fix = the chunk-ownership gate:** `biomeAt(config,tx,ty).biome ===
+    def` before renderTemplateChunk — a def paints only chunks the
+    biome map assigns to it. Cross-biome overpaint lanes disappear at
+    once (forensics keys 58,50 / 62,50 / 51,60 / 22,48 / 32,58 → ABSENT
+    = honest air).
+  - **Consequence for the plan:** the remaining surface shading = the
+    fn B per-phase read (the caves-field placement = the AIR-carve
+    machinery) + the A-resolver/colorize material ladder — no display
+    patches in between.
