@@ -4508,3 +4508,36 @@ first use from now on):**
   spin (y224 byte-exact; y16/y128 = the standing perm-order deltas),
   so the walk skeleton stands byte-cited and the composition runs the
   exact roll/weight blocks this session. Tests 143/143.**
+
+- **2026-09-21 (68) — fnA dig #68: the x-wanderer STEP-ROLL block READ
+  at the byte level (the 0x4ee700..0x4ee7e2 window), closing the
+  "step-offset draws" flag on the walk:**
+  - The fn A x-step is a **2-draw valve** then a 4-draw band:
+    1. `draw0` × **0x11e0608 = f32 0.0 (f64 = −4.0 unary; the
+       0x11e0608 pin reads as f64 −4.0 — the same −4.0 pin the dig 26
+       CE-listed)** × **cvttss2si** → `2 − trunc(0·draw) = 2` — the
+       **cap = 2 steps/unit** (a fixed base, no draw in this lane).
+    2. The SELECT draw (0x4ee745) = `draw·0.2(^0x11df9b4)` →
+       **the x-step weight = 0.2 per draw** × the pivot (−0x20 = the
+       `2 − trunc(0·d)` cap / **÷5.0** @0x11e00a0) ⇒ the step norm =
+       `(2 − 0)·0.2 = 0.4` — the walk's per-step x-advance weight.
+    3. The 4-draw stalk (0x4ee769..0x4ee7d5): each draw composes
+       `draw × **2.5** (^0x11dff10) + **1.0** (^0x11dfbf0) × the pivot`,
+       which puts the ≈2.5-scale **branch weight pair** as the
+       [−0x50]/[−0x5c]/[−0x68] walk steppers — i.e. the step roll's
+       lane = min + draw·(2.5) + 1.0 per unit — the byte-form says
+       **`1.0 + 2.5·draw`** per advance, composed over the pivot
+       span = the exact walking scale (bytes cite 2.5 @0x11dff10 as
+       the C50-style leaf, the same shape the caves-field port composes).
+    4. The compare @0x4ee7e2 = `10240.0 vs [ebp+0x18]` = a select
+       gate (comiss/`ja 0x4ee8b1`) — the "SELECT = the 10240-cap"
+       lane (the larger surface batch; y=0 surface row is capped to a
+       10240-pixel span box) — the fn A loop = the ≤50-step x-wanderer
+       box (the dig 26/63 bound).
+  ⇒ **the walk's step-lane form = `2·0.2 = 0.4 x-step per draw` +
+     `1.0 + 2.5·draw` branch weight per stamp** — replacing the
+     FLAGGED `0.5 + draw·1.5` guess with the byte lane. The port's
+     composition consumes this on the next push's compare pass.
+  - New .rdata pins: 0x11df9b4 = 0.2 · 0x11dff10 = 2.5 ·
+    0x11dfbf0 = 1.0 (canon) · 0x11e049c = 10240 · 0x11e00a0 = 5.0 ·
+    0x11e0608 = −4.0 (f64).
