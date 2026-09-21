@@ -851,7 +851,8 @@
   computes 2194 chunks (winter/desert/pyramid/snowcastle = real texture,
   ~48–51% densities; honest throws remain only for cases 2/3 = 5 XMLs).
 - Status: read + ported (2026-09-20 (26)); capture-check = the
-  instruments' gate (WIRING_SURFACE.md §4).
+  instruments' gate (the shape/validation contract, distilled in
+  VERIFIED.md §12).
 
 ### C41 — dispatcher-lane cores (cases 1–4) + the FNV/gradient tables (dig #12, 2026-09-20)
 - **case 1 (true 0x8fd850, slab 0x4fb050) = "FastBlock" hash white noise**:

@@ -31,7 +31,7 @@ import {
 
 const PORT = Number(process.env.GENMAP_PORT ?? 8082);
 const dataDir = findNoitaDataDir();
-const cacheDir = path.join(repoRoot, "mapgen/out/gen-cache/r3i"); // r3i: SURFACE_V3 wired (dig #31, 2026-09-21) — the caves-field lane is the DEFAULT source for the <BitmapCaves> biomes (buildCavesField, seed-keyed, the noiseSolidAt attach fix — the render's solidity is observably different ⇒ the bump rule)
+const cacheDir = path.join(repoRoot, "mapgen/out/gen-cache/r3i"); // r3i: this cache dir stores ONLY the wang-area bins (world.maps, seed+area-keyed) — independent of the cave-field lane. The caves-field lane is OPT-IN via SURFACE_V3=1 (noise-terrain.mjs); the default render is the template painter + static-tile + wang lanes (see VERIFIED.md §12). Bump to a fresh rev only when a cached build's output observably changes.
 
 const worlds = new Map(); // seed -> { world, progress, ready }
 let cacheEpoch = 0; // bumped on every /gen/clear — the viewer appends it to tile URLs to bust the browser's immutable tile cache

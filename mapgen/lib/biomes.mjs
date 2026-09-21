@@ -44,6 +44,11 @@ function parseBiomeDefinition(dataDir, filename) {
   const topo = xml.match(/<Topology\b([^>]*)>/);
   const attrs = topo ? topo[1] : xml.match(/<Biome\b([^>]*)>/)?.[1] ?? "";
   const templateFile = parseAttr(attrs, "wang_template_file");
+  // static_tile="1" biomes (barren/darkness/boss_sky/potion_mimics/watchtower)
+  // carry an artworks fg PNG + bg mask instead of a herringbone wang atlas —
+  // their first-row wang header is all zeros, so the corner-type fill path
+  // cannot run. Rendered by the static-tile lane in world-gen.mjs.
+  const staticTile = (parseAttr(attrs, "static_tile") ?? "") === "1";
   const name = (parseAttr(attrs, "name") || "").replace(/^\$biome_/, "");
 
   const randomMaterials = [];
@@ -84,6 +89,7 @@ function parseBiomeDefinition(dataDir, filename) {
     filename,
     name: name || path.basename(filename, ".xml"),
     templateFile,
+    staticTile,
     randomMaterials: flatRandomMaterials,
 
   // Per-biome procedural-terrain noise params (shape side, P1 surface level).

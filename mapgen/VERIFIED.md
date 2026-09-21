@@ -432,8 +432,70 @@ binary side unread) · ❌ unexplored.
 
 
 
-- **First in-game validation:** reference seed = "extremely close to reality"
-  (correct shape everywhere); +3 seed close with minor deltas. Purple ghost
+## 12. Surface band & the noise-lane integration state (2026-09-21)
+
+> Distilled here after the purge of `WIRING_SURFACE.md` /
+> `SURFACE_AUDIT.md` (both were session-slop contracts; their verified
+> residue lives in this section + CONSTANTS.md C36–C50). Each entry's
+> source was re-checked on disk or is a dated CONSTANTS row.
+
+**The surface band's REAL layer model (data-verified on disk):**
+1. **The visible surface shapes = the game's per-chunk `init()`
+   LoadPixelScene art lane** (seed-independent fixed PNGs placed at the
+   chunk's world origin + the per-call offsets). Byte-verified quotes:
+   `mountain/mountain_left.lua:9–:10` (left.png at (x,y) + left.png
+   background + left_bottom at (x, y+512)), `pyramid_left.lua:28–:29`
+   (left_bottom at (x, y+512), left at (x,y)). Callsite count MEASURED
+   on the Linux data tree: **256** `LoadPixelScene` lines across
+   `data/scripts/biomes/**` (= 196 top-level + 48 mountain/ +
+   12 orbrooms/; the older "238" figure was not reproducible).
+2. **The spliced-absolute scenes = already rendered pixel-exact vs
+   capture** (ISSUES.md I9): `lib/template-render.mjs` `SPLICE_PNGS`,
+   11 pieces (boss_arena @1536,12288, tree @−2048,−1324, moon family,
+   watercave, lake_statue, lavalake2, gourd, mountain_lake,
+   lavalake_pit_bottom, skull).
+3. **The cave-field/noise lane belongs BELOW that art lane, not
+   instead of it** — the dig-#31 default-render wiring painted the
+   flagged caves-field model over the band ("cloud of noise pixels")
+   and was REVERTED same day: the caves-field lane is `SURFACE_V3=1`
+   OPT-IN only (`lib/noise-terrain.mjs` gate; the no-guessing
+   mandate forbids a flagged model in the default lane).
+4. **The five static-tile biomes are a third lane** (data-verified
+   from the biome XMLs + rendered 2026-09-21): `barren/darkness/
+   boss_sky/potion_mimics/watchtower` carry `static_tile="1"` +
+   `wang_template_file` = a fixed artwork fg PNG (`wang_map_width/
+   height` = the PNG dims, e.g. barren 153×94, watchtower 52×154);
+   their on-image wang header is all zeros (not corner-type, not
+   valid edge-type) — the herringbone fill cannot run. Rendered by
+   `buildStaticTileArea` (`lib/world-gen.mjs`, fg top-left, 1 art
+   px = 1 atlas px, colorize-shared) — 57/57 areas, 0 errors,
+   143/143 tests. Artifacts: `data/biome_impl/static_tile/
+   biome_*.xml` + `temples-assets/*_fg.png` (=_biomes_all.xml
+   :1043..1067).
+
+**F3 wiring state (each = a dated CONSTANTS/ABOUT_MATH row):**
+- `noiseKind = 5` for `SIN_CAPPED_SIMPLEX` (the ONLY live name; CE
+  (35) = C42 addendum); `gradWCoef` = [+0x268] / `perlinCoef` =
+  [+0x264] (the CE relabel, C43); the FINAL-combine + case-2/3 lanes
+  ported byte-cited with the axis retrace (digs #22/#23 = ABOUT_MATH
+  (40)/(41), C45).
+- **The caves-field lane (`lib/caves-field.mjs`) is NOT game-ready:**
+  the C46/C43 primitives are byte-exact (fn C1's all-1.0 base + the
+  ×5·w toucher, the C27 ctor chain, the C50 strength-knob interp, the
+  (43)(a) falloff incl. the (y/25)⁸ eave) but the PLACEMENT
+  composition (chain walk / blob y-locks / mountain placements) is
+  FLAGGED, not byte-read; measured 0.93 solid vs the C48 oracle's
+  ~0.5. Byte oracle: `out/oracle/caves-grid-2026-09-21.json` (C48);
+  remaining named sub-reads: fn B's per-phase block bodies, the
+  A-resolver body (true 0x8EE1B0), C1/C2 wiring (C46/C50).
+- Cache policy: `out/gen-cache/r3i` holds ONLY wang-area bins
+  (seed+area-keyed); the cave-field/opt-in lanes live in non-cached
+  in-memory buffers, so no bump was required for the revert; bump
+  r3i → r3f-family ONLY when a cached build's output observably
+  changes.
+
+- **First in-game validation (2026-09-08, kept for history):** reference
+  seed = "extremely close to reality" (correct shape everywhere); +3 seed close with minor deltas. Purple ghost
   layers = OUR hasPath search painting the map — fixed (search on path_map
   copy; oracle re-validated 8/8); cache rev r2.
 - genmap MVP shipped: `mapgen/lib/world-gen.mjs` + `mapgen/server/genmap-server.mjs`

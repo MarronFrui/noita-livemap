@@ -4058,3 +4058,16 @@ first use from now on):**
   3. The instrument gate (=the next push's first action): the
      noise-window run under SURFACE_V3 vs the C48 oracle's dense dump,
      which converts the solidity delta into the per-phase roll map.
+
+- **2026-09-21 (51) — doc consolidation: `WIRING_SURFACE.md` and
+  `SURFACE_AUDIT.md` PURGED (user call: session-slop).** Their verified
+  residue is distilled into **VERIFIED.md §12** (surface-band layer
+  model incl. the measured 256 LoadPixelScene callsites, the
+  static-tile lane, the SURFACE_V3 opt-in rule, the F3 wiring state
+  with the cache-r3i policy); the mid-progress contracts and process
+  prose were NOT carried over (deliberately — they were the bloat).
+  All live pointers (code comments, CONSTANTS.md C44's gate line,
+  genmap-server's cache comment) now cite VERIFIED.md / CONSTANTS.md.
+  The mentions of both files inside the historical dig entries above
+  stay as history — do not chase them; the current truth for every
+  claim they carried is VERIFIED §12 + the C-rows.

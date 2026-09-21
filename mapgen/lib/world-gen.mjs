@@ -117,6 +117,28 @@ function readCache(cacheFile) {
   }
 }
 
+// --- static-tile lane (biome XML `static_tile="1"`) -------------------------
+// barrens/darkness/boss_sky/potion_mimics/watchtower carry per-biome fixed
+// artworks (wang_map_width/height = the fg PNG dims) instead of a herringbone
+// wang atlas; the corner-type fill throws on them. Render = artwork anchored
+// top-left in the area (later: anchored per its own alignment rule), every
+// pixel 1 austere atlas px = 10 world px, then the shared display-color pass.
+function buildStaticTileArea(a, dataDir) {
+  const tf = a.def.templateFile.replace(/^data\//, "");
+  const png = readPng(path.join(dataDir, tf)); // throws → area error, visible in the log
+  const rgb = Buffer.alloc(3 * a.w * a.h, 0); // uncovered = black = air (colorize)
+  for (let y = 0; y < Math.min(a.h, png.height); y++) {
+    for (let x = 0; x < Math.min(a.w, png.width); x++) {
+      const q = 4 * (y * png.width + x);
+      const p = 3 * (y * a.w + x);
+      rgb[p] = png.data[q];
+      rgb[p + 1] = png.data[q + 1];
+      rgb[p + 2] = png.data[q + 2];
+    }
+  }
+  return { w: a.w, h: a.h, attempt: 0, rgb };
+}
+
 // Ensures all wang areas for `seed` are generated. Immediate skeleton return
 // + onProgress(done, total, key); await world.ready for completion.
 export function ensureWorld(seed, dataDir, { cacheDir = null, onProgress = () => {} } = {}) {
@@ -140,13 +162,20 @@ export function ensureWorld(seed, dataDir, { cacheDir = null, onProgress = () =>
           setImmediate(() => {
             let r = null, err = null;
             try {
-              const ts = buildTileset(readPng(path.join(dataDir, a.def.templateFile.replace(/^data\//, ""))));
-              r = generateAreaExact(ts, a.w, a.h, seed, {
-                isCoalMine: !!a.def.isCoalMine,
-                shouldBlockOutRooms: !!a.def.shouldBlockOutRooms,
-                worldX: a.worldX,
-                worldY: a.worldY,
-              });
+              // static-tile biomes carry fixed artworks, not herringbone
+              // wang atlases (their on-image wang header is all zeros) —
+              // render straight to the display buffer, no fill attempts.
+              r = a.def.staticTile
+                ? buildStaticTileArea(a, dataDir)
+                : (() => {
+                    const ts = buildTileset(readPng(path.join(dataDir, a.def.templateFile.replace(/^data\//, ""))));
+                    return generateAreaExact(ts, a.w, a.h, seed, {
+                      isCoalMine: !!a.def.isCoalMine,
+                      shouldBlockOutRooms: !!a.def.shouldBlockOutRooms,
+                      worldX: a.worldX,
+                      worldY: a.worldY,
+                    });
+                  })();
               if (r) {
                 // display-color pass (capture-calibrated); mutates r.rgb in place
                 const { unknown } = colorizeArea(r.rgb, a.w, a.h, {

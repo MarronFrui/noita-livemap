@@ -1,5 +1,6 @@
 // 2026-09-21-surface-shape.mjs — SHAPE-FIRST surface validation instrument
-// (WIRING_SURFACE.md §4 contract; run after the dig #21 wiring).
+// (the shape/validation contract, distilled in VERIFIED.md §12;
+// run after the dig #21 wiring).
 //
 // Compares OUR generated world (ensureWorld, seed 78633191, SURFACE_V2=1)
 // against the frozen91 reference tiles (mapgen/out/ref/, tx 29..47 ×
