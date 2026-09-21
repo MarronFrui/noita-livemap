@@ -4590,3 +4590,19 @@ first use from now on):**
   record pair; the port can consume those directly (the standing
   byte bar unchanged since the LERP swap; the per-phase budget read
   = the standing unknown, named as dig 65's window).
+
+- **2026-09-21 (72) — dig #72 (the walk budget gen, the LAST composition
+  bytes before phase-order = 1:1 ready): the fnB walk budget read
+  (the `[obj+0x28..0x30]` count-pair lane at fnB's head (draw #1))!**
+  Our caveCount/blobCount keys were modeled per phase; the byte walk
+  = the per-record values. Per-iteration byte budget = the fn A
+  walker box cap the (66) gates (33/10/20/50) interpreted as the
+  count CEILINGS for the per-record family — the composition's
+  budget aligns with the fnA x-wanderer box as the standing gate
+  (the byte-cited 0x32 walker box + the two-lane compare). The
+  port can now match the composition byte-wise (the budget = the
+  28-byte record lane + per-record stamps + the byte lane's own
+  count, the standing correct-bytes constellations).
+  Remaining byte goal: the y-drift span (the one remaining walk
+  lane, the fnB step-offset tracking) and the C32-family final
+  solver (the material ID ladder is the par query).
