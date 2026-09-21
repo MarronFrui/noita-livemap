@@ -10,8 +10,12 @@
 //     - the ctor chain (FUN_008f9470 = C27: diddled-ws poro Random, ONE
 //       warm Next draw) and the ×5·w toucher ([P+0x94] = (w·0.5)/0.1, C48)
 //     - the (43)(a) blob-circle falloff (carveCircle)
+//     - the smoothstep LERP stamp blend (true 0x8EE930, dig #58) =
+//       the ONLY lowering-capable writer: `v_out = (v_src − v_dst)·t + v_dst`.
 //     - the C50 knob consumer: v = A + d·(B − A) (the strength pair interp)
 //       feeding the 0x4ee130 setter's v_arg in a decl-loop blob-count phase.
+//     - the scatter read (true 0x8EF2D0): roll + bounds + the `< 0.5`
+//       empty-cell gate + the 0x8FAFC0 recursion (dig #56).
 //   FLAGGED (composed model, the byte read = the dig #26-#29 sub-reads):
 //     the blob/WALK/mountain/surface placement loops and the exact fnB
 //     draw-index ↔ phase-order mapping. The composed builder wires the XML
