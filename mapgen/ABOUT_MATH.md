@@ -4635,3 +4635,16 @@ first use from now on):**
   - New .rdata pins: 0x11dfef0/0x11e05f8 = 0.0 (the ZERO scale pair;
     the fnB walk x-drift zero = the flat-walk side), 0x11df8e4 =
     0.00999999, 0x11dfa40 = 0.4, 0x11df990 / 0x11dfc20 (new reads).
+
+- **2026-09-21 (74) — dig #74: the y-drift lane RETRACTED from the
+  composition (the killed 6-lane drift experiment):** swapping the
+  walk's y-drift to the 6-lane band switch (dig 73's cursor lanes)
+  WORSENED the oracle rows (y16/y32 dropped to deep-carve; the
+  byte-exact y224 row never moved). The 6-lane drift band is a real
+  byte-lane at the fnB cursor loop, but it is NOT the *walk-step*
+  y-drift of the fnA stamps — the walk's y-drift = the old flagged
+  lane remains in place (`y drift gloss = FLAGGED`, the dig 74
+  retraction); the fnB band switch = the band-lane CURSOR form
+  (the [−0x104] cursor's own advance = per-band weights), registered
+  but not to be applied at the stamp walk until the fnA window's
+  own y-drift is read (the standing y-drift lane).
