@@ -4574,3 +4574,19 @@ first use from now on):**
   - Status: read; the table's *fill* = the parse family (data-side
     confirm per-biome XML RandomColor / RandomMaterials blocks), the
     lookup mechanism byte-cited.
+
+- **2026-09-21 (71) — dig #71: the fnB walk END-GATE (the post-loop
+  branch, the CAREVE floor at walk end) byte-inspected:** the fnA
+  self-loop's exit uses `comiss %xmm1, 0@0x4ee8b1` + `ja 0x4ef05d` =
+  the loop's TOROIDAL cap (the walk byte-gates its exit on [ebp+0x18]
+  = the FLOAT walk budget vs 0). The fnB end = the same family (the
+  record cursor exhausted ⇒ the two-lane compare at 0x4f0f3c + the
+  [obj+0x98] flag gates the tail) — i.e. the fnB walk = the ≤50-step
+  x-wanderer box (the 0x32 cap, the (26/63/66) count gates) ending
+  AT the two-lane compare; the walk budget family is per-column, in
+  the byte window's own span (the 0x1173130 assert at fn A = the
+  same registry family byte-anchored at dig 67/70's cengser getter).
+  ⇒ the composition's byte-record walks = the walking budget per
+  record pair; the port can consume those directly (the standing
+  byte bar unchanged since the LERP swap; the per-phase budget read
+  = the standing unknown, named as dig 65's window).
