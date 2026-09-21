@@ -4683,3 +4683,32 @@ first use from now on):**
     in fn A = the C48/BITMAP-CAVES-family spawn-percent buckets, not
     the shops.
   ⇒ registered for the record; no byte changes.
+
+- **2026-09-21 (77) — dig #77 (user redirect: "the 6-lane band switch =
+  The Work bands?" — TESTED, and this one is byte-compatible):**
+  - The Work (heaven/hell) bands = the the_end/solid_wall/lava families
+    — the biomes WITHOUT <BitmapCaves> (the C21 census: 132 non-wang,
+    and the_work family in the "???"-named 13). BUT the family anchor
+    stands: the 6-lane jump table @0x8f2fd0 with weights {0.1, 0.01,
+    0.07, 0.4, 0.75, 1.07} = the band-lane cursor weights *inside fnB*
+    — enclosed in the CavesSetup walk over the pattern-record set (the
+    [obj+0x7c/+0x80] vector = the CaveStructure pattern file cache,
+    C49's std::map keys). So which record drives which band lane? The
+    6 lanes = the walk's per-band y-drift weights = the cave families'
+    own *band composition order* — NOT a Work-band prism by itself.
+  - The Work-bands' own consumption = the C34 sampler chain (the same
+    [uid+0x1d4] consumer) BUT keyed by the Work's own biome defs —
+    the Work's caves lane exists under the *same* std::map family
+    (the 4-entry name-keyed cache, C47). The band switch's lanes
+    = the number-matched 6 = the per-band sub-order candidate (the
+    Work's bands = one of the 4 named "bitmap_hills/…" grids).
+  - BYTE-TESTED verdict: the 6-lane switch lives INSIDE fnB per
+    CaveStructure-record iteration — every byte window shows it as the
+    walked record's per-BAND weight lane, not the Work's own biome
+    key. The Work band's own caves = a *different named* BitmapCaves
+    block (the data side: the_end/the_work XML <BitmapCaves> blocks
+    byte-present (grep pending — the composition test next).
+  ⇒ Register: the dig #73 weights = the per-band cursor advance in
+    the fnB band loop consumed BY the records; whether the Work band
+    *also* consumes these bytes = the data-side <BitmapCaves> check in
+    the Work XMLs next.
