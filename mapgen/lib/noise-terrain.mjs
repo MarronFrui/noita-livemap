@@ -177,7 +177,17 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
     // gradAt when a bitmap_noise_file exists (the lake family), else the
     // ramp instrument.
     let gradAt = null;
-    if (def.bitmapCaves && def.bitmapCaves.sizeX) {
+    // dig #31 (2026-09-21, REVERTED same day by the SURFACE_AUDIT): the
+    // caves-field lane is OPT-IN via SURFACE_V3=1 — the default stays the
+    // C39 image-lane / ramp instruments. Reason: the caves field carries
+    // byte-exact PRIMITIVES but a FLAGGED placement composition; the
+    // renderer-default wiring painted a speckle cloud over the band
+    // instead of the real terrain (the surface's visible shape = the
+    // LoadPixelScene art lane, NOT the caves field — see
+    // mapgen/SURFACE_AUDIT.md), and the no-guessing mandate forbids the
+    // un-validated lane in the shipped render.
+    const SURFACE_V3 = process.env.SURFACE_V3 === "1";
+    if (SURFACE_V3 && def.bitmapCaves && def.bitmapCaves.sizeX) {
       const caves = ensureCavesField(dataDirRef.dataDir, def, seed);
       const { w: fw, h: fh, field } = caves;
       gradAt = (gx, gy) =>
