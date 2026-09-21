@@ -514,7 +514,18 @@ binary side unread) · ❌ unexplored.
   opt-in; the byte bar = the oracle compare
   (`out/oracle/caves-grid-2026-09-21.json`, C48; the compare
   instrument measured per-row rms standing, best row y224 at rms
-  0.0164).
+  0.0164).**
+  **UPDATE (dig 64, 2026-09-21): the strength-source question is now
+  byte-pinned — L1 = clamp01((d2·0.32+0.35)·roll) with the roll chain
+  `d·0.35 − 0.25` per stamp; **L2's v_arg = the LAST L1 output ×
+  (d·0.35+0.65)**; **L3's v_arg = (d·0.1+0.1)·(d2·0.35+0.65)** — the
+  chain bases (C44) = the per-phase value sources, NOT the biome
+  strength spans. The port consumes all three forms;
+  the oracle instrument confirms: **the y224 row = BYTE-EXACT (rms
+  0.0000, 0/12 deltas)**, and the deep rows (y64/y96) carve for real
+  (0.038/0.019/… toward 0.0). The remaining per-phase divergence =
+  the draw-budget per phase + the exact walk steps (the standing
+  FLAG); the byte bar's best row y224 now byte-matched.**
 - Cache policy: `out/gen-cache/r3i` holds ONLY wang-area bins
   (seed+area-keyed); the cave-field/opt-in lanes live in non-cached
   in-memory buffers, so no bump was required for the revert; bump
