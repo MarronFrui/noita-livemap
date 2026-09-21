@@ -4227,3 +4227,39 @@ first use from now on):**
     stamp blends (the loader pair) + the empty-cell recursion; the port
     in caves-field.mjs needs the loader-pair sub-read before it can
     byte-match C48. (Instrument unchanged.)
+
+- **2026-09-21 (57) — fnB dig #57: the LOAD-phase identity + the fn C2
+  census (writer hunt continues, no naming leaps):**
+  - **0x533860 (slab) = a 28-byte-record ARENA builder, not an image
+    loader:** pushes $0xe00 (3584 B = 128 × 28) to the engine allocator
+    (`call *0x114a34c`), zeroes the {begin,cnt,cap} triple, initialises
+    `edx = 0x80 (128)` slots via 0x651a60, and stamps the arena (+0xe00)
+    into the handle {0,crire,+0xe00,ptr}. Companion 0x5bff80/0x5bffb0 =
+    the vector grow/alloc pair. ⇒ the fnB "loader-pair" windows from the
+    dig #27 phase map are the **CaveStructure RECORD ARENA allocators**
+    (per-pattern 28-byte records — matches the C50 pattern-record stride
+    note), NOT image loaders. The per-pattern cached objects = the C27
+    ctor (0x4f8c70 = the 0xb8 Random state struct per pattern record).
+  - **fn C2 (slab 0x4f2a60..0x4f3b00) census:** its own children = fn C1
+    (0x4f27f0 ✓), TWO INTERNAL hitherto-unlisted functions
+    (`0x4f3bf0`, `0x4f3460` — the next read targets), `0x24c2d0`,
+    `0xc070c0`; **ZERO calls of the blend twins (0x8EF870物业0x8EF950)
+    or the arena-recorder family** — so fn C2's body is NOT the
+    lowering writer either.
+  - ⇒ the writer that applies SUB-1.0 stamp/image values onto the
+    cave-grid's float grid = the **biome.cpp SetSize+Load wrapper
+    caller true 0x8ee6bb** (already read in dig (9b): it news a 0xb8
+    ctor, sets [gen+0x94] floats, B-map, and calls the SAME
+    SetSize+Load wrapper true 0x8fa930 = the BitmapNoise LoadFromImageData
+    lane, C32!). That matches the dig (18) chain: **the grid's SUB-1.0
+    values come FROM THE IMAGE LOAD pass itself (LoadFromImageData
+    part-1 writes float ±1.0 per the resolver — id A+1 == 1 ⇒ float −1.0
+    = the AIR-candidate), not from a stamp-blend our scan hoped for.**
+    (the C48's "ADD-BLEND bump writer" = the DISTINCT stamp lane = the
+    image blend the hill-area y=0 keys show; the carve values in mine
+    (y=65/129 = 0.000/0.006...) = the LoadFromImageData ±1.0/0.0 family
+    apply = an ALIGNMENT-to-be byte-validated by the 3-way self-diff.)
+  - NEXT (standing): the resolver body true 0x8EE1B0 (the A-channel
+    config-side consumer; C49's "+0xb0 = 0x8EE1B0 found" — the
+    material-identity table) — the LAST config-side read before the
+    caves-field lane can go byte-exact against the C48 oracle.
