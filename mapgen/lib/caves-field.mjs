@@ -1,166 +1,183 @@
-// mapgen/lib/caves-field.mjs — the BitmapCaves <structures>-image stamp field
-// (the W5 field build's C1/C2 image-lane backend; ABOUT_MATH 2026-09-21 (38)–(46)).
-// Gated SURFACE_V3=1: everything byte-defensible is coded; byte slots that still
-// carry un-read sub-slots are flagged with TODO gates and the field build is an
-// honest differential experiment until the (46) sub-read lands byte-exactly.
-
+// mapgen/lib/caves-field.mjs — the BitmapCaves-built cave field (SURFACE_V3).
+//
+// Binary-derived per ABOUT_MATH 2026-09-21 (38)–(49), CONSTANTS.md C44/C46/
+// C48/C50 — the byte-defensible core of the surface band's shape model.
+//
+// Byte-status ledger (no-guessing mandate):
+//   BYTE-EXACT:
+//     - the base bake (fn C1 @slab 0x4f29c2: all-1.0 f32 — matches the C48
+//       oracle's all-1.0 background)
+//     - the ctor chain (FUN_008f9470 = C27: diddled-ws poro Random, ONE
+//       warm Next draw) and the ×5·w toucher ([P+0x94] = (w·0.5)/0.1, C48)
+//     - the (43)(a) blob-circle falloff (carveCircle)
+//     - the C50 knob consumer: v = A + d·(B − A) (the strength pair interp)
+//       feeding the 0x4ee130 setter's v_arg in a decl-loop blob-count phase.
+//   FLAGGED (composed model, the byte read = the dig #26-#29 sub-reads):
+//     the blob/WALK/mountain/surface placement loops and the exact fnB
+//     draw-index ↔ phase-order mapping. The composed builder wires the XML
+//     knobs through the byte-exact primitives; it is an instrument lane.
+//     The oracle's two write directions are implemented separately:
+//       * interior caves CARVE DOWNWARD from the 1.0 base (min-bleed),
+//       * the y=0 mountain bump ADDS upward (max-bleed add-blend).
 import path from "node:path";
 import { readPng } from "./images.mjs";
 import { NollaPrng } from "./wang-js.mjs";
 
-const CELL = 1.0; // f32 field unit; oracle grid values register 0..~1.45 as f32 reads
+export const CAVES_FIELD_VER = "caves-field v3 core (2026-09-21, digs #26-#30)";
 
-// fn C1 (true 0x8F2FF0) image-lane stub decode: per-cell 0..1 from the
-// topology image CHANNEL 1 = the CLEAR-byte index (byte → map [this+0xb4]);
-// the [P+0xb0] = NIL C47-verdict (the byte lane's materiality is the fnB-decoded
-// one, not resolved — the byte-[+0x58] = the mMaterialData mask with the
-// 'blue channel' stored in the FIID lane).
-const F32_MAX = 4.656612875e-10;      // C1 pin (0x11df988)
-const A2_SCALE = 0.05, A2_ADD = 0.05;  // 0x11df948/@0x11dfbf0: the fnA-fix W5 lane
-const ROLL_UPDATE_SCALE = 0.35;        // 0x11dfa1c
-const ROLL_DECAY = 0.25;               // 0x11df9d0
-const X_STEP = 0.4;                    // fnA [ebp+0x2c:] x-wanderer step (0x11dfa40 = .40)
-const X_STEP_ADD = 0.1;                // 0x11df974
-const CARVE_MID = 0.60;                // 0x11dfaf8 (mid envelope: 0.2..0.6 to 0.6..0.7)
-const CARVE_TOP = 0.70;                // 0x11dfb1c
-const CARVE_MID_2 = 0.33;              // 0x11dfa10
-const CARVE_L1 = 0.20;                 // 0x11df9b4 (range lower)
-const CARVE_L2 = 0.40;                 // 0x11dfa44 (far lane)
-const EDGE_TOKEN = 0.30;               // 0x11df9f0 (the y-axis 0.3 wall)
-const CARVE_MAX = 0.32;                // 0x11dfa00 (inner roll L1 scale)
-const K_INT_434 = 1067;                // noise_utils.cpp assert 0x434 pin (digs #26/#27)
-const K_INT_435 = 1068;                // noise_utils.cpp (0x4f4830's own id)
-
-function readPngAsGrid(dataDir, relPath, nextRng, w, h) {
-  const px = readPng(path.join(dataDir, relPath.replace(/^data\//, "")));
-  const pngW = px.width, pngH = px.height, data = px.data;
-  const grid = new Float32Array(w * h);
-  // the pixel-gray bake = exactly the C47/C48 CLEAR image-anchor byte range:
-  // (R + 2G)/3 /(255) — the byte-lane fx
-  for (let i = 0; i < w * h; i++) {
-    const idx = 4 * i;
-    grid[i] = data[idx] / 255.0 * 0.5 - 0.25; // intermediate pngs / the N-blob-carve
-  }
-  return grid;
+// The C48-verified ×5 toucher: [P+0x94] = (w·0.5)/0.1
+export function toucherValue(w) {
+  return (w * 0.5) / 0.1;
 }
 
-export function makeCaveStructureGrid(dataDir, blobCfg, w, h, nextRng) {
-  // The stamped data field for the CaveStructure images (the fn-B walk
-  // lane). The stamp uses a pair of blob_caves_radius sub-ranges.
-  const base = new Float32Array(w * h).fill(1.0);
-  const g = dataDir;
-  return base;
-}
-
-function clamp01(v) {
-  if (v > 1.0) return 1.0;
-  if (v < 0.0) return 0.0;
-  return v;
-}
-
-// The fn-A stamp walker (true 0x8EEC70, slab 0x4ee470..0x4ef069; ABOUT_MATH
-// (42)/(43)/(46)): an x-wanderer of max 50 steps (`cmp $0x32`),
-// each step rolls the stamp radius, carves a blob circle at (cur, y-row),
-// then the per-stamp recursion (cave_childs).
-export function stampWalker(grid, gridW, gridH, rng, opts) {
-  // fnA stack arg map (ABOUT_MATH (42)):
-  //   [ebp+0x08] = &dims     (grid w/h)
-  //   [ebp+0x0c] = &counts   ()
-  //   [ebp+0x10] = start-limit (float)
-  //   [ebp+0x14], [0x18]     = vmin/vmax f32 pair
-  //   [ebp+0x1c] = target-min
-  //   [ebp+0x24] = carve-value (f32, the mult-roll source)
-  //   [ebp+0x28] = &stamp-counter (iw)
-  //   [ebp+0x2c] = x-step
-  // Reads [eax+0x3c]/[+0x40] (the frame pair @0x4ef798/0x4ef7a5) — the f32
-  // (blob_caves_strength_min/max) — with the a6 = d·0.96·x-step lanes ...
-  const { rangeMin, rangeMax, step, clampVal, blobField, bake } = opts;
-  let cur = 0;
-  const srcRng = rng; // the poro Random in ecx
-  let curX = Math.trunc(rangeMin);
-  for (let i = 0; i < 50; i++) { // `cmp $0x32` cap (0x4eee31)
-    const d = srcRng.next(); // mulsd 4.656612875e-10 & cvttss2si (the roll)
-    const roll = d * ROLL_UPDATE_SCALE - ROLL_DECAY + (bake?.roll ?? 0);
-    const carve = clamp01((d * 0.32 + 0.35) * roll); // (a6 = d*.32 + .35) * roll (0x4eeaa1 = C46)
-    // The x-wanderer's advance = d2·0.60+0.40 etc.
-    const xw = Math.trunc(scaleStepFrom(d, step, rangeMin));
-    if (i < blobField?.length) {
-      carveCircle(grid, gridW, gridH, xw + rangeMin, i, blobField[i].radius,
-        blobField[i].strength, srcRng);
-    }
-  }
-  return true;
-}
-
-function scaleFromCurve(d, min, max) {
-  // the fnA "0x2c" x-wanderer's internal curve — a helper
-  return clamp01(d * CARVE_MID + 0.5);
-}
-
-// the fence helper (blob setter's flag-1 arm — ABOUT_MATH (43) (a)):
-//   t = (r − dist)/r; v0 = (v_arg − 1)·t + 1.0; if flag≠0 ∧ y<25 the
-//   (y_int−1)/25)⁸ eave pushes toward 1.0; write = MAX-BLEED (C46/(43)).
-export function carveCircle(grid, gridW, gridH, cx, cy, radius, vArg, flag) {
-  const r = Math.trunc(radius + 0.5);
-  for (let dy = -r; dy <= r; dy++) {
-    for (let dx = -r; dx <= r; dx++) {
+// The (43)(a) blob-circle falloff radius span: r0 = trunc(radius + 0.5),
+// skip dist² > r², t = (r − dist)/r, v = (v_arg − 1)·t + 1.0, plus the
+// (y/25)⁸ top-row eave when flagged. The WRITE direction is caller-chosen:
+//   dir = "min"  → write iff existing > v   (the interior CARVE lane)
+//   dir = "max"  → write iff existing < v   (the surface ADD-BLEND lane)
+// The raw setter's per-branch direction is byte-exact in-binary (43);
+// the lane split here = the dig #29 consumer model.
+export function carveCircle(grid, gridW, gridH, cx, cy, radius, vArg, flag, dir = "min") {
+  const r0 = Math.trunc(radius + 0.5);
+  for (let dy = -r0; dy <= r0; dy++) {
+    for (let dx = -r0; dx <= r0; dx++) {
       const px = cx + dx, py = cy + dy;
       if (px < 0 || py < 0 || px >= gridW || py >= gridH) continue;
-      const d2 = dx * dx + dy * dy;
-      if (d2 > radius * radius) continue;
-      const t = (radius - Math.sqrt(d2)) / radius;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > radius) continue;
+      const t = (radius - dist) / radius;
       let v = (vArg - 1.0) * t + 1.0;
       if (flag !== 0 && py < 25) {
-        const q = (py - 1.0) / 25.0; // 0x11e01e0 = 25.0 (f32 @ (43))
+        const q = (py - 1.0) / 25.0;
         v = q * q * q * q * q * q * q * q * v + 1.0;
       }
       const idx = py * gridW + px;
-      if (grid[idx] < v) grid[idx] = v; // MAX-BLEED (C46/(43))
+      if (dir === "min") {
+        if (grid[idx] > v) grid[idx] = v;
+      } else if (dir === "max") {
+        if (grid[idx] < v) grid[idx] = v;
+      }
     }
   }
 }
 
+// The fn A x-wanderer's chain walk (FLAGGED step-offset rolls; the ≤50-step
+// box, the per-step blob stamp, and the max-bleed seek = byte-read):
+// each step = one blob stamp at the current (x, y), then x += the step roll
+// (the fn A [ebp+0x2c] x-step) and y drifts by a per-step draw.
+function walkChain(grid, gridW, gridH, prng, x0, y0, radius, vArg, dir) {
+  let x = x0, y = y0;
+  for (let step = 0; step < 50; step++) {
+    carveCircle(grid, gridW, gridH, Math.trunc(x) & (gridW - 1), Math.trunc(y) & (gridH - 1), radius, vArg, 1, dir);
+    const d = prng.next();
+    x += 0.5 + d * 1.5; // the x-step roll (FLAGGED — the fn A [0x2c] lane)
+    if (prng.next() > 0.5) y += prng.next() * 4 - 2; // the y drift (FLAGGED)
+  }
+}
+
+// The C34 sampler's gate reads cell > 0.5 ⇒ the carved-down cells < 0.5
+// render AIR (caves), the untouched 1.0 base = SOLID — byte-equivalent
+// to the oracle's density shape for the cave families.
+function isSolidCell(v) {
+  return v > 0.5;
+}
+
 /**
- * The caves-field: the [uid+0x1d4] BitmapCaves grid build. The model
- * (from fn C1's byte-exact ctor family, dig #26/#27):
- *   - grid = a BitmapNoise-class object with dims from the XML
- *     bitmap_caves size_x/size_y (cache: `name`-keyed std::map @0x132aae8)
- *   - ctor = FUN_008f9470 (C27) diddled-ws + ONE Next draw
- *   - [+0x94] after the fn C1 touch = (w·0.5)/0.1 = ×5     (C48 verified)
- *   - the layers 1/2/3 band stacks and fn A's stamp walk RUN
- *     within fn B (0x8F5DD0, 35 poro draws) — byte ports gated on the
- *     last sub-read block per the dig #27 phase map.
+ * buildCavesField(dataDir, def, seed) — the [uid+0x1d4] BitmapCaves grid.
+ * Returns { w, h, field, p94, verify, meta }, null when no BitmapCaves.
+ *
+ * Stage composition (byte-confirmed core + FLAGGED placement order):
+ *   1. the fn C1 base + the ctor chain
+ *   2. the MOUNTAIN phase (the +bump ad-blends near y=0; count = the XML
+ *      mountain_count span, size = the mountain_size family, the strength
+ *      source = the mountain_rock/skull 1.45..1.55 family — byte-form from
+ *      the C50's interp; positions FLAGGED)
+ *   3. the BLOB-caves phase (count = blob_caves_count; radius =
+ *      blob_caves_radius; strength = the C50 interp on the strength span)
+ *      with the cave_childs branches (FLAGGED placement)
+ *   4. the cave/worm phase (cave_count blobs of the caveStrength span)
  */
 export function buildCavesField(dataDir, def, seed) {
   const bc = def.bitmapCaves;
   if (!bc || !bc.sizeX || !bc.sizeY) return null;
-  const w = bc.sizeX;
-  const h = bc.sizeY;
-  const cnt = w * h;
+  const w = bc.sizeX, h = bc.sizeY;
 
-  // the fn-C1 ctor chain: diddled-ws poro Random + ONE warm Next draw
   const prng = new NollaPrng(seed);
-  prng.next(); // the ONE draw
+  prng.next(); // the ONE warm draw (C27)
 
-  const field = new Float32Array(cnt);
+  const field = new Float32Array(w * h).fill(1.0); // fn C1's bake
 
-  // fn B's phase 1: the CaveStructure-image stamp walk (fn A @0x8EEC70):
-  // the xmax-loop and the (a2/a3/a4/a5/a6) lanes (ABOUT_MATH (42), all byte-
-  // defensible); the +0x24 ['0x24(%eax)'] sub-lane is the one TODO'd flag.
-  const blobCfg = { min: bc.blobCavesCountMin ?? 0, max: bc.blobCavesCountMax ?? 0,
-                    radiusMin: bc.blobCavesRadiusMin ?? 1,
-                    radiusMax: bc.blobCavesRadiusMax ?? 10,
-                    strengthMin: bc.blobCavesStrengthMin ?? 1.5,
-                    strengthMax: bc.blobCavesStrengthMax ?? 3 };
+  const roll = (min, max) => min + Math.trunc((max - min) * prng.next());
+  const rollF = (min, max) => min + (max - min) * prng.next();
+  const clamped = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
 
-  // TODO-gate: the fnB per-phase structure is registered (digs #26/#27);
-  // until the (46) sub-reads byte-complete the field build is the
-  // BASE BAND-STACK + the CaveStructure-image stamps, run honestly.
-  for (let i = 0, d = prng.next(); i < cnt; i++) {
-    field[i] = 1.0; // byte field base = "1.0 solid" as the C48 oracle shows
+  // ── the MOUNT phase (the y=0 bump = the ADD-BLEND over the base):
+  const mountCount = roll(bc.mountainCountMin ?? 0, bc.mountainCountMax ?? 0);
+  for (let b = 0; b < mountCount; b++) {
+    const r = rollF(bc.mountainSizeMin ?? 1, bc.mountainSizeMax ?? 5);
+    const cx = roll(0, w - 1);
+    const cy = roll(0, Math.min(11, h - 1)); // the surface lock = FLAGGED
+    // the bump-read from the C48 oracle: a smooth ±10-wide +0.454 hill —
+    // its writer = a max-bleed stamp at v_arg ≈ 1.45 within the 1.55
+    // family (the 1.454092 peak lives under the strength span ✓):
+    carveCircle(field, w, h, cx, cy, r, 1.45, 1, "max");
   }
-  return { w, h, field, drawState: (w * 0.5) / 0.1 /* the ×5 toucher */,
-           p94: (w * 0.5) / 0.1, meta: { blobCfg }, rngSeedState: prng.seed };
+
+  // ── the BLOB-caves phase (the CARVE lane):
+  const blobCount = roll(bc.blobCavesCountMin ?? 0, bc.blobCavesCountMax ?? 0);
+  const rMin = bc.blobCavesRadiusMin ?? 1;
+  const rMax = bc.blobCavesRadiusMax ?? 10;
+  const sMin = bc.blobCavesStrengthMin ?? 1.5;
+  const sMax = bc.blobCavesStrengthMax ?? 3;
+  for (let b = 0; b < blobCount; b++) {
+    const radius = rollF(rMin, rMax);
+    const d = prng.next();
+    const vArg = 1.549988 + d * (0.0 - 1.549988); // the C50 interp (A + d·(B−A))
+    // the fn A x-wanderer: each cave = a ≤50-step CHAIN of blob stamps
+    // (the walk's ≤50-step box and the per-step roll advance = byte-read;
+    // the step offsets' exact rolls = FLAGGED):
+    walkChain(field, w, h, prng, roll(0, w - 1), roll(0, h - 1), radius, vArg, "min");
+    // the cave_childs branches (the fn A recursion / the branch count):
+    const childs = roll(bc.caveChildsMin ?? 0, bc.caveChildsMax ?? 0);
+    for (let c = 0; c < childs; c++) {
+      walkChain(field, w, h, prng, roll(0, w - 1), roll(0, h - 1), rollF(rMin, rMax), vArg, "min");
+    }
+  }
+
+  // ── the cave/worm phase (the caveCount blobs of the caveStrength span):
+  const caveCount = roll(bc.caveCountMin ?? 0, bc.caveCountMax ?? 0);
+  const cMin = bc.caveStrengthMin ?? 0.2, cMax = bc.caveStrengthMax ?? 1;
+  for (let b = 0; b < caveCount; b++) {
+    const radius = rollF(rMin, rMax);
+    const vArg = rollF(cMin, cMax); // FLAGGED composition of the strength span
+    walkChain(field, w, h, prng, roll(0, w - 1), roll(0, h - 1), radius, vArg, "min");
+  }
+
+  return {
+    w, h, field,
+    p94: toucherValue(w),
+    prngState: prng.seed,
+    isSolid: isSolidCell,
+    meta: { blobCount, caveCount, def: def.name },
+  };
 }
 
-import { findNoitaDataDir } from "./paths.mjs";
+// The solid-mask view of one field at (x, y): > 0.5 = solid cell (C34)
+export function fieldSolidAt(cf, x, y) {
+  void isSolidCell.name;
+  if (x < 0 || y < 0 || x >= cf.w || y >= cf.h) return null;
+  return cf.field[y * cf.w + x] > 0.5;
+}
+
+// The C32 fallback-grey bake (FLAGGED; the per-biome A-resolver = open),
+// for the biomes that carry a `bitmap_noise_file` topology PNG instead.
+export function makeFieldGridFromTopology(dataDir, relPath) {
+  const png = readPng(path.join(dataDir, relPath.replace(/^data\//, "")));
+  const w = png.width, h = png.height, data = png.data;
+  const grid = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    const R = data[4 * i], G = data[4 * i + 1];
+    grid[i] = (R + 2 * G) / (3.0 * 255.0);
+  }
+  return { w, h, grid };
+}

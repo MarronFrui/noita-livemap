@@ -4025,3 +4025,36 @@ first use from now on):**
     0x496a2e..0x4a97ed) — the knobs are parse-time writes from the
     <CaveStructure strength_min/max> XML attrs.
   - Tests unchanged 143/143; no port changes.
+
+- **2026-09-21 (50) — dig #30: the knob pair RESOLVED to the CONSUMER
+  level + the caves-field SURFACE_V3 LANDED (runnable):**
+  1. **the knob parser = the LOW-half ConfigLua registration family**
+     (true VAs 0x4AE921..0x4B2A0F = 6 parse clusters per CaveStructure
+     class; the keys built via the 0x41df90(-len)/0x41ceb0(make-int)
+     cengser builders + the 0x444250 string-map slot walk (the ÷3 idiom)
+     — cave_strength_min/max's imm32s (0x117c4c4/0x117c504) appear ONLY
+     in the LOW half; the blob_caves_strength family 0x117c6d8/0x117c6f0
+     the same). The knob VALUES live at parse-time in the
+     ConfigRegistry/engine defaults — **NOT static in the exe**: the
+     whole-exe f32 scan finds NO 1.549988/1.55 literals and the
+     0.546875 (= 35/64, an EXACT binary float) appears only twice as
+     incidental byte-coincidences — the [+0x34]/[+0x74] pair's values =
+     the struct's LOADED per-biome knobs (CE-pinned (1.549988, 0.0)
+     hills-class, both seeds), with the C50-consumer semantics byte-set.
+  2. **`lib/caves-field.mjs` SURFACE_V3 core wired** (exports
+     buildCavesField / carveCircle / walkChain / toucherValue /
+     makeFieldGridFromTopology): the byte-exact core (the fn C1 all-1.0
+     base + the C27 ctor chain + the C50 knob interp + the (43)(a)
+     falloff incl. the (y/25)⁸ eave) + the FLAGGED placement
+     composition (the fn A x-wanderer's ≤50-step chain walk + the
+     cave_childs recursion + the mountain ADD-blend at y<12 — modeled,
+     not byte-read). Smoke: grid 512×256, p94 = 2560 ✓, the row bands
+     read the 1.0 base with the carve-valley stamps; the density
+     delta (0.93 solid / mine vs ~0.5 in the oracle) = the named
+     remaining sub-read (the per-cave footprint's true rolls +
+     the strength's deep-end values — the oracle's carve centers sit
+     at ~0.05..0.08 = deep worm lanes we don't draw at the right depth
+     yet).
+  3. The instrument gate (=the next push's first action): the
+     noise-window run under SURFACE_V3 vs the C48 oracle's dense dump,
+     which converts the solidity delta into the per-phase roll map.

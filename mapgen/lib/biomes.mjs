@@ -119,6 +119,66 @@ function parseBiomeDefinition(dataDir, filename) {
     // gradAt (the lake family only in the current set; topology_*.png =
     // 512×256 = the CE's grid shape).
     bitmapNoiseFile: parseAttr(attrs, "bitmap_noise_file"),
+    // dig #30 (2026-09-21): the BitmapCaves block (the band-stack builder's
+    // data side; fn C1 sizes the grid from size_x/size_y per the (38) byte
+    // read, and fnB consumes the structure knobs — the C50 consumer read
+    // (blob-strength (min,max) pair [+0x74]/[+0x78] → Random interp → the
+    // 0x4ee130 blob-setter)). Extracted verbatim for the SURFACE_V3 lane.
+    // The 10 CaveStructure children (image_file, aabb, count, strength).
+    bitmapCaves: (() => {
+      const m = xml.match(/<BitmapCaves\b([\s\S]*?)<\/BitmapCaves>/);
+      if (!m) return null;
+      const block = m[0];
+      const head = block.match(/<BitmapCaves\b([^>]*)>/)?.[1] ?? "";
+      const num = (a, k) => {
+        const v = (head.match(new RegExp(`${k}="([^"]*)"`)) ?? [])[1];
+        return v != null ? Number(v) : null;
+      };
+      const structures = [...block.matchAll(/<CaveStructure\b([^>]*?)\/?>/g)].map(
+        (c) => {
+          const a = c[1] ?? "";
+          return {
+            imageFile: (a.match(/image_file="([^"]*)"/) ?? [])[1] ?? null,
+            aabbMinX: Number((a.match(/aabb_min_x="([^"]*)"/) ?? [])[1] ?? 0),
+            aabbMaxX: Number((a.match(/aabb_max_x="([^"]*)"/) ?? [])[1] ?? 0),
+            aabbMinY: Number((a.match(/aabb_min_y="([^"]*)"/) ?? [])[1] ?? 0),
+            aabbMaxY: Number((a.match(/aabb_max_y="([^"]*)"/) ?? [])[1] ?? 0),
+            countMin: Number((a.match(/count_min="([^"]*)"/) ?? [])[1] ?? 0),
+            countMax: Number((a.match(/count_max="([^"]*)"/) ?? [])[1] ?? 0),
+            strengthMin: Number((a.match(/strength_min="([^"]*)"/) ?? [])[1] ?? 0),
+            strengthMax: Number((a.match(/strength_max="([^"]*)"/) ?? [])[1] ?? 0),
+          };
+        }
+      );
+      return {
+        name: (head.match(/name="([^"]*)"/) ?? [])[1] ?? null,
+        sizeX: num(head, "size_x"),
+        sizeY: num(head, "size_y"),
+        blobCavesCountMin: num(head, "blob_caves_count_min"),
+        blobCavesCountMax: num(head, "blob_caves_count_max"),
+        blobCavesRadiusMin: num(head, "blob_caves_radius_min"),
+        blobCavesRadiusMax: num(head, "blob_caves_radius_max"),
+        blobCavesStrengthMin: num(head, "blob_caves_strength_min"),
+        blobCavesStrengthMax: num(head, "blob_caves_strength_max"),
+        caveChildsMin: num(head, "cave_childs_min"),
+        caveChildsMax: num(head, "cave_childs_max"),
+        caveCountMin: num(head, "cave_count_min"),
+        caveCountMax: num(head, "cave_count_max"),
+        caveStrengthMin: num(head, "cave_strength_min"),
+        caveStrengthMax: num(head, "cave_strength_max"),
+        mountainCountMin: num(head, "mountain_count_min"),
+        mountainCountMax: num(head, "mountain_count_max"),
+        mountainSizeMin: num(head, "mountain_size_min"),
+        mountainSizeMax: num(head, "mountain_size_max"),
+        surfaceCaveChildsMin: num(head, "surface_cave_childs_min"),
+        surfaceCaveChildsMax: num(head, "surface_cave_childs_max"),
+        surfaceCavesCountMin: num(head, "surface_caves_count_min"),
+        surfaceCavesCountMax: num(head, "surface_caves_count_max"),
+        doBeginningPaths: num(head, "do_beginning_paths"),
+        doBeginningDown: num(head, "do_beginning_down"),
+        structures,
+      };
+    })(),
     materialBands,
     // Binary-exact flag derivation (2026-09-19 dig #2, ABOUT_MATH 2026-09-19
     // (8); CONSTANTS.md C19/C20 — replaces the @prov noitool NAME-LIST flags):
