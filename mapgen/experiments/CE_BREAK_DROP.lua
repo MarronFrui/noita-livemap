@@ -48,6 +48,7 @@ print('uid candidates: ' .. #uids)
 print('── V6a uid P-slot dump (structP = [uid+0x1d4])')
 for i = 1, math.min(#uids, 45) do
   local uid = uids[i]
+  local ok126, err126 = pcall(function()
   local P = readInteger(uid + 0x1d4)
   if P and P ~= 0 then
     local w = readInteger(P) or 0
@@ -74,19 +75,26 @@ for i = 1, math.min(#uids, 45) do
       print('    byte-grid [+0x58] @' .. string.format('%08X', bg) .. ' first64: '
         .. hexb(bg, 64))
     end
-    -- the C32 record list [{x,y,B,B-1}] — the +0x80 vector head:
+    -- the C32 record list [{x,y,B,B-1}] — guarded: only treat as pointers
+    -- when BOTH look like heap addresses and the size is sane.
     local rec0, rec1 = readInteger(P + 0x7c), readInteger(P + 0x80)
-    if rec0 and rec1 and rec1 > rec0 then
+    if rec0 and rec1 and rec0 > 0x1000000 and rec1 > rec0 and (rec1 - rec0) < 0x100000 and (rec1 - rec0) % 16 == 0 then
       local n = math.min(math.floor((rec1 - rec0) / 16), 12)
       local out = {}
       for k = 0, n - 1 do
         local bx = readInteger(rec0 + k * 16)
         local by = readInteger(rec0 + k * 16 + 4)
-        local tail = hexb(rec0 + k * 16 + 8, 8)
-        out[#out+1] = bx .. ',' .. by .. ':' .. tostring(tail)
+        if bx and by then
+          out[#out+1] = bx .. ',' .. by .. ':' .. tostring(hexb(rec0 + k * 16 + 8, 8))
+        else
+          out[#out+1] = '<unreadable rec ' .. k .. '>'
+          break
+        end
       end
       print('    [P+0x7c/0x80] records n<=' .. n .. ' (x,y,then 8B raw): '
         .. table.concat(out, ' | '))
+    else
+      print('    [P+0x7c/0x80] NOT a pointer pair: ' .. hexb(P + 0x7c, 8) .. ' / ' .. hexb(P + 0x80, 8))
     end
     -- V6e-retargeted: the A-resolver fn ptr on the REAL owner ([P+0xb0]):
     local fn = readInteger(P + 0xb0)
@@ -99,10 +107,12 @@ for i = 1, math.min(#uids, 45) do
     local namePtr = readInteger(P + 0x90)
     local name = '?'
     if namePtr and namePtr ~= 0 then
-      name = (readString(namePtr) or readString(namePtr, 32) or '?')
+      local rawN = hexb(namePtr, 32)
+      name = (readString(namePtr, 24) or ('raw ' .. rawN))
     end
     print('    [P+0x90] key name = ' .. tostring(name))
-  end
+  end)
+  if not ok126 then print('  uid ' .. string.format('%08X', uid) .. ' V6a line-error: ' .. tostring(err126)) end
 end
 
 -- ══ V6b: the name-keyed std::map @0x132aae8 — the corrected MSVC layout
