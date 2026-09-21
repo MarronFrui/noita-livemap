@@ -4321,3 +4321,23 @@ first use from now on):**
   - The port unchanged — this run is the standing instrument to use as
     the byte bar when the fnB placement sub-reads land byte-by-byte
     (the per-phase cols in (55)/(56)/(58)). No render wiring changed.
+
+- **2026-09-21 (60) — fnB placement-order port experiment (the reorder +
+  the blend-writer swap) × the oracle instrument.**
+  - The port's L2/L3 stamp lanes swapped to the dig #58 byte-writer
+    (`stampBlendLerp`, plain write not max-bleed) and the composition
+    re-ordered to the fnB byte-census order (stamps → L2+scatter → L3+
+    scatter).
+  - Oracle compare after the swap: total rms worsened over ALL rows
+    (interior y64 rows at rms 1.244; several >1.9 values appear — the
+    double-stamp over-clamping shows the strength lanes still read the
+    WRONG per-phase source: using the blob-strength span (1.5..3) in
+    the stamp lane pushes past 1.0; the C48's stamps live near the
+    y=0 base and pull DOWN, not up).
+  - ⇒ **the phase-to-window mapping has ONE more unknown per phase:
+    which STRENGTH span each phase's interp can consume** — the layer
+    blocks' windows are [−0x128]/[−0x108]/[−0x104] family ≠ the C50 pair
+    (the byte facts recorded at C43's "chain bases" note). Until the
+    exact [−0x128]/[−0x108] consumption is pinned bytes-side for the
+    fnA field phase, the composed field stays the standing instrument
+    (NOT shipped); the render's caves lane remains opt-in SURFACE_V3=1.

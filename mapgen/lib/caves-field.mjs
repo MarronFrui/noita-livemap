@@ -99,15 +99,34 @@ export function stampBlendLerp(grid, gridW, gridH, cx, cy, radius, vArg) {
 // box, the per-step blob stamp, and the max-bleed seek = byte-read):
 // each step = one blob stamp at the current (x, y), then x += the step roll
 // (the fn A [ebp+0x2c] x-step) and y drifts by a per-step draw.
+// The fn A x-wanderer's chain walk (the ≤50-step x-wanderer per the fn A
+// [ebp+0x2c] x-step window; the per-step blob stamp + the byte-read roll):
+// stamp = ONE smoothstep LERP stamp per step (the 0x8EE930 stamp blend =
+// the only lowering writer, dig #58), then x += the step roll.
+// Step-roll byte status: the window d·0.35 / −0.25 roll (0x4eea9d..0x4eeab1)
+// is byte-read; the exact per-step x/y advance offset uses draws — FLAGGED
+// until the fnA step-roll block read completes.
 function walkChain(grid, gridW, gridH, prng, x0, y0, radius, vArg, dir) {
   let x = x0, y = y0;
+  let rollAcc = 0;
   for (let step = 0; step < 50; step++) {
-    carveCircle(grid, gridW, gridH, Math.trunc(x) & (gridW - 1), Math.trunc(y) & (gridH - 1), radius, vArg, 1, dir);
-    const d = prng.next();
-    x += 0.5 + d * 1.5; // the x-step roll (FLAGGED — the fn A [0x2c] lane)
+    const d1 = prng.next(), d2 = prng.next();
+    // the stamp VALUE lane: per-byte the fn A roll update = d1·0.35 − 0.25 + roll
+    rollAcc = d1 * 0.35 - 0.25 + rollAcc; // (byte-read in fnB's decl loops)
+    const v = clamp01((d2 * 0.32 + 0.35) * rollAcc);
+    const target = dir === "lerp" ? vArg : v;
+    stampBlendLerp(grid, gridW, gridH, Math.trunc(x) & (gridW - 1), Math.trunc(y) & (gridH - 1), radius, target);
+    if (dir !== "lerp") {
+      // legacy dir lanes ("min"/"max"): the max-bleed consumer model (kept for
+      // A/B against the byte writer above).
+      carveCircle(grid, gridW, gridH, Math.trunc(x) & (gridW - 1), Math.trunc(y) & (gridH - 1), radius, target, 0, dir);
+    }
+    const dx = prng.next();
+    x += 0.2 + dx * 1.2 - 0.25; // the step roll (FLAGGED — the fn A [0x2c] lane)
     if (prng.next() > 0.5) y += prng.next() * 4 - 2; // the y drift (FLAGGED)
   }
 }
+const clamp01 = (v) => v < 0 ? 0 : v > 1 ? 1 : v;
 
 // The C34 sampler's gate reads cell > 0.5 ⇒ the carved-down cells < 0.5
 // render AIR (caves), the untouched 1.0 base = SOLID — byte-equivalent
@@ -145,46 +164,51 @@ export function buildCavesField(dataDir, def, seed) {
   const rollF = (min, max) => min + (max - min) * prng.next();
   const clamped = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
 
-  // ── the MOUNT phase (the y=0 bump = the ADD-BLEND over the base):
-  const mountCount = roll(bc.mountainCountMin ?? 0, bc.mountainCountMax ?? 0);
-  for (let b = 0; b < mountCount; b++) {
-    const r = rollF(bc.mountainSizeMin ?? 1, bc.mountainSizeMax ?? 5);
-    const cx = roll(0, w - 1);
-    const cy = roll(0, Math.min(11, h - 1)); // the surface lock = FLAGGED
-    // the bump-read from the C48 oracle: a smooth ±10-wide +0.454 hill —
-    // its writer = a max-bleed stamp at v_arg ≈ 1.45 within the 1.55
-    // family (the 1.454092 peak lives under the strength span ✓):
-    carveCircle(field, w, h, cx, cy, r, 1.45, 1, "max");
-  }
-
-  // ── the BLOB-caves phase (the CARVE lane):
   const blobCount = roll(bc.blobCavesCountMin ?? 0, bc.blobCavesCountMax ?? 0);
   const rMin = bc.blobCavesRadiusMin ?? 1;
   const rMax = bc.blobCavesRadiusMax ?? 10;
   const sMin = bc.blobCavesStrengthMin ?? 1.5;
   const sMax = bc.blobCavesStrengthMax ?? 3;
-  for (let b = 0; b < blobCount; b++) {
+
+  // ── fn B's byte-declared PHASE ORDER (dig #56/#57 census; the fn C1 ctor
+  // base is IN this call chain — L1's setter = the fn A stamp window):
+  //   1. fn A stamp pass (0x4eff03 = the FIRST stamp walk = the CaveStructure
+  //      stamps + the cave_childs recursion)
+  //   2. the arena_ctor+byte-blend pair phases (the L2/LOADER pair phases)
+  //   3. layer-2 setter + scatter
+  //   4. layer-3 setter + scatter
+  //   5. the RECURSIVE fn B self-call (= cave_childs/surface recursion)
+  // The draw_mean ORDER consumed per phase = the standing sub-read; the
+  // composition below follows the byte-order given, with exact v_forms.
+
+  // (1) fn A stamp walk × the CaveStructure-records pair × cave_childs:
+  const stampCount = blobCount; // the fn A first pass over the pattern set
+  const dMono = prng.next();
+  const stampArg = 1.549988 * 0 + dMono * (1.549988 - 0.0); // the C50 interp on the strength span
+  for (let b = 0; b < stampCount; b++) {
     const radius = rollF(rMin, rMax);
-    const d = prng.next();
-    const vArg = 1.549988 + d * (0.0 - 1.549988); // the C50 interp (A + d·(B−A))
-    // the fn A x-wanderer: each cave = a ≤50-step CHAIN of blob stamps
-    // (the walk's ≤50-step box and the per-step roll advance = byte-read;
-    // the step offsets' exact rolls = FLAGGED):
-    walkChain(field, w, h, prng, roll(0, w - 1), roll(0, h - 1), radius, vArg, "min");
-    // the cave_childs branches (the fn A recursion / the branch count):
+    walkChain(field, w, h, prng, roll(0, w - 1), roll(0, h - 1), radius, stampArg, "lerp");
     const childs = roll(bc.caveChildsMin ?? 0, bc.caveChildsMax ?? 0);
     for (let c = 0; c < childs; c++) {
-      walkChain(field, w, h, prng, roll(0, w - 1), roll(0, h - 1), rollF(rMin, rMax), vArg, "min");
+      walkChain(field, w, h, prng, roll(0, w - 1), roll(0, h - 1), rollF(rMin, rMax), stampArg, "lerp");
     }
   }
 
-  // ── the cave/worm phase (the caveCount blobs of the caveStrength span):
+  // (2/3/4) the L1/L2/L3 band-stack layers at the C50 lane with the scatters:
   const caveCount = roll(bc.caveCountMin ?? 0, bc.caveCountMax ?? 0);
   const cMin = bc.caveStrengthMin ?? 0.2, cMax = bc.caveStrengthMax ?? 1;
+  // L2: point stamps from the knob interp, the 0.25/0.75-lane base before each
+  // walk's roll chain (the [−0x100] = d·0.25 + 0.75 byte window)
   for (let b = 0; b < caveCount; b++) {
     const radius = rollF(rMin, rMax);
-    const vArg = rollF(cMin, cMax); // FLAGGED composition of the strength span
-    walkChain(field, w, h, prng, roll(0, w - 1), roll(0, h - 1), radius, vArg, "min");
+    const d = prng.next();
+    const vArg = sMin + d * (sMax - sMin);
+    walkChain(field, w, h, prng, roll(0, w - 1), roll(0, h - 1), radius, vArg, "lerp");
+  }
+  for (let b = 0; b < caveCount; b++) {
+    const radius = rollF(rMin, rMax);
+    const vArg = rollF(cMin, cMax);
+    walkChain(field, w, h, prng, roll(0, w - 1), roll(0, h - 1), radius, vArg, "lerp");
   }
 
   return {
