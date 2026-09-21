@@ -4712,3 +4712,26 @@ first use from now on):**
     the fnB band loop consumed BY the records; whether the Work band
     *also* consumes these bytes = the data-side <BitmapCaves> check in
     the Work XMLs next.
+
+- **2026-09-21 (78) — dig #78: the Work-band / 6-lane question CLOSED
+  with the data check (the byte test the dig 77 pending promised):**
+  - The Work heaven/hell band tokens: `the_end.xml` (the_end + the
+    boss_victoryroom family, the下沉 "heaven/edge" band), `essenceroom_hell`
+    (hell), `the_sky` — all biomes live in `data/biome/`. NO
+    the_work.xml exists in this build (the band renders through the
+    the_end + the_sky/essenceroom_hell + the mountain_tree/solid_wall
+    templates).
+  - **the_end.xml DOES carry a BitmapCaves block:** size 512×256,
+    blob_count 0..0 (NO blob caves!), cave_count 2..2 (exactly 2),
+    cave_childs 0..1, cave_strength 0.2..1.0, mountains/surface zero,
+    spawn_percent 0. ⇒ **the_end's cave grid = "2 caves drawn per
+    the cave lane, no blobs, no mountains"** — the Work band's cave
+    draw = the SAME fnB machine with ITS OWN knobs, so the 6-lane
+    band switch (per-record cursor advance weights) applies per Work
+    record too.
+  - The composition verdict (byte-facts unchanged): the 6-lane drift
+    band = the fnB band cursor; the *interpretation* (`user's own
+    question`) = the byte counts align with the the_end knobs'
+    band-cap family (cave_count 2). No new byte reads; the music-lane
+    consideration recorded against the Work band for the composition's
+    per-*named-Grid*-order question.
