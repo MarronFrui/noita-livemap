@@ -4263,3 +4263,42 @@ first use from now on):**
     config-side consumer; C49's "+0xb0 = 0x8EE1B0 found" — the
     material-identity table) — the LAST config-side read before the
     caves-field lane can go byte-exact against the C48 oracle.
+
+- **2026-09-21 (58) — fnB dig #58: the 0x4ee130 window settled = the
+  SMOOTHSTEP-TWIN scatter body; the phase-2 spacing; .rdata keys
+  re-verified from the exe file this session.**
+  - true 0x8EE930 (slab 0x4ee130..0x4ee2c8) = the scroll-stamp family —
+    head: `movss 1.0, comiss xmm2` (1.0-vs-arg selects the path).
+    Per-cell walk: getter 0x5491f0 → comiss −0xc (the falloff t arg)
+    `jbe 0x4ee2bb` skip, then the TRUE MIX formula: reads the corner
+    cells (idx y·w+x + the neighbor step pair via `imul [x] + [x]`, the
+    +1 neighbor at −0x20/−0x24) and does
+    **`xmm0 = (v_src − v_dst)·t + v_dst` = a per-cell LERP** — i.e. the
+    smoothstep twin = a **BLEND** writer over the float grid, NOT
+    max-bleed (its compare = `comiss` on the t/window bounds, per
+    `test eax/js + cmp eax,ecx; jge out` = the bounds walk, and the
+    dist² weight at 0x4ee22a divss/(r) followed by 0x4ee237 mulss
+    squared into [−0x20]). ⇒ ONE lowering writer now exists in the fnB
+    census: the smoothstep twin writes `lerp(v_dst, v_src, t)` per
+    cell in its window — the byte-mechanism that CAN pull values down
+    toward the stamp/source value (the C48 carve rows fit this shape).
+  - The callsites census update (it was mislabelled in (57)'s table):
+    fnB's L2/L3 setters (0x4edf50) = the MAX-BLEED kinds; fnB's
+    smoothstep call (slab 0x4ee130 target) = where fn A's own window
+    chain runs the stamp's cell blend (the fn A caller at {0x4ee2d0
+    border}). The `0x4ee130` family in fn A's own calls = the record
+    stamp SMOOTHSTEP-BLEND, and it CAN LOWER — Air source found at
+    the fn A stamp window! (this supersedes dig (56)'s "no lowering
+    writer in fnA" — the census missed the double-labelled entry:
+    0x8EE930 was registered as "blob setter smoothstep twin" and its
+    body = the blend walk = the actual lowering writer. byte-window
+    cited above.)
+  - .rdata strings re-verified from the EXE (rdata rule VA−0x400E00):
+    0x1173110 = "spawn_small_enemies" · 0x1173124 = "spawn_items" ·
+    0x1173114 = "n_small_enemies" · {
+    0x11730cc = "bitmap_noise" · 0x11730e8 =
+    "caves_setup.mLuaScript.empty() == false"} — all canon labels in
+    the C44/C46 rows byte-confirmed; the fnB phase keys ARE these
+    (the cengser getter 0x3eaa80 keys).
+  - NEXT: point the caves-field port's stamp walker at the smoothstep
+    blend (0x8EE930) per stamp — port + C48 byte-compare gate.
