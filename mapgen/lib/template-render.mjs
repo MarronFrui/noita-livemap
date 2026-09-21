@@ -330,6 +330,85 @@ function blitSplicedScenes(buffers, dataDir) {
   }
 }
 
+// ------------------------------------------------- _pixel_scenes.xml lane ----
+// The game's GLOBAL fixed-absolute scene table (data/biome/_pixel_scenes.xml,
+// 95 <PixelScene> entries at exact world px): overworld landmarks — the
+// snowy-ruins eye pillar + the evil_eye entity load, the essence altars,
+// the fishing hut, the pyramid reward/boss-limbs tables, snowcastle forge,
+// the vault/snowcave/hills altar capsules, the_end shops… Same deterministic
+// lane as the spliced scenes (I9): pos_x/pos_y are constants in the game's
+// own data — seed-independent. Render = the same materials mapping; entries
+// with just_load_an_entity only (no art) are registered but not painted.
+function loadPixelSceneTable(dataDir) {
+  const key = `${dataDir}|_pixel_scenes`;
+  if (!artCache.has(key)) {
+    let entries = [];
+    try {
+      const xml = fs.readFileSync(
+        path.join(dataDir, "biome/_pixel_scenes.xml"), "utf-8"
+      );
+      entries = [...xml.matchAll(/<PixelScene\b([^>]*)>/g)].map((m) => {
+        const a = m[1];
+        const attr = (k) => (a.match(new RegExp(`${k}="([^"]*)"`)) ?? [])[1] ?? "";
+        return {
+          material: attr("material_filename"),
+          visual: attr("colors_filename"),
+          background: attr("background_filename"),
+          x: Number(attr("pos_x")),
+          y: Number(attr("pos_y")),
+          entityOnly: !!attr("just_load_an_entity"),
+        };
+      }).filter((e) => Number.isFinite(e.x) && Number.isFinite(e.y));
+    } catch { entries = []; }
+    artCache.set(key, entries);
+  }
+  return artCache.get(key);
+}
+
+function blitFixedScenes(buffers, dataDir) {
+  let artPainted = 0;
+  for (const sc of loadPixelSceneTable(dataDir)) {
+    if (sc.entityOnly) continue; // entity-only entries (the evil eye item, etc.)
+    if (sc.background) blitBackdrop(buffers, dataDir, sc.background, sc.x, sc.y);
+    if (sc.material) {
+      artPainted += blitFixedArt(buffers, dataDir, sc.material, sc.visual, sc.x, sc.y);
+    }
+  }
+  return artPainted;
+}
+
+// fixed-absolute scenes keep their RAW palette for non-material art px (the
+// spliced-scene rule), not the full band fill — they are the scene's own art.
+function blitFixedArt(buffers, dataDir, matFile, visFile, sx, sy) {
+  const img = art(dataDir, matFile);
+  if (!img) return 0;
+  const vis = visFile ? art(dataDir, visFile) : null;
+  const materials = loadMaterials(dataDir);
+  let n = 0;
+  for (let j = 0; j < img.height; j++) {
+    for (let i = 0; i < img.width; i++) {
+      const q = 4 * (j * img.width + i);
+      if (img.data[q + 3] < 10) continue;
+      const r = img.data[q], g = img.data[q + 1], b = img.data[q + 2];
+      if (r === 0 && g === 0 && b === 0) continue; // scene air: below shows
+      const hex = `${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+      const mname = materials.get(hex);
+      let color;
+      if (mname) {
+        color = pick(materialShadeFor(dataDir, mname), sx + i, sy + j, 0x51ce3f);
+      } else {
+        color = [r, g, b]; // raw art detail
+      }
+      if (vis) {
+        const vq = 4 * (j * img.width + i);
+        if (vis.data[vq + 3] > 10) color = [vis.data[vq], vis.data[vq + 1], vis.data[vq + 2]];
+      }
+      n += setWorldPx(buffers, sx + i, sy + j, color);
+    }
+  }
+  return n;
+}
+
 // Returns Map("cx,cy" -> Uint8Array 512*512*3, 9=unset) for a seed.
 // x,y passed to the biome scripts' init() = chunk world origin (top-left).
 export function renderTemplateWorld(dataDir, config, seed) {
@@ -364,6 +443,7 @@ export function renderTemplateWorld(dataDir, config, seed) {
   }
   renderWorldExtension(buffers, config, seed);
   blitSplicedScenes(buffers, dataDir);
+  blitFixedScenes(buffers, dataDir);
   return buffers;
 }
 
