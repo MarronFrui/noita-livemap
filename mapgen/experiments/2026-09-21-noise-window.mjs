@@ -54,7 +54,7 @@ let sumN = 0, sumFlatSq = 0, sumSq = 0, sumFlatN = 0, genSolid = 0, refSolid = 0
 for (let cy = CY0; cy <= CY1; cy++) {
   const tyBiome = cy - 48; // ref tiles are written by BIOME-px ty (bench:ref)
   for (let tx = x0; tx <= x1; tx++) {
-    const maskInfo = noiseChunkMask(config, tx, cy);
+    const maskInfo = noiseChunkMask(config, tx, cy, 78633191);
     const refPath = path.join(refDir, `${tx}_${tyBiome}.png`);
     if (!fs.existsSync(refPath)) continue; // no ref coverage for this chunk
     if (!maskInfo) continue; // not a procedural chunk — not our judge

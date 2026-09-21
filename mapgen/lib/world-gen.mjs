@@ -123,7 +123,7 @@ export function ensureWorld(seed, dataDir, { cacheDir = null, onProgress = () =>
   const world = loadWangWorld(dataDir);
   world.maps = new Map();
   world.templates = renderTemplateWorld(dataDir, world.config, seed); // template biomes (sync, cached art)
-  attachNoiseTerrain(world, dataDir); // F3 noise terrain (2026-09-20)
+  attachNoiseTerrain(world, dataDir, seed); // F3 noise terrain (2026-09-20) — the seed reaches the caves-field lane (dig #30)
   world.ready = Promise.all(
     world.areas.map(
       (a) =>

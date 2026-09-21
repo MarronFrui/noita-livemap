@@ -23,8 +23,26 @@ import path from "node:path";
 
 import { evaluator2, noiseDispatch, surfaceField } from "./noise-proto.mjs";
 import { biomeAt } from "./biomes.mjs";
+import { buildCavesField } from "./caves-field.mjs";
 import { readPng } from "./images.mjs";
 import { findNoitaDataDir } from "./paths.mjs";
+
+// dig #30: the name-keyed caves-field cache (the binary's std::map
+// @0x132aae8 semantics — one cached cave grid per (seed, CaveStructure
+// package); here keyed per (biomeName, seed); the bytes are (seed, name)-
+// deterministic per the C49 proof).
+const cavesFieldCache = new Map(); // key -> buildCavesField result
+const dataDirRef = { dataDir: null };
+function ensureCavesField(dataDir, def, seed) {
+  if (dataDir && !dataDirRef.dataDir) dataDirRef.dataDir = dataDir;
+  if (!dataDirRef.dataDir) dataDirRef.dataDir = findNoitaDataDir();
+  const key = `${def.name}|${seed}`;
+  let entry = cavesFieldCache.get(key);
+  if (entry) return entry;
+  entry = buildCavesField(dataDir, def, seed);
+  cavesFieldCache.set(key, entry);
+  return entry;
+}
 
 const CHUNK = 512; // (matches world-gen CHUNK; local to avoid the ESM cycle)
 const CELLS_PER_CHUNK = CHUNK / 10; // 51.2 → subrect 0..51 (C11 grid shape — cell 51 is the 20px remainder)
@@ -121,7 +139,7 @@ function loadFieldGrid(dataDir, relPath) {
 }
 
 export function makeGradAtFromTopology(dataDir, def) {
-  if (!def.bitmapNoiseFile) return null;
+  if (!def.bitmapNoiseFile || !dataDir) return null;
   const entry = loadFieldGrid(dataDir, def.bitmapNoiseFile);
   return (gx, gy) => {
     const xr = ((Math.floor(gx) % entry.w) + entry.w) % entry.w;
@@ -132,21 +150,43 @@ export function makeGradAtFromTopology(dataDir, def) {
 
 // Solid mask for one 512-chunk in a procedural (non-wang-template) biome.
 // Returns a 52×52 Uint8Array (cell grid; 1 = solid, 0 = air/empty).
-export function noiseChunkMask(config, tx, ty) {
+// SURFACE_V3 (dig #30, 2026-09-21): for biomes carrying <BitmapCaves> the
+// field source = lib/caves-field.mjs buildCavesField (the byte-canonical
+// core: the fn C1 all-1.0 base + the C27 diddled-ws ctor chain + the C50
+// knob interp + the (43)(a) falloff; the fn A ≤50-step chain walk) with
+// the XML knobs — replacing the injected gradAt ramp for those biomes.
+// The field is (seed, name)-deterministic per the binary's name-keyed
+// cache (C49's byte-identical-grids proof), cached per (name, seed).
+export function noiseChunkMask(config, tx, ty, seed = 0) {
   const SKY_ROWS = 48;
   const at = biomeAt(config, tx, ty - SKY_ROWS);
   const def = at?.biome;
   if (!def || def.templateFile) return null; // wang/template chunks handled elsewhere
   const mask = new Uint8Array(52 * 52);
   const cfg = biomeCfg(def);
+  if (!dataDirRef.dataDir) {
+    try { dataDirRef.dataDir = findNoitaDataDir(); } catch { dataDirRef.dataDir = null; }
+  }
   if (SURFACE_V2) {
     // dig #9c lane (true 0x90a860): surfaceField with the ramp-prototype
     // gradAt; the mGradientAddNoise=1..3 inner-core lanes THROW until W3/W4
     // land — those biomes yield null (caller falls through), honestly.
     const uid = uidFrom(def, cfg);
-    // dig #24: the C39 IMAGE-LANE gradAt when the biome carries
-    // bitmap_noise_file (the lake family); otherwise the ramp instrument.
-    const gradAt = makeGradAtFromTopology(findNoitaDataDir(), def) ?? makeGradAt(def);
+    // dig #30: the caves-field source when the biome carries <BitmapCaves>
+    // (the hills/desert/pyramid family); otherwise the C39 IMAGE-LANE
+    // gradAt when a bitmap_noise_file exists (the lake family), else the
+    // ramp instrument.
+    let gradAt = null;
+    if (def.bitmapCaves && def.bitmapCaves.sizeX) {
+      const caves = ensureCavesField(dataDirRef.dataDir, def, seed);
+      const { w: fw, h: fh, field } = caves;
+      gradAt = (gx, gy) =>
+        field[(((Math.floor(gy) % fh) + fh) % fh) * fw
+            + (((Math.floor(gx) % fw) + fw) % fw)];
+    } else {
+      gradAt =
+        makeGradAtFromTopology(dataDirRef.dataDir, def) ?? makeGradAt(def);
+    }
     for (let cy = 0; cy < 52; cy++) {
       for (let cx = 0; cx < 52; cx++) {
         const gx = tx * CELLS_PER_CHUNK + cx + 0.5;
@@ -182,14 +222,17 @@ export function noiseChunkMask(config, tx, ty) {
 const DEF_SEED = 0;
 
 // Lazily-memoized chunk mask cache attached onto the world object.
-export function attachNoiseTerrain(world, dataDir) {
+// dig #30: the seed plumbs through (the caves field is (seed, name)-
+// deterministic per the binary's ctor chain — the C49 proof), so the
+// ensureWorld caller passes the run's worldseed here.
+export function attachNoiseTerrain(world, dataDir, seed = 0) {
   const cache = new Map(); // "tx,ty" -> {mask, def} | null
   world.noiseAt = (tx, ty) => {
     const key = `${tx},${ty}`;
     if (cache.has(key)) return cache.get(key);
     let r = null;
     try {
-      r = noiseChunkMask(world.config, tx, ty);
+      r = noiseChunkMask(world.config, tx, ty, seed);
     } catch {
       r = null;
     }
@@ -206,6 +249,6 @@ export function noiseSolidAt(world, wx, wy) {
   const ch = world.noiseAt?.(tx, ty);
   if (!ch) return null;
   const lx = (wx - tx * CHUNK) / 10, ly = (wy - ty * CHUNK) / 10;
-  if (lx < 0 || ly < 0 || lx >= 52 || ly >= 52) return 0;
+  if (lx < 0 || ly < 0 || lx >= 51 || ly >= 51) return 0;
   return ch.mask[52 * Math.floor(ly) + Math.floor(lx)];
 }
