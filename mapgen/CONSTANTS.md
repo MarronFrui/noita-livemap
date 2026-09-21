@@ -70,7 +70,8 @@
 
 | C47 | C24 runtime decode (CE v4) | [0x1327670] = **17920.0**, [0x13289a8] = **7168.0** = the canvas/world offset pair (NOT a fill window; the "159/223 = engine defaults" reading dies); slopeFlag [+0x24c] = 0 all 42 uids (slope arm dead in live data); BitmapCaves std::map count = 4; A-resolver [P+0xb0] = NIL (P = the caves-grid object does NOT carry it; target corrected to BitmapNoise instances); live 512x256 bitmap_hills grid values recorded (byte-level I1 validation anchor; y=0 rows exceed 1.0 per the (y/25)^8 eave) |
 | C48 | caves-grid [P+0x94] signature + byte oracle | [P+0x94] = (w·0.5)/0.1 on cave grids (512→2560.0, 1×1→5.0 = the fn C1 ×5 toucher, byte-cross-verified); the world-state grid keeps the RAW C27 draw (−56909.828125, no ×5); both 512×256 cached grids byte-identical ⇒ the caves field = deterministic (diddled ws, name, XML params); the y=0 bump (peak 1.454@x≈19) = a stamp ADD-BLEND over the 1.0 base (writer = 0x8EF870 twin / bake, named target); oracle artifact `mapgen/out/oracle/caves-grid-2026-09-21.json` |
-## Registry
+
+| C49 | pinpoint pickup v5.2 results | [P+0x8c] = the RAW worldseed runtime-pinned both seeds (C27 confirmed in-memory); hills-class knobs [+0x34]=0.546875 / [+0x74]=1.549988 (seed-independent, hills.xml 1.55-family); [+0x2c/0x30/0x38] = pointer slots; [+0x58] deref = a REAL per-grid byte allocation (first64 all-zero); the 0x132aae8 RBTree layout cracked (L/P/R/color_isnil/key-SSO/size/cap, VALUE@0x28 = the cave-grid ptr; keys = the CaveStructure FILE PATTERNS incl. "eye_0$[1-4]"); the V4d A-resolver hunt RESOLVED: [P+0xb0] = 0x008EE1B0 on the 0-dim uids (a real fn entry, objdump next); [P+0x94] draw ADVANCES per build instance; the 1x1 struct P = 0132B518 STATIC |## Registry
 
 ### C1 — coalmine start-path mark `0xFF420000`
 - `cmp eax, 0xFF420000` @ true **0x901a4d** (byte-pinned — slab 0x50124d).
@@ -1118,3 +1119,53 @@
   0x11dfa5c-based value path) = the NEXT CE runtime-pick exactly the
   C47/C48 path; the fnB phase map + fn C1's byte-exact ctor (the 1.0
   base + ×5 toucher) are canon in (47).
+
+### C49 — the pinpoint pickup v5.2 results (seed 91 + 92, about-math (48))
+- **[P+0x8c] = THE RAW WORLDSEED — runtime-pinned byte-solid on BOTH
+  seeds**: the 16-byte window at P+0x80 reads as {begin, ??, cap??
+  (heap ptrs 0x34D21E30/0x34D220AC/0x34D33BF0 on 91)}, with the FOURTH
+  dword [P+0x8c] = **0x04AFD8E7 (seed 91) / 0x04AFD8E8 (seed 92) = the
+  raw worldseed exactly** — C27's `[obj+0x8c] = raw seed` confirmed
+  in-memory per-instance. ([P+0x94] = the ×5·w toucher, C48 ✓, unchanged.)
+- **[P+0x34]/[P+0x74] live knobs (both SEED-IDENTICAL across 91/92)**:
+  the hills-class 512×256 struct carries **[+0x34] = 0.546875** and
+  **[+0x74] = 1.549988** (f32 both; the second ≈ hills.xml's
+  strength_max 1.55 family = `mountain_rock`/`skull_mountain`'s
+  strength 1.45..1.55 — a REAL per-biome template-knob pair, NOT
+  pointer-reinterprets: seed-independent across two seeds at the same
+  deltas).
+- **[P+0x2c/0x30/0x38] = pointer slots** (heap ptrs 0x2A1D2C88,
+  0x2A6F9C78 etc; the seed-92 family shifts to 0x611000*/0x2A-series)
+  — the C31 SetSize-family vectors, NOT knobs.
+- **[P+0x58] deref = the art-byte allocation is REAL and per-grid**
+  (differing heap pages per seed: 0x2C3A7FB8 / 0x4E34C010 /
+  0x29E64430 / 0x38053020), first 64 bytes ALL-ZERO on both seeds (the
+  byte-lane's top rows = "unmarked/air" in the decode, not an identity
+  artifact).
+- **the std::map @0x132aae8 LAYOUT cracked**: MSVC x86 RBTree node =
+  {_Left(0), _Parent(4), _Right(8), color/isnil(0xc), 
+  key(std::string, SSO-union @0x10..0x1f), size@0x20, cap@0x24,
+  **value (the cage-grid ptr) @0x28**}. The keys = the CaveStructure
+  IMAGE FILE-PATTERN strings **byte-visible in the dumps:
+  "l__EMPTY_"/"l/_EMPTY_" + "ways_zer"/..." and
+  "e_0$[1-4" (= the eye_0$[1-4].png-class pattern!) — so the cache's
+  key = per-CaveStructure name, the map = the STRUCTURE FILE's
+  generator cache; the value dword = the cave GRID POINTER for that
+  pattern (0x2A1DC9A8 / 0x46F7DB78 ✓ at both seeds - byte-consistent
+  with the SAME uid's [uid+0x1d4] reads).
+- **the A-resolver fn ptr FOUND (the V4d hunt resolves)**: on the
+  zero-dim (0x0-run) bitmap_noise uids the **[P+0xb0] = 0x008EE1B0**
+  (a real code fn; first32 `55 8B EC 6A FF 68 CC 49 0A 01 ... 33 C5 ...
+  64 A3 00` = a proper fn entry: push ebp/mov esp,ebp + a32-bit
+  cengser-class hook) — the resolver body = the NEXT objdump read (the
+  C32 A-channel's config-side consumer's fn body @true 0x8EE1B0).
+- the world grid's [P+0x94] = a LATER poro draw per-run (-96244.1719
+  seed-91-run2 vs the C48's -56909.828125): the +0x94 draw state
+  ADVANCES per build call — the C27 'ONE draw' chain is per-cctor, and
+  repeated ctor invocations stream forward (per-INSTANCE, not
+  per-(seed,name)-reset).
+- the 1×1 placeholder P = **0132B518 STATIC** across uids AND runs (a
+  never-initialized static head; all the 1×1 noise-uid lookups point at
+  the SAME struct), while the real grids alloc per (seed, name).
+- Pinpoint artifacts: `out/oracle/CE_PICKUP_v5_2_seed91_92.txt`
+  (both pastes verbatim).

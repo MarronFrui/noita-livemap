@@ -3940,3 +3940,43 @@ first use from now on):**
     oracle exactly — the interior shape waits for the fnB block read).
   - Tests 143/143 green (post-skeleton). NO cache bump (the module is
     not yet wired into the render pipeline).
+
+- **2026-09-21 (48) — the PINPOINT CE pickup v5.2 processed (both seeds
+  pasted; artifacts `out/oracle/CE_PICKUP_v5_2_seed91_92.txt`; canon
+  = CONSTANTS.md C49). HEADLINES:**
+  1. **[P+0x8c] = the raw worldseed byte-pinned in-memory across BOTH
+     seeds (0x04AFD8E7 / 0x04AFD8E8)** — the C27 ctor layout fully
+     confirmed live. [P+0x94] = ×5·w (C48) unchanged; the seed-91-run's
+     3584-grid [P+0x94] = -96244.1719 vs the earlier -56909.828125 ⇒
+     the per-build's ctor draw ADVANCES (per-instance, not per-seed).
+  2. **The hills-class 512x256 struct knobs [P+0x34] = 0.546875 /
+     [P+0x74] = 1.549988 are IDENTICAL across seeds 91/92** = REAL
+     per-biome template knobs (the hills.xml strength 1.55-family) —
+     the first byte-level identification of the blob-stamp knob slot
+     vs. the flex data layer. Seed-92's second 512×256 grid
+     (0x46F7DB78-class) carries the same +0x34 = f32-as-31725.79-repr
+     (the pointer-reinterpret window in the dump view; the only genuinely
+     stable SMALL knobs = the hills-class's .546875/1.549988 pair).
+  3. **[P+0xb0] = 0x008EE1B0** ON the two ZERO-DIM bitmap_noise uids,
+     first32 = a proper fn entry (`55 8B EC` ...) — **THE V4d
+     A-RESOLVER HUNT RESOLVES**: the resolver fn body exists at
+     true 0x8EE1B0, the NEXT objdump read gives the C32 A-channel's
+     config-side consumer (the byte lane's fn body).
+  4. **[P+0x58] deref is a REAL per-grid heap allocation** (differing
+     pages at 0x2C3A7FB8 / 0x4E34C010 / 0x29E64430 / 0x38053020 across
+     seeds/instances), first 64 bytes = ZERO both seeds — the C32's
+     byte-lane allocation confirmed; the byte-lane's writing pass is
+     in-scope of fnB/fnC2's later zero-fill or an untriggered branch.
+  5. **the std::map @0x132aae8 layout cracked** (both seeds): MSVC x86
+     RBTree node {L(0), P(4), R(8), color/isnil(0xc), SSO-union
+     @0x10..0x1f, size@0x20, cap@0x24, **value @0x28**}; the KEY =
+     a CaveStructure FILE-PATTERN string (byte-visible
+     "...l__EMPTY_..." / "ways_zer..." / "**e_0$[1-4**" = the
+     eye_0$[1-4].png family!) — so this std::map caches PER-PATTERN
+     CaveStructure generator context, and its VALUE = the CAVE-GRID
+     POINTER for the pattern (0x2A1DC9A8 / 0x46F7DB78 in the two runs,
+     byte-consistent with the uids' [uid+0x1d4]) — the (38)/C44 model's
+     "name-keyed structure-set cache" CONFIRMED at runtime.
+  6. The 1×1 placeholders ALL share **P = 0x0132B518 = a STATic never-
+     initialized cell** (a single shared placeholder object), and the
+     real grid allocations happen per (seed, name).

@@ -1,0 +1,16 @@
+=== PINPOINT PICKUP v5.2 seed 78633191 (seed-2 78633192 comments inline) ===
+[full pastes preserved verbatim; key extracted facts in CONSTANTS.md C49]
+seed91 keystones:
+- uid 2A36F010 family (x12 uids) all share P=2A1DC9A8 512x256 cnt=131072 (the [P+0x1c]=131072/+0x20=512/+0x24=256/+0x28=131072 C31-grid identity)
+- +0x34 region f32 = 0.546875 ; +0x74 = 1.549988  (seed-91 struct knobs)
+- ptr family: +0x2c=0, +0x30=0x2A1D2C88, +0x38=0x2A6F9C78
+- world grid P=2FB26860 3584x2457 cnt=8805888 [P+0x94]=-96244.1719 (a LATER draw than the C48's -56909.828125 = the state ADVANCED per run instance)
+- 1x1 placeholders P=0132B518 cnt=1 [P+0x94]=5.0; +0x94 signature x5*w held
+- the 42 uid AOB-census: 33x1x1 + 6(512x256 shared) + 3(world lattice)
+- resolver [+0xb0] = 008EE1B0 on TWO 0-dim objects (a real fn ptr, first32 = 558BEC6A FF68 CC49 0A01 64A1 00 00 00 00 50 51 A1 00 B02E0133 C550 8D45F4 64A300 = push ebp; mov esp,ebp; jmp short +0x6A?; push/... a real fn entry)
+- byte-grid [+0x58] derefs = NEW heap pages per seed (2C3A7FB8 / 4E34C010 / 29E64430 / 38053020): the byte lane = an ACTUAL allocation, first64 = all-zero both seeds
+- [val+0x94] on the +0x28-pointercandidates = 0.546875 on the seed-91 struct and -7/85.937195 on the seed-92's u16/mixers... the exact-slot needs the V6b re-read (below)
+V6b (seed 91): root=0370A2A0 count=4; the first-non-nil child @2A80AB90 raw(0xc..0x2c) = ..01 00 "6C 5F 5F 45 4D 50 54 59 5F 00" ('l__EMPTY_') '77 61 79 73 5F 7A 65 72' ('ways_zer') 07 00 00 00 0F 00 00 00 then A8C91D2A (= 0x2A1DC9A8 = the hills 512x256 grid!)
+V6b (seed 92): same shape: the key = 6C 2F 5F 45 4D 50 54 59 5F 00 ('l/_EMPTY_') + 65 5F 30 24 5B 31 2D 34 ('e_0$[1-4)'; the last dword = 78 DB F7 46 = 0x46F7DB78 = the seed-92's OTHER 512x256 grid ptr!
+=> the std::map @0x132aae8 = keyed by the CaveStructure-image FILE PATTERN (eye_0$[1-4]-family, cave_..., '...l/ws_ze' fragments) and the VALUE = the cave-grid pointer (at +0x28).
+seed(s): [78633191 (0x04AFD8E7)] [78633192 (0x04AFD8E8 — the raw seed literally appears in the +0x80-head's 4th dword !)]
