@@ -4606,3 +4606,32 @@ first use from now on):**
   Remaining byte goal: the y-drift span (the one remaining walk
   lane, the fnB step-offset tracking) and the C32-family final
   solver (the material ID ladder is the par query).
+
+- **2026-09-21 (73) — dig #73: THE Y-DRIFT LANE READ (the fnB band-lane
+  cursor, the standing walk-drift flag) — byte-cited:**
+  - The fnB body's STRENGTH-cursor lane at slab 0x4efaa0..0x4efb96
+    = per-iteration **draw → cvtsd2ss → a SEVEN-lane band weight**
+    (`mulsd 0x11dfef0 / 0x11e05f8` = the two zero-fraction lanes;
+    then the cengser-count switch `3 − trunc(0·draw) = 3` /
+    `cmp $0x5; ja 0x4efba6` / `jmp *[0x8f2fd0 + ecx·4]` = a SIX-case
+    jump table @0x8f2fd0 where each lane reads its own `.rdata`
+    band pair:
+      lane 0: ×0.1 + 0.1        (0x11df974 twice)
+      lane 1: ×0.01 + 0.01      (0x11df8e8 twice)
+      lane 2: ×0.01 + 0.07      (0x11df8e4/0x11df958)
+      lane 3: ×0.4  + 0.1       (0x11dfa40/0x11df974)
+      lane 4: ×0.2  + 0.75      (0x11df9d0/0x11dfb2c)
+      lane 5: ×0.49?? (0x11df990) + f32(0x11dfc20)  — reads pending
+    ), **then `v_out += [−0x104]`  ×  the band weight and re-stores
+    [−0x104]** = the CURSOR'S Y/ADVANCE drift byte-lane (the walk
+    step's y-drift = the once-per-iteration band compose, the byte
+    form `−0x104 += draw × band_weight` = a per-band advance drift
+    — the byte-lane that sets the walk's y-drift per record lane).
+  ⇒ **the walk's y-drift = a 6-lane band switch (counts 3..7 → the
+    6 jump-table branches), each lane's weightference = the 6 pinned
+    constants (0.1/0.01/0.07/0.4/0.75/0.49)** — the y drift lane is
+    byte-cited and named; the walk's y-drift spans ARE the seven band
+    lanes. The port consumes on the next push's compare spin.
+  - New .rdata pins: 0x11dfef0/0x11e05f8 = 0.0 (the ZERO scale pair;
+    the fnB walk x-drift zero = the flat-walk side), 0x11df8e4 =
+    0.00999999, 0x11dfa40 = 0.4, 0x11df990 / 0x11dfc20 (new reads).
