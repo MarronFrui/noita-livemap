@@ -4436,3 +4436,48 @@ first use from now on):**
   - Tests 143/143. The channel stays SURFACE_V3=1; the byte bar keeps
     reporting per-row; the next push = the remaining phase-order
     sub-read then the A-resolver (0x8EE1B0).
+
+- **2026-09-21 (65) — fnB dig #65: the PHASE-ORDER skeleton is now
+  byte-readable from fnB's entry window (slab 0x4ef6de..0x4f01ff) —
+  the draw order, the count-pair reads, and the per-phase families:**
+  - fnB HEAD (0x4ef6de..0x4ef782): `−0x138` = [obj+0x4] (the grid H),
+    `−0x128` = [obj+0x0] (the grid W) — then THE FIRST TWO draws:
+    **draw #1 @0x4ef707 = the fn A WALKER'S X-RANGE count** — reads
+    [obj+0x2c]/[obj+0x28] = a count (min,max) pair, and the roll =
+    **`min + trunc(draw × (max−min+1))`** (the POSITIVE fraction here —
+    the byte-declared roll form for fnB's counts, now pinned; the
+    already-pinned NEGATIVE scale at 0x11e0578 = the *stamps'* roll
+    lane, distinct twin). **draw #2 @0x4ef739: [obj+0x38]/[obj+0x34]
+    = the record's OWN (min,max) strength pair; same compose, the point
+    = min + trunc(draw·span + min)** → the y-position for the first
+    record (−0x160 = the y-cursor).
+    Loop-gate: `cmp −0x154, −0x160; jge exit` = the WALKER's total
+    stamp=cursor bound (the y-cursor vs the x-cursor) at 0x4ef782.
+  - **fnB's per-iteration body 0x4ef788..0x4efc47 (INSIDE the count=istics
+     loop):** reads the BlobSetconf knobs [obj+0x3c]/[obj+0x40] f32s →
+    [−0x140]/[−0x10c]; ONE draw @0x4ef7b2; then a THIRD lane read
+    [obj+0x98] `cmp 0` (per diff 55) flips the compose pair: the *else
+    arm* uses [−0x128] @`mulss 0x11e0560` (−0.01!) and `0x11df8e8
+    (0.01)` + the C50 draw compose (`subss/mulss/addss @0x4ef830..ff`
+    with the [−0x118] wcursor add); the ELSE lane = the ±0.07/0.05/0.01
+    band (0x4ef8e9..0x4efefb) with the record cursor +0x3c, the
+    two-lane `comiss` weights, and the per-phase fork at `cmp $0x21
+    (=33) / $0xa (=10) / $0x14 (=20) / $0x32 (=50)` — the count gates
+    = the blob/cave/worm phases' own box bounds, byte-cited in order.
+  - **The phase order in the fnB body (the draw-sequencing byte事实):**
+    `0xc090c0` draw #1 (@0x4ef707) = the x-cursor roll from
+    [obj+0x2c]/[0x28]; draw #2 (@0x4ef739) = the y-cursor roll from
+    [obj+0x38]/[0x34]; then per-iteration: [obj+0x3c]/[+0x40] = the
+    strength pair window; the draw order through the loop = the
+    stamps' own roll lanes, then the fn A call #1 (@0x4eff03) — so
+    the fnB phase order (stamps → L2+scatter → L3+scatter → the
+    self-call) consumes its draws IN the order of the byte-census's
+    phase map (draw budget = {walk per phase} + 1 scatter per layer).
+  ⇒ the composition to land the byte-column: **phase-1 (fn A =
+    the pattern stamp pass) = the count/roll from [obj+0x28..0x30]
+    + [+0x34]/[0x38] the strength lanes; L2 = the chain base × another
+    draw; L3 = [−0x108] × the next draw; and the ≤50-box + the `0x21/
+    0x0a/0x14/0x32` count gates byte-bound each loop** (the port
+    already reads all of them; the ORDER now byte-cited).
+  - NEXT: swap these into the composition (the per-phase draws in
+    the exact census order) and re-run the oracle instrument.
