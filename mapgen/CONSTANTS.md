@@ -74,6 +74,7 @@
 | C49 | pinpoint pickup v5.2 results | [P+0x8c] = the RAW worldseed runtime-pinned both seeds (C27 confirmed in-memory); hills-class knobs [+0x34]=0.546875 / [+0x74]=1.549988 (seed-independent, hills.xml 1.55-family); [+0x2c/0x30/0x38] = pointer slots; [+0x58] deref = a REAL per-grid byte allocation (first64 all-zero); the 0x132aae8 RBTree layout cracked (L/P/R/color_isnil/key-SSO/size/cap, VALUE@0x28 = the cave-grid ptr; keys = the CaveStructure FILE PATTERNS incl. "eye_0$[1-4]"); the V4d A-resolver hunt RESOLVED: [P+0xb0] = 0x008EE1B0 on the 0-dim uids (a real fn entry, objdump next); [P+0x94] draw ADVANCES per build instance; the 1x1 struct P = 0132B518 STATIC |## Registry
 
 | C50 | the +0x34/+0x74 knob pair (dig #29) | [P+0x74]/[P+0x78] = the blob-strength (min,max) pair consumed by fnB (slab 0x4f0931..0x4f0958: v = A + d·(B−A) → the 0x4ee130 blob-setter v_arg; decl-loop = the blob-count phase); CE:(+0x74,+0x78)=(1.549988,0.0) hills-class / (0,0) on the second 512x256 class — the C48 bump peak lives INSIDE the span ✓; [+0x34] = a DIFFERENT struct (the CaveStructure PATTERN record window +0x24/0x2c/0x34/0x38, the f32-read vs int-read sites differ, NOT a contradiction); the knob WRITER = not in the fnB/fnA/ctor family — the named hunt = fn C2 body + the XML-parse family (0x496a2e..0x4a97ed) |
+| C51 | CaveStructure record walk (fnB load phase) | fnB's "loader pair" 0x533860/0x5bff80/0x5bffb0 = a 28-byte × 128 ARENA allocator (`push $0xe00` + engine alloc, edx = 128 slots; 0x651a60 init; vector grow at 0x5bff80/0x5bffb0). Per CaveStructure record (28-byte member): COUNT pair read at [+0x28]/[+0x30]; **STRENGTH pair read at [+0x34]/[+0x38] (f32) = the XML's per-record strength_min/max** (byte-verified vs hills.xml's 10 records: cave_$ 0.55..2.15, mountain_rock/skull 1.45..1.55, eye 1.45..1.55, pit 0..0.65; the C49 knobs 0.546875/1.549988 = values of these slots per record, C50's "DIFFERENT struct" note resolved to this struct); **the roll = `value = max − trunc(|draw|·(max−min+1))` via `mulsd 0x11e0578` = the NEGATIVE NextU scale (−4.656612875e-10)** — the first pinned NEGATIVE-scale roll; **the write = `call 0x4ef150` = true 0x8EF950 = the BYTE-GRID blend twin** ([P+0x58] byte lane; the C49 "+0x58 first-64 all-zero" = unwritten rows ✓); the per-iteration loop `decl −0x120(%ebp)` + `jne 0x4f0a95`; the record cursor +0x3c @0x4f0f03; the list-scan via {begin,end} × magic 0x88888889 (÷12-byte records with the {x, y, B, B−1} family — C46's +0x80 vector). **true 0x8EE930 (slab 0x4ee130..0x4ee2c8) = the smoothstep LERP stamp — the ONLY lowering-capable writer in the fnA/fnB census** (`v_out = (v_src−v_dst)·t + v_dst` per cell @0x4ee294..0x4ee2a3); all the blob-setter lanes push $0 = max-bleed raise-only; scatter 0x8EF2D0 = `<0.5` empty-cell gate only ⇒ **the float-grid CARVE = the 0x8EE930 LERP + the C32 LoadFromImageData ±1.0 pass; the CaveStructure record lane writes the BYTE grid.** |
 ### C1 — coalmine start-path mark `0xFF420000`
 - `cmp eax, 0xFF420000` @ true **0x901a4d** (byte-pinned — slab 0x50124d).
   Written as cell value in the coalmine hax overlay; NOT the same thing as
@@ -1171,3 +1172,45 @@
   the SAME struct), while the real grids alloc per (seed, name).
 - Pinpoint artifacts: `out/oracle/CE_PICKUP_v5_2_seed91_92.txt`
   (both pastes verbatim).
+
+### C51 — the CaveStructure RECORD walk (fnB load phase; 2026-09-21 digs 55–61)
+- **fnB's "loader pair" 0x533860 / 0x5bff80 / 0x5bffb0 = a 28-byte × 128
+  RECORD-ARENA allocator** (`push $0xe00` = 3584 B = 128×28; engine alloc
+  `call *0x114a34c`; slot init `edx = 0x80` via 0x651a60; the vector
+  grow/copy pair = 0x5bff80/0x5bffb0). NOT image loaders — the dig #27
+  phase-map label corrected.
+- Per CaveStructure record (the 28-byte member; obj = [−0x110] pattern):
+  - **COUNT pair** read at **[obj+0x28] → [−0x108] / [obj+0x30] → [−0x100]**.
+  - **STRENGTH pair** read at **[obj+0x34] / [obj+0x38]** (f32) = the XML's
+    **per-record strength_min/max** — byte-verified against hills.xml's 10
+    CaveStructure records (cave_$ 0.55..2.15 · mountain_rock/skull 1.45..1.55
+    · eye 1.45..1.55 · pit 0..0.65 · brush spans). The C49 CE knobs
+    (0.546875 / 1.549988) = values of these slots per record; C50's
+    "DIFFERENT struct" note resolves to exactly this struct.
+  - **The roll** = `value = max − trunc(|draw|·(max−min+1))` via
+    `mulsd 0x11e0578` = the **NEGATIVE NextU scale (−4.656612875e−10,
+    pinned)** — counts DOWN from max; the first byte-pinned negative-scale
+    roll in the binary read so far.
+  - **The write** = `call 0x4ef150` = true **0x8EF950** = the BYTE-GRID
+    blend twin (the [P+0x58] byte lane; C49's "+0x58 first-64 all-zero" =
+    these records' un-written rows ✓). Value compose = C50 inline
+    (`subss/mulss/addss` @0x4f0e84..0x4f0eb7 = A + d·(B−A)).
+  - Loop: `decl −0x120(%ebp)` + `jne 0x4f0a95`; record cursor `+0x3c`
+    (@0x4f0f03); list-scan via {begin,end} with magic **0x88888889**
+    (the ÷12 = the 12-byte {x, y, B, B−1} record family — C46's +0x80
+    vector); per-record flags [obj+0x30] / [obj+0x98] (@0x4f0f3c —
+    the beginning-paths-family byte).
+- **true 0x8EE930 (slab 0x4ee130..0x4ee2c8) = the smoothstep LERP stamp
+  writer** — the ONLY lowering-capable writer in the fnA/fnB census:
+  per cell `v_out = (v_src − v_dst)·t + v_dst` (@0x4ee294..0x4ee2a3),
+  the falloff t via `divss`-by-radius + the squared weight @0x4ee22a..ff.
+  All blob-setter lanes push $0 = max-bleed raise-only; the scatter
+  0x8EF2D0 = the `< 0.5` empty-cell gate only.
+- ⇒ **The caves-field carve (AIR) split, byte-resolved:** the float grids
+  are lowered by (a) the **0x8EE930 LERP stamps** (fn A's stamp walk) and
+  (b) the **C32 LoadFromImageData ±1.0 pass** (float −1.0 = the air
+  candidate); the CaveStructure RECORD lane stamps the **BYTE grid**
+  (0x8EF950). Corrects the C46 "blob-setter smoothstep twin" gloss.
+- Status: read + pinned (2026-09-21). Sources: ABOUT_MATH 2026-09-21
+  (55)–(61); window `fnb.dis` (3551 lines, /tmp) + `scatter.dis`;
+  hills.xml data cross-check same session.

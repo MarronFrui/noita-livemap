@@ -34,20 +34,41 @@ export function toucherValue(w) {
   return (w * 0.5) / 0.1;
 }
 
-// The (43)(a) blob-circle falloff radius span: r0 = trunc(radius + 0.5),
-// skip dist² > r², t = (r − dist)/r, v = (v_arg − 1)·t + 1.0, plus the
-// (y/25)⁸ top-row eave when flagged. The WRITE direction is caller-chosen:
-//   dir = "min"  → write iff existing > v   (the interior CARVE lane)
-//   dir = "max"  → write iff existing < v   (the surface ADD-BLEND lane)
-// The raw setter's per-branch direction is byte-exact in-binary (43);
-// the lane split here = the dig #29 consumer model.
-// The (43)(a) blob-circle falloff radius span: r0 = trunc(radius + 0.5),
-// skip dist² > r², t = (r − dist)/r, v = (v_arg − 1)·t + 1.0, plus the
-// (y/25)⁸ top-row eave when flagged. The WRITE direction is caller-chosen:
-//   dir = "min"  → write iff existing > v   (the interior CARVE lane)
-//   dir = "max"  → write iff existing < v   (the surface ADD-BLEND lane)
-// The raw setter's per-branch direction is byte-exact in-binary (43);
-// the lane split here = the dig #29 consumer model.
+// ── the CaveStructure RECORD phase (dig #61 byte-cited) ─────────────────────
+// Per fnB's record walk (slab 0x4f0b23..0x4f0ee8):
+//   count pair = [obj+0x28]/[obj+0x30]; the roll = `value = max − trunc(
+//   draw·(max−min+1))` (the draw is SIGNED via mulsd by −4.656612875e-10
+//   = 0x11e0578, the negative NextU scale @0x11e0578 — the roll counts
+//   DOWN from max); the strength pair = the record's own [+0x34]/[+0x38]
+//   f32s (= the XML's per-CaveStructure strength_min/max, byte-verified
+//   against hills.xml's 10 records) composed as A + d·(B−A) inline
+//   (@0x4f0e84..0x4f0eb7), and the writes hit the BYTE grid via the
+//   0x8EF950 blend twin (the [P+0x58] lane).
+// The stamp POINT roll lands inside the record's aabb (the aabb_min/max
+// axis spans), negative-scale drawn per the same window.
+export function caveRecordStamp(
+  { field, bytes, w, h }, { aabbMinX, aabbMaxX, aabbMinY, aabbMaxY, countMin, countMax, strengthMin, strengthMax }, prng
+) {
+  const countSpan = (countMax ?? 0) - (countMin ?? 0) + 1;
+  const countNext = (countMax ?? 0) - Math.trunc(prng.next() * countSpan);
+  for (let s = 0; s < countNext; s++) {
+    // the per-stamp point roll (the negative NextU transform, spans = aabb)
+    const xSpan = (aabbMaxX ?? w - 1) - (aabbMinX ?? 0) + 1;
+    const ySpan = (aabbMaxY ?? 0) - (aabbMinY ?? 0) + 1;
+    const dx = Math.trunc(prng.next() * xSpan); // the draw's [+span] lane
+    const dy = Math.trunc(prng.next() * ySpan);
+    const x = (aabbMinX ?? 0) + dx;
+    const y = (aabbMinY ?? 0) + dy;
+    // the C50 strength interp on the record's own (min,max) pair
+    const d = prng.next();
+    const vArg = (strengthMin ?? 0) + d * ((strengthMax ?? 0) - (strengthMin ?? 0));
+    // the FLOAT stamp = the smoothstep LERP (0x8EE930, the lowering writer)
+    stampBlendLerp(field, w, h, x, y, Math.max(1, Math.trunc((vArg || 0.5) * 4)), vArg);
+    // the BYTE mark = the 0x8EF950 twin lane
+    if (bytes && x >= 0 && y >= 0 && x < w && y < h) bytes[y * w + x] = 1;
+  }
+  return countNext;
+}
 export function carveCircle(grid, gridW, gridH, cx, cy, radius, vArg, flag, dir = "min") {
   const r0 = Math.trunc(radius + 0.5);
   for (let dy = -r0; dy <= r0; dy++) {
@@ -159,6 +180,7 @@ export function buildCavesField(dataDir, def, seed) {
   prng.next(); // the ONE warm draw (C27)
 
   const field = new Float32Array(w * h).fill(1.0); // fn C1's bake
+  const bytes = new Uint8Array(w * h); // the 0x8EF950 record lane ([P+0x58])
 
   const roll = (min, max) => min + Math.trunc((max - min) * prng.next());
   const rollF = (min, max) => min + (max - min) * prng.next();
@@ -170,7 +192,12 @@ export function buildCavesField(dataDir, def, seed) {
   const sMin = bc.blobCavesStrengthMin ?? 1.5;
   const sMax = bc.blobCavesStrengthMax ?? 3;
 
-  // ── fn B's byte-declared PHASE ORDER (dig #56/#57 census; the fn C1 ctor
+  // ── the CaveStructure RECORD phase (the byte-cited lane, dig #61):
+  for (const rec of bc.structures ?? []) {
+    caveRecordStamp({ field, bytes, w, h }, rec, prng);
+  }
+
+  // ── the fn B byte-declared PHASE ORDER (dig #56/#57 census; the fn C1 ctor
   // base is IN this call chain — L1's setter = the fn A stamp window):
   //   1. fn A stamp pass (0x4eff03 = the FIRST stamp walk = the CaveStructure
   //      stamps + the cave_childs recursion)
@@ -212,11 +239,11 @@ export function buildCavesField(dataDir, def, seed) {
   }
 
   return {
-    w, h, field,
+    w, h, field, bytes,
     p94: toucherValue(w),
     prngState: prng.seed,
     isSolid: isSolidCell,
-    meta: { blobCount, caveCount, def: def.name },
+    meta: { blobCount, caveCount, def: def.name, structures: (bc.structures ?? []).length },
   };
 }
 

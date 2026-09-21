@@ -4383,3 +4383,11 @@ first use from now on):**
     needs (a) the CaveStructure byte-lane stamp writer + record draws
     (b) the strength pair [[+0x34]/[+0x38]] from the DATA XML per pattern.
     SURFACE_V3 stays opt-in; the byte bar remains the oracle compare.
+
+- **2026-09-21 (62) — canon distills: CONSTANTS.md gains C51 (the
+  CaveStructure record-walk family + the lowered-writer census); 
+  VERIFIED.md §12's caves-field block updated to the byte-closed
+  writer census + the per-phase FLAG; the port gained the record
+  byte-grid lane + per-structure iteration byte-forms and the oracle
+  compare is re-run (y224 row rms 0.2337 after the record phase, the
+  standing instrument reports the divergence the same way).**

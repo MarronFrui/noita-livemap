@@ -490,15 +490,31 @@ binary side unread) · ❌ unexplored.
   [+0x264] (the CE relabel, C43); the FINAL-combine + case-2/3 lanes
   ported byte-cited with the axis retrace (digs #22/#23 = ABOUT_MATH
   (40)/(41), C45).
-- **The caves-field lane (`lib/caves-field.mjs`) is NOT game-ready:**
-  the C46/C43 primitives are byte-exact (fn C1's all-1.0 base + the
-  ×5·w toucher, the C27 ctor chain, the C50 strength-knob interp, the
-  (43)(a) falloff incl. the (y/25)⁸ eave) but the PLACEMENT
-  composition (chain walk / blob y-locks / mountain placements) is
-  FLAGGED, not byte-read; measured 0.93 solid vs the C48 oracle's
-  ~0.5. Byte oracle: `out/oracle/caves-grid-2026-09-21.json` (C48);
-  remaining named sub-reads: fn B's per-phase block bodies, the
-  A-resolver body (true 0x8EE1B0), C1/C2 wiring (C46/C50).
+- **The caves-field lane (`lib/caves-field.mjs`) — status update
+  2026-09-21 (CONSTANTS.md C51):** the WRITER census is now byte-closed —
+  the band stacks (L1/L2/L3 = `0x8EE750`) are **max-bleed raise-only**
+  (`push $0` single-point lane); the scatter (`0x8EF2D0`) = the `< 0.5`
+  empty-cell gate only; **the only lowering-capable writer = the
+  smoothstep LERP stamp `0x8EE930`** (`v_out = (v_src−v_dst)·t + v_dst`
+  per cell) and the **C32 LoadFromImageData ±1.0 family**; the
+  **CaveStructure record lane (the fnB load phase) stamps the BYTE
+  grid** (`0x8EF950`, the [P+0x58] byte lane) with its own per-record
+  count pair [+0x28]/[+0x30] + strength pair [+0x34]/[+0x38] = the
+  XML's per-record strength_min/max (byte-verified vs hills.xml's 10
+  records) and the NEGATIVE-grade NextU-scale roll (`mulsd 0x11e0578`).
+  BYTE-EXACT in the port: fn C1's 1.0 base + the ×5·w toucher, the C27
+  ctor chain, the C50 knob/record interps, the (43)(a) falloff incl.
+  the (y/25)⁸ eave, the (58) `stampBlendLerp` byte-form, the record
+  roll/writer (its own counts + strength pair + byte-grid), and the
+  scatter's roll+gate+recursion. **Still FLAGGED:** the per-phase
+  ORDER of the draw consumption (which strength span feeds which
+  phase — the [−0x128]/[−0x108] windows are pinned but their
+  per-phase *value-source read* is not) + the C1/C2 hand-off detail +
+  the A-resolver body (`0x8EE1B0`). The lane stays `SURFACE_V3=1`
+  opt-in; the byte bar = the oracle compare
+  (`out/oracle/caves-grid-2026-09-21.json`, C48; the compare
+  instrument measured per-row rms standing, best row y224 at rms
+  0.0164).
 - Cache policy: `out/gen-cache/r3i` holds ONLY wang-area bins
   (seed+area-keyed); the cave-field/opt-in lanes live in non-cached
   in-memory buffers, so no bump was required for the revert; bump
