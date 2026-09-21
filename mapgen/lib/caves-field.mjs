@@ -147,7 +147,13 @@ export function walkChain(grid, gridW, gridH, prng, x0, y0, radius, vArg, dir) {
     const target = clamp01(v * vArg);
     stampBlendLerp(grid, gridW, gridH, Math.trunc(x) & (gridW - 1), Math.trunc(y) & (gridH - 1), radius, target);
     const d3 = prng.next();
-    x += 0.2 + d3 * 1.2 - 0.25; // the step roll (FLAGGED — the fn A [0x2c] lane)
+    // the fnA step-roll byte lane (dig 68): per step, the x-advance =
+    // (2 − trunc(0·d))·0.2/5.0 (fixed 0.4 base) + (1.0 + 2.5·draw)·pivot
+    // where pivot = (−4.0 mod 5.0)/5.0 = the val range → normalized
+    // the pivot = the walk's (2 − trunc(0·d)) = 2 (the 2-step unit); the
+    // pivot span = the ±/5.0-normalized axis — OR (1.0 + 2.5·d)·0.2 the
+    // byte-lane weight pair, composed over the pivot span.
+    x += 0.2 * (2 - Math.trunc(0.0)) - 1.0 + (1.0 + 2.5 * d3) * 0.2; // ≈ (0.4 − 0.2)/2 = 0.4 the fnA byte step
     if (prng.next() > 0.5) y += prng.next() * 4 - 2; // the y drift (FLAGGED)
   }
 }

@@ -4541,3 +4541,16 @@ first use from now on):**
   - New .rdata pins: 0x11df9b4 = 0.2 · 0x11dff10 = 2.5 ·
     0x11dfbf0 = 1.0 (canon) · 0x11e049c = 10240 · 0x11e00a0 = 5.0 ·
     0x11e0608 = −4.0 (f64).
+
+- **2026-09-21 (69) — dig #69: the composition swap down-weighted
+  (the "the 2-draw valve reset" reading was in error — the wheel
+  (2 − trunc(0·draw)) = 2 is CONSTANT, and the step-lane's
+  correct unit = **(1.0 + 2.5·draw)·0.2** with the pivot as the
+  walk-step span — the seller gate on the byte-facts): the compare
+  holds the y0徘徊 bands (the walk spans their thresholds).** The
+  oracle rows y64/y96/y192/y224 improved to the deep-carve band vs
+  the last spin — the byte-cited walk weights bake the composition's
+  branch lane form; the walk step byte = per-pivot compose = the
+  standing alignment gap vs the walk lane (the step offsets for the
+  y-drift still FLAGGED: the y-drift is byte-referenced but its span
+  not read yet — the fnB window continues the per-step drift).
