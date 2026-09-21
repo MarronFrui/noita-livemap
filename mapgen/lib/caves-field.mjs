@@ -37,6 +37,13 @@ export function toucherValue(w) {
 //   dir = "max"  → write iff existing < v   (the surface ADD-BLEND lane)
 // The raw setter's per-branch direction is byte-exact in-binary (43);
 // the lane split here = the dig #29 consumer model.
+// The (43)(a) blob-circle falloff radius span: r0 = trunc(radius + 0.5),
+// skip dist² > r², t = (r − dist)/r, v = (v_arg − 1)·t + 1.0, plus the
+// (y/25)⁸ top-row eave when flagged. The WRITE direction is caller-chosen:
+//   dir = "min"  → write iff existing > v   (the interior CARVE lane)
+//   dir = "max"  → write iff existing < v   (the surface ADD-BLEND lane)
+// The raw setter's per-branch direction is byte-exact in-binary (43);
+// the lane split here = the dig #29 consumer model.
 export function carveCircle(grid, gridW, gridH, cx, cy, radius, vArg, flag, dir = "min") {
   const r0 = Math.trunc(radius + 0.5);
   for (let dy = -r0; dy <= r0; dy++) {
@@ -57,6 +64,29 @@ export function carveCircle(grid, gridW, gridH, cx, cy, radius, vArg, flag, dir 
       } else if (dir === "max") {
         if (grid[idx] < v) grid[idx] = v;
       }
+    }
+  }
+}
+
+// ── the smoothstep LERP stamp blend (true 0x8EE930, dig #58) ────────────────
+// The ONLY lowering-capable writer in the fnA/fnB census. Per stamp-window
+// cell: t = (r − dist)/r (the dist²/r weight block at 0x4ee22a..0x4ee237),
+// then `v_out = (v_src − v_dst)·t + v_dst` from the (58) byte window —
+// v_arg sourced from the C50 strength interp, so a stamp whose source value
+// is low (the "AIR" semantics of a CaveStructure struct) DRAGS the cell
+// toward the struct value inside its falloff span. No max-bleed guard:
+// the blend writes the lerped value per byte read @0x4ee294..0x4ee2a3.
+export function stampBlendLerp(grid, gridW, gridH, cx, cy, radius, vArg) {
+  const r0 = Math.trunc(radius + 0.5);
+  for (let dy = -r0; dy <= r0; dy++) {
+    for (let dx = -r0; dx <= r0; dx++) {
+      const px = cx + dx, py = cy + dy;
+      if (px < 0 || py < 0 || px >= gridW || py >= gridH) continue;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > radius) continue;
+      const t = (radius - dist) / radius;
+      const idx = py * gridW + px;
+      grid[idx] = (vArg - grid[idx]) * t + grid[idx];
     }
   }
 }

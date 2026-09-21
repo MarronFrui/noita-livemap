@@ -4302,3 +4302,22 @@ first use from now on):**
     (the cengser getter 0x3eaa80 keys).
   - NEXT: point the caves-field port's stamp walker at the smoothstep
     blend (0x8EE930) per stamp — port + C48 byte-compare gate.
+
+- **2026-09-21 (59) — the caves-field port × C48 oracle comparison (the
+  byte bar, first numbers).**
+  - Port smoke: def `_EMPTY_`/hills BitmapCaves, seed 78633191 →
+    meta { blob 45 / cave 87 } (the XML spans 20..55 / 50..100 ✓),
+    p94 = 2560.0 ✓ byte-equal to the oracle's (w·0.5)/0.1.
+  - Row-by-row against the C48 oracle (`out/oracle/
+    caves-grid-2026-09-21.json`, grid_0x26599020 = the 512×256
+    bitmap_hills): overall rms driving the composed FIELD (the port's
+    placement is FLAGGED, so per-row rms ~0.27–0.61 across the
+    sampled rows y16..y160, the >0.25-delta counts 0–12 of 12, y224
+    rms 0.0160 / y192 rms 0.2665). Everything within the expected
+    layout — **the placement composition (the dig #26-#29 sub-reads)
+    is the visible divergence driver, as registered: the ~24-px of
+    "un-seeded" gaps in the port vs the oracle's carve positions sit
+    at the wanderer rolls and the ORDER of stamp → scatter phases.**
+  - The port unchanged — this run is the standing instrument to use as
+    the byte bar when the fnB placement sub-reads land byte-by-byte
+    (the per-phase cols in (55)/(56)/(58)). No render wiring changed.
