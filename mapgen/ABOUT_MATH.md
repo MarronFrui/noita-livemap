@@ -4664,3 +4664,22 @@ first use from now on):**
   composition question. The port climb = the byte-lane order vs its
   budget (the standing phase budget pair = the fnB head's count pair,
   bytes ready).**
+
+- **2026-09-21 (76) — dig #76 (user challenge: "the 6-lane band switch
+  sounds like the Holy Mountain shop"): the hypothesis TESTED and
+  REJECTED for the shops; but the family REGISTERED as the C33-class
+  spinner's ancestor.**
+  - The HM links: the shop inventory tables = the g_items/g_shops
+    spawn lists (DATA side — director_helpers.lua-families), no 6-way
+    band switch in-binary at the caves band; the shops trigger via
+    the cengser keys "spawn_small_enemies"/"spawn_items" (C44) —
+    the VERY keys fn A's body pulls (the dig 21/census anchor). So
+    the 6-lane band drone and the shops' SMART pick are same-family
+    = the CONFIG side, not the caves-grid writer; the 6 lanes we
+    read = the C50 band-lane cursor advance weights (the byte facts
+    stand), which the sampler's ›the [−0x104] cursor‛ lane consumes.
+  - REJECTED hypothesis: "the 6 weights = the shop-variant weights"
+    — the shop family has NO per-cell float grid; the 0x1173110 keys
+    in fn A = the C48/BITMAP-CAVES-family spawn-percent buckets, not
+    the shops.
+  ⇒ registered for the record; no byte changes.
