@@ -90,6 +90,7 @@ function parseBiomeDefinition(dataDir, filename) {
     name: name || path.basename(filename, ".xml"),
     templateFile,
     staticTile,
+    luaScript: parseAttr(attrs, "lua_script"), // the per-chunk 0xffffeedd init lane
     randomMaterials: flatRandomMaterials,
 
   // Per-biome procedural-terrain noise params (shape side, P1 surface level).

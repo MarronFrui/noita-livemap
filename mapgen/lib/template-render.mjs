@@ -57,12 +57,19 @@ const TRIGGER_HINT = new Set([
 // --------------------------------------------------------- scene renderer ---
 // LoadPixelScene port: material PNG px -> display. visual px (alpha>0) draw
 // only over non-air material cells; air/transparent show what's below
-// (backdrop / wang terrain / black).
-function blitScene(buffers, dataDir, def, matFile, visFile, wx, wy, biomeName) {
+// (backdrop / wang terrain / black). White/grey placeholder px get the
+// biome's own MaterialComponent band fill (the game's "shades of grey get
+// filled with the materials defined in the biome's <Materials>" rule) —
+// the exact band/vein noise semantics remain an open read (C32 resolver
+// family); here it is the shared seeded-approximation fill.
+function blitScene(buffers, dataDir, def, matFile, visFile, wx, wy, biomeName, seed = 0) {
   const mat = art(dataDir, matFile);
   if (!mat) return 0;
   const vis = visFile ? art(dataDir, visFile) : null;
   const materials = loadMaterials(dataDir);
+  const bands = (def.materialBands ?? []).filter((b) => !b.rare);
+  const bandLo = bands.length ? Math.min(...bands.map((b) => b.min)) : 0;
+  const bandHi = bands.length ? Math.max(...bands.map((b) => b.max)) : 1;
   let n = 0;
   for (let j = 0; j < mat.height; j++) {
     for (let i = 0; i < mat.width; i++) {
@@ -73,10 +80,22 @@ function blitScene(buffers, dataDir, def, matFile, visFile, wx, wy, biomeName) {
       const hex = `${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
       let shade = null;
       if (r === 0 && g === 0 && b === 0) continue; // scene air: below shows
-      if (hex === "ffffff") continue; // biome-materials fill: TODO (deferred)
-      const mname = materials.get(hex);
-      if (!mname) { if (TRIGGER_HINT.has(hex)) continue; continue; }
-      shade = pick(materialShadeFor(dataDir, mname), wx + i, wy + j, 0x51ce3f);
+      if (r === g && g === b) {
+        // grey/white placeholder family -> the biome's MaterialComponent fill
+        // (Approximation, flagged: exact band/vein noise = the C32 open read)
+        if (!bands.length) continue;
+        const active = bands.filter(
+          (b2) => !b2.limitMinY || !b2.limitMaxY || (wy + j >= b2.limitMinY && wy + j <= b2.limitMaxY)
+        );
+        const use = active.length ? active : bands;
+        const v = bandLo + fbm2(wx + i, wy + j, seed | 0) * (bandHi - bandLo);
+        const chosen = use.filter((b) => v >= b.min && v < b.max).pop() ?? use[use.length - 1];
+        shade = pick(materialShadeFor(dataDir, chosen.name), wx + i, wy + j, 0x51ce3f);
+      } else {
+        const mname = materials.get(hex);
+        if (!mname) { if (TRIGGER_HINT.has(hex)) continue; continue; }
+        shade = pick(materialShadeFor(dataDir, mname), wx + i, wy + j, 0x51ce3f);
+      }
       let color = shade;
       if (vis) {
         const vq = 4 * (j * mat.width + i); // same dims in practice
@@ -117,6 +136,149 @@ function setWorldPx(buffers, wx, wy, [r, g, b]) {
   const o = 3 * (ly * 512 + lx);
   buf[o] = r; buf[o + 1] = g; buf[o + 2] = b;
   return 1;
+}
+
+// ------------------------------------------------- per-chunk init() scenes ---
+// The generic LoadPixelScene sweep: each template biome's lua carries a
+// per-chunk init (RegisterSpawnFunction(0xffffeedd, "init") -> function
+// init(x, y, w, h)) whose LoadPixelScene(materials, visual, x+dx, y+dy,
+// background, ...) calls place seed-independent art at the CHUNK's world
+// origin (x, y = the chunk's top-left world px). We parse only that
+// function body; offset expressions limited to linear x/y + int chains
+// (dynamic offset expressions = unhandled, counted, never guessed).
+// Source: data/scripts/biomes/** (mountain/pyramid quotes byte-read;
+// callsite census measured 2026-09-21: 256 across biomes/**).
+
+import fs from "node:fs";
+
+const luaSceneCache = new Map();
+
+function splitArgs(body) {
+  const out = [];
+  let depth = 0, inStr = false, q = "", cur = "";
+  for (const c of body) {
+    if (inStr) { cur += c; if (c === q) inStr = false; continue; }
+    if (c === '"' || c === "'") { inStr = true; q = c; cur += c; continue; }
+    if (c === "(") depth++;
+    if (c === ")") depth--;
+    if (c === "," && depth === 0) { out.push(cur.trim()); cur = ""; continue; }
+    cur += c;
+  }
+  if (cur.trim()) out.push(cur.trim());
+  return out;
+}
+
+function splitArgsLine(code) {
+  const open = code.indexOf("(");
+  let depth = 0, inStr = false, q = "", end = code.length;
+  for (let i = open; i < code.length; i++) {
+    const c = code[i];
+    if (inStr) { if (c === q) inStr = false; continue; }
+    if (c === '"' || c === "'") { inStr = true; q = c; continue; }
+    if (c === "(") depth++;
+    if (c === ")") { depth--; if (depth === 0) { end = i; break; } }
+  }
+  return splitArgs(code.slice(open + 1, end));
+}
+
+function unquote(s) {
+  const m = s.match(/^"([^"]*)"$/);
+  return m ? m[1] : null;
+}
+
+// linear offset expression over x/y (int sums) -> [dx, dy]; null otherwise
+function evalXY(expr) {
+  if (!expr) return null;
+  const t = expr.replace(/\s+/g, "");
+  if (!/^[xy+\-\d]+$/.test(t)) return null;
+  const tokens = t.match(/[xy]|\d+|[+\-]/g);
+  if (!tokens) return null;
+  let dx = 0, dy = 0, s = 1, num = "", pendingVar = null;
+  for (let k = 0; k < tokens.length; k++) {
+    const tok = tokens[k];
+    if (tok === "+" || tok === "-") {
+      if (num === "" && pendingVar === null) s = tok === "+" ? 1 : -1;
+      else { // previous bare var or number already applied; reset sign
+        s = tok === "+" ? 1 : -1;
+      }
+      continue;
+    }
+    if (tok === "x" || tok === "y") {
+      if (num !== "") return null; // "x512"/"512x" forms not in data
+      pendingVar = tok; // a bare variable term contributes +0 (the origin itself)
+    } else { // digit(s)
+      num += tok;
+      const next = tokens[k + 1];
+      if (next == null || !/\d/.test(next)) {
+        if (pendingVar === "y") dy += s * Number(num); else dx += s * Number(num);
+        num = ""; s = 1; pendingVar = null;
+      }
+    }
+  }
+  return [dx, dy];
+}
+
+export function parseInitPixelScenes(src) {
+  const lines = src.split(/\r?\n/);
+  const hookIdx = lines.findIndex((l) => /RegisterSpawnFunction\s*\(\s*0xffffeedd\s*,\s*"init"\s*\)/.test(l));
+  if (hookIdx < 0) return { scenes: [], dynamic: 0, noInitHook: true };
+  let head = -1;
+  for (let i = hookIdx; i < lines.length; i++) {
+    if (/\bfunction\s+init\s*\(/.test(lines[i])) { head = i; break; }
+  }
+  if (head < 0) return { scenes: [], dynamic: 1 };
+  let depth = 1, endIdx = lines.length - 1;
+  for (let i = head + 1; i < lines.length; i++) {
+    const l = lines[i].replace(/--.*$/, "").trim();
+    if (/\bfunction\b/.test(l)) depth++;
+    if (/\bif\b/.test(l) && /\bthen\b/.test(l)) depth++;
+    if (/\bfor\b/.test(l) && /\bdo\b/.test(l)) depth++;
+    if (/\bwhile\b/.test(l) && /\bdo\b/.test(l)) depth++;
+    if (/\bend\b/.test(l)) depth--;
+    if (depth <= 0) { endIdx = i; break; }
+  }
+  const scenes = [];
+  let dynamic = 0;
+  for (let i = head; i <= endIdx; i++) {
+    const raw = lines[i];
+    const code = raw.replace(/--.*$/, "").trim();
+    if (code.startsWith("--") || code === "") continue;
+    if (!/^LoadPixelScene\s*\(/.test(code)) continue;
+    const args = splitArgsLine(code);
+    if (args.length < 4) { dynamic++; continue; }
+    const mat = unquote(args[0]);
+    if (!mat) { dynamic++; continue; }
+    const vis = args[1] !== '""' ? unquote(args[1]) : null;
+    const dxE = evalXY(args[2]); const dyE = evalXY(args[3]);
+    if (dxE == null || dyE == null) { dynamic++; continue; }
+    const bg = args[4] && args[4] !== '""' ? unquote(args[4]) : null;
+    scenes.push({ mat, vis, bg, dx: dxE[0] + dxE[1], dy: dyE[0] + dyE[1] });
+  }
+  return { scenes, dynamic };
+}
+
+function getPixelScenes(dataDir, def) {
+  if (luaSceneCache.has(def.filename)) return luaSceneCache.get(def.filename);
+  let parsed = null;
+  if (def.luaScript) {
+    try {
+      const p = path.join(dataDir, def.luaScript.replace(/^data\//, ""));
+      parsed = parseInitPixelScenes(fs.readFileSync(p, "utf-8"));
+    } catch { parsed = { scenes: [], dynamic: 1 }; }
+  }
+  luaSceneCache.set(def.filename, parsed);
+  return parsed;
+}
+
+function blitInitScenes(buffers, dataDir, def, x, y, seed) {
+  const parsed = getPixelScenes(dataDir, def);
+  if (process.env.TEMPLATE_DEBUG) console.log('[blitInitScenes]', def.name, def.filename, 'scenes:', parsed?.scenes.length ?? 'no-parse');
+  if (!parsed || parsed.scenes.length === 0) return false;
+  for (const sc of parsed.scenes) {
+    if (sc.bg) blitBackdrop(buffers, dataDir, sc.bg, x + sc.dx, y + sc.dy);
+    blitScene(buffers, dataDir, def, sc.mat, sc.vis, x + sc.dx, y + sc.dy, def.name, seed);
+  }
+  return true;
 }
 
 // ------------------------------------------------------- biome compositions ---
@@ -181,6 +343,7 @@ export function renderTemplateWorld(dataDir, config, seed) {
           try {
             renderTemplateChunk(buffers, dataDir, file, def, wx, wy, seed);
           } catch (e) {
+            if (process.env.TEMPLATE_DEBUG) console.error('[template-render]', file, tx, ty, String(e.stack ?? e).split("\n").slice(0, 3).join(" | "));
             // leave chunk black on composition errors
           }
         }
@@ -270,14 +433,12 @@ function fillStrip(buffers, wx, wy, seed, leftEdge) {
   }
 }
 
-// biomes that render as void/black (sky, void, light-only layers) — matches
-// the reference stitch where these regions show no world content
-const VOID_BIOMES = new Set([
-  "_EMPTY_", "barren", "darkness", "potion_mimics", "boss_sky",
-  "sky_light_injector",
-]);
+// biomes that render as void/black (sky, void, light-only layers) — matched
+// by FILENAME suffix: the xml name attr is NOT reliable (the mountain
+// family's name attr is literally "_EMPTY_" and they render real scene art).
+const VOID_FILES = /(?:biome_)?(?:barren|darkness|potion_mimics|boss_sky|sky_light_injector)\.xml$/;
 
-function renderTemplateChunk(buffers, dataDir, file, def, x, y, seed) {
+export function renderTemplateChunk(buffers, dataDir, file, def, x, y, seed) {
   const T = "data/biome_impl/temple/";
   if (file === "temple_wall.xml") {
     // temple_wall.lua init -> spawn_altar_top(x, y, true)
@@ -337,7 +498,7 @@ function renderTemplateChunk(buffers, dataDir, file, def, x, y, seed) {
   } else if (file === "sky_light_injector.xml") {
     // light-injection layer; nothing static to draw (below shows)
     return;
-  } else if (VOID_BIOMES.has(def.name)) {
+  } else if (VOID_FILES.test(file)) {
     return; // void/sky — renders black like the reference stitch
   } else if (def.name === "lava" || file === "lava_90percent.xml") {
     // The Work's lava: orange sea above world y≈14600 (rows ≤42), dark
@@ -352,6 +513,10 @@ function renderTemplateChunk(buffers, dataDir, file, def, x, y, seed) {
   } else if (isTowerFile(file)) {
     // border tower columns: full pink-speckle wall strip
     fillChunk(buffers, x, y, seed, STRIP);
+  } else if (blitInitScenes(buffers, dataDir, def, x, y, seed)) {
+    // generic per-chunk init() LoadPixelScene lane (mountain/pyramid
+    // pieces, floating island, halls, bosses — the game's own art,
+    // data-side; dynamic-offset callsites are still skipped, see §12).
   } else {
     renderProceduralFill(buffers, dataDir, file, def, x, y, seed);
   }
