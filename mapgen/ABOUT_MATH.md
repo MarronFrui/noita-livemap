@@ -4150,3 +4150,37 @@ first use from now on):**
   - NEXT (unchanged): per-phase block semantics between the call sites
     (the layer-2/3 setter arg masks, the aabb arithmetic, the
     beginning-paths lane), then the port against the C48 oracle.
+
+- **2026-09-21 (55) — fnB sub-read (1): the layer-2/3 setter arg masks
+  DECODED byte-exact (all slab windows in /tmp/opencode/fnb.dis; true
+  VA = slab + 0x400800 per C13; anchor re-pinned ✓):**
+  - **Layer-2 (slab 0x4f186b..0x4f18d6 = true 0x8F2265..0x8F20D6):**
+    1. Random draw (C6/C7 closed form → edx).
+    2. POINT = {trunc(−0x120), trunc(−0x138)} written at &{−0x164,−0x160},
+       edx = &point.
+    3. VALUE = cvtdq2pd(draw) → ×C1 (0x11df988) → cvtpd2ps →
+       **×0.35 (0x11dfa20) → +0.65 (0x11dfb14) → ×[−0x128] (the layer-1
+       clamp output)** = the C44 form `[-0x128]·(d·0.35+0.65)` EXACT.
+    4. `push $0` — **the stack flag = FALSE** → the blob-setter's PATH (a) =
+       **single-point MAX-BLEED write (write iff new > existing)**; NO
+       circle walk, no falloff for this lane.
+    5. `call 0x4edf50` (the C43 float-grid setter) with ecx = [−0x13c].
+    Pre-window lane: `[−0x100] = d·0.25 (@0x11df9d0) + 0.75 (@0x11dfb2c)`
+    (the (31)-cluster's d·0.25+0.75 base, now slab-cited).
+  - **Layer-3 (slab 0x4f2205..0x4f226c):** the SAME mask — point =
+    {trunc(−0x120), trunc(−0x138)} at &{−0x134,−0x130}, `push $0`,
+    value = [−0x108]·(d·0.35+0.65) (0.35 @0x11dfa20, 0.65 @0x11dfb14
+    on the drawn value). Both band layers = single-point max-bleed
+    updates — **they can only RAISE a cell, never carve it down**.
+  - **SEMANTIC VERDICT (uses the fn A walk level too):** the AIR inside
+    the cave/hills bands is NOT produced by the band-stack layers —
+    max-bleed can only climb. The carve/air decision must live in the
+    CaveStructure stamp lane (the scatter true 0x8EF2D0's `< 0.5`
+    empty-cell gate + its recursion) or the CaveStructure IMAGE blends
+    (the mountain bump writer, C48's identify target). This RETIRES the
+    "upper band = solid overlay" reading: upper bands RAISE the value
+    only; AIR comes from where stamps/carves act.
+  - The x-wanderer's damped step (`subss 0.15` @0x4f2528 + the
+    pre-window lane `d·0.25 − 0.15 + prev` around slab 0x4f2488..0x4f2563
+    + `decl −0x118(%ebp)` @0x4f255d) = the ≤50-step x-wanderer per-stamp
+    maintenance re-cited in body blocks (the fn A window).
