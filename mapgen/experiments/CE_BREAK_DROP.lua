@@ -23,7 +23,7 @@ local function f100(addr, count, stride)
 end
 local function i32s(addr, n)
   local out = {}
-  for k = 0, n - 1 do out[#out+1] = tostring(readSmallInteger(addr + k * 4) or 0) end
+  for k = 0, n - 1 do out[#out+1] = tostring(readInteger(addr + k * 4) or 0) end
   return table.concat(out, ' ')
 end
 
@@ -56,8 +56,8 @@ for i = 1, math.min(#uids, 45) do
       .. ' ' .. w .. 'x' .. h
       .. ' [P+0x94]=' .. string.format('%.4f', readFloat(P + 0x94) or -7))
     -- the f32 window the bodies actually read:
-    print('    f32 +0x1c..+0x4c: ' .. f32(P + 0x1c, 13)     -- 0x1c,0x20,0x24,0x28,0x2c,0x30,0x34,0x38,0x3c,0x40,0x44,0x48,0x4c
-      .. '  | +0x50..0x60: ' .. f32(P + 0x50, 5))
+    print('    f32 +0x1c..+0x4c: ' .. f100(P + 0x1c, 13)     -- 0x1c,0x20,0x24,0x28,0x2c,0x30,0x34,0x38,0x3c,0x40,0x44,0x48,0x4c
+      .. '  | +0x50..0x60: ' .. f100(P + 0x50, 5))
     -- the int slots (cave-count pairs / vector heads):
     print('    i32 +0x1c..+0x3c: ' .. i32s(P + 0x1c, 9))
     -- the record-vector head (the C32-list candidates at +0x80):
@@ -65,7 +65,7 @@ for i = 1, math.min(#uids, 45) do
     -- the blob-stamp knob candidates ([P+0x24] f32 + others per dig #28):
     print('    f32 +0x24=' .. string.format('%.6f', readFloat(P + 0x24) or -7)
       .. ' +0x60=' .. string.format('%.6f', readFloat(P + 0x60) or -7)
-      .. ' +0x64..0x70: ' .. f32(P + 0x64, 4)
+      .. ' +0x64..0x70: ' .. f100(P + 0x64, 4)
       .. ' +0x74=' .. string.format('%.6f', readFloat(P + 0x74) or -7)
       .. ' +0x78=' .. string.format('%.6f', readFloat(P + 0x78) or -7))
     -- the byte grid deref: close [+0x58] = the mMaterialData art-byte lane
@@ -82,10 +82,11 @@ for i = 1, math.min(#uids, 45) do
       for k = 0, n - 1 do
         local bx = readInteger(rec0 + k * 16)
         local by = readInteger(rec0 + k * 16 + 4)
-        local b1 = readSmallInteger(rec0 + k * 16 + 8) or -1
-        out[#out+1] = bx .. ',' .. by .. ':' .. tostring(b1)
+        local tail = hexb(rec0 + k * 16 + 8, 8)
+        out[#out+1] = bx .. ',' .. by .. ':' .. tostring(tail)
       end
-      print('    [P+0x7c/0x80] records n<=' .. n .. ': ' .. table.concat(out, ' | '))
+      print('    [P+0x7c/0x80] records n<=' .. n .. ' (x,y,then 8B raw): '
+        .. table.concat(out, ' | '))
     end
     -- V6e-retargeted: the A-resolver fn ptr on the REAL owner ([P+0xb0]):
     local fn = readInteger(P + 0xb0)
