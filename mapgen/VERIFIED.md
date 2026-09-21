@@ -328,8 +328,27 @@ binary side unread) · ❌ unexplored.
    (layer-1 = 0.32·d+0.35 ⇒ [0.35, 0.67]; layers 2/3 = 0.35·d+0.65 ⇒
    [0.65, 1.0)) via the 0x4edf50 grid-setter — the mGradient* XML
    family = most plausibly these stacks' parameters (not a PNG bake).
-   Remaining: the per-arg CE/cengser read; then the shape instruments
-   (bench:ref + flat-region rms vs frozen91) — the genuine r3f→r3g gate.
+- **The W5 model FINAL (kernel reference, dig #19):** the `field` =
+  the per-AREA float-grid (the C31 [this+0x18] family — the fresh
+  **512×256 / cnt=131072 / px-shared** instance pinned by the CE
+  run, values like 0.4607/0.5429/0.0964/0.2694/0.3741/0.5791/0.2240/
+  0.0438/0.9666/0.2322 = the LIVE band-stack!), filled per-cell from
+  (i) the per-biome 260×260 image (C39's material_image/plz — the
+  1…0.7961…1 border-fades = the image's own FC) and (ii) the
+  Random(min,max) band-stack layers (0.32·d+0.35 / 0.35·d+0.65),
+  consumed by the true 0x90a860 evaluator + the C34 sampler. The
+  3584×2457/8.8M-cnt world-grid (all-1.0 rows at y=1200/1600) = the
+  combined WORLD-state lane. The mGradient* XML family = the
+  band-stack's per-biome parameters (per-arg byte = the one item
+  left).
+   ✓ **CE-RUN of 2026-09-20: the first game-observation LANDED (the
+   user's Lua-script): [uid+0x224] = 5 = the noiseType int = the
+   dispatcher case (the 0x8fc020-family = the ported core!) — W2
+   CLOSED EMPIRICALLY, the mG-Register: the +0x264/+0x268 pair =
+   MultGradient/MultPerlin CORRECTED; the hills-class grid =
+   w260/h260 cnt 67600 = the per-biome image-baked float grid
+   (the row [1...0.7961...1]); the 3584×2457-8.8M-cnt grid = the
+   world-state (C31-family); winter-class = a 1×1-empty placeholder.**
    now carries K2/GRAD12 (12-dir pairs byte-pinned), simplex2DDeriv
    (0x8fc020 read to formulas, ×70, skew BSS flagged), noiseDispatch
    (honest throws for cases 0..4), insidePerlin, fbm4, surfaceField —
@@ -340,6 +359,38 @@ binary side unread) · ❌ unexplored.
    name-REGISTRATIONS, not consumers)** + capture validation
    (I1/I3/I5/I6). Generator WIRED (`lib/noise-terrain.mjs`; r3f)
    pending the field-source wiring.
+- **DIG #21 DISTILL (2026-09-21, ABOUT_MATH (38), CONSTANTS.md C44) —
+  the band-stack binding is STATICALLY CLOSED (per-arg = P5):** the
+  C43 hypothesis "mGradient* = the band-stack's per-biome parameters"
+  is ELIMINATED — the three Random(min,max) band stacks (fn A true
+  0x8EEC70 = layer 1 @setter true 0x8EF37C; fn B true 0x8F5DD0 =
+  layers 2/3 @setters true 0x8F20D1 / 0x8F2A6C) read ZERO C37 config
+  slots ([+0x1d4] or [+0x220..0x268]) in their whole bodies; the (A,B)
+  pairs are pinned .rdata globals (0.32 @0x11dfa00 / 0.35 @0x11dfa20 /
+  0.65 @0x11dfb14; chain bases [-0x128] = d·3.0+1.0, [-0x108] =
+  d·0.1+0.1 — the (33) window labels corrected). The stacks write the
+  mTopology→BitmapCaves GENERATED cave grid: factory fn C1 true
+  0x8F2FF0 sizes the grid from the XML <BitmapCaves size_x/size_y>
+  (hills.xml: 512×256 = the CE grid shape ✓) and CACHES BY NAME in the
+  std::map @0x132aae8 — the CE "one grid shared by 5+ uids" = the
+  name-keyed cache. Values = a fresh poro Random per build (diddled
+  seed, C27) ⇒ deterministic per (seed, dims, name), matching the CE
+  two-instance value-identity. The mGradient*/mInside… XML family
+  feeds ONLY the C37 surface evaluator (CE (35)). Port updates same
+  day (tests 143/143): noiseKind = 5 for SIN_CAPPED_SIMPLEX (CE (35);
+  kind-8 proxy retired; the 36 live noise_type attrs are ALL that
+  name); the C37 mult slots renamed after the CE relabel: gradWCoef =
+  [+0x268] = the mMultiplierPerlin VALUE (default 1.0 = CE hills with
+  the attr absent) and perlinCoef = [+0x264] = the
+  mMultiplierGradient VALUE (hills 0.871429); the mGradientAddNoise
+  2/3 lanes still throw honestly. Cache r3f → r3g (the solid-mask
+  membership of the 574 procedural chunks changes = observable). First
+  shape-instrument pass = ABOUT_MATH (39): the handoff window (biome
+  ty 11..19) holds ZERO procedural-noise chunks (the noise band lives
+  at biome rows 0..2); its allPixelRms 73.5 / flatRms 48.7 / refSolid
+  0.690 vs our 0.429 measure the wang/template bands — the noise-band
+  self-instrument remains the next gate.
+
 
    **Dig #4 plan (handover 2026-09-20 — EXECUTED + F3 read-CLOSED same
    day; full detail ABOUT_MATH 2026-09-20 (15)/(16)):

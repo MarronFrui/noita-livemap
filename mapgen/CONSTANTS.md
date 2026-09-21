@@ -63,8 +63,13 @@
 | C38 | surface-math .rdata pins | 0.02/0.0241/0.025/0.02789, 0.05, 0.51, 0.85, 0.495, 0.49162514, 0.05243442, 2.02/2.33, 1.0e-3/9.765625e-4, seed scales |
 | C39 | the [uid+0x1d4] fill chain + 0x8fc020 decoder | SetSize+Load wrapper true 0x8fa930; loader true 0x90e060 ("plz"→LoadImageFastLZ); case-5 core READ (mod-12 grads @0x12ee338, ×70); port in noise-proto.mjs |
 | C40 | case-1 lane core (sin-hash lattice) + IAT math table | true 0x8fb350 = whiteLattice2d: c0=57·round(y)+round(x), corners frac(sin(c0+k)·43758.546875) k∈{0,1,57,58}; 0x44d110=libm sin-precise (slot 0x114a520); 0x44d0b0 = fld/fistp round |
-| C43 | gradient-grid setter stacks (W5 core) | 0x4edf50 = float-grid setter; 3 layer-callers with fraction-bands (0.32·d+0.35 / 0.35·d+0.65), the mGradient* = likely these stacks' params; remaining: the per-arg CE read |
+| C43 | gradient-grid setter stacks (W5 core) | 0x4edf50 = float-grid setter; 3 layer-callers with fraction-bands (0.32·d+0.35 / 0.35·d+0.65); mGradient* = likely these stacks' params. **CE-VERIFIED 2026-09-20 (35): [uid+0x224] = 5 = noiseType-int (the dispatcher case = the 0x8fc020 crest — W2 CLOSED empirically); [uid+0x220] = addNoise {3, 0}; [uid+0x230/0238] = f64 ScaleX/Y (0.9999-hills ✓); [uid+0x244/248] = 0.057143 / 2.0 ✓; [uid+0x264] = mMultiplierGradient (0.871429-hills ✓); [uid+0x268] = mMultiplierPerlin (1.0-hills / 0.642857-winter ✓ — CORRECTION of the (23)-map: the pair swapped); [uid+0x1d4] = the BitmapNoise ptr — the hills-class = w260✓h260 = a real 67600-float grid (row [1,1,1…0.7961…1]); the winter-class pointer = a 1×1-unbound placeholder; one candidate = a 3584×2457-cnt-8.8M = the WORLD-state-grid (C31-family!)** |
+| C44 | BitmapCaves band-stack family (P5) | fn A true 0x8EEC70 (L1) · fn B true 0x8F5DD0 (L2+L3) · factory fn C1 true 0x8F2FF0 (dims = BitmapCaves size_x/y = w[+0x1c]/h[+0x20]; cache map @0x132aae8 keyed by name); band consts 0.32@0x11dfa00 / 0.35@0x11dfa20 / 0.65@0x11dfb14 (all pinned 2026-09-21); [-0x128]=d·3.0+1.0, [-0x108]=d·0.1+0.1. **NO C37 config slot read by the family ⇒ "mGradient* = band-stack params" ELIMINATED** (see the C44 registry row) |
+| C45 | FNV24 hash + lattice + corner table | hash true 0x8FB2D0 (FNV-1a over 24B {x_d64\|y_d64\|1234567.0-sentinel @0x11e0180}, idx = ((h>>8)&0xff)^(h&0xff)); the 256-f64 corner table .data 0x12eb950 (data_raw off 0x950; the C41 "12-dir pairs" = only the first 12, SUPERSEDED); lattice true 0x8fc940 = smoothstep 4-corner bilinear (rows in x by wx, out = wy·(rowT−rowB)+rowB; corner order pinned). C41's "0xc31cea walk" = the /GS cookie check (retired). fbm = CONSTANT quad {sin1,cos1,cos1,−sin1} @0x11e0c70 + **lac 2.01 @0x11dfe78** (new pin); case-4 args 7123.1234 @0x11e00d8 / 1020304.1234 @0x11e0170 |
+| C46 | BitmapCaves stamp-carve family (W5 field build) | fn A true 0x8EEC70 (CaveStructure stamp walker, recursion = cave_childs) · blob setter true 0x8EE750 (max-bleed + circle falloff) · scatter engine 0x8EF2D0 · blend twins 0x8EF870/0x8EF950 · roll/envelope consts 0.35/0.25/0.32/0.35 @0x11dfa1c/d0/a00/a1c, envelope 0.2/0.3/0.4/0.6/0.7/0.33; READ, not ported (sub-reads named) |
 
+| C47 | C24 runtime decode (CE v4) | [0x1327670] = **17920.0**, [0x13289a8] = **7168.0** = the canvas/world offset pair (NOT a fill window; the "159/223 = engine defaults" reading dies); slopeFlag [+0x24c] = 0 all 42 uids (slope arm dead in live data); BitmapCaves std::map count = 4; A-resolver [P+0xb0] = NIL (P = the caves-grid object does NOT carry it; target corrected to BitmapNoise instances); live 512x256 bitmap_hills grid values recorded (byte-level I1 validation anchor; y=0 rows exceed 1.0 per the (y/25)^8 eave) |
+| C48 | caves-grid [P+0x94] signature + byte oracle | [P+0x94] = (w·0.5)/0.1 on cave grids (512→2560.0, 1×1→5.0 = the fn C1 ×5 toucher, byte-cross-verified); the world-state grid keeps the RAW C27 draw (−56909.828125, no ×5); both 512×256 cached grids byte-identical ⇒ the caves field = deterministic (diddled ws, name, XML params); the y=0 bump (peak 1.454@x≈19) = a stamp ADD-BLEND over the 1.0 base (writer = 0x8EF870 twin / bake, named target); oracle artifact `mapgen/out/oracle/caves-grid-2026-09-21.json` |
 ## Registry
 
 ### C1 — coalmine start-path mark `0xFF420000`
@@ -703,6 +708,15 @@
 - Status: read + registered (2026-09-20 (23)).
 
 ### C37 — surface-field evaluator true **0x90a860** (slab 0x50a060) — the P1 blend
+> **2026-09-21 UPDATE (dig #22 #8 + the remap): the FINAL-combine = byte-corrected
+> (supersedes this row's `[+0x268]·gradW + [+0x264]·r + [+0x260]` line and the
+> insn (a)-lane polarity): out = [+0x268]·gradW·per + [+0x264]·rpost + [uid+0x260]
+> with gradW = (r'−0.5)·2, r' = r·field0 (the field slot := r' at 0x50a2fe — ALL
+> post-bilinear gates/lanes read r'), per = insidePerlin's out = [ebp-0x8],
+> rpost = the post-case-lane value; add := 0 unless the case-switch path ran.
+> [+0x268]≠0 RUNS the gradW/per lane (determines via ucomiss-0 + test ah,0x44-parity).
+> The slope arm = per·(1+(rpost−1)·y·0.001) @0x11dfb58, gated [+0x24c].
+> Source: ABOUT_MATH 2026-09-21 (40) + the remap addendum.**
 - Evidence: `mapgen/out/d_2026-09-20-surface-evaluator.asm`. ebx = the
   per-biome config object ("uid"); xmm2/xmm3 = (x,y) f64; [ebp+8] = the
   IN/OUT field cell (scratch float).
@@ -734,8 +748,12 @@
   ScaleMin/Max (clamp + map [−1,1]→[Min,Max]) · [+0x24c] slope flag ·
   [+0x24d] OffsetBySeed (diddle 0x11e0ba0 ✓; f64 scales 1.312e−05
   @0x11dfa68 / 2.331e−05 @0x11dfa80) · [+0x250]/[+0x258] OffsetX/Y ·
-  [+0x260] mInsideAddValue · [+0x264] mMultiplierPerlin · [+0x268]
-  mMultiplierGradient.
+  [+0x260] mInsideAddValue · [+0x264] mMultiplierPerlin¹ · [+0x268]
+  mMultiplierGradient¹ — ¹ the LABELS = pre-CE ((23)); POSt-CE the VALUE
+  slots = SWAPPED (+0x264 = the mMultiplierGradient value = the CE read
+  0.871429-hills; +0x268 = mMultiplierPerlin = 1.0-hills/0.642857-
+  winter) — see the C37 header & C43; the PORT's names = gradWCoef
+  (=[+0x268]) / perlinCoef (=[+0x264]).
 - Attribute names in .rdata = doc-strings only: whole-exe imm32 scan
   (incl. .data + full .rdata halves) = ZERO non-assert refs
   (mInsidePerlinScaleY/OffsetY/mGradientEndY only inside vector
@@ -878,3 +896,225 @@
   noisetype→kind-map stays a CE/cengser read; the port mapping
   (NoiseType name → dispatcher kind) uses kind=8 (SIMPLEX-kernel proxy)
   flagged non-canon until then.
+- **ADDENDUM (2026-09-21, dig #22): the kind-8-proxy rule = RETIRED** —
+  the CE run ((35)) closed the runtime mapping EMPIRICALLY: for
+  SIN_CAPPED_SIMPLEX, [uid+0x224] = 5 = the 0x8fc020 core
+  (simplex2DDeriv). The port maps the ONLY live name to kind 5
+  (noise-terrain.mjs uidFrom) and leaves the default -1 + throw for any
+  other name (this row's mechanism record stands; no static table =
+  C42's durable negative).
+
+### C44 — the BitmapCaves band-stack family (P5 close-out, dig #21, 2026-09-21)
+- **fn A = true 0x8EEC70** (slab 0x4ee470) = the layer-1 band writer
+  (setter call true 0x8EF37C ✓). Identity: assert
+  "caves_setup.mLuaScript.empty() == false" @VA 0x11730e8 (file
+  0xd722e8); name-keyed cengser fetches via getter 0x3eaa80 with keys
+  "spawn_small_enemies" @0x1173110 / "n_small_enemies" @0x1173114 /
+  "spawn_items" @0x1173124 (the C30 spawn-percent bucket family).
+- **fn B = true 0x8F5DD0** (slab 0x4ef5d0) = the layers-2/3 writer —
+  BOTH remaining setter calls (true 0x8F20D1, slab 0x4f18d1; true
+  0x8F2A6C, slab 0x4f226c) live inside this ONE function (≥0x4f2a5f).
+- Chain bases (pin 2026-09-21): **[-0x128] = d·3.0 + 1.0** @slab
+  0x4f15cf..0x4f15df (true 0x8F1DCF..0x8F1DDF; consts 3.0 @0x11dff70,
+  1.0 @0x11dfbf0) — dig (33)'s VALUE confirmed, its window label
+  corrected (it is [-0x128], not [-0x108]); **[-0x108] =
+  d·0.1 + 0.1** @slab 0x4f2081..0x4f2091 (true 0x8F2881..0x8F2891,
+  const 0.1 f32 @0x11df974 twice).
+- Band constants (f32 pins, file = VA−0x400E00, 2026-09-21):
+  **0.32 @0x11dfa00** (file 0xddec00, bits 0bd7a33e) · 0.35
+  @0x11dfa1c / @0x11dfa20 · 0.65 @0x11dfb14 · 0.25 @0x11df9d0 ·
+  0.75 @0x11dfb2c · 2.25 @0x11dfed0 · 1.25 @0x11dfc88 ·
+  2.5 @0x11dff10 · 0.2 @0x11df9b4 / @0x11df9b0 · 0.15 @0x11df99c ·
+  10240.0 f32 @0x11e049c · 32767.0 f32 @0x11e04bc · 101.0 f64
+  @0x11dffe8 · −4.0 f64 @0x11e0608 · 0x11df988 = f64
+  4.656612875e-10 (the NextU scale, f64 not f32) · 0x11e00a0 =
+  f32 5.0 (0xa040 low dword).
+- Setter-value forms: L1 `clamp01((d2·0.32+0.35)·roll)`, roll update
+  `d1·0.35 − 0.25 + roll` (true 0x8EF29D..0x8EF2B1); L2/L3
+  `[−0x128]·(d·0.35+0.65)` (0x35 @0x11dfa20, 0.65 @0x11dfb14).
+- **fn C1 = true 0x8F2FF0** (slab 0x4f27f0) = the BitmapCaves grid
+  factory: assert "mTopology->BitmapCaves" @0x11731f0 (line 0x449);
+  (ecx = name string, edx = uid); cache/lookup in the std::map
+  @0x132aae8 (0x582bc0 / 0x655ae0 / 0x655b90; insert 0x542970);
+  alloc 0xb8 → ctor 0x4f8c70 = FUN_008f9470 (C27) with the diddled
+  seed (addsd 0x11e0ba0 ✓ C27); dims **w = [topology+0x1c],
+  h = [topology+0x20]** (the [edi+0xc0] topology sub-object) →
+  [grid+0x20]/[+0x24], u16 grid [+0x38]; [grid+0x94] =
+  ([grid+0]·0.5)/0.1 (slab 0x4f2a01..0x4f2a11). **fn C2 = true
+  0x8F3260** (slab 0x4f2a60) = the twin; top caller = std::function
+  wrapper true 0xA4E610 (slab 0x64de10), invoked from the queue-drain
+  walk (call true 0x9FED1B, slab 0x5fe51b).
+- **DATA CONFIRMATION:** hills.xml `<BitmapCaves size_x="512"
+  size_y="256">` = the CE 512×256 cnt-131072 grid ✓, and the
+  CE "one grid shared by 5+ uids" = the NAME-keyed cache (the same
+  `name="bitmap_hills"` BitmapCaves shared by multiple uids).
+- **P5 VERDICT: NO C37 config slot ([+0x1d4], [+0x220..0x268]) is read
+  by fn A or fn B (0 refs, whole-body scans) ⇒ "mGradient* = the
+  band-stack parameters" ELIMINATED statically** — the C43 row's
+  hypothesis is retired; the band stacks are binary-constant Random
+  stacks over the BitmapCaves-generated grid. mGradient* feeds ONLY
+  the C37 surface evaluator (CE (35)).
+- Status: read + registered (2026-09-21 (38)). Source: fresh slabs
+  this session; anchor C13 re-pinned first. Superseded in part by C45.
+
+### C45 — the FNV24 hash + lattice + the 256-f64 corner table (dig #22, 2026-09-21)
+- hash fn true **0x8FB2D0** (slab 0x4fb2d0): 24-B buffer {x_d64 arg
+  (xmm1) | y_d64 arg (xmm2) | 1234567.0 f64 @0x11e0180}; FNV-1a
+  bias 0x811c9dc5, prime 0x1000193, 24-B loop; idx = ((h>>8)&0xff) ^
+  (h&0xff); EAX = idx (the /GS cookie-check `call 0xc31cea` tail =
+  identity — **RETIRES the C41 "12-dir walk via 0xc31cea" misread**).
+- corner-value table = .data **0x12eb950, 256 f64s** (data_raw.bin off
+  0x950..0x1148; the "12-dir pairs" C41 note = the first 12 entries
+  only — SUPERSEDED). Value = FNV_TAB[idx] per corner.
+- lattice true **0x8FC940** (slab 0x4fb340): sc = smoothstep (3−2d)·d²;
+  corners hash(x0,y0+1) / hash(x0,y0) / hash(x0+1,y0) / hash(x0+1,
+  y0+1); the two rows lerped in x by wx; out = wy·(rowTop−rowBottom)
+  + rowBottom.
+- Pins (2026-09-21): 1234567.0 f64 @0x11e0180 ✓ (C41); **2.01 f32
+  @0x11dfe78** (fbm-oct-3 lac) NEW; **7123.1234 f64 @0x11e00d8** and
+  **1020304.1234 f64 @0x11e0170** (dispatcher case-4's arg scales);
+  the fp-classify helper true 0x1032F81 (hand-written exp-class, tables
+  0x11e0da8/0x11e0db0) = case-4's int source — identity open, flagged.
+- fdm state quad = CONSTANT {sin(1) 0.8414700031, cos(1) 0.5403000124,
+  0.5403000124, −0.8414700031} @.rdata 0x11e0c70 (never written back —
+  the C36 "accumulator" gloss ELIMINATED).
+- Status: read + registered (2026-09-21 (40)). Port: `lib/fnv-tab.mjs`
+  + fnvHash2d/fnvLattice2d in `lib/noise-proto.mjs`; noiseDispatch
+  case 3 = wired (formerly threw).
+
+### C46 — the BitmapCaves stamp-carve family (W5 field build, dig #26 2026-09-21)
+- **fn A = true 0x8EEC70** (slab 0x4ee470, extent ≤ true 0x8EF069) —
+  the CaveStructure/blob-cave STAMP WALKER: a ≤50-step x-wanderer
+  (step cap `cmp $0x32`) with per-step roll update
+  (`roll += d·0.35(@0x11dfa1c) − 0.25(@0x11df9d0)`), carve value
+  `v = clamp01((d2·0.32(@0x11dfa00)+0.35(@0x11dfa1c))·roll)` via the
+  grid-setter call at slab 0x4eeb7c (= true 0x8EF37C, the C43 setter),
+  a piecewise 0.2/0.6/0.7 envelope (0.20@0x11df9b4 / 0.60@0x11dfaf8 /
+  0.70@0x11dfb1c / 0.40@0x11dfa44 / 0.30@0x11df9f0 / 0.33@0x11dfa10),
+  then a per-stamp recursion loop (counter arg [ebp+0x28] dec loop,
+  recursive call at slab 0x4ef023 = true 0x8EEC70 — the
+  cave_childs/branch mechanic). Family helpers:
+  - blob setter true **0x8EE750** (slab 0x4edf50): (ecx = grid,
+    edx = &point{x,y}, xmm2 = radius, xmm3 = value, stack[5] = flag;
+    fn A pushes $1). Path (a) single-point MAX-BLEED write (write iff
+    new > existing; getter/setter 0x5491f0); path (b) the circle
+    walk (r0 = trunc(value+0.5), skip dist² > r², flag-gated falloff
+    blend — the exact falloff block slab 0x4ee044..0x4ee11c = OPEN).
+  - multi-blob scatter engine true **0x8EF2D0** (slab 0x4ee2d0).
+  - blend twins: float-grid `dst += v·(src−dst)` true **0x8EF870**
+    (slab 0x4ef070); byte-grid copy true **0x8EF950** (slab 0x4ef150).
+- rdata pins (byte-read from rdata.bin, .rdata rule; trust anchored by
+  re-reading 0x11df988 = 4.656612875e-10 = the C1 canon constant):
+  100.0 f64 @0x11dffe8 · −4.0 f64 @0x11e0608 · 5.0 f32 @0x11e00a0 ·
+  2.5 @0x11dff10 · 10240.0 @0x11e049c · −1.0 @0x11e05a8 · 50.0
+  @0x11e0284 · 0.60 @0x11dfaf8 · 0.70 @0x11dfb1c · 0.40 @0x11dfa44 ·
+  0.30 @0x11df9f0 · 0.33 @0x11dfa10 · 0.20 @0x11df9b4 · 0.25
+  @0x11df9d0 · 0.32 @0x11dfa00 · 0.35 @0x11dfa1c (the last three
+  canon-pinned dig #21).
+- Asserts: "caves_setup.mLuaScript.empty() == false" @0x11730e8
+  (line 0x233); blob-count compare `cmp $0x5f` @0x4eebeb (sub-read).
+- Data side: hills.xml `<BitmapCaves name="bitmap_hills" size 512×256,
+  blob_caves 20..55 r1..10 s1.5..3, cave_childs 0..2, cave_count
+  50..100 s0.2..1, mountains 0..15 s1..10, surface caves 7..12 /
+  childs 2..7, do_beginning_paths/down` + 10 CaveStructure stamps
+  (cave_$[0-999].png, mountain_rock, skull_mountain, eye_0$[1-4],
+  pit, deep_pit, brush_03/04/05/06; aabb x 5..507, y −8..35).
+- **Sub-read results (ABOUT_MATH 2026-09-21 (43)):**
+  - (a) ✅ setter falloff: t = (r−dist²)/r; v0 = (v_arg−1)·t+1.0;
+    if flag≠0 ∧ y<25: final = ((y_int−1)/25(f32 @0x11e01e0))⁸·v0 +
+    1.0 (a top-row solid eave); write = MAX-BLEED into [+0x18]
+    (write iff existing < new).
+  - (b) partial: scatter true 0x8EF2D0 draws 1 poro Next, rolls a
+    point inside the range (x = trunc(v·−0.5 @0x11e058c) + trunc(−v·0.5)
+    lanes), bounds-checks, gates on cell < 0.5 (canon 0.5 @0x11dfa94)
+    and recurses into true **0x8FAFC0** (slab 0x4fa7c0) with
+    (y-int, x-int, value) — 0x8FAFC0 = the OPEN worm-branch body.
+- Status: READ (structure) — NOT ported (no-guessing mandate; the
+  named sub-reads = falloff block + 0x8EF2D0 + fn B worm/surface
+  machinery). Source: ABOUT_MATH 2026-09-21 (42)/(43). **dig #27
+  corrections (46): the "worm-branch" label @0x8FAFC0 RETIRED — it is
+  the B-CHANNEL/script-mark recorder (C32's in-binary twin; byte
+  counter + {x,y,B,B−1} record vector, noise_utils.cpp asserts
+  0x434/0x435); true 0x8EE930 = the blob-setter smoothstep twin; fn B
+  phase map read from its callee census (fn A #1 @0x4eff03 → two
+  blob phases → ctor+loader pair → byte blend → layer-2 setter
+  0x4f18d1 + scatter 0x4f1d5d → layer-3 0x4f226c + scatter 0x4f26fb →
+  second ctor 0x4f293c → RECURSIVE self-call 0x4f2a3c = the
+  cave_childs/surface recursion; XML attr names re-found in-binary).
+  Remaining port sub-reads: per-phase block semantics, layer setter
+  arg masks, aabb arithmetic, beginning-paths lane, C1/C2 wiring.**
+- Artifacts: `mapgen/out/caves-fnA.asm` (fn A + the blend twins,
+  incl. the setter block) · `mapgen/out/caves-fnB.asm` (fn B body,
+  connection skeleton registered; block-level sub-reads remain) ·
+  `/tmp/opencode/worm.asm` = the scatter/recorder family dump
+  (0x4fa7c0 + the 0x4faa60 smoothstep helper). Dumps are 1050/3551
+  lines; regenerate per the standing slab-extract command if re-read
+  (C13 map applies).
+
+### C47 — C24/cengser RUNTIME parse (CE pickup v4, 2026-09-21, user run at spawn, moduleBase 0x400000 = no rebase)
+- **The two runtime config doubles, finally READ (V4b, raw bytes):
+  [0x1327670] = 17920.0 (bytes 00 00 00 00 00 80 D1 40 LE) · [0x13289a8]
+  = 7168.0 (00 00 00 00 00 00 BC 40).** These are the same two
+  constants as the canvas/world offset pair (canvas = biome px × 512;
+  world = canvas − (17920, 7168)) — the C24 "Min/Max_X" family are
+  the WORLD→CANVAS offsets, not a fill window. The fill-arg prep
+  reading (`area<<9 − int(g)` C24) therefore CONVERTS world-px into
+  canvas-px. **The port's 159/223 stays @prov noitool AND is now
+  known-independent of these globals** (them being 17920/7168 kills
+  the "the 159/223 = engine defaults of this family" reading).
+- **V4a (42 candidates): byte[+0x24c] (slopeFlag) = 0x00 for ALL
+  42 uids** — the C37 slope arm is dead in live data (matches the
+  port keeping it OFF); [uid+0x242] = 0x01 constant across uids;
+  the +0x243..+0x24f trailing bytes vary per uid (not yet mapped —
+  register as uninterpreted).
+- **V4c: the BitmapCaves grid std::map @0x132aae8 header: count =
+  4** (name-keyed cave-grid instances, first node @heap 0x16711D8).
+- **V4d: [P+0xb0] = 0 (resolver NIL) for the 12 probed uids** —
+  P = [uid+0x1d4] is the C44 cave-GRID object (0xb8 builder), not a
+  BitmapNoise instance; the C32 A-resolver lives on the BitmapNoise
+  class instance, so the resolver hunt target corrects to: the
+  BitmapNoise objects that carry the [+0x18] float grids opened by
+  LoadFromImageData (whose [+0xb0] we read in-binary) — those are
+  reachable through the C37 evaluator's [uid+0x1d4] path for
+  biomes WITHOUT BitmapCaves, or via the cave-grid's parent. OPEN.
+- **V4e: the map's node-key layout assumption RETIRED** (node dump =
+  heap ptrs + an embedded string tail "…72 6F" = "ro…" — keys are
+  std::string names ✓ but the +0xc/valObj offsets were wrong; re-dump
+  with before-believing valObj).
+- Live grid values (V3 section, 512×256 bitmap_hills, px=0x26599020;
+  note the v3 sampler's "+512+k" index = row y+1, x 0..11): y=1:
+  1.0 ×9 → 1.0003/1.0502/1.1886 (can EXCEED 1.0 near the top — the
+  carve eave pushes past 1.0 exactly as C46's (y/25)⁸ arm predicts);
+  y=65/129 = mostly 1.0 with blob carves toward 0.0 (0.000/0.006/
+  0.0922/0.17…), y=201 = mostly 1.0. THE FIRST BYTE-LEVEL ANCHOR
+  OF THE caves-field PORT (the I1 validation target = byte-match
+  these four cached grids per name; the harness's V4g = the dense
+  dump for that comparison).
+
+### C48 — the caves-grid [P+0x94] signature + the byte oracle (CE v4 pickup #2, 2026-09-21)
+- **[P+0x94] = (w·0.5)/0.1 for cave-grid objects** (512-wide → 2560.0;
+  1×1 → 5.0) — the fn C1 ×5 toucher (slab 0x4f2a01..0x4f2a11) byte-
+  cross-verified via CE. **[P+0x94] on the 3584×2457 world-state grid =
+  −56909.828125 = the RAW C27 poro draw** (no ×5 → the world grid is
+  not a caves-factory product). Both 512×256 cached grids (0x26599020,
+  0x338CB020) byte-identical over all sampled rows ⇒ **the caves field
+  is a deterministic function of (diddled worldseed, name/dims, XML
+  stamp params)** — C27's ctor chain extends to the band-stack/stamp
+  builder.
+- The y=0 bump (peak 1.454092 @x≈19, ±10 falloff to 1.0) = a surface
+  mountain/eye/skull-stamp ADD-BLEND over the 1.0 base (NOT the
+  (y/25)⁸ eave, which ≈0 at y=0..1) — writer = the 0x8EF870 image
+  blend twin / an explicit bake; the port's named identify target.
+- Oracle artifact: `mapgen/out/oracle/caves-grid-2026-09-21.json`
+  (the full dense dump; the caves-field port's byte-compare target).
+- **Status: pin (CE + binary cross-reference).** Source: ABOUT_MATH
+  2026-09-21 (45)/(47). **Port skeleton live:
+  `mapgen/lib/caves-field.mjs` (buildCavesField / carveCircle /
+  stampWalker / makeCaveStructureGrid) — the C46/C43-blob primitives
+  byte-exact (smoke: compares to the C48 oracle at ±1U on the edges);
+  the cave interior SHAPE is NOT byte-validated yet: the naive-shape
+  probes against the C48 y=0 bump show no match under the byte noise
+  floor — the bump's per-phase writer (fnB block bodies / the
+  0x11dfa5c-based value path) = the NEXT CE runtime-pick exactly the
+  C47/C48 path; the fnB phase map + fn C1's byte-exact ctor (the 1.0
+  base + ×5 toucher) are canon in (47).

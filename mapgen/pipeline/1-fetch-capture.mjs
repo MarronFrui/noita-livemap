@@ -17,10 +17,15 @@ function arg(name, fallback) {
 
 const MAP = arg("map", "regular-main-branch");
 const LEVEL = 17; // native resolution
-const x0 = Number(arg("x0", 30));
-const x1 = Number(arg("x1", 45));
-const y0 = Number(arg("y0", 12));
-const y1 = Number(arg("y1", 17));
+// Default window (2026-09-21, dig #24/#25 follow-up): the full F3 noise-band
+// floor — lake tx 4..10, hills(_EMPTY_) 6..42, desert 45..58, pyramid 53..57
+// (biome tx bands per the dig #24 census) × biome ty 0..19. Ref tiles are
+// BIOME-ty files (name <tx>_<biomeTy>.png); instruments using CANVAS cy must
+// subtract SKY_ROWS=48 (the dig #24 frame slip — cite the frame by name).
+const x0 = Number(arg("x0", 4));
+const x1 = Number(arg("x1", 58));
+const y0 = Number(arg("y0", 0));
+const y1 = Number(arg("y1", 19));
 const outDir = arg("out", "mapgen/out/ref");
 
 const segments = captureTilesources[MAP].map((entry) => {

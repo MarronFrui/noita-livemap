@@ -50,33 +50,77 @@
 - Tests unchanged: 143/143; no cache bump (r3f stands).
 
 ## 3. The wiring plan (per step, with the blocked byte named)
-W1. noise-terrain.mjs: replace `evaluator2(a=1.0)` with surfaceField.
-    Needs: (a) noise_type→case map [W2], (b) the hills case-1 lane [W3],
-    (c) gradAt [W4].
+W1. noise-terrain.mjs: replace `evaluator2(a=1.0)` with surfaceField. ✅
+    (2026-09-21) The V2 lane runs with the CE-verified slot binding and
+    kind 5 (see the dig #21 wiring in ABOUT_MATH 2026-09-21 (38)); cases
+    2/3 still THROW, those biomes fall through honestly.
+    Port-side pipeline shape (post-remap): field0 (gradAt, ≥0.5-cap) →
+    r (0x90AA80 surrogate: noiseDispatch-noiseKind, flagged) → r' =
+    r·field0 → the 0.51-gate → [+0x268]≠0 = gradW=(r'−0.5)·2 + per →
+    the 0.85-gate → the case tails on r' → rpost → the slope arm →
+    FINAL = 3-term.
+W1. noise-terrain.mjs: replace `evaluator2(a=1.0)` with surfaceField. ✅
+    (2026-09-21) The V2 lane runs with the CE-verified slot binding and
+    kind 5 (see the dig #21 wiring in ABOUT_MATH 2026-09-21 (38)); cases
+    2/3 still THROW, those biomes fall through honestly.
+    ✅ **FINAL-COMBINE REMAP landed 2026-09-21 (dig #22 #8 + the remap
+    addendum in (40)):** r' = r·field0 with the field-slot reuse
+    (0x50a2fe); gradW = (r'−0.5)·2; the [+0x268]≠0 test runs the lane;
+    add := [uid+0x260] only on the switch path; FINAL =
+    gradWCoef·gradW·per + perlinCoef·rpost + add; the slope arm =
+    per·(1+(rpost−1)·y·0.001) gated by uid.slopeFlag (OFF until its
+    XML field is identified). All blend lanes diverge; 143/143.
 W2. noise_type map: data uses ONLY `SIN_CAPPED_SIMPLEX` (36 XMLs; winter
-    has no attr). The int ([uid+0x224]) the binary feeds the dispatcher is
-    a runtime-reflection lookup — NOT statically readable (imm32 scan of
-    the whole exe = zero refs). Next byte home: the biome.cpp walk before
-    the LoadImage call (true 0x8ee6bb's frame) and/or a ceng-reflection
-    hash of the name. Gating: the dispatcher cases that DONT reference
-    unread cores (6/7/8, plus 5) are port-wireable today.
-W3. case-1 lane (47 live biome XMLs!): inner chain = slab 0x4fab50
-    (hash-lattice: floors, (3−2f)f² weights, sin-hash helper, consts
-    57.0/58.0/43758.546875/0.5/0.1/0.2 all pinned) + helper calls true
-    0x44d110 (a CRT math jmp-thunk family — sin/cos identity = the next
-    read) → then true 0x8fc020 (ported). The case-1 asm block =
-    slab 0x50a7eb..0x50a8a2 (evidence in
-    out/d_2026-09-20-surface-evaluator.asm).
-W4. case-2 (1 live XML) and case-3 (4 live) lanes = same skeleton with
-    the trig wrappers (slab 0xc33222/0xc33234 = true 0x1033a22/0x1033a34)
-    + cores slab 0x4fb340/0x4fb050-family — smaller priority.
-W5. gradAt: the per-biome grid input. In-binary = image-baked BitmapNoise
-    ([uid+0x1d4], C39: the .plz/PNG LoadImage chain uppercase→
-    LoadImageFastLZ true 0x90e060). The mGradient* XML → image rasterize
-    (if any) inside the biome.cpp frame TRUE 0x8ee6bb = THE one open
-    byte for hills/winter; WIRING = keep gradAt injectable so the shape
-    instruments can run against the current best model (ramp prototype)
-    while that read lands.
+    has no attr). ✅ **CLOSED EMPIRICALLY (2026-09-20 (35) + CE run):**
+    [uid+0x224] = 5 = the dispatcher case int (= the 0x8fc020 core,
+    simplex2DDeriv). Wired 2026-09-21. The name-blob has NO static
+    table (C42 stands as the mechanism record only).
+W3. case-1 lane (47 live biome XMLs!) ✅ (2026-09-20 (26), ported).
+W4. case-2 (hills2) and case-3 (lake ×4) lanes = ✅ **READ + PORTED
+    (2026-09-21 dig #22, ABOUT_MATH (40)):** the mGradientAddNoise
+    switch has FOUR branches (cases 1/2/3 + a ≥4-else lane calling
+    true 0x8FB570 = unread, dead in live data); the exact chains are
+    byte-cited per lane (case-2: wl + fnvLattice + simplex2d + aux +
+    acos/sin·(−20) chains; case-3: whiteLattice + sin/acos·1024·0.03·g
+    + the IQ); the trig "helpers" = plain IAT thunks
+    (0xc33222→acos @0x114a514, 0xc33234→sin @0x114a520). The FNV24
+    hash true 0x8FB2D0 + lattice true 0x8FC940 + the 256-f64 corner
+    table @0x12eb950 = ported (C45; `lib/fnv-tab.mjs`); noiseDispatch
+    case 3 wired (was thrown). Dispatcher case-4 = read-only (dead
+    lane, no XML). Two follow-ups registered: (a) the canonical
+    FINAL-combine remap — **[+0x268]·gradW·per + [+0x264]·field +
+    add with gradW = (r'−0.5)·2, r' = r·field** (the port's 2-term
+    FINAL = structurally wrong, the next push's first edit); (b) fbm's
+    exact dot-pair lane assignment (opt-in only; lac 2.01 @0x11dfe78
+    = the new pin).
+W5. gradAt / the field build: **RESOLVED SHAPE (2026-09-21 dig #21,
+    CONSTANTS.md C44): the field (a C31-family grid) = the
+    mTopology→BitmapCaves-generated cave/band-stack builder** (fn A true
+    0x8EEC70 + fn B true 0x8F5DD0 with the three Fixed (A,B)-band stacks
+    over a fresh per-build poro Random; the factory fn C1 true 0x8F2FF0
+    caches by NAME in the 0x132aae8 map — hills.xml size_x=512/
+    size_y=256 = the CE grid ✓, the 5+uid px-share = the name-keyed cache).
+    **"mGradient* = band-stack parameters" ELIMINATED (0 config-slot
+    reads in fn A/B bodies).** The mGradient* XML family feeds ONLY the
+    C37 surface evaluator (CE (35)). Port status: the gradAt input is
+    STILL the injected ramp instrument (the cave-builder fn B = a
+    ~113 KB blob/stamp engine — NOT ported this session); the
+    surfaceField's other inputs (noiseKind 5 + the C37 CE-mult slots)
+    ARE byte-sourced now.
+    ✅ **dig #26 (2026-09-21, CONSTANTS.md C46): fn A is READ to walk
+    level** — the CaveStructure stamp walker (≤50-step x-wanderer, roll
+    update 0.35/0.25, carve v = clamp01((d2·0.32+0.35)·roll), the
+    0.2/0.6/0.7 envelope, per-stamp recursion = the cave_childs
+    mechanic) + the helper family pinned (blob setter 0x8EE750 =
+    max-bleed + circle falloff, scatter 0x8EF2D0, blends 0x8EF870/
+    0x8EF950). REMAINING named sub-reads before the port can land:
+    (a) the setter's falloff block (slab 0x4ee044..0x4ee11c);
+    (b) the multi-blob scatter engine 0x8EF2D0; (c) fn B's worm/surface/
+    mountain machinery (the 0x8F5DD0 body); (d) fn C1/C2 wiring (how
+    the stamped grid feeds the [uid+0x1d4] BitmapNoise instance).
+    The gradAt ramp/`bitmap_noise_file` fallback instruments STAY until
+    (a)–(d) land — replacing them now would be a guess (no-guessing
+    mandate), and would poison the I1 instrument.
 W6. The engine runtime config (BIOME_PATH_FIND_WORLD_POS_* = C24/C28
     159/223) remains @prov noitool — validating CE reads would close it.
 
@@ -85,6 +129,23 @@ W6. The engine runtime config (BIOME_PATH_FIND_WORLD_POS_* = C24/C28
   disk), then flat-region rms + solid-density vs the frozen91 capture
   (seed 78633191). Diff entries with BOTH VAs + shape metrics in
   ABOUT_MATH §6 (dated). Cache bump r3f→r3g ONLY on an observable change.
+
+## 4b. First validation pass (2026-09-21, dig #21 wiring)
+- ref regenerated: `mapgen/out/ref/` = tx 29..47 × ty 0..19 (380 chunks).
+- Instrument: `mapgen/experiments/2026-09-21-surface-shape.mjs` →
+  `mapgen/out/gen-shape-2026-09-21.json`.
+- Handoff window (ty 11..19): allPixelRms 73.535 · flatPixelRms 48.717
+  (flat 20.3%) · refSolid 0.690 vs ours 0.429. Worst = tx 45..47, ty
+  12..14 (the lake/rainforest_dark band + the P1 templates).
+- FIND: ZERO procedural-noise chunks in this window — the noise lane's
+  chunks live at biome rows 0..2 (canvas ty 48..51); the next instrument
+  pass needs the canvas/biome px mapping for the hills-family areas
+  re-checked, THEN the rms re-run against the noise-band chunks.
+- I1/I3/I5/I6: NOT checked (the run did not validate the surface band;
+  density gap 26 pts = evidence, not a close).
+- Cache: r3f → r3g BUMPED (kind-8→5 + mult-slot binding = observable
+  mask change in the 574 procedural chunks).
+- Tests: 143/143 ✓ (post-wiring).
 
 ## 5. регистра register-conflicts to NOT re-derive
 - All byte pins: CONSTANTS.md C36..C39 (frozen 2026-09-20).

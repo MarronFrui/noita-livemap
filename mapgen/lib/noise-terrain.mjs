@@ -1,4 +1,5 @@
 // mapgen/lib/noise-terrain.mjs — F3 noise-terrain integration (2026-09-20)
+import path from "node:path";
 //
 // Binary-derived per ABOUT_MATH 2026-09-19 (12)/(13) + 2026-09-20 (15)/(16):
 //   - the noise evaluator = true 0x908e70 (lower clamp at 0.5, single
@@ -22,15 +23,20 @@
 
 import { evaluator2, noiseDispatch, surfaceField } from "./noise-proto.mjs";
 import { biomeAt } from "./biomes.mjs";
+import { readPng } from "./images.mjs";
+import { findNoitaDataDir } from "./paths.mjs";
 
 const CHUNK = 512; // (matches world-gen CHUNK; local to avoid the ESM cycle)
 const CELLS_PER_CHUNK = CHUNK / 10; // 51.2 → subrect 0..51 (C11 grid shape — cell 51 is the 20px remainder)
 
-// V2 wiring flag (2026-09-20 dig #9c): the true 0x90a860 lane
-// (surfaceField + noiseDispatch, dig #9 port) is OPT-IN via SURFACE_V2=1 —
-// the default path stays evaluator2(a=1.0) so the r3f render stays stable
-// until the shape instruments (I1/I3) gate the bump.
-const SURFACE_V2 = process.env.SURFACE_V2 === "1";
+// V2 wiring flag (2026-09-20 dig #9c, initially opt-in): the true 0x90a860
+// lane (surfaceField + noiseDispatch, dig #9 port) is the DEFAULT since
+// 2026-09-21 (post-dig #21/#22 wiring: kind-5 + CE-verified mult slots +
+// FINAL-combine remap) — the genmap r3g bump represented the V2 lane but
+// was only active under SURFACE_V2=1, which the server never set (audit
+// 2026-09-21: mixed-provenance r3g bins). Now: on unless SURFACE_V2=0
+// (the env knob stays as an explicit opt-OUT for A/B lane comparisons).
+const SURFACE_V2 = process.env.SURFACE_V2 !== "0";
 
 // Per-biome "Wang offset" (C24/C28): ConfigRegistry defaults, engine-side.
 // Tagged @prov noitool (the 159/223 family); validated only at runtime.
@@ -42,35 +48,42 @@ function biomeCfg(_biome) {
 // extraction in biomes.mjs, ABOUT_MATH (22)). MISSING surfaces (the
 // mGradientSinMultiple*/mGradientType/mInsidePerlinFunc pair of the
 // winter-only attrs never appears in the exe) → number("") guards.
+// SLOT BINDING (CE-verified 2026-09-20 (35), CONSTANTS.md C43; term offsets
+// C37): gradWCoef = [+0x268] = XML mMultiplierPerlin (CE: hills 1.0 with
+// the attr ABSENT; winter.xml 0.642857); perlinCoef = [+0x264] =
+// XML mMultiplierGradient (hills 0.871429 ✓). noiseType census (extracted
+// data, 2026-09-21): ALL 36 live noise_type attrs = "SIN_CAPPED_SIMPLEX"
+// and the CE read [uid+0x224] = 5 ⇒ kind 5 (= the 0x8fc020 core,
+// simplex2DDeriv) — replaces the old kind-8 proxy (still the honest
+// default -1 for any other name; the name-blob has NO static table, C42).
 function uidFrom(def, cfg) {
   const n = (v, d) => { const p = parseFloat(v); return Number.isFinite(p) ? p : d; };
   return {
-    noiseKind: 8,          // SIN_CAPPED_SIMPLEX → dispatcher case: UNMAPPED
-                           // (w2 open; 8 = the C25 simplex — flagged proxy)
-    gradient: 0,           // unused until W5 (gradAt is injected)
+    noiseKind: def.noiseType === "SIN_CAPPED_SIMPLEX" ? 5 : -1, // CE (35): 5
+    gradient: 0,           // unused until the field-source read (see C44)
     sx: n(def.mInsidePerlinScaleX, 1), sy: n(def.mInsidePerlinScaleY, 1),
     ox: 0, oy: 0,          // mInsidePerlinOffsetX/Y not present in current XMLs
     offsetBySeed: false,   // attr absent → false (byte: [+0x24d] gate)
     fbm: false,            // [uid+0x228]
-    noiseTypeInt: -1,      // W2 open
+    noiseTypeInt: def.noiseType === "SIN_CAPPED_SIMPLEX" ? 5 : -1, // CE (35); else -1 (C42)
     squared: n(def.mInsidePerlinSquared, 0) === 1,
     clamped: n(def.mInsidePerlinClamped, 0) === 1,
     scaled: n(def.mInsidePerlinScaled, 0) === 1,
     scaleMin: n(def.mInsidePerlinScaleMin, 0.057143),
     scaleMax: n(def.mInsidePerlinScaleMax, 2),
-    multGradient: n(def.mMultiplierGradient, 0),
-    multPerlin: 0,         // present in winter.xml only (see W-native gate)
+    gradWCoef: n(def.mMultiplierPerlin, 1.0),   // [+0x268] (CE hills=1.0)
+    perlinCoef: n(def.mMultiplierGradient, 0),  // [+0x264] (CE hills=0.871429)
     addValue: 0,
     addNoise: n(def.mGradientAddNoise, 1),
     minX: cfg.minX, maxX: cfg.maxX,         // C24 lane (passed through)
   };
 }
 
-// gradAt: the mGradient y-ramp PROTOTYPE (NOT byte-backed — the C39 open
-// byte is the mGradient*→image rasterize step; registered in
-// WIRING_SURFACE.md W5). Shape model: linear ramp StartY→EndY mapping to
-// LowNoise→HighNoise on world-y. Isolated here so the instrument can
-// swap it once the rasterize read lands.
+// gradAt: the mGradient y-ramp INSTRUMENT for biomes WITHOUT bitmap_noise_file
+// (NOT byte-backed — the C39 open item "per-biome image path resolution for
+// hills/winter"; registered in WIRING_SURFACE.md W5). Shape model: linear
+// ramp StartY→EndY mapping to LowNoise→HighNoise on world-y. Isolated here
+// so the instrument can swap it once the rasterize read lands.
 function makeGradAt(def) {
   const y0 = parseFloat(def.mGradientStartY ?? "-1024");
   const y1 = def.mGradientEndY ?? 1024;
@@ -79,6 +92,41 @@ function makeGradAt(def) {
   return (gx, gy) => {
     const t = Math.max(0, Math.min(1, (gy - y0) / Math.max(1e-6, y1 - y0)));
     return lo + (hi - lo) * t;
+  };
+}
+
+// dig #24: gradAt via the C39 IMAGE-LANE = the `bitmap_noise_file` topology
+// PNG baked to a per-cell float grid (CONSTANTS.md::<C45>): the SetSize+Load
+// wrapper true 0x8fa930 = (this, src{w,h,pixels}, flag) → realloc own float
+// grid w·h ×4 B + memset, then LoadFromImageData true 0x8f9ab0 (per cell:
+// color → A-resolver [+0xb0] → u16 = id+1, float grid [+0x18] = ±1.0;
+// the B-map [+0xb4] fallback-grey lane = (R+2G)/3.0 float). The per-biome
+// A-resolver = config-side, UNRESOLVED → this lane bakes the fallback grey,
+// flagged. The wrap-mod getter true 0x9fe620 (idx mod w/h).
+const fieldGridCache = new Map(); // absPath -> {w, h, grid}
+function loadFieldGrid(dataDir, relPath) {
+  const key = path.join(dataDir, relPath.replace(/^data\//, ""));
+  let entry = fieldGridCache.get(key);
+  if (entry) return entry;
+  const png = readPng(key);
+  const w = png.width, h = png.height, data = png.data;
+  const grid = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    const R = data[4*i], G = data[4*i+1], B = data[4*i+2];
+    grid[i] = (R + 2 * G) / (3.0 * 255.0); // the C32 fallback-grey bake (flagged)
+  }
+  entry = { w, h, grid };
+  fieldGridCache.set(key, entry);
+  return entry;
+}
+
+export function makeGradAtFromTopology(dataDir, def) {
+  if (!def.bitmapNoiseFile) return null;
+  const entry = loadFieldGrid(dataDir, def.bitmapNoiseFile);
+  return (gx, gy) => {
+    const xr = ((Math.floor(gx) % entry.w) + entry.w) % entry.w;
+    const yr = ((Math.floor(gy) % entry.h) + entry.h) % entry.h;
+    return entry.grid[yr * entry.w + xr];
   };
 }
 
@@ -96,7 +144,9 @@ export function noiseChunkMask(config, tx, ty) {
     // gradAt; the mGradientAddNoise=1..3 inner-core lanes THROW until W3/W4
     // land — those biomes yield null (caller falls through), honestly.
     const uid = uidFrom(def, cfg);
-    const gradAt = makeGradAt(def);
+    // dig #24: the C39 IMAGE-LANE gradAt when the biome carries
+    // bitmap_noise_file (the lake family); otherwise the ramp instrument.
+    const gradAt = makeGradAtFromTopology(findNoitaDataDir(), def) ?? makeGradAt(def);
     for (let cy = 0; cy < 52; cy++) {
       for (let cx = 0; cx < 52; cx++) {
         const gx = tx * CELLS_PER_CHUNK + cx + 0.5;

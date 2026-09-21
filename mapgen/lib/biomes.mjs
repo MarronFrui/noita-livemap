@@ -112,6 +112,13 @@ function parseBiomeDefinition(dataDir, filename) {
   mInsidePerlinScaled: parseAttr(attrs, "mInsidePerlinScaled"),
   mInsidePerlinSquared: parseAttr(attrs, "mInsidePerlinSquared"),
   mMultiplierGradient: parseAttr(attrs, "mMultiplierGradient"),
+  mMultiplierPerlin: parseAttr(attrs, "mMultiplierPerlin"), // winter.xml only in the current set (CE (35) slot value for +0x268)
+    // dig #24 (2026-09-21): the C39 IMAGE-LANE source = the `bitmap_noise_file`
+    // attr (the SetSize+Load wrapper's loader chain true 0x8fa930 → the
+    // LoadImage ‑plz/PNG path). Carried verbatim for the noise lane's
+    // gradAt (the lake family only in the current set; topology_*.png =
+    // 512×256 = the CE's grid shape).
+    bitmapNoiseFile: parseAttr(attrs, "bitmap_noise_file"),
     materialBands,
     // Binary-exact flag derivation (2026-09-19 dig #2, ABOUT_MATH 2026-09-19
     // (8); CONSTANTS.md C19/C20 — replaces the @prov noitool NAME-LIST flags):

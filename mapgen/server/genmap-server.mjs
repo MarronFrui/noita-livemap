@@ -31,7 +31,7 @@ import {
 
 const PORT = Number(process.env.GENMAP_PORT ?? 8082);
 const dataDir = findNoitaDataDir();
-const cacheDir = path.join(repoRoot, "mapgen/out/gen-cache/r3f"); // r3f: F3 noise-terrain integration (procedural-biome evaluator chain, 2026-09-20 — observable change: noise bands render)
+const cacheDir = path.join(repoRoot, "mapgen/out/gen-cache/r3h"); // r3h: SURFACE_V2 lane made DEFAULT in noise-terrain.mjs (audit 2026-09-21: the r3g dirs could carry kind-8-proxy V1 bins when the server ran without SURFACE_V2=1 — mixed provenance); new rev = unambiguous V2 provenance, old r3g bins invalid
 
 const worlds = new Map(); // seed -> { world, progress, ready }
 let cacheEpoch = 0; // bumped on every /gen/clear — the viewer appends it to tile URLs to bust the browser's immutable tile cache
