@@ -4735,3 +4735,26 @@ first use from now on):**
     band-cap family (cave_count 2). No new byte reads; the music-lane
     consideration recorded against the Work band for the composition's
     per-*named-Grid*-order question.
+
+- **2026-09-21 (79) — dig #79: The Work spawn-lane REGISTRY (logged per
+  the user's redirect; the DATA facts only, zero guessing):**
+  - **The Work's token set:** `the_end.xml` (the_end + the
+    boss_victoryroom — the heaven/edge band's own biome block), the
+    `the_sky.xml` template band, `essenceroom_hell` (hell), +
+    the mountain_tree/solid_wall templates (the W5 family); NO
+    the_work.xml exists in this tree (the band = the the_end + the
+    edge templates, the same named-Grid family).
+  - **the_end.xml's own knobs (the data block byte-read this session):**
+    512×256, blob_count 0..0 (NO blob caves), cave_count 2..2
+    (2 caves), cave_childs 0..1, cave_strength 0.2..1.0, mountains
+    0, surface 0, spawn_percent 0. ⇒ "2 caves per cave lane, no
+    blobs/mountains" = the Work band's own cave knob row (byte-set).
+  - The PLAN-consumption: the Work band's own caves path = the same
+    fnB machine keyed by the sibling sibling named-grid key (the 4-
+    entry name cache, C47/49), to be wired at the composition's next
+    push; the HM-shop hunch (dig 76) retired; the 6-lane band switch
+    = the per-record cursor advance, bytes standing.
+  - The standing queue after this = the per-phase draw budget
+    (`[obj+0x28..0x30]` byte lane) then the y-drift byte + the
+    A-resolver body (0x8EE1B0 = the decay-wrapper), then the flag
+    drop on the render.
