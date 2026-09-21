@@ -4554,3 +4554,23 @@ first use from now on):**
   standing alignment gap vs the walk lane (the step offsets for the
   y-drift still FLAGGED: the y-drift is byte-referenced but its span
   not read yet — the fnB window continues the per-step drift).
+
+- **2026-09-21 (70) — dig #70: the A-resolver body READ (true 0x8EE1B0
+  = slab 0x4ed9b0..0x4eda21 — a TINY wrapper, not a table):**
+  - Prologue: the SEH cookie + a **lazy singleton at BSS 0x134632c**:
+    if the cache is empty → `push $0x1a0` (416 bytes) engine-alloc +
+    ctor `call 0x25ec80`, stored at **0x134632c** (a persistent
+    per-run color→material registry object).
+  - Per call: `push [ebp+8]` (the ARG = the color/CELL value), then
+    `mov 0x18([cache]),%ecx; call 0x341250` — the registry object's
+    +0x18 slot's method = the keyed lookup; EAX = the material id.
+  - ⇒ **the resolver = cache(the cengser map)→KEY(by the A-channel's
+    color value)→ the 0x341250 keyed registry lookup.** The bytes
+    55 8B EC 6A FF 68 CC 49 0A 01 … = the SEH head C49 described ✓.
+    The material table itself lives at 0x341250's map (the NEXT read:
+    = the registry builder — who fills it; the .rdata "RandomMaterials"
+    parse sites true 0x496a2e..0x4a97ed = the parse family that fills
+    it, the standing C32 note).
+  - Status: read; the table's *fill* = the parse family (data-side
+    confirm per-biome XML RandomColor / RandomMaterials blocks), the
+    lookup mechanism byte-cited.
