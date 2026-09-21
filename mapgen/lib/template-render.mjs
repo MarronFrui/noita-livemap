@@ -517,7 +517,13 @@ export function renderTemplateChunk(buffers, dataDir, file, def, x, y, seed) {
     // generic per-chunk init() LoadPixelScene lane (mountain/pyramid
     // pieces, floating island, halls, bosses — the game's own art,
     // data-side; dynamic-offset callsites are still skipped, see §12).
-  } else {
+  } else if (PROC_FILL) {
+    // procedural material-band fill (full-range + banded routes) = the
+    // A-flagged approximation family: it paints every non-art pixel a
+    // material band (flat rock in air: the west winter / east desert
+    // surface bands, the pyramid surroundings, the _EMPTY_-named unique
+    // areas). No-guessing mandate: NOT shipping by default — honest air
+    // until the caves-field lane (fn B) lands. Verify with PROC_FILL=1.
     renderProceduralFill(buffers, dataDir, file, def, x, y, seed);
   }
 }
@@ -555,6 +561,12 @@ const LAVA_SHADES = {
 // Full-range bands (-100..) render flat; narrow bands sample on world-seeded
 // fBm (shape approximation pending the poro noise port). Noise is periodic on
 // the 512px chunk lattice so tiled chunks stay seamless.
+// OPT-IN since the 2026-09-21 air-overfill fix (dig 52): the fill paints
+// every non-art pixel of its biome rect — inside AIR regions too (the
+// mountain-tree rectangle, the desert around the pyramid, the west winter /
+// east desert surface bands). Honest default = air; the real shape lives in
+// the caves-field lane (fn B read). A/B with PROC_FILL=1.
+const PROC_FILL = process.env.PROC_FILL === "1";
 const fillPatterns = new Map(); // biome file -> shared 512x512x3 pattern (flat fills)
 
 function chunkBuffer(buffers, ccx, ccy) {

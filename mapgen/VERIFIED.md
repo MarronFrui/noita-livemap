@@ -474,6 +474,17 @@ binary side unread) · ❌ unexplored.
    :1043..1067).
 
 **F3 wiring state (each = a dated CONSTANTS/ABOUT_MATH row):**
+- OPT-IN policy enforced 2026-09-21 (about-math (52)): BOTH approximation
+  lanes are env-gated out of the default render — the noise V2 lane
+  (`SURFACE_V2=1`) and the procedural material-band fill (`PROC_FILL=1`);
+  the caves-field composition lane stays `SURFACE_V3=1`. Default render =
+  wang areas + LoadPixelScene art + static tiles + the deep-band wall/lava
+  approximations; everything else = honest AIR (the fill/overpaint debts
+  live in the C32 resolver read + fn B's per-phase blocks).
+- Server tile semantics: z>0 tiles = block-majority downsampling over the
+  distinct 10px wang cells in each scale block (fixes the zoom-level
+  moiré the point-sample produced); the server epoch = Date.now() per
+  start so browser-stale `?e=`-cache cannot survive a deploy.
 - `noiseKind = 5` for `SIN_CAPPED_SIMPLEX` (the ONLY live name; CE
   (35) = C42 addendum); `gradWCoef` = [+0x268] / `perlinCoef` =
   [+0x264] (the CE relabel, C43); the FINAL-combine + case-2/3 lanes

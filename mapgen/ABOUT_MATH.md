@@ -4071,3 +4071,30 @@ first use from now on):**
   The mentions of both files inside the historical dig entries above
   stay as history — do not chase them; the current truth for every
   claim they carried is VERIFIED §12 + the C-rows.
+
+- **2026-09-21 (52 def registry) — the overfilling dig + the fixes (all in
+  the render lane; no new binary claims):**
+  - **The "entire air and sky = dense rock" root cause** = the V2 noise
+    lane shipped default-on (r3g wiring) with the ramp `gradAt` placeholder;
+    the loader painted the solid band shade over every procedural chunk's
+    non-art px. Canonical default = walang pixels: art scenes + wang areas
+    only, everything else air → SURFACE_V2 back to opt-in, attachNoiseTerrain
+    no-ops without a lane flag (VERIFIED §12's mandate line enforced).
+  - **Zoomкої moire (zoomed-out dense rock / mid clean / zoom-in rock)** =
+    renderTile's global point-sample `(y*512+j)*2^z` — phase per zoom level.
+    Fix: block-majority downsampling over the distinct 10px wang cells in
+    each scale block; offline census on the island tile: 12.4/3.1/0.8/30.3/
+    58.4% solid across z0..z4 (each tile a wider region, monotonic).
+  - **The west winter / east desert surface + the pyramid surroundings**
+    = the FILL-side of the same overfill family: `renderProceduralFill`'s
+    full-range banded approximation painted every non-art pixel a band
+    (the mountain-tree rectangle plain flat fill observed at 1.27-1.37M px
+    / area). OPT-IN via PROC_FILL=1 (honest air default; the real shape =
+    the caves-field lane, fn B still unread).
+  - Pyramid census on disk this session: def-region chunk claims resolved
+    (52,12..57,14): pyramid wang area `pyramid_52_12` covers the bulk
+    (chunks 54..56 x 12..14, dense wang-atlas fill = the I13-family debt:
+    colorize maps the atlas's white/grey placeholders to solid bands — the
+    exact band noise = the C32 open read; pyramid's entrance/wall pieces =
+    the scene-art lane; the deficit areas = everything around the perimeter
+    the solid_wall approx fills). NOT resolved in-binary; registered debt.
