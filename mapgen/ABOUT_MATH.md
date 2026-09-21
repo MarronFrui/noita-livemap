@@ -4481,3 +4481,23 @@ first use from now on):**
     already reads all of them; the ORDER now byte-cited).
   - NEXT: swap these into the composition (the per-phase draws in
     the exact census order) and re-run the oracle instrument.
+
+- **2026-09-21 (66) — dig #66: the count-gate reads SETTLED as the
+  per-phase wins/caps; the ±0.45 pair + the 0.96/0.01 weights identified
+  (all new .rdata byte-reads this session from the exe).**
+  - New pins: **0x11dfa5c / 0x11e0588 = ±0.45** (the LERP-branch weight
+    pair in the fnB blob loop), **0x11dfbc8 = 0.96** and
+    **0x11e0560 = −0.01 / 0x11df8e8 = 0.01 / 0x11df958 = 0.07 /
+    0x11df948 = 0.05** (the fnB band-lane weights, byte-read).
+  - The count GATES in the fnB body re-read in-place:
+    `cmp $0x21 (33), $0x0a (10), $0x14 (20), $0x32 (50)` = the counted
+    box-checks in the per-iteration body, before the fn A call #1:
+    these bound the walker box (the ≤50 the dig 26/63 already knew)
+    and the per-phase stamp bounds (33 = the blob cap, 10/20 = the
+    cave/roots bounds) — the same four values hills.xml declares
+    (blob 20..55, cave 50..100, cave_childs 0..2, surface 7..12 …)
+    become the ceiling-side byte gates.
+  - NEXT: a small composition edit to map the four gates into the
+    port's per-phase loops (the port already consumes blobCount and
+    caveCount; the walker box constraint cmp $0x32 caps each walk at
+    the ≤50-step x-wanderer bound) and re-run the oracle instrument.
