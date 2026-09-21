@@ -4391,3 +4391,27 @@ first use from now on):**
   byte-grid lane + per-structure iteration byte-forms and the oracle
   compare is re-run (y224 row rms 0.2337 after the record phase, the
   standing instrument reports the divergence the same way).**
+
+- **2026-09-21 (63) — the surface-lane readiness audit (the code vs the
+  canon, per consumers; no new reads):**
+  - Default render state: wang areas + LoadPixelScene art (per-chunk
+    instantiate) + the SPLICE_PNGS + _pixel_scenes.xml fixed lanes +
+    the static-tile biomes + caves/noise lanes OPT-IN. The hills/desert
+    band VOID beyond the art = the C51-known carve gaps.
+  - The surface evaluation chain ready for the byte lane:
+    · fn C1 = 1.0 base + the C27 ctor chain + the x5/toucher (C48-pinned)
+    · fn A stamp walk = the smoothstep LERP (0x8EE930)
+    · fn B L2/L3 = max-bleed raise-only setter lanes
+    · the CaveStructure record lane = the byte-grid writer (C51)
+  - STILL OPEN per this audit = the set of pieces the render will burn
+    if wired without them:
+      * the per-phase strength-source read (which span per phase), THE
+        ONLY blocking unknown for byte-exact field composition
+      * the C1→C2 hand-off (how the stamped byte-grid and the LERP'd
+        float-grid merge into the [uid+0x1d4] consumer)
+      * the A-resolver body 0x8EE1B0 (the material ID per cell)
+  - So the render harness is NOT yet byte-ready for the surface level:
+    it has the skeleton (caves-field.mjs, noise lane opt-in, per-lane
+    gates) and the byte-exact parts stand; the composition order and
+    the material ladder still need the two reads above before the
+    render can drop the flags. The honest answer = "not yet".
