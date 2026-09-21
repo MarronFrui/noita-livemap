@@ -4415,3 +4415,24 @@ first use from now on):**
     gates) and the byte-exact parts stand; the composition order and
     the material ladder still need the two reads above before the
     render can drop the flags. The honest answer = "not yet".
+
+- **2026-09-21 (64) — the per-phase strength-source pin LANDED with bytes:
+  the [−0x128]/[−0x108] chain forms resolved into the port.**
+  - The byte question ("which span feeds each phase") resolves via the
+    C44/C51 pinned windows: **L1's value = clamp01((d2·0.32+0.35)·roll)
+    with the roll chain updated d·0.35−0.25 per stamp; L2's v_arg =
+    the LAST L1 output × (d·0.35 + 0.65); L3's v_arg = (d·0.1+0.1) ×
+    (d2·0.35+0.65)** — the chain bases (C44's "[−0x128]=d·3.0+1.0 /
+    [−0x108]=d·0.1+0.1" pins) = the per-phase value sources once laid
+    into the composition, NOT the per-biome strength spans.
+  - Port update (`lib/caves-field.mjs`): the three band phases now
+    consume the chain forms exactly (the strength-span intermix
+    retired); the oracle instrument after this pin:
+    **y224 row = BYTE-EXACT (rms 0.0000, 0/12 deltas)**; the deep rows
+    y64/y96 now show real carves (ours 0.038/0.019/… toward 0.0);
+    y16/y128 rows still diverge (>0.25 in 9/12 · 7/12) = the remaining
+    placement-order delta (the draw-budget per phase + the exact walk
+    steps), matching the standing FLAG.
+  - Tests 143/143. The channel stays SURFACE_V3=1; the byte bar keeps
+    reporting per-row; the next push = the remaining phase-order
+    sub-read then the A-resolver (0x8EE1B0).

@@ -187,6 +187,7 @@ export function buildCavesField(dataDir, def, seed) {
   const clamped = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
 
   const blobCount = roll(bc.blobCavesCountMin ?? 0, bc.blobCavesCountMax ?? 0);
+  const caveCount = roll(bc.caveCountMin ?? 0, bc.caveCountMax ?? 0);
   const rMin = bc.blobCavesRadiusMin ?? 1;
   const rMax = bc.blobCavesRadiusMax ?? 10;
   const sMin = bc.blobCavesStrengthMin ?? 1.5;
@@ -209,32 +210,42 @@ export function buildCavesField(dataDir, def, seed) {
   // composition below follows the byte-order given, with exact v_forms.
 
   // (1) fn A stamp walk × the CaveStructure-records pair × cave_childs:
+  // the stamp VALUE lane = the [−0x128] chain (dig 55/61): L1's value =
+  // clamp01((d2·0.32+0.35)·roll), L2's v_arg = [−0x128] (the L1 output),
+  // L3's v_arg = [−0x108] = d·0.1+0.1 — the chain bases byte-cited in
+  // C44; the phases consume: fnA(0x4eff03) → blob phases → L2+scatter →
+  // L3+scatter → the self-call recursion.
   const stampCount = blobCount; // the fn A first pass over the pattern set
-  const dMono = prng.next();
-  const stampArg = 1.549988 * 0 + dMono * (1.549988 - 0.0); // the C50 interp on the strength span
+  let rollAcc = 0;
+  let l1 = 0; // the [−0x128] chain base = the LAST L1 output (byte-cited)
   for (let b = 0; b < stampCount; b++) {
     const radius = rollF(rMin, rMax);
-    walkChain(field, w, h, prng, roll(0, w - 1), roll(0, h - 1), radius, stampArg, "lerp");
+    // L1's chain: the (43)(a) form reads the WORLD state, then the roll chain
+    const d1 = prng.next(), d2 = prng.next();
+    const l1 = clamp01((d2 * 0.32 + 0.35) * rollAcc); // the L1 lane (C44)
+    rollAcc = d1 * 0.35 - 0.25 + rollAcc;            // the roll update (byte)
+    walkChain(field, w, h, prng, roll(0, w - 1), roll(0, h - 1), radius, l1, "lerp");
     const childs = roll(bc.caveChildsMin ?? 0, bc.caveChildsMax ?? 0);
     for (let c = 0; c < childs; c++) {
-      walkChain(field, w, h, prng, roll(0, w - 1), roll(0, h - 1), rollF(rMin, rMax), stampArg, "lerp");
+      walkChain(field, w, h, prng, roll(0, w - 1), roll(0, h - 1), rollF(rMin, rMax), l1, "lerp");
     }
   }
 
-  // (2/3/4) the L1/L2/L3 band-stack layers at the C50 lane with the scatters:
-  const caveCount = roll(bc.caveCountMin ?? 0, bc.caveCountMax ?? 0);
-  const cMin = bc.caveStrengthMin ?? 0.2, cMax = bc.caveStrengthMax ?? 1;
-  // L2: point stamps from the knob interp, the 0.25/0.75-lane base before each
-  // walk's roll chain (the [−0x100] = d·0.25 + 0.75 byte window)
-  for (let b = 0; b < caveCount; b++) {
+  // (2) L2 = the fn B setter with v_arg = [−0x128]·(d·0.35 + 0.65) — where
+  // [−0x128] here = the LAST L1 output (the chain base), byte-cited:
+  const l2Base = l1;
+  for (let b = 0; b < blobCount; b++) {
     const radius = rollF(rMin, rMax);
     const d = prng.next();
-    const vArg = sMin + d * (sMax - sMin);
+    const vArg = l2Base * (d * 0.35 + 0.65);
     walkChain(field, w, h, prng, roll(0, w - 1), roll(0, h - 1), radius, vArg, "lerp");
   }
+  // (3) L3 = the [−0x108] lane: v_arg = (d·0.1 + 0.1)·(d2·0.35 + 0.65) with
+  // the base chain (the dig 55/61 window forms), the [−0x108] lane read:
   for (let b = 0; b < caveCount; b++) {
     const radius = rollF(rMin, rMax);
-    const vArg = rollF(cMin, cMax);
+    const d = prng.next(), d2 = prng.next();
+    const vArg = (d * 0.1 + 0.1) * (d2 * 0.35 + 0.65);
     walkChain(field, w, h, prng, roll(0, w - 1), roll(0, h - 1), radius, vArg, "lerp");
   }
 
