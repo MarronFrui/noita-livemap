@@ -4184,3 +4184,46 @@ first use from now on):**
     pre-window lane `d·0.25 − 0.15 + prev` around slab 0x4f2488..0x4f2563
     + `decl −0x118(%ebp)` @0x4f255d) = the ≤50-step x-wanderer per-stamp
     maintenance re-cited in body blocks (the fn A window).
+
+- **2026-09-21 (56) — fnB/fnA dig #56: the scatter body + the Air-Source
+  SCAN (no naming leap — writer census only).**
+  - **The scatter engine true 0x8EF2D0 (slab 0x4ee2d0..0x4ee46f) READ
+    END-TO-END (window `scatter.dis`):**
+    1. rolls TWO poro draws (`0xc090c0` @0x4ee3e8/0x4ee409) through the
+       Random(min,max) closed form → x = (edi + trunc(0.5·(arg·(−0.5) +
+       d·span))) semantics (`mulss −0.5 @0x11e058c`, `mulss 0.5
+       @0x11dfa94`, the −0.0 sign-flip @0x11e0c50); y likewise — a point
+       rolled INSIDE the record's own span (the (43)(b) note, now
+       byte-cited with the exact two-lane x/y roll identity).
+    2. BOUNDS: rejected when x/y < 0 OR x ≥ [obj+0] OR y ≥ [obj+4]
+       (the AABB/dims bounds check @0x4ee42a..0x4ee43e).
+    3. idx = y·w + x → float getter **0x5491f0** on [this+0x18].
+    4. **THE GATE (byte-cited @0x4ee456): `comiss (%eax), 0.5; jbe skip`
+       — the branch fires ONLY when cell < 0.5** (the "empty-cell"
+       predicate, dig (43)(b) confirmed with the exact compare).
+    5. the recursive tail = **0x4fa7c0 = TRUE 0x8FAFC0** ( ecx = the
+       grid obj, stack (x, y, value@+0xc)) = the B-CHANNEL RECORDER
+       (dig #27's identity) — the value arg travels WITH the branch.
+  - **THE AIR-SOURCE SCAN (census reads, no interpretation):**
+    inside the whole fn A + fn B span the following writers exist:
+    | writer | callers | verdict |
+    | --- | --- | --- |
+    | blob setter (max-bleed circle+single) true 0x8EE750 | fnB only: L2 @0x4f18d1, L3 @0x4f226c (`push $0` = single-point lane) | can raise only |
+    | smoothstep twin true 0x8EE930 | fn A (its blob phase) | raises (max-bleed) |
+    | blend twin (float) true 0x8EF870 | **ZERO calls in fnA/fnB** | NOT in these bodies |
+    | blend twin (byte) true 0x8EF950 | fnB @0x4f0ec8 | the byte-grid copy |
+    | scatter true 0x8EF2D0 | fnB @0x4f1d5d / 0x4f26fb | EMPTY-CELL lane only |
+    ⇒ **the sub-1.0 (AIR/CARVE) values in the C48 oracle are NOT produced
+    anywhere in fnA/fnB's own writes.** The lowering write must live in
+    the fnB LOADER pair (the ctor+loader windows slab 0x4f0b23 +
+    0x533860/0x5bffb0 — where a CaveStructure FILE is loaded) or in fn
+    C1/C2's delivery step (the "blob-clone" the dig #47 note names) —
+    i.e. the image-loaded stamp values themselves are sub-1.0 and are
+    applied by a non-max-bleed writer downstream. **This is now a
+    POSITIVELY-SCOPED OPEN READ: the "who writes with image data" =
+    the fnB load phase + fn C1/C2 wiring, NOT the band stacks.**
+  - Landscape consequence for the cart lane: the caves-field port's
+    composite = the 1.0 base + max-bleed raises (band stacks) + image
+    stamp blends (the loader pair) + the empty-cell recursion; the port
+    in caves-field.mjs needs the loader-pair sub-read before it can
+    byte-match C48. (Instrument unchanged.)
