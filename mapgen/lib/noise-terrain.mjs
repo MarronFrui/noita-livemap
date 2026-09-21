@@ -239,6 +239,9 @@ export function attachNoiseTerrain(world, dataDir, seed = 0) {
     cache.set(key, r);
     return r;
   };
+  // dig #31: the world-level probe the worldColorAt actually calls —
+  // without this the noise branch never runs (the pre-V3 wiring hole):
+  world.noiseSolidAt = (wx, wy) => noiseSolidAt(world, wx, wy);
   return world;
 }
 
