@@ -4501,3 +4501,10 @@ first use from now on):**
     port's per-phase loops (the port already consumes blobCount and
     caveCount; the walker box constraint cmp $0x32 caps each walk at
     the ≤50-step x-wanderer bound) and re-run the oracle instrument.
+
+- **2026-09-21 (67) — dig #67: the fnB HEAD-order distilled into the
+  port's walk (the roll cursor + the four count gates + the band
+  weights consume per walk); the oracle instrument unchanged this
+  spin (y224 byte-exact; y16/y128 = the standing perm-order deltas),
+  so the walk skeleton stands byte-cited and the composition runs the
+  exact roll/weight blocks this session. Tests 143/143.**

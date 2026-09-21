@@ -127,23 +127,27 @@ export function stampBlendLerp(grid, gridW, gridH, cx, cy, radius, vArg) {
 // Step-roll byte status: the window d·0.35 / −0.25 roll (0x4eea9d..0x4eeab1)
 // is byte-read; the exact per-step x/y advance offset uses draws — FLAGGED
 // until the fnA step-roll block read completes.
-function walkChain(grid, gridW, gridH, prng, x0, y0, radius, vArg, dir) {
+export function walkChain(grid, gridW, gridH, prng, x0, y0, radius, vArg, dir) {
+  // fnB's byte-declared HEAD (dig 65): the phase's own roll starts with
+  // the walker box — the stamps' x/y cursors roll [obj+0x2c]/[ obj+0x28]
+  // then [obj+0x38]/[obj+0x34] (the send count+ Strength lanes) — the port
+  // passes those in as (x0, y0); the ≤50-step box cmp $0x32 caps it.
+  // The per-iteration body reads [obj+0x3c]/[+0x40] (the strength pair),
+  // the ±0.45/0.96/0.05 band-lane weights, and the four count gates
+  // (0x21 blob cap, 0x0a cave bound, 0x14 worm cap, 0x32 walker box).
   let x = x0, y = y0;
   let rollAcc = 0;
   for (let step = 0; step < 50; step++) {
     const d1 = prng.next(), d2 = prng.next();
     // the stamp VALUE lane: per-byte the fn A roll update = d1·0.35 − 0.25 + roll
-    rollAcc = d1 * 0.35 - 0.25 + rollAcc; // (byte-read in fnB's decl loops)
+    rollAcc = d1 * 0.35 - 0.25 + rollAcc; // (byte-read fnB decl loops)
     const v = clamp01((d2 * 0.32 + 0.35) * rollAcc);
-    const target = dir === "lerp" ? vArg : v;
+    // the blend sink: per dig #58 the lerp uses the (v_src−v_dst)·t + v_dst
+    // lane; the byte skew (±0.45) applies as the weight block (dig 66)
+    const target = clamp01(v * vArg);
     stampBlendLerp(grid, gridW, gridH, Math.trunc(x) & (gridW - 1), Math.trunc(y) & (gridH - 1), radius, target);
-    if (dir !== "lerp") {
-      // legacy dir lanes ("min"/"max"): the max-bleed consumer model (kept for
-      // A/B against the byte writer above).
-      carveCircle(grid, gridW, gridH, Math.trunc(x) & (gridW - 1), Math.trunc(y) & (gridH - 1), radius, target, 0, dir);
-    }
-    const dx = prng.next();
-    x += 0.2 + dx * 1.2 - 0.25; // the step roll (FLAGGED — the fn A [0x2c] lane)
+    const d3 = prng.next();
+    x += 0.2 + d3 * 1.2 - 0.25; // the step roll (FLAGGED — the fn A [0x2c] lane)
     if (prng.next() > 0.5) y += prng.next() * 4 - 2; // the y drift (FLAGGED)
   }
 }
