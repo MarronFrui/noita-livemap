@@ -5067,3 +5067,187 @@ first use from now on):**
     (FUN_0090ce20→FUN_008f9470).
   - Status: **Phase 0 CLOSED** (docs/data only; no new constants → no
     CONSTANTS rows). Tests unchanged: 177/177 (dig #81).
+- **2026-09-22 (83) — surface-level plan Phase 1 (consumer-chain dig):
+  the per-cell chain is now byte-traced sampler → gate →
+  evaluator2/consumer → planters; the `[uid+0x1d4]` fill =
+  `BiomeHelper::Serialize`'s memoized kind-0 builder; the ramp
+  (question A) converges on true 0x7EC4E0 — below the text.bin floor,
+  lower-.text slice dump required.**
+  - **Chain skeleton (all slab→true per C13; every read from fnb/text
+    disasm + objdump windows this session; full VA map = CONSTANTS
+    C54, const recipe = C55):**
+    - sampler **true 0x90d860 = slab 0x50d060..0x50d60d** — per-cell
+      inner-x (→0x50d104) / outer-y (→0x50d0f3) loops; loop exit =
+      `lock xadd` ref-release @0x50d5dd → ret @0x50d60d.
+    - **gate @slab 0x50d3a5..0x50d3d0:** `ecx=[ebx+0x18]` (owner) →
+      `eax=[ecx+0x9c]` → `add ecx,0xb4` → `call slab 0x5491f0`
+      (thiscall &owner+0xb4, idx = y·[owner+0x9c]+x) → `movss (%eax)`
+      → `comiss 0.5f [0x11dfa94]` → **`jbe 0x50d82b`** (≤0.5 = the
+      unpainted branch — C34's "[+0xb4] float field" byte-confirmed).
+    - **≤0.5 branch @slab 0x50d82b:** val≤0 → skip (→0x50d5b8);
+      0<val≤0.5 → **byte-grid write**: `ecx=[ebx+0x18];
+      eax=[ecx+0x188]; add ecx,0x1a0; call slab 0x54a1d0; movb $1,(%eax)`
+      (stride [owner+0x188], member owner+0x1a0, idx y·stride+x).
+    - **>0.5 path @slab 0x50d3d6..0x50d41e:** `eax=[ebx+0x20]→[*]→
+      [config+0x1d4]` = **P** (null → same unpainted branch,
+      je 0x50d82b) → x = `*[sampler+0x24]+x0`, y = `*[sampler+0x28]+y0`
+      → **warp = slab 0x5084b0 (true 0x908CB0)**: thiscall(out-struct),
+      (x,y)f64, xmm1 = 1.0f [0x11dfbf0]; adds .bss f64 globals
+      **0x13289a8/0x1327670** to (y,x) (= the C47 "17920/7168 canvas
+      pair" — SAME VAs) + consts (C55) → out (x′,y′) f32 pair → floor
+      via **slab 0x4c8b0** → **wrap = slab 0x5fdce0 (true 0x9FE4E0)**
+      invoked with `ecx = P+0x20` (**the dims member on the P object
+      itself**) — idiv mod w/h both axes → `movzwl ax; dec ecx` =
+      **id−1**:
+      - id1>0 → `ecx=[owner+0x90]; call slab 0xb78e0` (lookup) → cell;
+      - id1≤0 → `[config+0x2a4]==0` → **skip** else **evaluator2
+        slab 0x508670** → floor x/y via IAT `call *[0x114a434]` +
+        helper slab 0xc33170 (×2) → `ecx=[config+0x2a4]; call
+        slab 0x4f4830` (consumer; args x_int, y_int, xmm3=value).
+    - **consumer true 0x8F5030 = slab 0x4f4830 (biome_materials.cpp —**
+      assert file string **0x1173240)**: ecx→ebx = **this =
+      [config+0x2a4]**; `cmpb $0,0x2c(%ebx)` → assert **`mInitialized`**
+      (0x118c9f4, line 0xfe); real body @0x4f4910: **range gate
+      `[ebx]≤v≤[ebx+4]`** (f32 min/max) → `count = ([ebx+0xc]−[ebx+8])
+      ÷132` (magic `mov $0x3e0f83e1` + imul/sar5 — a SECOND ÷132 in
+      the exe, cf. C35; exact for spans <10599) → per-record walk
+      @0x4f4a21 over **132-byte records** (the biome-materials table =
+      the RESOLVER-TABLE family, ISSUES:101) → returns a cell.
+    - **paint dispatch @slab 0x50d58d:** `[cell+0x38]` — **3** →
+      `call slab 0x603fd0` (guarded by .bss u8 **0x1344ce1**); **1** →
+      atomic slot (`lock xadd [edx]`, cap **0x2000 = 8192**, slot =
+      count+1, value `[tbl+idx·4+4]`) → **planter slab 0x363cd0**
+      (4 args incl. base+x, base+y = the material→world write
+      candidate = the Phase-2 ladder target); else → @0x50d60e.
+    - **evaluator2 true 0x908E70 = slab 0x508670..0x508737** (ret
+      @0x508737) — pure math; byte-recipe (C55): args (a,b)=x,y f64,
+      c = the raw gate f32 (xmm2); `r = b·0.07 [0x11dfce8]→f32`,
+      `s = a·0.035 [0x11dfc98]→f32`, `t = helper slab 0x4fc100(s,r)
+      ·15.5 [0x11e01b0]`, `q = (c−0.5)·0.5 [0x11dfa94]`,
+      `u = (b_f32+t)·0.04892750 [0x11df944]`, `v = (a_f32+t)·0.04892750`,
+      `w = helper slab 0x4fc260(v,u)`, `res = c + q²·5.35 [0x11e00b4]
+      ·0.95 [0x11dfbac]·w`; **return = max(0.5, res)** (@0x508727
+      comiss-0.5/movaps — §11's "lower clamp 0.5" byte-confirmed).
+    - **driver true 0x908F40 = slab 0x508740..~0x508b67**
+      (procedural_terrain.cpp — assert file **0x1173a10**): `config =
+      call slab 0x5095a0` (28 callers exe-wide; the walk uses it too)
+      → **kind dispatch `[config+4]`** (`test; jne 0x5087bc`):
+      **kind 0** → both coords `addsd [0x11dfdd8]` = **f64 0.5**
+      (x+0.5, y+0.5), push config → **`call slab 0x50a060` =
+      surfaceField — THE ONLY e8 reference in the whole exe** (ret true
+      0x908F9B) → result → `ecx=[config+0x2a4]` → consumer slab
+      0x4f4830(x_int, y_int, value); **kind 1** → `cmpl $0,0x1b0(%ebx)`
+      → assert **`biome->bitmap_data`** (0x1175088, line 0xa6e);
+      **kind ≠1** → slab 0x5089c6. **Driver callers: ZERO e8 AND ZERO
+      e9 in text.bin ⇒ invoked indirectly (a captured fn ptr in the
+      job functor — imm32 scan for 0x00908F40 / 0x00508740 = next
+      move).**
+  - **The `[uid+0x1d4]` fill = `BiomeHelper::Serialize` (biome.cpp;
+    assert strings 0x1173208 "Topology" + 0x1173214 "BiomeHelper::
+    Serialize - new BitmapNoise") — dump A re-read:** kind dispatch
+    `[config+4]`: **kind 2** → image load `call slab 0x4edc40` (true
+    0x8EE440; config+0x1b4 args); **kind 1** → `call slab 0x4a0d80`
+    (true 0x8AA580) building `[config+0x1b0]` from `[config+0x1a8]`;
+    **kind 0** → `[config+0xc0]≠0` → `call slab 0x4f27f0` (true
+    0x8F2FF0) else **`[config+0xb8]≠0` — ctor default −1 ⇒ this arm is
+    the DEFAULT** → `call slab 0x4eda30` (**true 0x8EE230**); both-zero
+    → **global default**. Census: each arm has EXACTLY ONE e8 caller =
+    Serialize itself ✓.
+  - **true 0x8EE230 (slab 0x4eda30) = a MEMOIZED BUILDER, not the math
+    body:** this (ecx) = &config+0xa8 passed as the cache KEY (`push
+    ebx; mov ecx,0x132a528; call 0x582bc0` = std::map FIND at .bss
+    global **0x132A528**); hit → return `[entry+0x28]`; miss → push
+    the **config+0x1d8 STRING** (Serialize's 2nd arg) → `call slab
+    0x533580` (**true 0x933D80**) → `call slab 0x3ebce0` (**true
+    0x7EC4E0 — BELOW the text.bin floor true 0x801800: needs a
+    lower-.text slice (file = VA−0x400C00, objdump --adjust-vma = true
+    VA) — THE RAMP-GENERATOR CANDIDATE #1**) → assert (biome.cpp line
+    0x178, cond 0x1154820) → cache-insert → return.
+  - **The global-default arm:** init **.bss BitmapNoise 0x132B518**
+    (props 1.0f via slab 0x52c240, 0 via slab 0x52e050;
+    `[0x132B518+0x94] = (int)@0x132B518 ×0.5 ÷0.1 [0x11df974]` = **×5**
+    — the C48 toucher form) + companion global 0x132B538 → store
+    `&0x132B518` → [config+0x1d4].
+  - **Config ctor slot extensions (re-read; vtable 0x117e2c4):**
+    `+0xa0..+0xb4 = 0`, **`+0xb8 = −1`**, `+0xc0 = 0`, heap triplets
+    {+0x1ac},{+0x1b8},{+0x1d0}, **`+0x1d4 = 0`** (the P slot — the
+    dump-A store target ✓), `+0x1d8..` = the string region (SSO: size
+    @+0x1e8, res @+0x1f4), **`+0x1e0 = 0x80000000` (INT_MIN)**,
+    `+0x1f8 = −1`, **`+0x21c = 0x80000000`**, `+0x220 = 1.0f`,
+    `+0x23c` SSO string (res @+0x250), `+0x2b0/+0x2b4 = 1.0f`; dtor
+    frees {+0x1ac, +0x1b8, **+0x1d0**} + string @+0x23c ⇒ the
+    {+0x1d0,+0x1d4,+0x1d8} ambiguity resolves as THREE DISTINCT
+    members: freeable ptr / P ptr / std::string ✓. (The INT_MIN
+    cmp-sentinel scan: the ONLY exe hits = the ctor's own STORERS @true
+    0x88C722/0x88C7A9 — no consumer inline-cmps them; flagged.)
+  - **biome.cpp BitmapNoise setup (slab 0x4EDE50..0x4EDEF0, true
+    0x8EE650+):** temp obj (vtable 0x119a2a0) → `call [eax+0x24]` →
+    **release-setter: `old=[edi+0xb4]; [edi+0xb4]=ret; if(old)
+    call [old vtable+0](1)`** → **`call slab 0x4fa130` @true 0x8EE6BB
+    = C39's SetSize+Load (re-verified byte-exact)** → string store
+    [owner+0x98] → `cmpl $0,[owner+0x5c]` → **"wang: " log (0x11730a0)**
+    on global 0x12ee538.
+  - **noise_utils.cpp painter (slab ~0x4F9731/0x4F976C, true
+    ~0x8F9F31+):** `call slab 0x5491f0` → **`movl $0x3f800000,(%eax)`
+    (writes 1.0f into the field cell)** + `call slab 0x54a0f0` →
+    `mov %cx,(%eax)` (u16 write); resolver: `cmpl $0,0xb4(%esi);
+    lea ecx,0xb4(%esi); call slab 0x5fdc50` (**true 0x9FE450**,
+    noise_utils.cpp — adjacent C32's 0x9FE620): the member = a
+    refcounted interface (`[esi]` vptr) → `vfunc+0x0c(out,out,key)` →
+    `call 0x440e0` → **id with assert `script_id < 255`** (cond
+    0x11737c8, file 0x1173678, line 0x263), memoized {id @−0x74, key
+    @−0x70} ⇒ **`[config+0xb4]` = the RandomMaterials-side resolver
+    INTERFACE — byte-confirmed** (ISSUES:101 family; NOT the sampler
+    owner's +0xb4 float field — two distinct classes, same offset).
+  - **Re-read bonus pins:** (a) **LERP true 0x8EE930 = slab
+    0x4ee130..** — prologue byte-located this session (C51's range
+    start ✓); tail kernel = **`buf2 = buf1 + (target − buf1)·q²`**
+    (q² = mulss @0x4ee233; delta = [ebp−0xc] − buf[i1]; both buffers
+    via accessor slab 0x5491f0 on member +0x18; nested y/x loops) —
+    the (58) `stampBlendLerp` byte-form re-confirmed. (b) **C46
+    scatter body READ (slab 0x4ee2d0 = true 0x8EEAD0):** assert
+    **`bitmap_noise`** (0x11730cc, biome.cpp line 0x218) →
+    `xmm1·[0x11e058c]=−0.5f` / `xmm0·[0x11dfa94]=0.5f` → `xorps
+    [0x11e0c50]` (sign mask) → `cvttss2si` pair → **`call 0xc090c0`
+    (NextRandom)** ⇒ the ±0.5f half-cell scatter + `<0.5` gate
+    byte-confirmed (C46 / §8 row-20 lineage holds).
+  - **Const + string registers (new this session):** 0x11dfdd8 =
+    **f64 0.5** (bytes `000000000000e03f`; f32 view = 0.0 — C37's
+    "·0.5 @0x11dfdd8" cite is the f64 `addsd` form, never read it f32)
+    · 0x11dfbf0 = 1.0f · 0x11df974 = 0.1f · 0x11dfce8 = 0.07 f64 ·
+    0x11dfc98 = 0.035 f64 · 0x11dfd08 = 0.1 f64 · 0x11dfd38 = 0.13717
+    f64 · 0x11e01b0 = 15.5 f32 · 0x11df944 = 0.04892750 f32 ·
+    0x11e00b4 = 5.35 f32 · 0x11dfbac = 0.95 f32 · 0x11e0c50 = xorps
+    sign-mask · .bss: 0x13289a8/0x1327670 = the warp's runtime offset
+    pair (= C47's canvas pair, same VAs), 0x132a528 = the P-cache
+    std::map, 0x132b518/0x132b538 = default BitmapNoise pair,
+    0x1344ce1 = plant-gate u8, 0x12ee538 = the "wang: " log global.
+    Strings: procedural_terrain.cpp 0x1173a10 · biome_materials.cpp
+    0x1173240 · `biome->bitmap_data` 0x1175088 · `mInitialized`
+    0x118c9f4 · `script_id < 255` 0x11737c8 · `bitmap_noise` 0x11730cc
+    · `wang: ` 0x11730a0 · `Topology` 0x1173208 · `BiomeHelper::
+    Serialize - new BitmapNoise` 0x1173214 · assert-line cond
+    0x1154820 (biome.cpp:0x178, unread).
+  - **Question A (the ramp) status:** the mGradientStartY/EndY/
+    HighNoise/LowNoise/NoiseScale consumer is STILL not directly
+    byte-seen, but the field now narrows to the **kind-0 miss path:
+    Serialize → true 0x8EE230 (memo) → true 0x933D80 → true 0x7EC4E0**,
+    keyed by &config+0xa8 (the presumed mGradient-params block) + the
+    config+0x1d8 noise_type string → builds the gradient BitmapNoise
+    that C37's bilinear then samples ⇒ **if 0x7EC4E0 consumes the
+    mGradient slots, P = the RAMP FIELD itself and the surface level
+    collapses into the P-build** (making the uid-map gap a non-issue:
+    the ramp lives outside the uid offset map BY DESIGN — (82)'s
+    negative finding, now explained). Next: lower-.text slice dump of
+    0x7EC4E0 + dump slab 0x533580 + the miss-path tail of 0x4eda30
+    (slab 0x4edaf0..0x4edc40).
+  - Open flags: driver caller (imm32 scan 0x908F40/0x508740); the kind
+    VALUE for P1 biomes ([config+4] = ? — the parser/logic read);
+    the 132-B record layout + the planters 0x363cd0/0x603fd0
+    (Phase 2 = the material ID ladder); the `[cell+0x38]` type enum;
+    offline confirm of the ÷132 magic.
+  - Status: Phase 1 chain = **byte-traced** (docs only; no port code
+    changes). New constants → CONSTANTS rows **C54** (the chain VA
+    map) + **C55** (the evaluator2/warp const recipe); C37 row updated
+    (surfaceField's single caller + the P fill + the ramp candidate).
+    VERIFIED §12 appended (dig 83). Tests re-run below.

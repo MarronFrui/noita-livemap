@@ -575,6 +575,39 @@ binary side unread) · ❌ unexplored.
   passes (READ, not yet ported); loop-B's inner structure stays
   BLOCKED on the xmm4 base provenance (@4f00e5). Tests 177/177; the
   y224 byte bar re-run = 0/12, rms 0.0000 BYTE-EXACT.**
+- **UPDATE (dig 83, 2026-09-22): the surface-band CONSUMER CHAIN is now
+  byte-traced end-to-end** (surface-level plan Phase 1; full evidence =
+  ABOUT_MATH (83), CONSTANTS C54/C55). Per-cell flow: **sampler true
+  0x90d860** → gate on the RAW float field (`&owner+0xb4` via accessor
+  slab 0x5491f0, idx y·[owner+0x9c]+x) vs 0.5f → (≤0.5: 0<val writes 1
+  into the byte grid owner+0x1a0, stride [owner+0x188]) / (>0.5:
+  requires P = `[config+0x1d4]` ≠ 0 → warp true 0x908CB0 → floor →
+  wrap ON THE P OBJECT (slab 0x5fdce0, dims P+0x20) → id−1 →
+  evaluator2 true 0x908E70 = **`max(0.5, c + ((c−0.5)·0.5)²·5.35·0.95·w)`**
+  with its byte-pinned const set → **consumer true 0x8F5030
+  (biome_materials.cpp, this = `[config+0x2a4]`): range gate [min,max]
+  + a ÷132-count walk over 132-byte material records** → `[cell+0x38]`
+  type dispatch {3 → slab 0x603fd0; 1 → 8192-slot intern → planter
+  slab 0x363cd0} (the material→world write = the Phase-2 ladder
+  target). The FIELD itself is fed by **driver true 0x908F40 — the ONLY
+  surfaceField caller in the exe** — kind-dispatching on `[config+4]`
+  (kind-0 = the P1 surfaceField(x+0.5, y+0.5, config) lane; kind-1 =
+  in-memory `biome->bitmap_data` assert at `[config+0x1b0]`); the driver
+  has ZERO e8/e9 callers in text.bin ⇒ invoked indirectly through the
+  job functor (OPEN, imm32 scan next). **The ramp (question A)
+  converges:** `[config+0x1d4]` is filled by `BiomeHelper::Serialize`'s
+  kind-0 default arm = memoized builder true 0x8EE230 (cache .bss
+  0x132A528 keyed &config+0xa8 + the config+0x1d8 noise_type string;
+  miss → true 0x933D80 → **true 0x7EC4E0 = the ramp-generator
+  candidate, below the text.bin floor 0x801800 — lower-.text slice
+  dump = the immediate next move**); the global-default arm builds bss
+  0x132B518 with the C48 ×5 toucher form. Also byte-read: the biome.cpp
+  `[owner+0xb4]` release-setter + SetSize+Load @true 0x8EE6BB (C39
+  re-verified), the noise_utils.cpp `script_id < 255` resolver on the
+  `[config+0xb4]` interface (true 0x9FE450), the LERP tail
+  (`buf2 = buf1 + (target−buf1)·q²`, slab 0x4ee130..) and the **C46
+  scatter body** (±0.5f + xorps-mask + NextRandom 0xc090c0, assert
+  `bitmap_noise`). No code changes; tests 177/177.**
 - Cache policy: `out/gen-cache/r3i` holds ONLY wang-area bins
   (seed+area-keyed); the cave-field/opt-in lanes live in non-cached
   in-memory buffers, so no bump was required for the revert; bump

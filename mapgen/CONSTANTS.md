@@ -59,7 +59,7 @@
 | C34 | per-chunk DECOR owner layout | [+0xb4] float field (raw >0.5 gate), [+0xd4] u16 grid, [+0x1e0] DECOR write; evaluator2's `a` = the field value |
 | C35 | lazy noise-table pair + 2nd core | init true 0x8fbfd0: [0x1327bd0]=perm u16, [0x1327720]=perm%12; true 0x8fc020 = unread noise core; ÷132 count fix |
 | C36 | NOISE_TYPE dispatch + fbm | true 0x8fd920 switch @table true 0x8fdaa4 (cases 0..8); true 0x8fdad0 = 4-octave fbm (amps 0.5/0.25/0.125/0.0625, lac 2.02/2.33, ÷0.9375) |
-| C37 | surface-field evaluator (P1 blend) | true 0x90a860 recipe + uid offset map ([+0x1d4]=BitmapNoise, [+0x220..0x268] config, final = MultGrad·gradW + MultPerlin·r + AddValue) |
+| C37 | surface-field evaluator (P1 blend) | true 0x90a860 recipe + uid offset map ([+0x1d4]=BitmapNoise, [+0x220..0x268] config, final = MultGrad·gradW + MultPerlin·r + AddValue). **dig #83:** surfaceField has EXACTLY ONE e8 caller in the exe = driver true 0x908F40's kind-0 arm (procedural_terrain.cpp; both coords `addsd [0x11dfdd8]` = f64 0.5 → x+0.5/y+0.5, config pushed); the [+0x1d4] FILL = `BiomeHelper::Serialize` kind-0 default arm → memo builder true 0x8EE230 (cache .bss 0x132A528 keyed &config+0xa8; miss → true 0x933D80 → **true 0x7EC4E0, BELOW the text.bin floor 0x801800 = the ramp-generator candidate**); the sampler's >0.5 path REQUIRES [+0x1d4] ≠ 0 and wraps ON the P object (slab 0x5fdce0, dims P+0x20) |
 | C38 | surface-math .rdata pins | 0.02/0.0241/0.025/0.02789, 0.05, 0.51, 0.85, 0.495, 0.49162514, 0.05243442, 2.02/2.33, 1.0e-3/9.765625e-4, seed scales |
 | C39 | the [uid+0x1d4] fill chain + 0x8fc020 decoder | SetSize+Load wrapper true 0x8fa930; loader true 0x90e060 ("plz"→LoadImageFastLZ); case-5 core READ (mod-12 grads @0x12ee338, ×70); port in noise-proto.mjs |
 | C40 | case-1 lane core (sin-hash lattice) + IAT math table | true 0x8fb350 = whiteLattice2d: c0=57·round(y)+round(x), corners frac(sin(c0+k)·43758.546875) k∈{0,1,57,58}; 0x44d110=libm sin-precise (slot 0x114a520); 0x44d0b0 = fld/fistp round |
@@ -77,6 +77,8 @@
 | C51 | CaveStructure record walk (fnB load phase) | RECORD-ARENA allocator pair 0x533860/0x5bff80/0x5bffb0 (engine alloc `call *0x114a34c`; slot init edx = 0x80 via 0x651a60; vector grow at 0x5bff80/0x5bffb0; NOT image loaders — dig #27 label). **dig #81 corrections: the record = 60 B, not 28** (4-B header + 24-B image_file SSO string + 8×4 fields; the dispatcher = true VA 0x4ABD60, class "CaveStructure" 0x117bf0c, nine keyed stores closing at +0x3c); **COUNT pair = [+0x1c]/[+0x20]**, not +0x28/+0x30 (dispatcher `mov %eax,0x1c(%esi)` @4abe0e + fnB read @4f09cf..4f09d5); `push $0xe00` (3584 B) label **RE-FLAGGED** (3584 is not a multiple of 60: ÷60 → 59); **STRENGTH pair read at [+0x34]/[+0x38] (f32) = the XML's per-record strength_min/max** (byte-verified vs hills.xml's 10 records: cave_$ 0.55..2.15, mountain_rock/skull 1.45..1.55, eye 1.45..1.55, pit 0..0.65; the C49 knobs 0.546875/1.549988 = values of these slots per record, C50's "DIFFERENT struct" note resolved to this struct); **the roll = `value = max − trunc(|draw|·(max−min+1))` via `mulsd 0x11e0578` = the NEGATIVE NextU scale (−4.656612875e-10)** — the first pinned NEGATIVE-scale roll; **the write = `call 0x4ef150` = true 0x8EF950 = the BYTE-GRID blend twin** ([P+0x58] byte lane; the C49 "+0x58 first-64 all-zero" = unwritten rows ✓); the per-iteration loop `decl −0x120(%ebp)` + `jne 0x4f0a95`; the record cursor +0x3c @0x4f0f03; the list-scan via {begin,end} × magic 0x88888889 = **÷60-B records** (the ÷12 label OVERTURNED dig #81; script-verified 60→1/600→10/3584→59; the vector = the config's +0x7c/+0x80 `structures` pair). **true 0x8EE930 (slab 0x4ee130..0x4ee2c8) = the smoothstep LERP stamp — the ONLY lowering-capable writer in the fnA/fnB census** (`v_out = (v_src−v_dst)·t + v_dst` per cell @0x4ee294..0x4ee2a3); all the blob-setter lanes push $0 = max-bleed raise-only; scatter 0x8EEAD0 (VA re-pinned dig #81; the old 0x8EF2D0 was +0x800 off) = `<0.5` empty-cell gate only ⇒ **the float-grid CARVE = the 0x8EE930 LERP + the C32 LoadFromImageData ±1.0 pass; the CaveStructure record lane writes the BYTE grid.** |
 | C52 | BitmapCaves "CavesSetup" config slot map (dig #81) | dispatcher true VA 0x4B1410, class "CavesSetup" @0x117c1cc (error push @4b187c; anchors "Config error ( " 0x116b1c4 / " ) - SetValue( " 0x116b1f8 / " ) - couldn't find the member\n" 0x116b220); getters int 0x4448e0, f32 0x444970, bool 0x444850, string 0x445820, presence 0x4447f0; arm rule = key imm +0x16 → store. Slots (byte-read): +0x00 header · name SSO +0x04..+0x1c · **size_x +0x1c / size_y +0x20 (dims — the "+0x00/+0x04 = dims" reading overturned)** · spawn_percent +0x24 · cave_count +0x28/+0x2c · **do_beginning_paths +0x30 / do_beginning_down +0x31 (bools, stores @4b156c/4b158b)** · surface_caves_count +0x34/+0x38 · cave_strength +0x3c/+0x40 · cave_childs +0x44/+0x48 · surface_cave_childs +0x4c/+0x50 · mountain_count +0x54/+0x58 · mountain_size +0x5c/+0x60 (f32) · blob_caves_count +0x64/+0x68 · blob_caves_strength +0x6c/+0x70 · blob_caves_radius +0x74/+0x78 · structures vector +0x7c..+0x88 · mLuaScript string +0x88..+0xa0 (**size @+0x98**) · DEBUG_output_image +0xa0. Consumers: [config+0x30] read @4f0f3c, [config+0x31] @4f1da1, [config+0x98] = mLuaScript.size @4f100f (the "second gate" claim overturned) |
 | C53 | fnB draw-budget formulas (dig #81; NOT yet fully ported) | loop→knob: loop A = cave_count (+0x28/+0x2c, read @4ef701/4ef704), loop B = **mountain_count** (+0x54/+0x58, @4eff36/4eff39), loop C = blob_caves_count (+0x64/+0x68, @4f05a0/4f05a9). L2/L3 counts = literal **120 + ⌊81u⌋** (ecx=0x78; mulsd 81.0 @0x11dffd8 via @4f1518/4f1f09 after the neg-scale @4f1510/4f1f01; stores −0x118 @4f1542/4f1f33; re-rolled per pass; L2 = 2 passes: counter −0x10c, inc @4f1d8b, cmp $0x2 @4f1d92). Gate family = trunc(u × 101.0 @0x11dffe8) < K: 33 @4efc9e, 10 @4efd21, 20 @4efe01/4f02f5, 50 @4efe51/4efe7c/4f04ad/4f12d1, tail 5 @4f1c6b/4f2609, 95 @4f1d2d/4f26cb (mulsd sites @4efc92/4efd15/4efdf5/4efe45/4efe68/4f02e9/4f04a1/4f12c5; movsd loads @4f1c47/4f1cba/4f25e5/4f2658; 11.0 @4f024f). Loop-B X-roll @4f00ad..4f00e9: x = 5 + ⌊(W−9)·u⌋ ∈ [5,507] → −0x134; base = cvttss2si xmm4 @4f00e5 → −0x118 (**xmm4 provenance UNPINNED = the loop-B porting blocker**); mountain_size +0x5c/+0x60 → −0x100/−0x124; inner bound = base + 15 + ⌊11u⌋ (20%/50% gates @4f02f5/4f04ad); setter call 0x4ee130 @4f036d. Scatter calls @4f1d5d/4f26fb (rel e8 → 0x4ee2d0 = true 0x8EEAD0) |
+| C54 | surface-band consumer-chain VA map (dig #83) | sampler true 0x90d860 = slab 0x50d060..0x50d60d (inner-x →0x50d104 / outer-y →0x50d0f3; exit `lock xadd` @0x50d5dd → ret @0x50d60d). Gate @slab 0x50d3a5: owner = `[sampler+0x18]`, `add ecx,0xb4` → accessor **slab 0x5491f0** (thiscall &owner+0xb4, idx = y·[owner+0x9c]+x) → `comiss 0.5f` → **`jbe 0x50d82b`**; ≤0.5-branch: val≤0 skip / 0<val → **byte-grid write** `[owner+0x1a0]=1` (stride [owner+0x188], accessor **slab 0x54a1d0**); >0.5-path: **P = `[config+0x1d4]`** (null → same skip) → warp **slab 0x5084b0 (true 0x908CB0)** → floor **slab 0x4c8b0** → wrap **slab 0x5fdce0 (true 0x9FE4E0)** with this = **P+0x20** (dims on P) → `movzwl ax; dec` = **id−1** → id1>0: cell = lookup **slab 0xb78e0** ([owner+0x90]) / id1≤0: `[config+0x2a4]==0` → skip else **evaluator2 slab 0x508670 (true 0x908E70)** → floor via IAT `*[0x114a434]` + slab 0xc33170 → **consumer slab 0x4f4830 (true 0x8F5030, biome_materials.cpp; this = [config+0x2a4])** = assert `mInitialized` ([obj+0x2c], line 0xfe) → range gate `[obj+0]≤v≤[obj+4]` → count = `([obj+0xc]−[obj+8])÷132` (magic `0x3e0f83e1`, imul/sar5 = ÷132 for spans <10599; 132-B material records) → walk @0x4f4a21 → cell → `[cell+0x38]`: **3** → **slab 0x603fd0** (bss u8 0x1344ce1) / **1** → 8192-slot intern (`lock xadd`, cap 0x2000, slot = count+1, value [tbl+idx·4+4]) → **planter slab 0x363cd0** (base+x, base+y args = the material→world write) / else → 0x50d60e. driver **true 0x908F40 = slab 0x508740..~0x508b67** (procedural_terrain.cpp): config = **slab 0x5095a0** (28 callers exe-wide) → kind `[config+4]`: **0** → addsd f64-0.5 both coords, push config, **`call slab 0x50a060` = surfaceField (THE ONLY e8 site; ret true 0x908F9B)** → consumer(config+0x2a4, x_int, y_int, value) / **1** → assert `biome->bitmap_data` `[config+0x1b0]` line 0xa6e / ≠1 → slab 0x5089c6; **driver callers = 0 e8 AND 0 e9 in text.bin → indirect (job-functor capture) — OPEN, imm32 scan next**. `BiomeHelper::Serialize` = the `[config+0x1d4]` filler: kind2 → slab 0x4edc40 (true 0x8EE440) image load / kind1 → slab 0x4a0d80 (true 0x8AA580) → [config+0x1b0] / kind0 → `[+0xc0]≠0` → slab 0x4f27f0 (true 0x8F2FF0) else **`[+0xb8]≠0` (ctor default −1 ⇒ default)** → **slab 0x4eda30 (true 0x8EE230)** memo builder (std::map bss 0x132A528 keyed &config+0xa8; hit → [entry+0x28]; miss → slab 0x533580 true 0x933D80 → slab 0x3ebce0 **true 0x7EC4E0 below the floor**; assert line 0x178) / both-zero → **global default bss 0x132B518** (props 1.0f slab 0x52c240, 0 slab 0x52e050; `[0x132B518+0x94] = (int)@0x132B518 ×0.5 ÷0.1 [0x11df974]` = ×5) + bss 0x132B538 → store &0x132B518 → [config+0x1d4]; every arm = EXACTLY ONE e8 caller = Serialize itself (census dig #83). Accessor family: **slab 0x5491f0 f32 / 0x54a0f0 u16 / 0x54a1d0 u8** (checked idx → ptr; caller movss/mov/movb). Painter (noise_utils.cpp, slab ~0x4F9731): field = `movl $0x3f800000,(%eax)` (1.0f) + u16 via 0x54a0f0; resolver `lea ecx,[cfg+0xb4]; call slab 0x5fdc50 (true 0x9FE450)` = refcounted interface → `vfunc+0x0c(out,out,key)` → slab 0x440e0 → **id, assert `script_id < 255` (line 0x263)**. LERP true 0x8EE930 = slab 0x4ee130.. (prologue byte-located dig #83): tail = **`buf2 = buf1 + (target − buf1)·q²`** (q² mulss @0x4ee233; accessors 0x5491f0 on member +0x18). Scatter true 0x8EEAD0 = slab 0x4ee2d0 body: assert `bitmap_noise` line 0x218 → `·[0x11e058c]=−0.5f` / `·[0x11dfa94]=0.5f` → xorps [0x11e0c50] → cvttss2si → **`call 0xc090c0` NextRandom** (C46 byte-confirmed). Ctor slots (vtable 0x117e2c4): +0xa0..+0xb4=0, **+0xb8=−1**, +0xc0=0, **+0x1d4=0** (P), +0x1d8-string (size +0x1e8/res +0x1f4), **+0x1e0=INT_MIN, +0x1f8=−1, +0x21c=INT_MIN**, +0x220=1.0f, +0x23c SSO (res +0x250), +0x2b0/+0x2b4=1.0f; dtor frees {+0x1ac,+0x1b8,+0x1d0} + string +0x23c. biome.cpp setup: release-setter `old=[edi+0xb4]; [edi+0xb4]=new; old→vfunc0(1)` → **SetSize+Load slab 0x4fa130 @true 0x8EE6BB (C39 re-verified)** → [owner+0x98] string → `[owner+0x5c]` → "wang: " 0x11730a0 |
+| C55 | evaluator2 + warp byte-recipe consts (dig #83) | evaluator2 true 0x908E70 = slab 0x508670..0x508737 (pure math; args a,b = x,y f64, c = the raw gate f32): `r = b·0.07 [0x11dfce8 f64]→f32`; `s = a·0.035 [0x11dfc98 f64]→f32`; `t = helper slab 0x4fc100(s,r) · 15.5 [0x11e01b0 f32]`; `q = (c − 0.5 [0x11dfa94]) · 0.5`; `u = (b_f32 + t) · 0.04892750 [0x11df944 f32]`; `v = (a_f32 + t) · 0.04892750`; `w = helper slab 0x4fc260(v,u)`; `res = c + q² · 5.35 [0x11e00b4 f32] · 0.95 [0x11dfbac f32] · w`; **return = max(0.5, res)** (@0x508727 comiss-0.5 — §11's clamp byte-confirmed). warp slab 0x5084b0: y += **[0x13289a8] f64** (.bss runtime), x += **[0x1327670] f64** (= the C47 "17920/7168 canvas pair" — SAME VAs), + **0.5 = [0x11dfdd8] f64 (bytes `000000000000e03f`; f32 view = 0.0 — NEVER read this VA f32)**, · **0.1 [0x11dfd08 f64]**, · **0.13717 [0x11dfd38 f64]**; xmm1 arg = **1.0f [0x11dfbf0]**; floor helper slab 0x4c8b0; the driver's pre-surfaceField addsd uses the same [0x11dfdd8]. Post-wrap floor: IAT **`call *[0x114a434]`** (imported math) + helper **slab 0xc33170** (×2, C37's helper family) |
 ### C1 — coalmine start-path mark `0xFF420000`
 - `cmp eax, 0xFF420000` @ true **0x901a4d** (byte-pinned — slab 0x50124d).
   Written as cell value in the coalmine hax overlay; NOT the same thing as
@@ -1321,3 +1323,133 @@
   0x11e0578 = −1/2147483647 · 0x11df988 = +1/2147483647.
 - Status: loop→knob CLOSED; L2/L3 budgets READ but NOT ported; loop-B
   inner structure BLOCKED on xmm4. Source: ABOUT_MATH 2026-09-22 (81).
+
+### C54 — the surface-band consumer-chain VA map (dig #83, 2026-09-22)
+
+The per-cell chain, byte-read from fnb/text disasm + objdump windows
+this session (slab→true per C13; no port code touched):
+
+- **sampler true 0x90d860 = slab 0x50d060..0x50d60d** — per-cell
+  inner-x (→0x50d104) / outer-y (→0x50d0f3) loops; exit = `lock xadd`
+  ref-release @0x50d5dd → ret @0x50d60d.
+- **Gate @slab 0x50d3a5..0x50d3d0:** `ecx=[ebx+0x18]` (the owner) →
+  `eax=[ecx+0x9c]` (row width) → `add ecx,0xb4` → `call slab 0x5491f0`
+  (thiscall on &owner+0xb4, idx = y·[owner+0x9c]+x) → `movss (%eax)` →
+  `comiss 0.5f [0x11dfa94]` → **`jbe 0x50d82b`** (≤0.5 = unpainted;
+  C34's "[+0xb4] raw float field" byte-confirmed).
+- **≤0.5 branch @0x50d82b:** val≤0 → skip (→0x50d5b8); 0<val≤0.5 →
+  byte-grid write `ecx=[ebx+0x18]; eax=[ecx+0x188]; add ecx,0x1a0;
+  call slab 0x54a1d0; movb $1,(%eax)` (stride [owner+0x188], member
+  owner+0x1a0, idx y·stride+x).
+- **>0.5 path @0x50d3d6..0x50d41e:** `eax=[ebx+0x20]→[*]→
+  [config+0x1d4]` = **P** (null → je 0x50d82b); coords =
+  `*[sampler+0x24/0x28] + local`; **warp slab 0x5084b0 (true 0x908CB0)**
+  (C26 family) → floor **slab 0x4c8b0** → **wrap slab 0x5fdce0 (true
+  0x9FE4E0) with ecx = P+0x20 — the dims live ON the P object** →
+  idiv mod w/h both axes → `movzwl ax; dec ecx` = **id−1**:
+  - id1>0 → `ecx=[owner+0x90]; call slab 0xb78e0` → cell (cached at
+    [esp+0x28]);
+  - id1≤0 → `[config+0x2a4]==0` → skip else **evaluator2 slab
+    0x508670** → floor x/y (IAT `call *[0x114a434]` + slab 0xc33170)
+    → `ecx=[config+0x2a4]; call slab 0x4f4830` (consumer; x_int,
+    y_int, xmm3 = value).
+- **consumer true 0x8F5030 = slab 0x4f4830 — biome_materials.cpp**
+  (assert file 0x1173240): this = `[config+0x2a4]`; assert
+  **`mInitialized`** ([obj+0x2c]≠0, line 0xfe); body @0x4f4910 =
+  **range gate `[obj+0]≤v≤[obj+4]`** (f32 min/max) → `count =
+  ([obj+0xc]−[obj+8]) ÷ 132` (magic `0x3e0f83e1`, imul + sar5 — exact
+  for spans <10599; a SECOND ÷132 in the exe, cf. C35) → per-record
+  walk @0x4f4a21 over **132-byte material records** (the RESOLVER
+  TABLE family, ISSUES:101) → returns a cell.
+- **paint dispatch @0x50d58d:** `[cell+0x38]` — **3** → slab 0x603fd0
+  (bss u8 0x1344ce1); **1** → atomic 8192-slot intern (`lock xadd`,
+  cap 0x2000, slot = count+1, value [tbl+idx·4+4]) → **planter slab
+  0x363cd0** (base+x / base+y args = the material→world write,
+  Phase-2 target); else → 0x50d60e.
+- **driver true 0x908F40 = slab 0x508740..~0x508b67 —
+  procedural_terrain.cpp** (assert file 0x1173a10): `config = call
+  slab 0x5095a0` (28 callers exe-wide; the walk shares it) → kind
+  dispatch `[config+4]`: **0** → both coords `addsd [0x11dfdd8]` =
+  f64 0.5 → x+0.5/y+0.5, push config, **`call slab 0x50a060` =
+  surfaceField — THE ONLY e8 reference in the exe** (ret true
+  0x908F9B) → consumer(this = [config+0x2a4], x, y, value); **1** →
+  assert **`biome->bitmap_data`** (`[config+0x1b0]≠0`, line 0xa6e);
+  **≠1** → slab 0x5089c6. **Driver callers: ZERO e8 and ZERO e9 in
+  text.bin ⇒ invoked indirectly (job-functor capture) — OPEN; imm32
+  scan for 0x00908F40/0x00508740 is the next move.**
+- **`BiomeHelper::Serialize` (biome.cpp) = the `[config+0x1d4]`
+  filler** (dump A; strings 0x1173208 "Topology", 0x1173214):
+  kind 2 → slab 0x4edc40 (true 0x8EE440) image load · kind 1 → slab
+  0x4a0d80 (true 0x8AA580) → `[config+0x1b0]` · kind 0 → `[+0xc0]≠0`
+  → slab 0x4f27f0 (true 0x8F2FF0) else **`[+0xb8]≠0` — the ctor
+  default −1 takes this arm** → slab 0x4eda30 (**true 0x8EE230**) ·
+  both-zero → the global default. Every arm has EXACTLY ONE e8 caller
+  = Serialize itself (census this session).
+- **true 0x8EE230 = a memoized BUILDER, not the math body:** this =
+  &config+0xa8 as the cache KEY (`mov ecx,0x132a528; call 0x582bc0` =
+  std::map FIND at .bss **0x132A528**) → hit: return `[entry+0x28]`;
+  miss: push the **config+0x1d8 string** → slab 0x533580 (true
+  0x933D80) → slab 0x3ebce0 (**true 0x7EC4E0 — BELOW the text.bin
+  floor 0x801800: requires a lower-.text slice (file = VA−0x400C00);
+  THE RAMP-GENERATOR CANDIDATE #1**) → assert (biome.cpp line 0x178,
+  cond 0x1154820) → cache-insert. Global-default arm: init .bss
+  **0x132B518** (1.0f props slab 0x52c240, 0 slab 0x52e050;
+  `[0x132B518+0x94] = (int)@0x132B518 ×0.5 ÷0.1 [0x11df974]` = ×5, the
+  C48 toucher form) + **0x132B538** → store &0x132B518.
+- **Accessors (the checked idx→ptr family):** slab **0x5491f0 = f32** ·
+  **0x54a0f0 = u16** · **0x54a1d0 = u8** (caller does the movss/mov/movb).
+- **Painter (noise_utils.cpp, slab ~0x4F9731):** writes 1.0f to the
+  field cell + a u16 id; the id comes from `lea ecx,[cfg+0xb4];
+  call slab 0x5fdc50` (**true 0x9FE450**, next to C32's 0x9FE620) =
+  refcounted-interface member → `vfunc+0x0c(out,out,key)` → slab
+  0x440e0 → assert **`script_id < 255`** (0x11737c8, line 0x263),
+  memoized. ⇒ `[config+0xb4]` = the RandomMaterials-side resolver
+  INTERFACE (ISSUES:101) — a DIFFERENT class's +0xb4 than the sampler
+  owner's float field.
+- **Re-read bonus:** LERP true 0x8EE930 = slab 0x4ee130.. (prologue
+  byte-located; tail `buf2 = buf1 + (target−buf1)·q²`, q² mulss
+  @0x4ee233, accessors on member +0x18) · **C46 scatter body** (slab
+  0x4ee2d0): assert `bitmap_noise` line 0x218 → ±0.5f [0x11e058c/
+  0x11dfa94] → xorps [0x11e0c50] → cvttss2si → `call 0xc090c0`
+  NextRandom ✓.
+- Ctor slots (vtable 0x117e2c4) this session: +0xa0..+0xb4=0 ·
+  **+0xb8=−1** · +0xc0=0 · **+0x1d4=0 (P)** · +0x1d8 string (size
+  +0x1e8, res +0x1f4) · **+0x1e0=INT_MIN** · +0x1f8=−1 ·
+  **+0x21c=INT_MIN** · +0x220=1.0f · +0x23c SSO (res +0x250) ·
+  +0x2b0/+0x2b4=1.0f; dtor frees {+0x1ac, +0x1b8, +0x1d0} + the
+  string ⇒ {+0x1d0 freeable-ptr, +0x1d4 P-ptr, +0x1d8 string} — the
+  triplet ambiguity RESOLVED.
+- Strings/bss new this session: procedural_terrain.cpp 0x1173a10 ·
+  biome_materials.cpp 0x1173240 · `biome->bitmap_data` 0x1175088 ·
+  `mInitialized` 0x118c9f4 · `script_id < 255` 0x11737c8 ·
+  `bitmap_noise` 0x11730cc · `wang: ` 0x11730a0 · `Topology`
+  0x1173208 · `BiomeHelper::Serialize - new BitmapNoise` 0x1173214 ·
+  .bss 0x132a528 (P-cache map) · 0x1344ce1 (plant-gate u8) ·
+  0x12ee538 (wang-log global).
+
+Source: ABOUT_MATH 2026-09-22 (83).
+
+### C55 — the evaluator2 + warp byte-recipe consts (dig #83)
+
+- **evaluator2 true 0x908E70 = slab 0x508670..0x508737** (pure math;
+  args a,b = x,y f64, c = the raw gate f32 in xmm2), all byte-read:
+  `r = b·0.07 [0x11dfce8 f64] → f32`; `s = a·0.035 [0x11dfc98 f64] →
+  f32`; `t = helper slab 0x4fc100(s,r) · 15.5 [0x11e01b0 f32]`;
+  `q = (c − 0.5 [0x11dfa94]) · 0.5`; `u = (b_f32 + t) · 0.04892750
+  [0x11df944 f32]`; `v = (a_f32 + t) · 0.04892750`; `w = helper slab
+  0x4fc260(v,u)`; `res = c + q² · 5.35 [0x11e00b4 f32] · 0.95
+  [0x11dfbac f32] · w`; **return = max(0.5, res)** (comiss-0.5/movaps
+  @0x508727..0x508731 — §11's lower-clamp byte-confirmed).
+- **warp slab 0x5084b0 (true 0x908CB0):** y += **[0x13289a8] f64**,
+  x += **[0x1327670] f64** (.bss runtime pair = the C47
+  "17920/7168 canvas/world offset" — SAME VAs); + **0.5 =
+  [0x11dfdd8] f64** (bytes `000000000000e03f`; **f32 view = 0.0 —
+  never read this VA f32**; the driver's pre-surfaceField addsd uses
+  the same const); · **0.1 [0x11dfd08 f64]**; · **0.13717
+  [0x11dfd38 f64]**; xmm1 argument = **1.0f [0x11dfbf0]**; floor via
+  slab 0x4c8b0; out = (x′,y′) f32 pair.
+- **Post-wrap floor (sampler):** IAT **`call *[0x114a434]`** (imported
+  math) + helper **slab 0xc33170** (×2) — the C37 helper family
+  (0xc33234/0xc33222 neighbors).
+
+Source: ABOUT_MATH 2026-09-22 (83).
