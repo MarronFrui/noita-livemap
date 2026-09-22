@@ -5660,3 +5660,120 @@ first use from now on):**
     in `lib/`). Landed: CONSTANTS **C66**, this entry **(87)**,
     VERIFIED §12 dig-87 bullet, Current_work Phase-2 tag + Status
     refresh. Tests **177/177**; y224 byte bar **0/12 rms 0.0000**.
+- **2026-09-22 (88) — Phase 2 (dig #88): the color→grid lane
+  byte-decoded — delegate `0x741A50` (24-bit color→table index) +
+  LoadFromImageData's four result arms; **u16 cell = index + 1**;
+  ctor `0x65F480` turns out to be a NEGATIVE for the +0x18 install.**
+  - Method/scope: C57's PE-native objdump (`objdump -D -M att
+    --start-address=<true VA> --stop-address=<true VA> noita_dev.exe`,
+    true VAs), exe re-verified on disk THIS session:
+    `/mnt/e/Programmes/Steam/steamapps/common/Noita/noita_dev.exe`,
+    17,007,104 B, md5 `8b611494212a69492dd0a4527d9c92e0` (same as
+    dig #87's open). Windows all chosen at prologue/int3 boundaries
+    (no mid-instruction starts): delegate 0x741A50..0x741AC0 (body
+    ret @0x741ab4, int3 pad 0x741ab7..F, next prologue 0x741ac0);
+    ctor store run @0x65f4c9..0x65f4ec; LoadFromImageData per-pixel
+    0x8f9be4..0x8fa182 (fresh aligned windows over the cached
+    /tmp/opencode/lfid.dis, fn span 0x8f9ab0..0x8fa930 = C62 ✓);
+    pixel fetcher 0x9fe3c0..0x9fe44f. Before the hunt: VERIFIED §8
+    rows 18–25 + C64/C65 re-read (phantoms honored: no `call
+    0x8ed180`, no `movl $0x132b518,0x38(%esi)`, no "wang-fill
+    @0x8ee5bd"). CONSTANTS **C67** carries the full register.
+  - **① delegate `0x741A50` (stdcall, `ret $4`) = a table lookup:**
+    key = `arg1 & 0x00FFFFFF` (alpha stripped @0x741a59); fast path
+    key == `([this+0x2c] & 0xFFFFFF)` @0x741a5f → **return 0**;
+    else count = [this+0x28] with a **`count > 1` gate** (≤1 →
+    miss), base = [this+0x1c], first probe i = 1 at base + **0x2d0**
+    (= 1·0x290 + 0x40), loop `inc i; add $0x290` while i < count,
+    probe = u32 at base + i·0x290 + 0x40 `& 0xFFFFFF` vs key →
+    match → **return i**; miss → `or $0xffffffff,%eax` = **−1**
+    @0x741aa7. ⇒ **record stride 0x290 (656 B), color field +0x40;
+    record 0 is reachable ONLY via the +0x2c fast path** — whether
+    `[this+0x2c] == [base+0x40]` is unread (dig #89).
+  - **② ctor `0x65F480` = NEGATIVE for the delegate install:**
+    `movl $0x0,0x18(%esi)` @0x65f4d7 (zero-run +0x10/+0x14/+0x1c/
+    +0x20/+0x24) ⇒ the ctor ZERO-INITS `[singleton+0x18]`; the
+    writer that later installs the delegate object is not here —
+    **writer of `[0x134632c+0x18]` = OPEN (dig #89)**; C66's OPEN
+    wording corrected in place.
+  - **③ call site + pre-gates (LoadFromImageData):**
+    1. loop head @0x8f9bf1: x = [ebp−0x20], y = [ebp−0x2c]; bounds
+       x ∈ [0, [esi]) and y ∈ [0, [esi+4]) else **assert line 0x224**
+       (fmt 0x1150f60, file 0x1173790) @0x8f9c06.
+    2. pixel = `call 0x9fe3c0` @0x8f9cdc (this = [ebp−0x18]
+       container {w @0, h @4, init @+0x1c, **u32 array @+0x18**,
+       getter **0x949f60**}; negative coords wrapped by idiv-modulo;
+       uninitialized → 0) → **color slot [ebp−0x58] = the RAW pixel**
+       @0x8f9ceb, [ebp−0x30] = `pixel & 0xFF000000` @0x8f9cee.
+    3. gates @0x8f9d84+: pixel ≠ 0, `pixel & 0xFFFFFF` ≠ 0, top-byte
+       ≠ 0 — any zero → next pixel (0x8fa165), no grid writes.
+    4. **top-byte == 0xFE** @0x8f9cf1 → bool-buffer capacity sync on
+       ebx {w,h @+0/+4, cached-total @+8, buf @+0x18, alloc @+0x1c}:
+       dims copied from [esi]/[esi+4], on change free (IAT
+       0x114a358) + malloc (IAT 0x114a35c) + memset 0 (0x1033a5e);
+       flag clear `call 0x92ea40` @0x8f9d64 + **bool byte = 1**
+       (getter **0x94a9d0**, this = ebx+0x18, offset w·y+x)
+       @0x8f9d7e. Other top bytes skip this whole block — what 0xFE
+       means = OPEN.
+    5. memo: [ebp−0x7c] = last color / [ebp−0x78] = last index; hit
+       → reuse, resolver skipped @0x8f9da0; miss: eax = [esi+0xb0]
+       (null → miss arm 0x8f9f59), color == 0xFFFFFFFF → default
+       arm @0x8f9db8, else `push %ecx; call *%eax` **@0x8f9dc2**
+       → memo written @0x8f9dca/0x8f9dcd. ⇒ the pushed arg = the
+       raw pixel u32, and the call target = C56's pinned
+       `0x8EE1B0` A-resolver (C63) → ①.
+  - **④ the four result arms:**
+    1. post-call @0x8f9dd0: [ebp−0x24] = eax; **−1 → miss arm**
+       0x8f9f59; signed ≥ 0xFFFF → **assert line 0x264** (file
+       0x11737fc) @0x8f9de7; else success @0x8f9eae.
+    2. success: unsigned > 0xFFFE (i.e. negatives) → default arm;
+       **id = index + 1** @0x8f9ebc; lazy u16-lane init when
+       [esi+0x3c] == 0 → 0x92e800/0x92e850; then the split —
+       **id == 1 → f32 −1.0f @0x8f9f04 AND u16 = 1 @0x8f9f21 AND
+       `incl [ebp−0x6c]`**; **id ≠ 1 → f32 +1.0f @0x8f9f39 AND
+       u16 = id @0x8f9f51** (f32 offset [esi]·y+x, getter 0x9499f0;
+       u16 offset [esi+0x20]·y+x, getter 0x94a8f0) → next pixel.
+    3. miss arm @0x8f9f59 (ecx = color): color == 0xFFFFFFFF →
+       default; script memo [ebp−0x70]/[ebp−0x74] hit → reuse;
+       else [esi+0xb4] == 0 → default; else **`call 0x9fe450`**
+       (this = esi+0xb4, arg = &color) @0x8f9f83 → memo; signed
+       < 0xFF → **byte arm** @0x8fa05d: id = index+1 ≤ 0xFF
+       (unsigned negative → default arm), lazy init [esi+0x5c]==0
+       → 0x92cc80/0x92ccd0, **u8 lane byte = id** (getter
+       **0x949bb0**, this = esi+0x58, offset [esi+0x40]·y+x)
+       @0x8fa0af + push **{x, y, id−1}** (struct −0xa0/−0x9c/−0x98)
+       → vector **esi+0x80** (0x92eb70) + `incl [ebp−0x68]`; signed
+       ≥ 0xFF → **assert line 0x263** (file 0x11737c8) @0x8f9f9f.
+       ⇒ **script-map colors take a SEPARATE u8 lane + change-vector,
+       never the u16 grid.**
+    4. **default arm** @0x8fa0dc/df (0xFFFFFFFF pre-check, −1,
+       any out-of-range index, script-null): **f32 = (ch[15:8] +
+       2·ch[23:16]) / 765** — mul 0x11df8bc = 0.003921569 (= 1/255),
+       div 0x11dff70 = 3.0, u32→double magic 0x11e0ba0 — written to
+       the f32 grid @0x8fa15e; **u16 NOT written (stays 0)**.
+  - **Ladder consequence (solid/air rung, byte basis):** the u16
+    grid's value set = {0 = untouched (zero/transparent pixels and
+    double-misses), 1 = record-0 color match (+f32 −1.0f), ≥2 =
+    index+1 (+f32 +1.0f)}. Cross-reading entry (86)'s sampler gate
+    (f32 `comiss 0.5f` → skip) with these bytes: **id==1 cells are
+    exactly the ones the sampler SKIPS ⇒ record 0 = the air/empty
+    candidate rung** — byte-consistent, CONFIRMED only after the
+    0x290-record content is read. The esi-container model also
+    cross-links to C56: LoadFromImageData's esi = **the C27 gen**
+    (containers +0x00/+0x20/+0x40, vector +0x80, +0xb0 resolver pin,
+    +0xb4 script callback — C56's layout ✓).
+  - **OPEN (dig #89):** ① writer of `[0x134632c+0x18]` (delegate
+    object identity); ② the 0x290-record table content —
+    `[this+0x2c]` vs base+0x40 identity + the record's material
+    fields (fn **0x741AC0** family) = the actual "index → material
+    ID → color" rung; ③ pre-loop inits (memo seed,
+    [ebp−0x18]/ebx identities) + the post-loop counter branches
+    @0x8fa489/0x8fa6e9 ([ebp−0x6c]/[ebp−0x68] consumers);
+    ④ the 0xFE top-byte + u32 channel-order semantics. Then
+    Phase-2 step 2: the 132-B record walk → fillRandomMaterials /
+    DECOR u16 content walk (frontier item 5; ISSUES.md:82).
+  - Status: docs only (no port changes; `lib/` resolver semantics
+    untouched). Landed: CONSTANTS **C67** (+ C66 OPEN corrected),
+    this entry **(88)**, VERIFIED §12 dig-88 bullet, Current_work
+    Phase-2 tag + Status refresh. Tests **177/177**; y224 byte bar
+    **0/12 rms 0.0000**.

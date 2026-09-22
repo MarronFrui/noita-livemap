@@ -669,6 +669,25 @@ binary side unread) · ❌ unexplored.
   LoadFromImageData's `*0xb0` call-site arg) = dig #88, then the
   132-B record walk. No code changes; tests 177/177; y224 0/12 rms
   0.0000.
+- **UPDATE — dig #88 (2026-09-22): Phase-2 color→grid lane
+  byte-decoded — pixel → gates/memo → [gen+0xb0] `0x8EE1B0` →
+  delegate `0x741A50` (24-bit color→table index, −1 miss) → **u16 =
+  index+1 + f32 ±1.0f**; miss → [gen+0xb4] script map → a SEPARATE
+  u8 lane + {x,y,id−1} change-vector; double-miss → f32 =
+  (ch[15:8]+2·ch[23:16])/765, u16 stays 0** (ABOUT_MATH (88);
+  CONSTANTS C67 + C66 OPEN corrected). Delegate: fast path +0x2c →
+  0, else 0x290-stride scan from base+0x2d0 (color @+0x40), record 0
+  only via the fast path; ctor `0x65F480` **zero-inits +0x18**
+  @0x65f4d7 ⇒ the delegate-writer `[0x134632c+0x18]` is still OPEN.
+  Call site = `push %ecx` (raw pixel) `call *%eax` @0x8f9dc2; asserts
+  0x224 bounds / 0x263 script ≥0xFF / 0x264 index ≥0xFFFF. id==1 ↔
+  f32 −1.0f = exactly the cells entry (86)'s sampler 0.5f gate SKIPS
+  ⇒ record-0 = air-candidate rung (confirm in the record-table walk).
+  LoadFromImageData's esi cross-linked to **the C27 gen** (C56
+  layout ✓: containers +0x00/+0x20/+0x40, vector +0x80, +0xb0,
+  +0xb4). Next: delegate-writer + 0x290-record content (fn 0x741AC0
+  family) → then the 132-B walk. No code changes; tests 177/177;
+  y224 0/12 rms 0.0000.
 - Cache policy: `out/gen-cache/r3i` holds ONLY wang-area bins
   (seed+area-keyed); the cave-field/opt-in lanes live in non-cached
   in-memory buffers, so no bump was required for the revert; bump
