@@ -4975,3 +4975,95 @@ first use from now on):**
     map). NEXT: pin xmm4's provenance → port loop B's inner structure;
     port the L2/L3 120+⌊81u⌋ budget; then the material ID ladder →
     render-flag attempt.
+
+- **2026-09-22 (82) — surface-level (P1) plan Phase 0: the read-vs-unread
+  inventory (doc/data reads only; zero new exe bytes).**
+  - **Question split (the plan this session):** (A) the y-arithmetic —
+    the ramp params (mGradientStartY/EndY/HighNoise/LowNoise/
+    NoiseScale/MinY/MaxY/Type/SinMultiple*) → field → the y where
+    solid begins; vs (B) the two render-gate clauses — cross-lane
+    composition order + the material ID ladder. Done = both byte-cited,
+    ported, capture-validated, `SURFACE_V3` dropped from the default
+    render.
+  - **C37 body re-read → two NEGATIVE facts that reshape Phase 1:**
+    - the byte-settled uid offset map (`CONSTANTS.md` C37 detail,
+      [+0x1d4] BitmapNoise ptr · [+0x220] mGradientAddNoise ·
+      [+0x224..+0x268] inside-perlin/mults) contains **NO
+      mGradientStartY/EndY/HighNoise/LowNoise/NoiseScale/MinY/MaxY/
+      Type/SinMultiple slots** → the ramp is a SEPARATE consumer of
+      those attrs (the "BLEND structure TODO" `biomes.mjs:99–100`),
+      not part of surfaceField's known inputs;
+    - the whole-exe imm32 scan (C37 detail, `CONSTANTS.md:762–766`) =
+      ZERO non-assert refs to the attr names → **the
+      key-string-dispatcher hunt (the C52 technique applied to
+      Topology) is ELIMINATED as an approach** — attr lookup is
+      runtime-driven; do not re-chase string xrefs.
+  - **The gap C37/C39 themselves name:** "[uid+0x1d4] fill for biomes
+    without bitmap_noise_file" (C37 status, `CONSTANTS.md:767–769`).
+    C39 read = the IMAGE path only (SetSize+Load true 0x8fa930,
+    exactly 2 e8 callers: true 0x90d1b1 per-cell-generator walk /
+    true 0x8ee6bb biome.cpp → C27 ctor FUN_008f9470). For
+    hills/desert/winter/mountain/pyramid (no bitmap_noise_file) the
+    float-grid filler is UNREAD = I1's "poro noise terrain" root cause
+    (`ISSUES.md:114–122`).
+  - **ISSUES P1 cross-links re-read (convergent):** sampler chain
+    CLOSED (C34: the >0.5 gate reads the RAW per-chunk float field
+    [+0xb4]; evaluator2's `a` = the field value; unpainted cells →
+    C33 classifier → u16 DECOR write); the u16 DECOR write mechanism =
+    BitmapNoise::LoadFromImageData (C32) read; **remaining = port
+    wiring (field grids + C33 in noise-terrain.mjs) + the config
+    RESOLVER tables [+0xb0]** (`ISSUES.md:88–102`) — the same two
+    blockers ABOUT_MATH (63) listed (C1→C2 hand-off; A-resolver body
+    0x8EE1B0); (64) already resolved (63)'s first bullet.
+  - **P1 Topology census (data-verified this session,
+    `data/biome/*.xml`):** all = SIN_CAPPED_SIMPLEX (C42 kind 5);
+    StartY −1024 / EndY 1024 uniform EXCEPT hills_flat (−750);
+    HighNoise/LowNoise per family — {hills, mountain_left\* family,
+    winter, winter_caves, pyramid_top} 234.057/−292.571 · {desert,
+    mountain_top, pyramid_entrance/hallway/left/right} 100.123/−100.123
+    · hills2 75.123/−12.0564 · lakes 134.057/−292.571; NoiseScale
+    0.00128571 (hills2 = 0.0068571); mGradientAddNoise hills 1 /
+    hills2 2 / hills_flat 0 / lakes 3 / rest 1; mGradientMinY 0.25 /
+    MaxY 0.498571 / Type 1 / Sin 0.00667143..0.006153 ONLY winter;
+    mInsidePerlinFunc "x\*(1.0-x)" only winter; mMultiplierGradient
+    0.871429 everywhere (CE 0.871429-hills ✓); mMultiplierPerlin:
+    hills absent (default 1 = CE "1.0-hills" ✓), desert/mountain_top/
+    pyramid\* 0.413, winter 0.642857 (CE ✓), lakes 1;
+    bitmap_noise_file ONLY the lake family
+    (data/biome_impl/topology_lake.png); mountain_center.xml +
+    pyramid.xml carry NO `<Topology>` (pure static art).
+  - **Lua classification (byte-read, `data/scripts/biomes/*.lua`):**
+    hills.lua:204 / desert.lua:192 / winter.lua:337 / lake.lua:200
+    init(x,y,w,h) = parallel_check + the halloween pumpkin spawn
+    (hills/winter only) — **zero LoadPixelScene in all four (grep 0
+    hits)** → P1's noise biomes paint NOTHING in lua; the art lane
+    lives in mountain/ + pyramid files (already rendered, VERIFIED
+    §12). Incidental datum: the game's own surface-band y window hint
+    = `y > -1000 and y < 0` (hills.lua:208).
+  - **READ vs UNREAD (the deliverable):**
+    - READ: surfaceField recipe + uid map (C37) · NOISE_TYPE dispatch
+      + fbm (C36) · bilinear gradient sampler + lower-clamp 0.5 +
+      0.51/0.85 gates (C37) · slope arm [+0x24c] · DECOR owner layout
+      + >0.5 gate (C34) · u16 write mechanism (C32) · sampler paint
+      arm (0x90d860) · C33 classifier (read, UNWIRED) · bitmap fill
+      chain image path (C39) · caves-field composition (dig #81) ·
+      art lane (256 LoadPixelScene / SPLICE_PNGS) · F3 kernel port
+      (noise-proto.mjs).
+    - UNREAD (= Phase 1–3 targets): (1) the ramp generator →
+      [uid+0x1d4] float grid for non-bitmap biomes (question A; I1's
+      root cause); (2) A-resolver body **0x8EE1B0** (material ID per
+      cell = gate clause B.2); (3) C1→C2 hand-off (byte-grid + LERP
+      merge into the consumer); (4) cross-lane write order
+      wang/art/noise/caves (gate clause B.1); (5) fnA y-drift span
+      (queue #2); (6) fnB sub-reads xmm4 @4f00e5 + L2/L3 budget
+      (feed (4)); (7) port wiring field grids + C33 →
+      noise-terrain.mjs (engineering, not RE).
+  - **Phase 1 start order (revised by the negative facts):** no
+    string xrefs — instead (a) census STORES to the [uid+0x1d4] slot
+    + writers of the float grid behind it; (b) read the
+    per-cell-generator walk true 0x90cfb0's config fetch 0x4ce6a0
+    (keyed byte 0x13289b4) + the C27 ctor FUN_008f9470 non-image
+    branch; (c) the ghidra-ledger mSeed/per-cell generator leads
+    (FUN_0090ce20→FUN_008f9470).
+  - Status: **Phase 0 CLOSED** (docs/data only; no new constants → no
+    CONSTANTS rows). Tests unchanged: 177/177 (dig #81).
