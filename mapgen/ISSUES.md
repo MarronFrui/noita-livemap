@@ -302,6 +302,19 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   pipeline if wanted (e.g. a `--template` flag delegating to
   template-render.mjs).
 
+### 7. Registry/doc defects
+
+- [x] **I18. CONSTANTS C33's stated true VA `0x8f4830` was +0x800
+  short** (opened + closed 2026-09-22, dig #85): C13's formula gives
+  slab 0x4f4830 + 0x400800 = **`0x8F5030`** — the fn C54/VERIFIED
+  already cite as the consumer. Byte-checked: real prologue at
+  0x8F5030, `0x8f4830` decodes mid-instruction, and C33's own
+  internals (0x4f4919/0x4f4960/0x4f4f3b) map into 0x8F5030..0x8F5754
+  only with +0x400800; `0x8f4830` = slab + 0x400000. Fixed in
+  CONSTANTS C33 (index row + section heading) and VERIFIED:297; the
+  (19)-era ABOUT_MATH mentions keep their historical text
+  (append-only — corrected by entry (85)). Source: ABOUT_MATH §6 (85).
+
 ## Strategy (agreed)
 
 1. Keep the verified wang core (prediction-solved, oracle-validated).

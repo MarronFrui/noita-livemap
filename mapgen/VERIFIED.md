@@ -171,8 +171,9 @@ of these mechanisms, cite the row instead of re-running it.
 | 19 | "[config+0x98] = the second do_beginning gate byte" / "per-record flags [obj+0x30]/[obj+0x98]" | OVERTURNED dig #81: those are CONFIG offsets — [config+0x30] = do_beginning_paths (the real gate, `cmpb` @4f0f3c → je 0x4f271e), [config+0x98] = the mLuaScript string SIZE (string base +0x88; `cmpl $0x0,0x98(%edi)` @4f100f pairs with assert `caves.mLuaScript.empty() == false` @0x11731a4 = script presence, not a gate) | ✅ ABOUT_MATH §6 (81) |
 | 20 | C46 scatter engine true VA = 0x8EF2D0 | OVERTURNED dig #81 (re-pinned from exe): true = **0x8EEAD0** (file 0x4EDED0) — the old label is +0x800 off and lands mid-instruction in fn A's L1 lane; the corrected window is the full 416-B function (the comiss-0.5 gate @0x8eec4e..59, `call 0x8fafc0` @0x8eec65, `ret` @0x8eec6f) ending 1 byte before fn A's prologue @0x8EEC70 (C44's fn A VA ✓); fnb calls `call 0x4ee2d0` @4f1d5d/4f26fb | ✅ ABOUT_MATH §6 (81) |
 | 21 | The P-build chain (Serialize → fn1 slab 0x4EDA30 → 0x533580 → 0x7EC4E0 → C27 ctor 0x4F8C70) as the mGradient/ramp consumer; true 0x7EC4E0 = "the ramp-generator" ((83) label); `[gen+0xb4]` = "the B-map" (C39 label) | OVERTURNED dig #84: whole chain byte-read — fn1 uses `&config+0xa8` as an ADDRESS cache key only (contents never read); the C27 ctor consumes a seed int only (2×NextRandom → draw×200000−100000; size 0xB8); the 0x533580→0x7EC4E0 sub-chain builds a **BiomeSpawnScripts** object (literal 0x1154528, map @+0x8c, memo @[singleton+0x24]); `[gen+0xb4]` = a cloned callback {fn 0x7EB220, ctx=BiomeSpawnScripts*} (vtable 0x119a2a0, slot+0x24 = clone @slab 0x680DA0). mGradient consumption remains unseen → hunt moved to the XML-parse family (0x496a2e..0x4a97ed) + surfaceField's config-range read | ✅ ABOUT_MATH §6 (84) |
-| 22 | Recovering the driver's address (true 0x908F40 / slab 0x508740 / surfaceField-ret 0x908F9B) as raw imm32 immediates in text.bin | 0 / 0 / 0 hits (fresh scan) — invoked indirectly only (job-functor capture still OPEN) | ✅ ABOUT_MATH §6 (84) |
-| 23 | The key-string-dispatcher hunt for the Topology/ramp slot-fillers (the C52 attr-name imm32 xref technique applied to mGradientStartY/EndY/HighNoise/LowNoise/NoiseScale/MinY/MaxY/Type/SinMultiple*) | whole-exe imm32 scan = ZERO non-assert refs to the attr names — attr lookup is runtime-driven; do not re-chase string xrefs (approach eliminated; the hunt was re-aimed to the XML-parse family 0x496a2e..0x4a97ed for the writes + surfaceField's config range +0x220..0x268 for the reads) | ✅ ABOUT_MATH §6 (82); CONSTANTS.md:762–766 |
+| 22 | Recovering the driver's address (true 0x908F40 / slab 0x508740 / surfaceField-ret 0x908F9B) as raw imm32 immediates in text.bin | imm32 = 0 hits in text.bin still true, but the "invoked indirectly only / capture OPEN" inference is **OVERTURNED dig #85**: 3 direct e8 rel32 byte-verified →0x908F40 at true 0x7930d3 / 0x7938d1 / 0x7938fe (+ sibling 0x793358 → 0x909370) — all at file 0x3924d3.. = lower .text OUTSIDE text.bin (C57 scope defect); job-functor theory dropped, capture CLOSED. Driver loop extent/y-range still OPEN (caller body unread) | ✅ ABOUT_MATH §6 (84),(85); CONSTANTS C57/C60 |
+| 23 | The key-string-dispatcher hunt for the Topology/ramp slot-fillers (the C52 attr-name imm32 xref technique applied to mGradientStartY/EndY/HighNoise/LowNoise/NoiseScale/MinY/MaxY/Type/SinMultiple*) | **OVERTURNED dig #85**: full-file scan = **15 imm32 code refs per name** (first @file 0x9624f.. = true 0x496e4f.. — registration cluster + parse-walk pushes), all lower .text outside text.bin (same C57 scope defect as row 22); the xref technique WORKS and delivered the 38-pair bind table (C58) = the write side. The (82)/(84) "ZERO refs" eliminations stand corrected | ✅ ABOUT_MATH §6 (82),(85); CONSTANTS C58 |
+| 24 | Writing `[owner+0xb4]` (the sampler's float-wrapper gate target, C34/C54): an independent base-install site — plus the candidates below | ELIMINATED dig #85 (REGION-scoped): no install among the ③-region sites examined — ctor null-inits 0x791c8e×2 + 0x8f9565/0x8f956b and config pins 0x8ee3fb/0x8ee694 only (fresh full-.text census, file 0x400..0xd49200: mod=10 disp32 0xb4 → 475 store-patterns/91 loads/761 lea, 0xb8 → 1060/846/710 — counts not individually re-examined ⇒ REGION scope). Ruled out: g_genome_herd_relations 0x12ec8b8 (writers 0x592270/0x5932f0); name→member dispatch 0x4f8857 (invincibility_frames/falling_damages); ctor null-inits; classifier 0x8f5030 refuted twice (body 0x8f5030..0x8f5754, zero member stores). Consistent with C61/C62 aliasing: **owner = P − 0x9c ⇒ owner+0xb4 ≡ P+0x18**, the wrapper LoadFromImageData writes — instance-identity byte-link still OPEN | ✅ ABOUT_MATH §6 (85); CONSTANTS C64 |
 
 ## 9. Open frontier (ranked)
 
@@ -295,7 +296,7 @@ binary side unread) · ❌ unexplored.
    MATERIAL INTERP on the [+0xd4] u16 grid; the evaluator2 `a` arg =
    the FIELD VALUE (not a constant 1.0), consumed only for
    u16==0 cells under the +0x2a4 flag → C33 classifier (true
-   0x8f4830) → DECOR write.** The (17) smoke's all-solid = EXPECTED
+   0x8F5030 — VA fixed dig #85, ISSUES I18) → DECOR write.** The (17) smoke's all-solid = EXPECTED
    (a=1.0 hard-coded); the correct wiring is the recorded next
    integration step. **The surface-blend is now READ too (2026-09-20
    (23), C36–C38):** per-biome field = true 0x90a860 (4-corner
@@ -619,6 +620,22 @@ binary side unread) · ❌ unexplored.
   surfaceField's config-range read (+0x220..+0x268); the (83) "wrap this =
   P+0x20 = dims" claim is flagged (P+0x20 = a container block).** No code
   changes; tests 177/177; y224 byte bar 0/12 rms 0.0000.
+- **UPDATE — dig #85 (2026-09-22): Phase-1 residuals ①②④
+  byte-closed, ③ writer located** (ABOUT_MATH (85); CONSTANTS C57–C64;
+  §8 rows 22–24; ISSUES I18). ① = the 38-pair attr→slot bind table
+  (C58; the mGradient writes ARE the parse-walk bind calls; labels:
+  +0x264 Gradient / +0x268 Perlin / +0x26c Extra) — ramp READS
+  (+0x270..+0x29c) still OPEN. ② = wrap call 0x90dcce, wrap-this =
+  P+0x20 = {w,h,u16vec,cnt} (C61; (83)/(84) = same bytes). ③ =
+  LoadFromImageData 0x8f9ab0 stores (C62: f32 @0x8fa15e getter
+  0x9499f0, ±1.0f @0x8f9f04/0x8f9f39, u16 getter 0x94a8f0; bounds
+  0x8f9ab0..0x8fa930; callers 0x8fa99b + the F3 pair) + aliasing
+  owner = P − 0x9c (3 lanes exact) ⇒ gate target = P+0x18 —
+  **instance-identity byte-link still OPEN** (+0x1e0 lane doesn't
+  fit). ④ = 3 direct e8 callers (C60) — both old zero scans were the
+  C57 text.bin scope defect; loop extent OPEN. Phase 1 stays [ ]
+  pending the ③ link (or an explicit user waiver). No code changes;
+  tests 177/177; y224 0/12 rms 0.0000.
 - Cache policy: `out/gen-cache/r3i` holds ONLY wang-area bins
   (seed+area-keyed); the cave-field/opt-in lanes live in non-cached
   in-memory buffers, so no bump was required for the revert; bump

@@ -5453,3 +5453,89 @@ first use from now on):**
     **C56** + a C54 correction clause; VERIFIED §8 rows 21–22 +
     §12 dig-84 update. Tests **177/177**; y224 byte bar **0/12 rms
     0.0000** re-confirmed.
+- **2026-09-22 (85) — Phase-1 residuals dig: ① the 38-pair config XML
+  bind table (attr → slot → bind-call), ② the sampler wrap-arg
+  contradiction resolved, ③ the `[+0xb4]` float-field writer located
+  (LoadFromImageData stores) + the sampler↔BitmapNoise aliasing
+  proven on 3 lanes, ④ the driver's 3 direct e8 callers found — and
+  both prior "zero findings" exposed as text.bin scope defects.**
+  - Method + scope (**C57**): PE-native `objdump -D -M att
+    --start-address/--stop-address noita_dev.exe` (true VAs); the PE
+    section table re-derives file = VA − 0x400C00 (.text raw
+    0x400..0xd49200), .rdata VA = file + 0x400E00, .data VA = file +
+    0x401A00. **text.bin (file 0x400c00..) excludes lower .text =
+    true 0x401000..0x801800 — the root cause of (82)/(83)/(84)'s
+    "whole-exe = ZERO"** (driver callers file 0x3924d3.. and attr
+    refs file 0x9624f.. both live there). resolver.dis was −0x400
+    label-shifted (displayed 0x8ee243 = true 0x8ee643); parsebind2
+    (0x49B800) + defaults2 (0x495D00) adjusts correct.
+  - **① SOLVED — C58:** value-binding walk true `0x49b887..0x49df7e`,
+    per attr `push $name_VA; lea slot(%ebx); call bind` (string
+    0x9c4450/0x43a5a0, bool 0x444700, bool8 0x444520, f32 0x9c4560,
+    f64 0x9c6b00, enum 0x9c8160, other 0x9c55b0) = the mGradient
+    WRITE side; full 38-pair table in C58. Ramp attrs: StartY/EndY
+    +0x270/+0x274, SlopeStartX/Delta +0x278/+0x280 (f64), AddNoise
+    +0x288, NoiseScale +0x290 (f64), Low/HighNoise +0x298/+0x29c;
+    ForceInside +0x24c (C37's slope flag); coarse_map ×4 +0x2a0..2a3.
+    **Multiplier labels settled: +0x264 = mMultiplierGradient, +0x268
+    = mMultiplierPerlin, +0x26c = mMultiplierExtraPerlin** (confirms
+    C43's CE correction of the (23)-map + C37's byte slots; the C37
+    zero-xref bullet OVERTURNED — 15 code refs/name, all lower .text).
+    Gaps (no binder in this walk): +0x1d4, +0x1e0..+0x1ec, +0x1f4,
+    +0x200..+0x210, +0x220 (second walk? OPEN); +0x80 bound twice
+    (mDebugFilename/ Biome — different ebx contexts, identity OPEN);
+    binder-%ebx vs defaults-%esi object identity OPEN (slots match,
+    instance unproven).
+  - **② SOLVED — C61:** sampler call `0x90dcce` = `mov 0x28(%esp),%ecx;
+    add $0x20,%ecx; call 0x9fe4e0` ⇒ wrap-this = P+0x20 with P =
+    `[config+0x1d4]` (the BitmapNoise); view = {w@+0x20, h@+0x24,
+    u16 vec@+0x38, cnt/gate@+0x3c} — vec/cnt ARE C31's u16 wrapper ⇒
+    (83)'s "dims" and (84)'s "container block" = the same bytes;
+    (84)'s "on the C27 gen" label corrected (the 0xB8 seed-gen ≠
+    config+0x1d4). The same `+0x20` sub-view reappears in
+    LoadFromImageData (`lea 0x20(%esi),%edi` → grid @edi+0x18).
+  - **③ LOCATED — C62 (extends C31/C32; not re-registered):**
+    LoadFromImageData = true 0x8f9ab0, body **0x8f9ab0..0x8fa930**
+    (no 2nd prologue; next = C39 wrapper @0x8fa930); stores: f32
+    `movss` @0x8fa15e via getter 0x9499f0 after `lea 0x18(%esi),%ecx`
+    (= C31's float wrapper), ±1.0f twins @0x8f9f04/0x8f9f39, u16 via
+    getter 0x94a8f0; getters = CSafeArray {base@+0,count@+4} =
+    0x9499f0/0x94a8f0/0x949f60 (f32/u16/u32); unit noise_utils.cpp,
+    assert line 0x263. Callers (rel32 byte-verified): 0x8fa99b
+    (wrapper Load step), 0x905dd7/0x905f1e (§11 F3 wang pair).
+    **Aliasing:** sampler-owner +0x9c/+0xb4/+0xd4 ↔ BitmapNoise
+    +0/+0x18/+0x38 = three lanes exact under **owner = P − 0x9c** ⇒
+    the gate target owner+0xb4 IS P+0x18, the wrapper written here
+    (no separate install = expected; C64 region-scoped).
+    **OPEN:** instance identity (kind2-esi == P ==
+    sampler-owner+0x9c) + C34's +0x1e0 lane doesn't fit (predicted
+    +0xf4).
+  - **④ capture SOLVED — C60:** 3× e8 → 0x908F40 at true 0x7930d3
+    (main), 0x7938d1 + 0x7938fe (45-B probe pair) + sibling 0x793358 →
+    0x909370; all file 0x3924d3.. = lower .text (C57 scope defect).
+    Driver loop extent/y-range still OPEN (caller body unread).
+  - **C59:** defaults-init store block `0x495ebe..0x496195` (52
+    stores; full slot list in C59): +0x1d4 = 0 (P starts null ✓),
+    +0x214 = 0.5f, +0x218/+0x21c = 1.0f, +0x224 = 5 (= C43 ✓),
+    +0x264/268/26c = 1.0f, +0x270/+0x274 = ∓512.0f and +0x298/+0x29c
+    = ∓100/+100 (defaults; the (82) XML census −1024/+1024 & −292/234
+    = overrides, not contradictions), f64 movsd at +0x278/+0x280/
+    +0x290, +0x2a0..+0x2a4 = 0.
+  - **C63:** imm 0x8ee1b0 = exactly 4 occurrences: movl starts
+    0x8ee3a7 (fn1) + 0x8ee643 (fn2), each followed by a +0xb4 store
+    (0x8ee3fb/0x8ee694) = C56's {resolver, cb} pair (one per fill
+    path), `movl $0x8ee1b0,0x140(%eax)` imm @0x905ad3, stack-local
+    0x64c7ab.
+  - **Eliminations (C64, VERIFIED §8 row 24):** genome global
+    0x12ec8b8, name-dispatch 0x4f8857, ctor null-inits, classifier
+    0x8f5030 as the writer, independent +0xb4 base-install — see C64.
+    **C33 defect (ISSUES I18):** stated true 0x8f4830 = slab+0x400000;
+    correct **0x8F5030** (prologue byte-checked; C33's internals
+    0x4f4919/0x4f4960/0x4f4f3b map into 0x8F5030..0x8F5754 only with
+    +0x400800). Fixed in CONSTANTS C33 + VERIFIED:297; (19)-era §6
+    mentions stay (append-only, corrected here).
+  - Status: docs only. Landed: CONSTANTS **C57–C64** + C33/C37/C54/C56
+    corrections, this entry **(85)**, VERIFIED §8 rows 22–24 + §12
+    dig-85 bullet + C33 fix, ISSUES **I18**, Current_work Phase-1
+    tags (①②④ closed, ③ identity link open ⇒ Phase 1 stays [ ]).
+    Tests **177/177**; y224 byte bar **0/12 rms 0.0000**.

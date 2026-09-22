@@ -55,7 +55,7 @@
 | C30 | true 0x908e70 consts | 0.07/0.035, 15.5, 0.0489275, 5.35, 0.95 (the ledger trio lives HERE) |
 | C31 | area BitmapNoise grids | SetSize true 0x8f95c0: float +0x18 / u16 DECOR +0x38 / byte +0x58, all zero-init |
 | C32 | true 0x8f9ab0 = BitmapNoise::LoadFromImageData | the u16 DECOR writer: image color → resolver [+0xb0] / map [+0xb4] → u16 / byte / float |
-| C33 | true 0x8f4830 biome-def DECOR classifier | noise re-eval with mod-512 wrap (×1/512 @0x11df8b4), gate [+0x24]/[+0x28], result material [+0x4] |
+| C33 | true 0x8F5030 biome-def DECOR classifier (VA fixed dig #85 → I18; was 0x8f4830 = slab+0x400000) | noise re-eval with mod-512 wrap (×1/512 @0x11df8b4), gate [+0x24]/[+0x28], result material [+0x4] |
 | C34 | per-chunk DECOR owner layout | [+0xb4] float field (raw >0.5 gate), [+0xd4] u16 grid, [+0x1e0] DECOR write; evaluator2's `a` = the field value |
 | C35 | lazy noise-table pair + 2nd core | init true 0x8fbfd0: [0x1327bd0]=perm u16, [0x1327720]=perm%12; true 0x8fc020 = unread noise core; ÷132 count fix |
 | C36 | NOISE_TYPE dispatch + fbm | true 0x8fd920 switch @table true 0x8fdaa4 (cases 0..8); true 0x8fdad0 = 4-octave fbm (amps 0.5/0.25/0.125/0.0625, lac 2.02/2.33, ÷0.9375) |
@@ -80,6 +80,15 @@
 | C54 | surface-band consumer-chain VA map (dig #83) | **dig #84 corrections: kind-1 builder this = &cfg+0x198 (+0x1a8 = its ≠0 gate); kind-2 fn2 args = w/h at +0x1cc/+0x1d0 + local −0xc4, this = &cfg+0x1b4; the global-default prop setters = slab 0x52c1e0/0x52e000 (not 0x52c240/0x52e050); the "biome.cpp setup @0x4EDE50" = fn2's tail; the kind-0 builder's chain = BiomeSpawnScripts, NOT the ramp — details in C56.** sampler true 0x90d860 = slab 0x50d060..0x50d60d (inner-x →0x50d104 / outer-y →0x50d0f3; exit `lock xadd` @0x50d5dd → ret @0x50d60d). Gate @slab 0x50d3a5: owner = `[sampler+0x18]`, `add ecx,0xb4` → accessor **slab 0x5491f0** (thiscall &owner+0xb4, idx = y·[owner+0x9c]+x) → `comiss 0.5f` → **`jbe 0x50d82b`**; ≤0.5-branch: val≤0 skip / 0<val → **byte-grid write** `[owner+0x1a0]=1` (stride [owner+0x188], accessor **slab 0x54a1d0**); >0.5-path: **P = `[config+0x1d4]`** (null → same skip) → warp **slab 0x5084b0 (true 0x908CB0)** → floor **slab 0x4c8b0** → wrap **slab 0x5fdce0 (true 0x9FE4E0)** with this = **P+0x20** (dims on P) → `movzwl ax; dec` = **id−1** → id1>0: cell = lookup **slab 0xb78e0** ([owner+0x90]) / id1≤0: `[config+0x2a4]==0` → skip else **evaluator2 slab 0x508670 (true 0x908E70)** → floor via IAT `*[0x114a434]` + slab 0xc33170 → **consumer slab 0x4f4830 (true 0x8F5030, biome_materials.cpp; this = [config+0x2a4])** = assert `mInitialized` ([obj+0x2c], line 0xfe) → range gate `[obj+0]≤v≤[obj+4]` → count = `([obj+0xc]−[obj+8])÷132` (magic `0x3e0f83e1`, imul/sar5 = ÷132 for spans <10599; 132-B material records) → walk @0x4f4a21 → cell → `[cell+0x38]`: **3** → **slab 0x603fd0** (bss u8 0x1344ce1) / **1** → 8192-slot intern (`lock xadd`, cap 0x2000, slot = count+1, value [tbl+idx·4+4]) → **planter slab 0x363cd0** (base+x, base+y args = the material→world write) / else → 0x50d60e. driver **true 0x908F40 = slab 0x508740..~0x508b67** (procedural_terrain.cpp): config = **slab 0x5095a0** (28 callers exe-wide) → kind `[config+4]`: **0** → addsd f64-0.5 both coords, push config, **`call slab 0x50a060` = surfaceField (THE ONLY e8 site; ret true 0x908F9B)** → consumer(config+0x2a4, x_int, y_int, value) / **1** → assert `biome->bitmap_data` `[config+0x1b0]` line 0xa6e / ≠1 → slab 0x5089c6; **driver callers = 0 e8 AND 0 e9 in text.bin → indirect (job-functor capture) — OPEN, imm32 scan next**. `BiomeHelper::Serialize` = the `[config+0x1d4]` filler: kind2 → slab 0x4edc40 (true 0x8EE440) image load / kind1 → slab 0x4a0d80 (true 0x8AA580) → [config+0x1b0] / kind0 → `[+0xc0]≠0` → slab 0x4f27f0 (true 0x8F2FF0) else **`[+0xb8]≠0` (ctor default −1 ⇒ default)** → **slab 0x4eda30 (true 0x8EE230)** memo builder (std::map bss 0x132A528 keyed &config+0xa8; hit → [entry+0x28]; miss → slab 0x533580 true 0x933D80 → slab 0x3ebce0 **true 0x7EC4E0 below the floor**; assert line 0x178) / both-zero → **global default bss 0x132B518** (props 1.0f slab 0x52c240, 0 slab 0x52e050; `[0x132B518+0x94] = (int)@0x132B518 ×0.5 ÷0.1 [0x11df974]` = ×5) + bss 0x132B538 → store &0x132B518 → [config+0x1d4]; every arm = EXACTLY ONE e8 caller = Serialize itself (census dig #83). Accessor family: **slab 0x5491f0 f32 / 0x54a0f0 u16 / 0x54a1d0 u8** (checked idx → ptr; caller movss/mov/movb). Painter (noise_utils.cpp, slab ~0x4F9731): field = `movl $0x3f800000,(%eax)` (1.0f) + u16 via 0x54a0f0; resolver `lea ecx,[cfg+0xb4]; call slab 0x5fdc50 (true 0x9FE450)` = refcounted interface → `vfunc+0x0c(out,out,key)` → slab 0x440e0 → **id, assert `script_id < 255` (line 0x263)**. LERP true 0x8EE930 = slab 0x4ee130.. (prologue byte-located dig #83): tail = **`buf2 = buf1 + (target − buf1)·q²`** (q² mulss @0x4ee233; accessors 0x5491f0 on member +0x18). Scatter true 0x8EEAD0 = slab 0x4ee2d0 body: assert `bitmap_noise` line 0x218 → `·[0x11e058c]=−0.5f` / `·[0x11dfa94]=0.5f` → xorps [0x11e0c50] → cvttss2si → **`call 0xc090c0` NextRandom** (C46 byte-confirmed). Ctor slots (vtable 0x117e2c4): +0xa0..+0xb4=0, **+0xb8=−1**, +0xc0=0, **+0x1d4=0** (P), +0x1d8-string (size +0x1e8/res +0x1f4), **+0x1e0=INT_MIN, +0x1f8=−1, +0x21c=INT_MIN**, +0x220=1.0f, +0x23c SSO (res +0x250), +0x2b0/+0x2b4=1.0f; dtor frees {+0x1ac,+0x1b8,+0x1d0} + string +0x23c. biome.cpp setup: release-setter `old=[edi+0xb4]; [edi+0xb4]=new; old→vfunc0(1)` → **SetSize+Load slab 0x4fa130 @true 0x8EE6BB (C39 re-verified)** → [owner+0x98] string → `[owner+0x5c]` → "wang: " 0x11730a0 |
 | C55 | evaluator2 + warp byte-recipe consts (dig #83) | evaluator2 true 0x908E70 = slab 0x508670..0x508737 (pure math; args a,b = x,y f64, c = the raw gate f32): `r = b·0.07 [0x11dfce8 f64]→f32`; `s = a·0.035 [0x11dfc98 f64]→f32`; `t = helper slab 0x4fc100(s,r) · 15.5 [0x11e01b0 f32]`; `q = (c − 0.5 [0x11dfa94]) · 0.5`; `u = (b_f32 + t) · 0.04892750 [0x11df944 f32]`; `v = (a_f32 + t) · 0.04892750`; `w = helper slab 0x4fc260(v,u)`; `res = c + q² · 5.35 [0x11e00b4 f32] · 0.95 [0x11dfbac f32] · w`; **return = max(0.5, res)** (@0x508727 comiss-0.5 — §11's clamp byte-confirmed). warp slab 0x5084b0: y += **[0x13289a8] f64** (.bss runtime), x += **[0x1327670] f64** (= the C47 "17920/7168 canvas pair" — SAME VAs), + **0.5 = [0x11dfdd8] f64 (bytes `000000000000e03f`; f32 view = 0.0 — NEVER read this VA f32)**, · **0.1 [0x11dfd08 f64]**, · **0.13717 [0x11dfd38 f64]**; xmm1 arg = **1.0f [0x11dfbf0]**; floor helper slab 0x4c8b0; the driver's pre-surfaceField addsd uses the same [0x11dfdd8]. Post-wrap floor: IAT **`call *[0x114a434]`** (imported math) + helper **slab 0xc33170** (×2, C37's helper family) |
 | C56 | the `[config+0x1d4]` (P) fill chain = Serialize → fn1/fn2 → C27 gen + BiomeSpawnScripts (dig #84; **ramp OVERTURNED**) | kind-2 → **fn2 slab 0x4EDC40 call @0x4F2EFE** (this=&cfg+0x1b4, edx=&cfg+0x1d8, w/h=[cfg+0x1cc]/[cfg+0x1d0], ctor-seed=local −0xc4, P store @0x4f2f08; body = grid w×h + `call 0x4ecc90` + inline singleton 0x1346CD8 + builder @0x4edd4f + **SetSize+Load `call 0x4fa130` @0x4EDEBB (true 0x8EE6BB)** + `"wang: "` @0x4EDEE0); kind-1 pre-pass → `lea ecx,[eax+0x198]; call 0x4a0d80` → [cfg+0x1b0] (**this = &cfg+0x198, +0x1a8 = its ≠0 gate — (83) corrected**); kind-0 `[cfg+0xc0]≠0` → `0x4f27f0` / **`[cfg+0xb8]≠0` → fn1 slab 0x4EDA30..0x4EDC3F (true 0x8EE230..43C) call @0x4F2FD4** (this=&cfg+0xa8 = **address-KEY only, contents unread**; edx=&cfg+0x1d8; seed=local −0xb8) / both-zero → 0x4f2fe9 global default (**prop setters = slab 0x52c1e0 / 0x52e000 — (83)'s 0x52c240/0x52e050 wrong**; ctx string 0x1173214). fn1/fn2 miss = `call 0x533580` (argless) → `call 0x3ebce0` (**stdcall, 1 arg = the noise_type string**) → **0x94-B object = `BiomeSpawnScripts`** (literal 0x1154528; ctor wrapper true 0x7EAAF0 → real ctor slab 0x45C9A0, vtable 0x119A724→**0x119EA60** {0x85D2B0, 0x85D7B0, **0x85D980** = (key,0) method called `*0x8(%eax)` @0x7ec60c}; populate true 0x7EB020 = map **@[obj+0x8c]** key [node+0x10]/value [node+0x14], error → `Lua error - AddScriptColor( ` 0x1154694 → bss 0x132B624; builder memo **@[singleton+0x24]** value [node+0x28]) → malloc **0xB8** + **C27 ctor slab 0x4F8C70** (seed only) → **`movl $0x8ee1b0,0xb0(%edi)` @0x4edba7 = true 0x8EE3A7 (A-resolver pin)** → temp `{0x119a2a0, fn 0x7eb220, ctx=scripts}` → **clone `call *0x24` @0x4edbec = slab 0x680DA0** → **release-setter `[gen+0xb4]` = the callback clone** (C39's "B-map" corrected; fn true 0x7EB220 = stdcall map-get → [node+0x14]/−1; class name 0x12f2f40 = MSVC `_Func_class`) → insert `0x542970` → return gen. Asserts: **fmt 0x1150f60 / cond 0x1154820 = `lua_manager` / file 0x1172ea8 = full-path biome.cpp / lines 0x178=376, 0x18d=397**; fail = `movl $0x1ca9,(%eax)` @0x4edb7b (eax=0). C27 gen layout: containers +0x00/+0x20/+0x40/+0x60 (self-ptr @block+0x10), vector +0x80={0,0,0}, **seed @+0x8c (ctor arg)**, **1.0f @+0x90**, **rand @+0x94 = f32(draw)×[0x11e0504]=200000.0f − [0x11e04ec]=100000.0f** after (double)(int) via **{0.0,4294967296.0}@0x11e0ba0** + `comisd [0x11e0220]=2147483647.0; jb; mulsd 0.5 [0x11dfdd8]` + 2×`call 0xc090c0`; SSO string +0x98 (size +0xa8, res +0xac=0xf); +0xb0/+0xb4 zeroed → filled by the tail. Census: fn1=1, fn2=1, 0x4ecc90=1, C27ctor=7 (0x4EDB9A/0x4EDE33/0x4F0B23/0x4F293C/0x5043EE/0x506B41/0x50C66C), 0x533580=5 (0x4EDAAF/0x4EE5C5/0x5074BE/0x50EDA0/0x50FECD), 0x3ebce0=10 (0x4EDAB6/0x4EDD4F/0x4EE5CC/0x4F0BCC/0x4F10BF/0x5051F4/0x50681B/0x50760E/0x50765A/0x50EDA7); **imm32 text.bin 0 hits for 0x00908F40/0x00508740/0x00908F9B → driver capture still OPEN**; boundary re-verified: evaluator2 ret **0x508737** + int3 pad **0x508738..f** + driver prologue **0x508740** (`call 0x5095a0` @0x50875c, `je 0x508b67` @0x508765, `mov eax,[ebx+4]` @0x50876b). Full detail = `### C56` |
+| C57 | PE VA formula card + PE-native objdump method (dig #85) | file = VA − 0x400C00 (.text) · slab = file + 0x400 = VA − 0x400800 · true = slab + 0x400800 · .rdata VA = file + 0x400E00 · .data VA = file + 0x401A00 (re-derived from the PE section table: .text raw 0x400..0xd49200 @VA 0x401000 · .rdata 0xd49200 @0x114a000 · .data 0xee9600 @0x12eb000); method = `objdump -D -M att --start-address=<true> --stop-address=<true> noita_dev.exe` (hand slices need `--adjust-vma = file_off + 0x400C00`); **SCOPE WARNING: text.bin (file 0x400c00..) never covered lower .text = true 0x401000..0x801800 — the root cause of (82)/(83)/(84)'s "zero" scans** |
+| C58 | surface-config XML attr → slot BIND table, 38 pairs (dig #85) | walk true `0x49b887..0x49df7e` (lower .text): `push $name_VA; lea slot(%ebx); call bind`; types = string 0x9c4450/0x43a5a0 · bool 0x444700 · bool8 0x444520 · f32 0x9c4560 · f64 0x9c6b00 · enum 0x9c8160 · other 0x9c55b0; **the mGradient WRITE side of question A; settles the multiplier labels: +0x264 = mMultiplierGradient, +0x268 = mMultiplierPerlin, +0x26c = mMultiplierExtraPerlin (confirms C43's CE correction + C37's byte slots)**; full table + gap list in the C58 section |
+| C59 | config defaults-init store block (dig #85) | `%esi` stores `0x495ebe..0x496195` (52; full list in section): +0xa0 = 225.0f, +0x1cc/+0x1d0 = 0x100, **+0x1d4 = 0 (P starts null ✓)**, +0x214 = 0.5f, +0x218/+0x21c = 1.0f, +0x220 = 0, **+0x224 = 5 (C43 noiseType ✓)**, +0x228 = 1, +0x264/268/26c = 1.0f, **+0x270/+0x274 = −512/+512 f32**, +0x278/+0x280/+0x290 = f64 movsd, +0x288 = 1, **+0x298/+0x29c = −100/+100 f32**, +0x2a0..+0x2a4 = 0; the (82) XML census (−1024/+1024, −292/234) = XML overrides of these defaults |
+| C60 | driver `0x908F40` direct callers (dig #85) | 3× e8 rel32 byte-verified → `0x908F40`: **0x7930d3** (main), **0x7938d1** + **0x7938fe** (45-B probe pair), sibling **0x793358 → 0x909370**; all file 0x3924d3..0x392cfe = lower .text (C57 scope defect = why digs #83/#84 saw zero); capture CLOSED, loop extent/y-range still OPEN (caller body unread) |
+| C61 | sampler wrap call + P+0x20 view (dig #85) | call **0x90dcce** (in sampler 0x90d860) = `mov 0x28(%esp),%ecx; add $0x20,%ecx; call 0x9fe4e0` ⇒ wrap-this = **P+0x20**, P = `[config+0x1d4]` = the BitmapNoise; view = {w@+0x20, h@+0x24, u16 vec@+0x38, cnt/gate@+0x3c} — vec/cnt = C31's u16 wrapper ⇒ (83)'s "dims" and (84)'s "container block" = the SAME bytes; (84)'s "on the C27 gen" label corrected (the 0xB8 seed-gen ≠ config+0x1d4) |
+| C62 | LoadFromImageData store sites + getters (dig #85; EXTENDS C31/C32 — cite, don't re-register) | fn `0x8f9ab0..0x8fa930` (no 2nd prologue in-span; next = C39 wrapper @0x8fa930): f32 `movss` **@0x8fa15e** via `lea 0x18(%esi),%ecx` + getter **0x9499f0**; ±1.0f twins **@0x8f9f04/0x8f9f39**; u16 via getter **0x94a8f0** with `lea 0x20(%esi),%edi` @0x8fa162 → edi+0x18 (=+0x38); getters = CSafeArray {base@+0,count@+4} f32/u16/u32 = 0x9499f0/0x94a8f0/0x949f60; e8 callers (rel32 verified) = **0x8fa99b** (wrapper Load step) + **0x905dd7/0x905f1e** (§11 F3 wang pair); unit noise_utils.cpp, assert line 0x263 |
+| C63 | A-resolver imm `0x8ee1b0` pin census (dig #85) | exactly 4 imm32 occurrences file-wide: movl starts **0x8ee3a7** (fn1 0x8EE230 body) + **0x8ee643** (fn2 0x8EE440 body), each followed by a +0xb4 store (**0x8ee3fb/0x8ee694**) = C56's {resolver, cb} pair, one install per fill path; `movl $0x8ee1b0,0x140(%eax)` imm @0x905ad3; stack-local 0x64c7ab; resolver.dis label trap: displayed 0x8ee243 = true 0x8ee643 (−0x400 slice error) |
+| C64 | ③/P1 ruled-out candidates (dig #85; do-not-re-dig) | `0x12ec8b8` = g_genome_herd_relations (writers 0x592270/0x5932f0, genomedata_component.cpp); name→member dispatch 0x4f8857 = the invincibility_frames/falling_damages member; ctor null-inits 0x791c8e pair + 0x8f9565/0x8f956b; classifier (C33 true 0x8F5030) refuted as the `[owner+0xb4]` writer (body 0x8f5030..0x8f5754, zero member stores); no independent +0xb4 wrapper-base install among the ③-region sites examined (fresh full-.text census file 0x400..0xd49200: mod=10 disp32 0xb4 → 475 store-patterns/91 loads/761 lea, 0xb8 → 1060/846/710 — counts not individually re-examined ⇒ elimination is REGION-scoped) |
+
 ### C1 — coalmine start-path mark `0xFF420000`
 - `cmp eax, 0xFF420000` @ true **0x901a4d** (byte-pinned — slab 0x50124d).
   Written as cell value in the coalmine hax overlay; NOT the same thing as
@@ -616,7 +625,7 @@
   ([+0xb0]/[+0xb4] config side) remain OPEN (17 .rdata "RandomMaterials"
   parse sites true 0x496a2e..0x4a97ed — data-side, config).
 
-### C33 — the biome-def DECOR classifier **true 0x8f4830** (slab 0x4f4830)
+### C33 — the biome-def DECOR classifier **true 0x8F5030** (slab 0x4f4830; VA fixed dig #85/ISSUES I18 — the old 0x8f4830 = slab+0x400000, byte-checked: prologue at 0x8F5030, 0x8f4830 decodes mid-instruction, and this fn's internals 0x4f4919/0x4f4960/0x4f4f3b map into 0x8F5030..0x8F5754 only with +0x400800)
 - Unit string "…procedural_utils/biome_ma…" @0x1173240 (the
   biome_materials.cpp module); helper strings 0x118c9f4
   ("mInitialized"), 0x11732c0 ("mCellFactory").
@@ -762,11 +771,15 @@
   0.871429-hills; +0x268 = mMultiplierPerlin = 1.0-hills/0.642857-
   winter) — see the C37 header & C43; the PORT's names = gradWCoef
   (=[+0x268]) / perlinCoef (=[+0x264]).
-- Attribute names in .rdata = doc-strings only: whole-exe imm32 scan
-  (incl. .data + full .rdata halves) = ZERO non-assert refs
-  (mInsidePerlinScaleY/OffsetY/mGradientEndY only inside vector
-  asserts; "Topology"/"_biomes_all.xml" zero) — attr lookup is
-  runtime-driven; the layout is proven from the consumer side.
+- **(85) OVERTURNED:** the "ZERO non-assert refs" claim was a
+  scan-scope artifact (text.bin excludes lower .text — C57). A
+  full-file imm32 scan = **15 code refs per attr name** (push sites,
+  first @file 0x9624f.. = true 0x496e4f..) and the parse walk binds
+  every name to a slot — full 38-pair map = **C58**; it also confirms
+  the swap note above: mMultiplierGradient → **+0x264**,
+  mMultiplierPerlin → **+0x268**, ExtraPerlin → +0x26c. (Original
+  claim kept: attribute names in .rdata = doc-strings only;
+  whole-exe imm32 scan = ZERO non-assert refs — WRONG, see above.)
 - Status: read + registered (2026-09-20 (23)). NEXT OPEN: the per-biome
   fill of [uid+0x1d4] (mBitmapNoise) for biomes without
   bitmap_noise_file.
@@ -1375,9 +1388,11 @@ this session (slab→true per C13; no port code touched):
   surfaceField — THE ONLY e8 reference in the exe** (ret true
   0x908F9B) → consumer(this = [config+0x2a4], x, y, value); **1** →
   assert **`biome->bitmap_data`** (`[config+0x1b0]≠0`, line 0xa6e);
-  **≠1** → slab 0x5089c6. **Driver callers: ZERO e8 and ZERO e9 in
-  text.bin ⇒ invoked indirectly (job-functor capture) — OPEN; imm32
-  scan for 0x00908F40/0x00508740 is the next move.**
+  **≠1** → slab 0x5089c6. **Driver callers: (85) CORRECTED — the ZERO
+  e8/e9 result was text.bin-scope only (C57); a full-file scan finds
+  3 direct e8 → 0x908F40 (true 0x7930d3/0x7938d1/0x7938fe) + sibling
+  0x793358 → 0x909370 = C60; capture CLOSED, the job-functor theory
+  dropped; loop extent/y-range still OPEN (caller body unread).**
 - **`BiomeHelper::Serialize` (biome.cpp) = the `[config+0x1d4]`
   filler** (dump A; strings 0x1173208 "Topology", 0x1173214):
   kind 2 → slab 0x4edc40 (true 0x8EE440) image load · kind 1 → slab
@@ -1578,12 +1593,219 @@ config; xmm1/xmm2 f64 pair + ecx = this). Callers: fn1 = 1
 0x533580 = 5 (0x4EDAAF/0x4EE5C5/0x5074BE/0x50EDA0/0x50FECD),
 0x3ebce0 = 10 (0x4EDAB6/0x4EDD4F/0x4EE5CC/0x4F0BCC/0x4F10BF/
 0x5051F4/0x50681B/0x50760E/0x50765A/0x50EDA7). **imm32 text.bin:
-0 hits for 0x00908F40 / 0x00508740 / 0x00908F9B → driver capture
-indirect-only, still OPEN.**
+0 hits for 0x00908F40 / 0x00508740 / 0x00908F9B — (85): imm32 stays
+dead, but the "indirect-only" inference is OVERTURNED — 3 direct e8
+callers byte-found (C60; the zeros were a text.bin scope defect,
+C57); driver capture CLOSED, loop extent still OPEN.**
 
-Question A frontier: mGradient writes = XML-parse family
-0x496a2e..0x4a97ed (C50's hunt); reads = C37's surfaceField config
-range +0x220..+0x268; (83)'s "wrap this = P+0x20 = dims" flagged
-(P+0x20 = container block #2 — re-verify the sampler's wrap-arg).
+Question A frontier: **(85) SOLVED the write side** — the mGradient
+writes = the parse-walk bind calls (C58, 38 pairs) and the wrap flag
+closed (C61: wrap-this = P+0x20 = {w,h,u16vec,cnt}, the same bytes
+both readings pointed at); the READ side (consumers of the ramp
+slots +0x270..+0x29c) remains OPEN — surfaceField reads only
++0x220..+0x268.
 
 Source: ABOUT_MATH 2026-09-22 (84).
+
+### C57 — PE VA formula card + PE-native objdump method (dig #85)
+
+- file = VA − 0x400C00 (.text) · slab = file + 0x400 = VA − 0x400800
+  · true = slab + 0x400800 · .rdata VA = file + 0x400E00 · .data VA =
+  file + 0x401A00 — C13's rules, re-derived this session from the PE
+  section table (.text raw 0x400..0xd49200 @VA 0x401000 · .rdata raw
+  0xd49200 @0x114a000 · .data raw 0xee9600 @0x12eb000).
+- Standing method: `objdump -D -M att --start-address=<true VA>
+  --stop-address=<true VA> noita_dev.exe` (PE-native, prints true
+  VAs); hand slices need `--adjust-vma = file_off + 0x400C00`
+  (parsebind2 0x49B800 ✓, defaults2 0x495D00 ✓; resolver.dis was
+  −0x400: displayed 0x8ee243 = true 0x8ee643).
+- **Scope warning: text.bin = file 0x400c00.. never covered .text's
+  lower region file 0x400..0x400c00 = true 0x401000..0x801800.**
+  Every "whole-exe = ZERO" in (82)/(83)/(84) was a text.bin scan;
+  both halves re-scanned this session — the driver callers (file
+  0x3924d3..) and every attr-name ref (file 0x9624f..) live BELOW the
+  floor. Never conclude from text.bin alone.
+- Source: ABOUT_MATH §6 (85).
+
+### C58 — the surface-config XML attr → slot bind table (38 pairs, dig #85)
+
+- Two-phase: names registered in cluster `0x496xxx` (mGradientStartY
+  string VA first pushed @true 0x496e4f), then the **value-binding
+  walk `0x49b887..0x49df7e`**: per attr `push $name_VA; … lea
+  SLOT(%ebx),reg; call BIND`. **These stores = the mGradient/ramp
+  WRITE side of question A.**
+- Bind calls: string 0x9c4450 / 0x43a5a0 · bool 0x444700 · bool8
+  0x444520 · f32 0x9c4560 · f64 0x9c6b00 · enum 0x9c8160 · other
+  0x9c55b0.
+
+| push (true) | attribute | slot | bind (type) |
+| --- | --- | --- | --- |
+| 0x49b887 | lua_script | +0x1d8 | 0x9c4450 string |
+| 0x49b93b | pixel_scene | +0x1f0 | 0x444700 bool |
+| 0x49ba92 | static_tile | +0x1f8 | 0x444700 bool |
+| 0x49bb39 | static_tile_bg_mask | +0x1fc | 0x9c4450 string |
+| 0x49bbd6 | static_tile_bg_mask_threshold | +0x214 | 0x9c4560 f32 |
+| 0x49bc73 | game_enemy_hp_scale | +0x218 | 0x9c4560 f32 |
+| 0x49bd20 | game_enemy_attack_speed | +0x21c | 0x9c4560 f32 |
+| 0x49be78 | mInsideNoiseType | +0x224 | 0x9c8160 enum |
+| 0x49bef9 | mInsideNoiseFBM | +0x228 | 0x444700 bool |
+| 0x49bf76 | mInsidePerlinScaleX | +0x230 | 0x9c6b00 f64 |
+| 0x49c00e | mInsidePerlinScaleY | +0x238 | 0x9c6b00 f64 |
+| 0x49c087 | mInsidePerlinSquared | +0x240 | 0x444520 bool8 |
+| 0x49c0d6 | mInsidePerlinClamped | +0x241 | 0x444520 bool8 |
+| 0x49c121 | mInsidePerlinScaled | +0x242 | 0x444520 bool8 |
+| 0x49c184 | mInsidePerlinScaleMin | +0x244 | 0x9c4560 f32 |
+| 0x49c1fc | mInsidePerlinScaleMax | +0x248 | 0x9c4560 f32 |
+| 0x49c269 | mInsidePerlinForceInside | +0x24c | 0x444700 bool |
+| 0x49c2cb | mInsidePerlinOffsetBySeed | +0x24d | 0x444700 bool |
+| 0x49c32d | mInsidePerlinOffsetX | +0x250 | 0x9c6b00 f64 |
+| 0x49c38f | mInsidePerlinOffsetY | +0x258 | 0x9c6b00 f64 |
+| 0x49c40c | mInsideAddValue | +0x260 | 0x9c4560 f32 |
+| 0x49c4a4 | mMultiplierGradient | +0x264 | 0x9c4560 f32 |
+| 0x49c53c | mMultiplierPerlin | +0x268 | 0x9c4560 f32 |
+| 0x49c5bf | mMultiplierExtraPerlin | +0x26c | 0x9c4560 f32 |
+| 0x49c632 | mGradientStartY | +0x270 | 0x9c4560 f32 |
+| 0x49c6aa | mGradientEndY | +0x274 | 0x9c4560 f32 |
+| 0x49c737 | mGradientSlopeStartX | +0x278 | 0x9c6b00 f64 |
+| 0x49c7d9 | mGradientSlopeDelta | +0x280 | 0x9c6b00 f64 |
+| 0x49c85b | mGradientAddNoise | +0x288 | 0x9c55b0 other |
+| 0x49c8c3 | mGradientNoiseScale | +0x290 | 0x9c6b00 f64 |
+| 0x49c936 | mGradientLowNoise | +0x298 | 0x9c4560 f32 |
+| 0x49c9ae | mGradientHighNoise | +0x29c | 0x9c4560 f32 |
+| 0x49ca1b | coarse_map_force_terrain | +0x2a0 | 0x444700 bool |
+| 0x49ca7d | coarse_map_not_terrain | +0x2a1 | 0x444700 bool |
+| 0x49cadf | coarse_map_cell_count_always_zero | +0x2a2 | 0x444700 bool |
+| 0x49cb41 | coarse_map_inject_light | +0x2a3 | 0x444700 bool |
+| 0x49cc79 | mDebugFilename | +0x80 | 0x43a5a0 string |
+| 0x49df7e | Biome | +0x80 | 0x43a5a0 string |
+
+- **Multipliers settled (C37 swap note / C43 CE correction): +0x264 =
+  mMultiplierGradient, +0x268 = mMultiplierPerlin, +0x26c =
+  mMultiplierExtraPerlin** — byte formula (gradCoef = [+0x264]) and
+  names now agree; port: gradWCoef=[+0x264], perlinCoef=[+0x268].
+- Ramp attrs: StartY/EndY +0x270/+0x274 · SlopeStartX/Delta
+  +0x278/+0x280 (f64) · AddNoise +0x288 · NoiseScale +0x290 (f64) ·
+  Low/HighNoise +0x298/+0x29c; ForceInside +0x24c = C37's slope
+  flag; OffsetBySeed +0x24d; coarse_map ×4 = +0x2a0..+0x2a3.
+- Gaps (bound nowhere in this walk): +0x1d4, +0x1e0..+0x1ec, +0x1f4,
+  +0x200..+0x210, +0x220 (+0x220 HAS a C59 default but no binder —
+  second walk? OPEN). +0x80 bound TWICE (mDebugFilename @0x49cc79,
+  Biome @0x49df7e) under different `%ebx` contexts — identity OPEN.
+  Binder `%ebx` vs defaults `%esi` object: slot-identical, instance
+  identity not yet byte-linked (OPEN).
+- Source: ABOUT_MATH §6 (85); dump `/tmp/opencode/binding_table.txt`.
+
+### C59 — config defaults-init store block (dig #85)
+
+- 52 `%esi` stores at true **0x495ebe..0x496195** (pre-parse defaults
+  for the C58 object; fn continues past the block — `call 0x41df90`
+  @0x49619f, string-init `lea 0x2c0(%esi)` @0x4961ab; fn start not
+  pinned): +0x98/+0xc0/+0x100/+0x108/+0x10c = 0 · +0x9c/+0xfc/+0x104
+  = 0 (b) · +0xa0 = 0x43610000 = 225.0f · +0xa4 = 1 (b) · +0xc4 =
+  0x101 · +0xf8/+0x158/+0x15c/+0x160/+0x194 = 1.0f · +0x164/+0x16c/
+  +0x188/+0x18c/+0x190/+0x1b0 = 0 · +0x168 = 1 (b) · +0x1cc/+0x1d0 =
+  0x100 · **+0x1d4 = 0 (P starts null ✓ C54's null-P skip)** ·
+  +0x1f0/+0x1f4/+0x1f8 = 0 · +0x214 = 0x3f000000 = 0.5f · +0x278 =
+  f64 movsd · +0x218/+0x21c = 1.0f · +0x220 = 0 · **+0x224 = 5 (C43
+  noiseType ✓)** · +0x228 = 1 (b) · +0x242 = 0 (b) · +0x244/+0x248 =
+  0 · +0x260 = 0 · +0x264/+0x268/+0x26c = 1.0f · **+0x270 =
+  0xc4000000 = −512.0f / +0x274 = 0x44000000 = +512.0f** · +0x280 =
+  f64 movsd · +0x288 = 1 · +0x290 = f64 movsd · **+0x298 =
+  0xc2c80000 = −100.0f / +0x29c = 0x42c80000 = +100.0f** · +0x2a0 =
+  0 · +0x2a4 = 0.
+- Default ≠ XML: the (82) Topology census (StartY −1024/EndY +1024,
+  LowNoise −292/HighNoise 234) = XML overrides of these defaults
+  (−512/+512, −100/+100) — both stand at their own layer.
+- Bound-but-unstored slots (+0x1d8/+0x1fc strings, +0x230/+0x238 f64,
+  +0x240/+0x241, +0x24c/+0x24d, +0x250/+0x258, +0x80): ctor-zero or
+  set elsewhere — not claimed.
+- Source: ABOUT_MATH §6 (85); dump `/tmp/opencode/defaults_vals.txt`.
+
+### C60 — driver `0x908F40` direct callers (dig #85)
+
+- 3 direct `e8 rel32` → 0x908F40, byte-verified (file byte 0xe8,
+  rel32 resolves exactly): **true 0x7930d3** (main call), **true
+  0x7938d1 + 0x7938fe** (45 B apart = the x∓1 probe pair); plus
+  **true 0x793358 → sibling 0x909370** (second driver-family fn,
+  body unread).
+- File 0x3924d3 / 0x392cd1 / 0x392cfe / 0x392758 — all in .text's
+  LOWER region (true < 0x801800), which text.bin never covered (C57)
+  ⇒ why digs #83/#84 scanned zero.
+- Capture CLOSED (job-functor theory dropped); **loop extent/y-range
+  still OPEN** — next read = the caller body around 0x7930d3.
+- Source: ABOUT_MATH §6 (85).
+
+### C61 — sampler wrap call + the P+0x20 view (dig #85)
+
+- Call site true **0x90dcce** (inside sampler 0x90d860): `mov
+  0x28(%esp),%ecx; add $0x20,%ecx; call 0x9fe4e0` ⇒ wrap-this =
+  **P + 0x20**, P = `[config+0x1d4]` = the BitmapNoise (C39 fill
+  chain, C43 w260×h260).
+- View: **w @P+0x20, h @P+0x24, u16 vec @P+0x38, cnt/gate @P+0x3c** —
+  vec/cnt = C31's u16 wrapper ⇒ (83)'s "dims on P+0x20" and (84)'s
+  "container block" = the SAME bytes; (84)'s "on the C27 gen" label
+  corrected (the 0xB8 seed-gen with blocks +0/+0x20/+0x40/+0x60 is a
+  different object). Corroboration: LoadFromImageData builds the same
+  `+0x20` sub-view (`lea 0x20(%esi),%edi` → grid @edi+0x18, C62).
+- Source: ABOUT_MATH §6 (85).
+
+### C62 — LoadFromImageData value-store sites + getters (dig #85; EXTENDS C31/C32)
+
+- **Do not re-register:** this IS C32's true 0x8f9ab0
+  (BitmapNoise::LoadFromImageData). Body = **0x8f9ab0..0x8fa930**
+  (prologue @0x8f9ab0; NO second `55 8b ec` in-span; next prologue
+  @0x8fa930 = C39's wrapper) — the store block belongs to it.
+- Stores: computed **f32 `movss %xmm0,(%eax)` @0x8fa15e** after `lea
+  0x18(%esi),%ecx` @0x8fa106 → getter 0x9499f0 → grey formula
+  (`addsd [0x11e0ba0(,%eax,8)]` → cvtpd2ps → mulss 0x11df8bc →
+  addss×2 → divss 0x11dff70 = C32's grey ✓); **±1.0f twins
+  `movl $0xbf800000`/$0x3f800000 @0x8f9f04/0x8f9f39**; **u16** via
+  getter 0x94a8f0 (`mov %cx,(%eax)`) after `lea 0x20(%esi),%edi`
+  @0x8fa162 → grid @edi+0x18.
+- Getters = CSafeArray accessors {base@+0, count@+4} (csafearray.h
+  0x117a570): **f32 0x9499f0 · u16 0x94a8f0 · u32 0x949f60**; assert
+  `!( i < 0 || i >= _size )` @0x1179b74. Unit noise_utils.cpp
+  @0x1173678, assert line 0x263 = 611, `script_id < 255` @0x11737c8.
+- Callers (e8 rel32 byte-verified): **0x8fa99b** (inside wrapper
+  0x8fa930 = its Load step), **0x905dd7/0x905f1e** (§11 F3's
+  wang-out_map pair; enclosing fn unread).
+- **③ aliasing:** sampler-owner lanes +0x9c/+0xb4/+0xd4 ↔ BitmapNoise
+  +0/+0x18/+0x38 = three lanes exact under **owner = P − 0x9c** ⇒
+  the gate target `owner+0xb4` IS P+0x18 — the wrapper written @
+  0x8fa15e (explains zero install sites). **OPEN: instance identity**
+  (kind2-`esi` == P == sampler-owner+0x9c) and C34's +0x1e0 lane
+  doesn't fit the map (predicted +0xf4).
+- Source: ABOUT_MATH §6 (85).
+
+### C63 — A-resolver imm `0x8ee1b0` pin census (dig #85)
+
+- Exactly 4 imm32 occurrences file-wide: **movl starts 0x8ee3a7**
+  (inside fn1 0x8EE230) and **0x8ee643** (inside fn2 0x8EE440), each
+  followed by a `+0xb4` store (**0x8ee3fb / 0x8ee694**) = C56's
+  `{resolver@+0xb0, cb@+0xb4}` pair, one install per fill path;
+  **`movl $0x8ee1b0,0x140(%eax)` imm @0x905ad3**; stack-local
+  **0x64c7ab**.
+- Label trap: resolver.dis displayed 0x8ee243 for the second pin =
+  true 0x8ee643 (hand-slice adjust −0x400; use C57's PE-native
+  method).
+- Source: ABOUT_MATH §6 (85).
+
+### C64 — ③/P1 ruled-out candidates (dig #85; do-not-re-dig)
+
+- `0x12ec8b8` = **g_genome_herd_relations** (writers 0x592270 /
+  0x5932f0, genomedata_component.cpp) — a genome table, not ours.
+- Name→member dispatch **0x4f8857** = the invincibility_frames/
+  falling_damages member class (ptr@+0xb4/bool@+0xb8/f32@+0xbc).
+- Ctor null-inits (0x791c8e pair, 0x8f9565/0x8f956b) = zeroing, not
+  installs.
+- Classifier (C33, true 0x8F5030) refuted as the `[owner+0xb4]`
+  writer — body bounded 0x8f5030..0x8f5754, zero member stores
+  (refuted twice).
+- No independent `owner+0xb4` wrapper-base install among the
+  ③-region sites examined (ctor zeros + C63 config pins only). Fresh
+  full-.text census (file 0x400..0xd49200, mod=10 disp32): 0xb4 →
+  475 store-patterns / 91 loads / 761 lea; 0xb8 → 1060 / 846 / 710 —
+  counts NOT individually re-examined ⇒ elimination is REGION-scoped,
+  consistent with C62's aliasing (owner+0xb4 ≡ P+0x18 needs no
+  separate install).
+- Source: ABOUT_MATH §6 (85).
