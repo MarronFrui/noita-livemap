@@ -176,6 +176,7 @@ of these mechanisms, cite the row instead of re-running it.
 | 24 | Writing `[owner+0xb4]` (the sampler's float-wrapper gate target, C34/C54): an independent base-install site — plus the candidates below | ELIMINATED dig #85 (REGION-scoped): no install among the ③-region sites examined — ctor null-inits 0x791c8e×2 + 0x8f9565/0x8f956b and config pins 0x8ee3fb/0x8ee694 only (fresh full-.text census, file 0x400..0xd49200: mod=10 disp32 0xb4 → 475 store-patterns/91 loads/761 lea, 0xb8 → 1060/846/710 — counts not individually re-examined ⇒ REGION scope). Ruled out: g_genome_herd_relations 0x12ec8b8 (writers 0x592270/0x5932f0); name→member dispatch 0x4f8857 (invincibility_frames/falling_damages); ctor null-inits; classifier 0x8f5030 refuted twice (body 0x8f5030..0x8f5754, zero member stores). Consistent with C61/C62 aliasing: **owner = P − 0x9c ⇒ owner+0xb4 ≡ P+0x18**, the wrapper LoadFromImageData writes — instance-identity byte-link still OPEN (resolved: row 25) | ✅ ABOUT_MATH §6 (85); CONSTANTS C64 |
 | 25 | C62's ③ OPEN: instance identity `kind2-esi == P == sampler-owner+0x9c` + C34's +0x1e0 lane fit ("predicted +0xf4"); (85)'s "owner = P − 0x9c" read as instance identity | SPLIT dig #86: `kind2-esi == P` **PROVEN** (Serialize kind2 arm `call 0x8ee440` @0x8f36fe → fn2 ret @0x8ee741 ← [ebp−0x18] ← its `new(0xb8)` gen → `mov %eax,0x1d4(%ecx)` @0x8f3708, byte chain); `P == owner+0x9c` **REFUTED as instances** — owner+0x9c = in-place embed (ctor @0x90ce66 / Load @0x90d1ab / dtor @0x910a6f, embed end owner+0x154), P = `[config+0x1d4]` ← five standalone/static-gen stores (kind2 fn2 gen; `0x8f2ff0`/`0x8ee230` returns; static imm @0x908583-fifth @0x905fb0 + `movl $0x132b518` @0x8f388f) — heap/static ≠ owner interior ⇒ distinct addresses, same class; **+0x1e0 = owner-own decor u16 grid** (@0x90d2c1/0x90d2e9) never a gen lane ⇒ "+0xf4" premise dissolved; sampler **mixes the two gens** (gate reads embed owner+0x9c/+0xb4 @0x90dba5.., wrap reads config-P). "owner = P − 0x9c" survives as LAYOUT equivalence only | ✅ ABOUT_MATH §6 (86); CONSTANTS C65 |
 | 26 | (90)'s ①f read: the record-parser `call 0x7364f0` @0x9eb1aa sits **inside fn 0x9eb020**, so (89)'s grey-error target is also a record-parser caller = a "role reconciliation" OPEN | CORRECTED dig #91: fn 0x9eb020 ends `ret $0x4` @0x9eb131 + int3 pad 0x9eb134..0x9eb13f ⇒ the synthetic-node builder is the next function, **fn 0x9eb140** (guard `test %ecx,%ecx; je 0x9eb1c1` @0x9eb168; `call 0x7364f0` @0x9eb1aa ∈ 0x9eb140, NOT 0x9eb020; `call 0x9eb140` = exactly 3 e8 sites — 0x745b3f / 0x746263 / 0x746530, all in fn 0x7459d0). fn 0x9eb020 = the grey-error logger **only** (this = global 0x132b624, pushed arg 0x11a0738, call site 0x745999) ⇒ the reconciliation OPEN **dissolves** (two adjacent functions, one role each); (89)'s grey-error label and (90)'s parse-fn byte-facts (guard, second wrapper 0xa70d74) all stand | ✅ ABOUT_MATH §6 (91); CONSTANTS C70 |
+| 27 | The §12 dig-91 claim "**full-realloc 0x978aa0 = 0 call/jmp sites file-wide**" (listed as a mystery / new open for dig #92) | **OVERTURNED dig #92:** 0x978aa0 = the mCellData `vector::reserve` (arg ≤ 0x63e706 × 0x290, magic 0x63e7063f, old-element dtor loop 0x746e20 stride 0x290, begin/cap/end rewired) is reached by **0 calls + exactly 2 tail-jmps — 0x94b373 / 0x94b386** from the capacity-growth wrapper (ends `ret $0x4` @0x94b38f; capacity via signed fixup / ÷2 / max-%esi = a 1.5×-style growth, exact branch predicate OPEN). The "zero sites" missed the tail-jmp form; the growth path is live | ✅ ABOUT_MATH §6 (92); CONSTANTS C71 |
 
 ## 9. Open frontier (ranked)
 
@@ -808,6 +809,56 @@ binary side unread) · ❌ unexplored.
   staging→table copy, 0x978aa0 zero callers, phase-2 walk tail,
   dilation body, the C1-vs-ctor 0xff420000 relationship, +0xe0/+0xfc
   consumer. Row **C70**, entry **(91)**. No code changes; tests
+  177/177; y224 0/12 rms 0.0000.
+- **Dig #92 ((91)'s residue ①–⑤)** closed the Phase-2 material-ID-ladder
+  questions. **①** The +0xe0/+0xfc consumers = fns **0x7495b0** (gate
+  `cmpl $4,0x38(%eax)` → `call *0x98(%edx)`), **0x74bf70** (LCG rand →
+  `call *0x98` @0x74c2bb), **0x751be0** (`call *0x20` @0x751d65; packed
+  idx `((y&0x1ff)<<9)|(x&0x1ff)`), chained 0x74bf70→0x7521f0→0x751be0;
+  0x7495b0/0x74bf70 = 0 direct code refs (vtable/fn-ptr — which OPEN);
+  C70's DEFAULT/NAMED semantics stand. **②** The staging selector =
+  `[arg1+0x20]` (1 → in-place dead-looking; 0 → staging, tag literals
+  0x11a07a8/b4/c0/cc); the staging→table copy = fn **0x742b30**'s tail
+  (record-assign 0x741d20; only callers 0x746275/0x74656d); load chain
+  0x7449e0→0x9eaf80→0x100c360→0xa48f20(mode=0)→0x7459d0 ⇒ **staging is
+  the live path**; 0x746e20 = record dtor. **③** fn **0x741a50** =
+  color→index matcher with the **top byte EXCLUDED** (`arg&0xFFFFFF` vs
+  `[this+0x2c]&0xFFFFFF` → 0; loop i=1..count−1 over record +0x40,
+  base+0x2d0, stride 0x290 → i; miss −1); sentinel prefix literal
+  **0x119f098** = "please don't use the color 0xFFC0FFEE … special
+  meaning in the wang map" ⇒ reserved wang color **`ffc0ffee`**
+  (S=0xFFC0FFEE → T=0xFFEEFFC0, byte1 C0 survives = swap byte0↔2 with
+  byte1 unchanged), arm = **log-and-continue**; 0xFE = 254 =
+  JOINT_SCRIPT_ID stands, pixel-top-byte 0xFE ↔ JOINT relationship
+  **OPEN**. **④** fn **0x8f9ab0 = `BitmapNoise::LoadFromImageData`**,
+  `ret $0x24` = 9 dword args ([3] = the phase flag @0x8fa194, [6]/[7] =
+  w/h clamped to this[0]/this[4], [4-5]/[8-9] 8-B slots content OPEN);
+  asserts = **0x2a7** `mMaterialData.Empty()==false` (this+0x3c) /
+  **0x2a8** `mScriptData.Empty()==false` (this+0x5c); part 2 =
+  0x8fa361..47d fill, part 3 = **majority-fill** of the u16 lane
+  (u16==0 ∧ f32≤0 → nonzero 4-nbr mode **0x9fe570**), **dilation
+  0x8fa49c..0x8fa6b9 = von-Neumann r1** on the bool lane (gated
+  this+0x7c); counters: **−0x68 = appended script events** (bump
+  @0x8fa0d4 ⇒ **0x92eb70 = the script-event appender** ✓), **−0x6c =
+  resolved id==1 cells** (bump @0x8f9f19); wrapper 0x8fa930 passes its
+  arg3 as the flag. **⑤** **0x978aa0 = vector::reserve reached by 2
+  tail-jmps 0x94b373/0x94b386** ⇒ **§8 row 27** (the zero-call mystery
+  overturns); 0x7450c0's helper-this = stack local [ebp−0x3a0]
+  (call @0x74635a; fed to 0x9eb280/0x93ce20 — semantics OPEN);
+  0x729753's guard = lazy O-create @0x7296b4 + slot guard @0x7296f3 →
+  **0x43ac50 accessor → [O+0x18] = factory** → assert
+  `world_state == NULL` line 0x124 (game_world.cpp 0x119e1d0) vs
+  [0x1328004]; wrappers **0x42bc50** (seed/assign, registry 0x1344c78) /
+  **0x42c070** (attr-by-key `[this+0x28]+0x44`) / **0x42c0d0**
+  (find-child-by-tag, exhaustion → logger 0x12ee538, miss tail
+  0x42c415 unread); **0x7415e0 = name→index with insert-on-miss**
+  (hit → index; miss → 0x43aa90 + one-shot log 0x11a0088/0x11a009c,
+  once-flag 0x13276b9 → count); **0x741770 = CellFactory::GetType**
+  (miss → 0x11a00a0, −1); **C1-vs-ctor CLOSED @0x901a4d**: hasPath
+  compares the cell u32 (getter 0x949f60) to 0xff420000 → writes
+  0xff000000 (getter 0x949e80), top-byte 0 or 0xff000000 → skip, else
+  copy ⇒ **the ctor's +0x2c = air's swapped color is exactly what
+  hasPath stamps**. Row **C71**, entry **(92)**. No code changes; tests
   177/177; y224 0/12 rms 0.0000.
 - Cache policy: `out/gen-cache/r3i` holds ONLY wang-area bins
   (seed+area-keyed); the cave-field/opt-in lanes live in non-cached

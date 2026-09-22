@@ -6265,3 +6265,160 @@ first use from now on):**
       dig-91 bullet + the (90)-bullet attribution fix, Current_work
       Status/Landed/Next refresh. ISSUES: none filed (I20 remains next
       free). Tests **177/177**; y224 byte bar **0/12 rms 0.0000**.
+  - **2026-09-22 (92) — Phase-2 residue ①–⑤: the +0xe0/+0xfc
+    consumers = fns 0x7495b0/0x74bf70/0x751be0 (fn-ptr invoked, chain
+    0x74bf70→0x7521f0→0x751be0); staging is the LIVE parse path with
+    the staging→table copy at fn 0x742b30's tail (selector
+    `[arg1+0x20]`); 0x741a50 = the color→index matcher with the top
+    byte EXCLUDED + the reserved wang color `ffc0ffee`
+    (log-and-continue); fn 0x8f9ab0 = BitmapNoise::LoadFromImageData
+    fully decoded (9-dword signature, parts 2/3, von-Neumann r1
+    dilation, majority-fill, counters −0x68/−0x6c, 0x92eb70 = the
+    script-event appender); 0x978aa0 = vector::reserve reached by 2
+    tail-jmps (OVERTURNS the zero-call canon → §8 row 27); and the
+    C1-vs-ctor 0xff420000 relationship closed at 0x901a4d.**
+    - Method: byte RE of `noita_dev.exe` (17,007,104 B, md5
+      `8b611494212a69492dd0a4527d9c92e0`) — awk/grep windows over the
+      cached true disassembly + python literal scans. Docs-only dig;
+      no port changes.
+    - **① CLOSED (consumer found; the invoking pointer OPEN):** the
+      semantic consumers of +0xe0/+0xfc are fns **0x7495b0** (gate
+      `cmpl $4,0x38(%eax)` → indirect `call *0x98(%edx)`), **0x74bf70**
+      (LCG rand → `call *0x98` @0x74c2bb) and **0x751be0**
+      (`call *0x20` @0x751d65; packed cell index
+      `((y&0x1ff)<<9)|(x&0x1ff)`), chained 0x74bf70→0x7521f0→0x751be0;
+      0x7495b0 and 0x74bf70 have **0 direct code refs** (invoked via
+      vtable/fn-pointer — WHICH pointer is OPEN). C70's write-side
+      semantics (+0xe0 = fire/smoke DEFAULT type, +0xfc = NAMED type)
+      stand.
+    - **② CLOSED:** the in-place-vs-staging selector = **`[arg1+0x20]`**
+      — 1 → in-place (dead-looking), 0 → staging (staging tag literals
+      0x11a07a8 / 0x11a07b4 / 0x11a07c0 / 0x11a07cc); the
+      staging→table copy = fn **0x742b30**'s tail using record-assign
+      **0x741d20** (its only callers 0x746275 / 0x74656d); the load
+      chain 0x7449e0 → 0x9eaf80 → 0x100c360 → 0xa48f20 (mode=0) →
+      0x7459d0 ⇒ **staging is the live path**; 0x746e20 = the record
+      dtor.
+    - **③ CLOSED:** fn **0x741a50 = the color→index matcher** —
+      `arg&0xFFFFFF` vs `[this+0x2c]&0xFFFFFF` → 0; else loop
+      i = 1..count−1 over record `+0x40` colors (base + 0x2d0, stride
+      0x290) → i; miss → −1 ⇒ **the top byte is EXCLUDED from the match
+      key**. The sentinel prefix literal **0x119f098** = `"materials.xml
+      error - please don't use the color 0xFFC0FFEE, because it has a
+      special meaning in the wang map. Thank you. Was used in: "` ⇒
+      reserved wang color **`ffc0ffee`** (S = 0xFFC0FFEE → C69 swap →
+      T = 0xFFEEFFC0; byte1 = C0 survives ⇒ the swap touches
+      byte0↔byte2 with byte1 unchanged, proven on a non-degenerate
+      input); the arm **logs and continues** (the +0x40 value stands).
+      The 0xFE = 254 = JOINT_SCRIPT_ID facts stand (fn 0x90cd00,
+      0x8fa060 u8 = id+1, materials.xml has no `ee00ee` row); the
+      relationship of the pixel-top-byte == 0xFE gate @0x8f9cf1 to
+      JOINT stays **OPEN**.
+    - **④ CLOSED:** fn **0x8f9ab0 = `BitmapNoise::LoadFromImageData`**
+      (strings 0x1173720/0x1173750/0x1173830/0x11738dc = name + parts
+      1/2/3; file 0x1173678 = `noise_utils.cpp`; assert format
+      0x1150f60); thiscall `ret $0x24` = **9 dword args**: [1] =
+      image-data struct ptr (freed by the caller @0x905f2b), [2] =
+      ecx-value, **[3] = [ebp+0x10] = the phase flag**, [4-5]/[8-9] =
+      8-B struct slots (content not materialized at the sites — OPEN),
+      [6]/[7] = w/h extents clamped `min(arg, this[0]/this[4])`. The
+      flag ≠ 0 @0x8fa194 → **part 3** @0x8fa6e9; flag == 0 → the
+      counter gates (−0x68/−0x6c `jle 0x8fa489`) → **part 2**; merge
+      @0x8fa48f → dilation gated **this+0x7c ≠ 0** @0x8fa492 (silent
+      skip to 0x8fa6b9) → epilogue. Gates: **this+0x3c ≠ 0** = assert
+      line **0x2a7** expr 0x1173870 = `mMaterialData.Empty() == false`
+      (u16-lane count, lane + 0x1c); **this+0x5c ≠ 0** = assert line
+      **0x2a8** expr 0x11738ac = `mScriptData.Empty() == false`
+      (u8-lane count); **this+0x7c** = the bool-lane count (dilation
+      needs it). All 3 call sites: 0x905dd7 (`push $1`), 0x905f1e
+      (`push $1`, arg1 = local @esp+0x6c freed after), 0x8fa99b (inside
+      the frameless wrapper fn **0x8fa930**, `ret $0xc`; the flag = its
+      arg3 passed through — upstream callers OPEN).
+      - **Dilation 0x8fa49c..0x8fa6b9** = clone the bool lane
+        (this+0x60; memcpy @0x8fa4eb) → for each set src cell set the
+        in-bounds 4-neighbors = 1 in a scratch (dest stride −0x54, data
+        −0x3c) → commit back (memcpy @0x8fa69a; free scratch) =
+        **von-Neumann r1 dilation**.
+      - **Part 3 (phase-2 tail ~0x8fa7e0)** = clone the u16 lane; cells
+        u16 == 0 ∧ float-lane ≤ 0 (`ucomiss`/`lahf` idiom) → if the
+        4-neighbor mode ≠ 0 → scratch = mode → commit = **majority-fill
+        of mMaterialData**.
+      - **Part 2 (0x8fa361..0x8fa47d)** = cells u8 ≠ 0 ∧ u16 == 0 ∧
+        mode(4 nbrs) == 1 → **u16 := 1 + f32 := −1.0f** (direct writes).
+      - **0x9fe570** = the mode of the NONZERO u16 neighbor values
+        (4-slot loop, first-wins ties, 0 if all zero).
+      - Counters: **−0x68 = script events appended** (incl. the bump
+        @0x8fa0d4 after `call 0x92eb70`; event {x, y, script_id} at
+        −0xa0, this = grid+0x80 ⇒ **0x92eb70 = the script-event
+        appender** ✓); **−0x6c = cells whose resolved id == 1** (incl.
+        the bump @0x8f9f19; the id==1 arm sets f32 = −1.0f / u16 = 1 and
+        skips the u8+event writes; id≠1 → f32 = +1.0f, u8 = id+1,
+        event). Resolve = the this+0xb0 fn-pointer with a 1-entry memo
+        (key −0x7c, val −0x78); assert `material_id < USHRT_MAX` line
+        **0x264**.
+    - **⑤ CLOSED (canon overturn → VERIFIED §8 row 27):** **0x978aa0 =
+      the mCellData `vector::reserve`** — arg ≤ 0x63e706, ×0x290
+      allocation (magic 0x63e7063f, ÷0x290), old-element dtor loop =
+      **0x746e20** stride 0x290, begin/cap/end rewired — reached by
+      **0 calls + exactly 2 tail-jmps: 0x94b373 / 0x94b386** from the
+      capacity-growth wrapper (ends `ret $0x4` @0x94b38f; capacity via
+      signed fixup / ÷2 / max-%esi — a 1.5×-style growth, exact branch
+      predicate OPEN) ⇒ the §12 dig-91 "0 call/jmp sites file-wide"
+      claim is **overturned**.
+      - **0x7450c0's helper-this = the stack local [ebp−0x3a0]** in the
+        CellDataChild arm of fn 0x7459d0 (call @0x74635a, EH state
+        0x11); the body = a frameless init of {SSO stringA cap+0x14 =
+        0xf, size+0x10 = 0, buf+0x00; byte+0x18; SSO stringB cap+0x30,
+        size+0x2c = 0, buf+0x1c; dword+0x34 = 0}; the local is then fed
+        to 0x9eb280 (fill) / 0x93ce20 (consume) — semantics OPEN.
+      - **0x729753's install guard:** inline lazy O-create
+        (`mov 0x134632c; test; jne` @0x7296b4; new(0x1a0) → ctor
+        0x65f480 → store @0x7296e5) → slot guard `mov 0x18(%eax); test;
+        jne 0x729848` @0x7296f3 (skip the install if the factory
+        exists) → new(0xd8) → ctor 0x740b70 → **0x43ac50 = the lazy
+        get-or-create accessor returning O** → `mov %ecx,0x18(%eax)` =
+        **[O+0x18] = factory** → `call 0x7449e0(factory, 0)` → assert
+        **`world_state == NULL`** line **0x124**, file 0x119e1d0 =
+        `game_world.cpp` (expr 0x119e22c), checked against
+        `[0x1328004]` @0x72975b ⇒ site-1 lives in game_world.cpp; O =
+        the same singleton the A-resolver uses.
+      - Wrapper chain: **0x42bc50** = string seed/assign (zeroes this+4
+        / +8, global registry set 0x1344c78 keyed by this, 0x1c-node
+        alloc; internals beyond the window OPEN); **0x42c070** =
+        attr-by-key map lookup at `[this+0x28]+0x44` (find 0xf755a0,
+        key-eq 0x43be00, out-fill 0x1014a70, `ret $0x8`); **0x42c0d0**
+        = XML find-child-by-tag with cursor guard `[this+0x1c]` +
+        `[this+0x2c]` vs the child count (vector at
+        `[this+0x28]+0x38/0x3c`), exhaustion → logger 0x12ee538 with
+        0x1150fa0 = `"Xml warning, ain't no childs left in the current
+        node: "` + 0x1150f88 = `" in file: "` + 0x1150f94 = `" at line
+        "`, tag-eq 0x42c440, miss → 0x42c415 (tail unread — OPEN).
+      - **0x7415e0 = name→index with insert-on-miss:** linear search
+        over the names vector (this+8/+0xc, ÷24 = 0x2aaaaaab, inline SSO
+        wstring cmp) → hit returns the index; miss → `call 0x43aa90(name)`
+        (role beyond insert OPEN), once-flag `cmpb $0,0x13276b9`,
+        one-shot log to logger 0x12ee538 — 0x11a0088 = `"added new
+        type: "` + name + 0x11a009c = `" = "` + count + `"\n"` →
+        **returns count** (empty ⇒ 0).
+      - Bonus: fn **0x741770 = CellFactory::GetType** (map at this+0x14
+        head / this+0x18 size, node second @+0x28 = type; linear
+        fallback ÷24; miss → error literal 0x11a00a0 pushed @0x74184c →
+        **return −1**).
+      - **C1-vs-ctor 0xff420000 relationship CLOSED:** @**0x901a4d**
+        the hasPath walk reads the cell u32 (getter 0x949f60 from the
+        grid [esp+0x54]) and `cmp $0xff420000` — equal → write
+        **0xff000000** to grid B (esi, getter 0x949e80); top-byte == 0
+        or == 0xff000000 → skip; else copy ⇒ the ctor publishes air's
+        C69-swapped color as factory+0x2c and hasPath recognizes
+        exactly that constant, stamping 0xff000000.
+      - **0x2c census:** entry (91)'s "file-wide 380 hits unexamined"
+        (line 6143, pattern+count) was NOT reproduced by this session's
+        text-grep (6684 imm-stores / 1838+ reg-stores / 1940 loads /
+        2761 lea) — the exact 380-pattern identity is **OPEN**; the
+        elimination stays REGION-scoped either way.
+    - Status: docs only (no port changes; `lib/` resolver semantics
+      untouched). Landed: CONSTANTS **C71**, this entry **(92)**,
+      VERIFIED **§8 row 27** (the 0x978aa0 zero-call claim → the
+      elimination table) + **§12** dig-92 bullet, Current_work
+      Status/Landed/Next refresh. ISSUES: none filed (I20 remains next
+      free). Tests **177/177**; y224 byte bar **0/12 rms 0.0000**.
