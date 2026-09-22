@@ -6100,3 +6100,168 @@ first use from now on):**
     VERIFIED §12 dig-90 bullet, Current_work Phase-2 tag + Status
     refresh. ISSUES: none filed (I20 remains next free). Tests
     **177/177**; y224 byte bar **0/12 rms 0.0000**.
+  - **2026-09-22 (91) — Phase-2 leftovers ②–⑥ + step 2b: the
+    `[0x134632c+0x18]` delegate = a 0xd8 factory instance (both writers
+    install it), `[factory+0x2c]` = ctor-set fast-color `0xff420000`
+    (Load does not touch it, region-scoped), record origin = in-place
+    `[factory+0x1c]+offset` in fn 0x7459d0 over records i = 1..size−1,
+    LoadFromImageData's pre-loop/fill/phase-2 decoded (assert lines
+    0x2a7/0x2a8), +0xe0 = fire/smoke DEFAULT type vs +0xfc = NAMED
+    type, and step 2b's cross-artifact match — materials.xml air
+    `wang_color="ff000042"` → C69 R↔B swap → ctor immediate
+    `0xff420000`.**
+    - Method: byte RE of `noita_dev.exe` (17,007,104 B, md5
+      `8b611494212a69492dd0a4527d9c92e0`) from region dump windows +
+      file-wide censuses (awk/grep over the cached true disassembly +
+      python byte scans), plus the literal `data/materials.xml` for
+      step 2b (418,728 B, md5 `d782fb8c321b8e325fd67e07e46a5265`).
+      Docs-only dig; no port changes.
+    - **①f correction (seals (90)'s OPEN — supersedes (90)'s text):**
+      fn **0x9eb020** ends `ret $0x4` @0x9eb131 + int3 pad
+      0x9eb134..0x9eb13f ⇒ the synthetic-node builder is the next
+      prologue, fn **0x9eb140** (guard `test %ecx,%ecx; je 0x9eb1c1`
+      @0x9eb168; `call 0x7364f0` @0x9eb1aa ∈ **0x9eb140**, NOT
+      0x9eb020). `call 0x9eb140` = exactly 3 e8 sites — **0x745b3f /
+      0x746263 / 0x746530**, all inside fn **0x7459d0** (the second
+      wrapper site 0xa70d74 unchanged, synthetic type [−0x20]=1).
+      fn 0x9eb020 = the grey-error logger **only** (this = global
+      0x132b624, pushed arg 0x11a0738, call site 0x745999; its other
+      callers 0x8c6955/0xab74f4/0xabc412/0xbd95fa stand). ⇒ (90)'s
+      "error-log label vs record-parser caller" role reconciliation
+      **dissolves** — two adjacent functions, one role each; (89)'s
+      grey-error label untouched. VERIFIED §8 row 26.
+    - **② CLOSED (region-scoped):** ctor **0x740b70** (object size
+      0xd8) writes `movl $0xff420000,0x2c(%ebx)` @**0x740bfd**. The
+      imm-32 `…,0x2c(%reg)` census 0x740000..0x746fff = **0x740bfd +
+      0x7450de only**; reg-source = **0x7401b3** only (an ebp local,
+      not the factory). 0x7450de belongs to the frameless two-SSO-
+      string init helper **0x7450c0** (fn 0x7449e0 ends `ret $0x4`
+      @0x7450af + int3 0x7450b2..0x7450bf; the helper zeroes sizes at
+      +0x10/+0x2c with cap 0xf at +0x14/+0x30 ⇒ 0x7450de = the second
+      string's size zero-init, **not** a factory store — supersedes the
+      earlier "reset-before-load in fn 0x7449e0" guess). ⇒ Load does
+      not update +0x2c in this region (file-wide 380 hits unexamined ⇒
+      elimination stays REGION-scoped); +0x2c = the ctor-set fast-color
+      that delegate 0x741A50 reads (C67).
+    - **③ CLOSED:** exactly two writers of `[0x134632c+0x18]` —
+      **0x729753** (its install guard unread, low value) and
+      **0x79de90** — both running `new(0xd8)` (`push $0xd8` @0x79de55)
+      → ctor **0x740b70** (→ edi @0x79de6f) → `call 0x43ac50` → store
+      → `call 0x7449e0` (this = the new object, arg 0). Site 2's
+      context: `mov %eax,0x134632c` @0x79de46 (bss pointer install),
+      guard `cmpl $0,0x18(%eax); jne 0x79e02d` @0x79de4b ⇒ the slot is
+      filled only when empty, store @0x79de90. fn 0x7449e0's prologue
+      `mov %ecx,%ebx` @0x744a0b ⇒ this = that 0xd8 object. With ② (its
+      ctor writes +0x2c) and C67/C68 (`this+0x1c` base, `this+0x28`
+      count, `this+0x2c` fast path) ⇒ **the delegate object = a 0xd8
+      factory instance** (C66's "loaded pointer, not an embed" ✓;
+      C66's writer-OPEN CLOSED).
+    - **④ CLOSED:** record origin = **in-place `[factory+0x1c] +
+      [ebp−0x3cc]`** inside fn **0x7459d0** (no prologue in
+      0x7459d0..0x746600; frame `sub $0x45c`; this → [ebp−0x3c8]
+      @0x7459fd; type gate `[esi+0x20]==1` @0x745a0c → else 0x7461df;
+      `cmpl $1,0x28(%eax); jle 0x745b92` @0x745a26 ⇒ a factory with
+      ≤1 record skips the scan). Init: index [ebp−0x3d8] ← 1
+      @0x745a1e, offset [ebp−0x3cc] ← 0x290 @0x745a30..37; step =
+      `add $0x290` + `inc %ecx` + `cmp 0x28(%edx),%ecx` (mCellDataSize)
+      + `jl 0x745a40` @0x745b71..86 ⇒ records **i = 1..size−1**
+      (record 0 skipped = C67's scan-from-1 ✓). In-place parse sites
+      **0x745b3f** (wrapper 0x9eb140) and **0x745e96..9c** (wrapper
+      0xa70cd0; ecx = `[ebp+0x1c]`+offset = `[factory+0x1c]+[ebp−0x3cc]`).
+      Staging sites **0x746263** and **0x746530** (local
+      `lea -0x364(%ebp)`, built by `call 0x747160` @0x7464f0..f6,
+      `movb $0x13,-0x4(%ebp)`, staging-field zeros → `call 0x9eb140`
+      → dtor pushes + `lea -0x364(%ebp),%eax` @0x746539) ⇒ **both
+      patterns live** (in-place AND staging-then-copy); the
+      staging→table copy path is still OPEN. Allocation: growth
+      **0x92fc90** callers **0x740db7** (`lea 0x1c(%ebx),%ecx`,
+      size-zero after) and **0x73624d** (`lea 0x1c(%esi),%ecx` after
+      the per-record dtor loop `call 0x736050; add $0x290,%edi;
+      inc %ebx; cmp 0x28(%esi),%ebx` @0x736211..25, size zeroed before
+      AND after ⇒ the mCellData vector ✓); full-realloc **0x978aa0** =
+      **0** `(call|jmp)` sites file-wide (mystery, OPEN).
+    - **⑤ CLOSED (0xFE + full signature still OPEN):** pre-loop inits
+      in fn **0x8f9ab0**: [ebp−0x34] ← esi (this) @0x8f9ae0,
+      [ebp−0x18] ← arg1 @0x8f9ae3, [ebp−0x5c] ← edi (gen+0x20)
+      @0x8f9b2f, [ebp−0x80] ← ebx (arg6) @0x8f9b54; counters
+      [ebp−0x68] ← 0 @0x8f9b7c and [ebp−0x6c] ← 0 @0x8f9b8f. Bumps:
+      `incl [ebp−0x6c]` @0x8f9f19 after `call 0x94a8f0; u16 == 1` (the
+      record-0 writes); `incl [ebp−0x68]` @0x8fa0d4 after
+      `call 0x92eb70` (identity OPEN). Both `jle 0x8fa489` @0x8fa1a2/ac
+      gate one block; `cmpb $0,0x10(%ebp); jne 0x8fa6e9` @0x8fa194 =
+      the phase-2 flag. Block: local ctor 0x65a640 (0x1173830); gate
+      `cmpl $0,0x3c(%esi)` @0x8fa1d4 → assert line **0x2a7** (4 pushes
+      $0x2a7/$0x1173678/$0x1173870/fmt 0x1150f60 via 0x114a374; crash
+      `movl $0x1ca9,(%eax)` @0x8fa296); esi reload @0x8fa28a →
+      `0x5c(%esi)` → assert **0x2a8** (expr 0x11738ac) → crash
+      @0x8fa35b. Fill pass **0x8fa361..0x8fa47d**: u8 ≠ 0 (getter
+      0x949bb0, ebx+0x58, stride [ebx+0x40]) ∧ self u16 == 0 (0x9fe4e0,
+      esi = gen+0x20) ∧ 4 neighbors (`0x9fe570(&locals) == 1`) → **u16
+      ← 1** (0x94a8f0, ebx+0x38, stride [ebx+0x20]) + **f32 ← −1.0f**
+      (`movl $0xbf800000`, 0x9499f0, ebx+0x18, stride [ebx+0x00])
+      ⇒ lanes at gen+0x00/+0x20/+0x40 (C67 ✓). Tail @0x8fa489:
+      [ebp−0x34]+0x7c gate → 0x8fa6b9 else realloc (0x114a35c/
+      0x1012c00); **pass-1 dilation body 0x8fa4ff..0x8fa6b9 unread**
+      (OPEN). Phase-2 @0x8fa6e9: ctor 0x65a640 (0x11738dc), header copy
+      from edi, u16 buffer ×2 resize (`add %eax,%eax` + malloc + copy
+      0x1012c00), walk cells with u16 == 0, dump truncated ~0x8fa7e0
+      (OPEN). Callers of 0x8f9ab0 = **3** (0x8fa99b, 0x905dd7,
+      0x905f1e); @0x905dd7: this = edx, arg1 = edi, `push (%edi);
+      push 0x4(%edi)` = w/h ⇒ **arg1 = the C67 pixel container ✓**
+      (full signature OPEN).
+    - **⑥ CLOSED (defaults; semantic consumer still OPEN):** the whole
+      +0xe0/+0xfc sequence ∈ link-pass fn **0x7455b0** (edx → ebx
+      @0x7455db = record, ecx → [ebp−0x4c] @0x7455dd = factory).
+      Prologue census 0x744000..0x746600 = 0x744260, 0x744620,
+      0x7449e0, 0x745100, 0x7455b0, 0x7459d0 (none in 0x746000..0x746fff).
+      +0xe0 fed by (a) a prior GetType @0x7457d2, (b) GetType(**"fire"**
+      — 0x1171bc0, len 4, dd-verified `ry_name.fire`) @0x74581d,
+      (c) name-absent default GetType(**"smoke"** — 0x117cbdc, len 5)
+      @0x74588a; +0xfc ← GetType(+0xe4) only when a name is present
+      ([ebx+0xf4] guard) @0x745844 ⇒ **+0xe0 = the fire/smoke DEFAULT
+      type, +0xfc = the NAMED type** (resolves C68's asymmetry OPEN).
+      Guarded stores: +0x1e8 (guard +0x1e0) @0x7458c3, +0x204 (guard
+      +0x1fc), +0x148 (guard +0x124) @0x745915, +0x144 with two writers
+      — cross-record @0x74593c (guarded type > 0 && +0x150 == 0 &&
+      GetCellData ≠ 0) and src +0x12c @0x745968 (guarded +0x13c). Grey
+      check @0x74597a: `mov 0x40(%ebx),%eax` shr8/shr16 → b0 == b1 ==
+      b2 (**alpha ignored**) → push 0x11a0738, `mov $0x132b624,%ecx`,
+      `call 0x9eb020` @0x745999 → 0x65cfe0(arg = ebx) → 0x9cfff0
+      (0x11a0790) → ret @0x7459cf → prologue 0x7459d0 ✓ (link pass and
+      record loop abut with no padding — the boundary care that (90)'s
+      ①f needed). Paired reads 0x741e4c/0x741e72 = record-assign fn
+      **0x741d20** field copies (esi→ebx: +0xc4, +0xe0, wstring +0xe4
+      via 0x41d770, +0xfc, +0x100, +0xc8) + the twin 0x7472f1..0x747337
+      (ebx→edi) ⇒ COPYING, not a semantic consumer — **the +0xe0/+0xfc
+      consumer remains OPEN**.
+    - **step 2b JACKPOT (first cross-artifact match of the dig):**
+      literal `data/materials.xml` = 418,728 B, md5
+      `d782fb8c321b8e325fd67e07e46a5265`; `<CellData` (224) +
+      `<CellDataChild` (245) = **469** = the wang_color count **exactly**
+      (record order = type order stands); wang_colors are 8 hex digits
+      with **no `0x` prefix**; first names air / `$mat_air` / fire / … .
+      Line 80 `<CellData>` name **"air"**, line 83
+      **`wang_color="ff000042"`** → C69 R↔B swap (b0 ↔ b2:
+      0xff000042 → 0xff420000) → **= the ctor 0x740b70 immediate** —
+      data, swizzle, and exe agree. The same u32 is also C1's hasPath
+      start-mark (`cmp eax,0xFF420000` @0x901a4d; relationship unread
+      → OPEN).
+    - **Still OPEN (dig #92 candidates):** semantic consumer of
+      +0xe0/+0xfc (⑥ closed the defaults, not the read side);
+      staging→table copy path (④); 0xFE top-byte meaning + u32 channel
+      order (⑤); flag slots [ebp+0x10]/+0x3c/+0x5c/+0x7c; 0x92eb70
+      identity; type-1 wrapper chain 0x42c0d0/0x42bc50/0x42c070;
+      sentinel-arm semantics; codec top-byte round-trip fidelity;
+      0x8f9ab0's full signature; 0x7415e0 miss tail; ③ site-1's install
+      guard; pass-1 dilation body 0x8fa4ff..0x8fa6b9; phase-2 walk tail
+      ~0x8fa7e0; 0x978aa0 zero-caller mystery; the file-wide 380-hit
+      0x2c census (region-scoped elimination stands); fn 0x7450c0's
+      helper-this identity; the C1-vs-ctor 0xff420000 relationship;
+      then the 132-B record walk → ladder table (CONSTANTS row +
+      solid/air test fixture).
+    - Status: docs only (no port changes; `lib/` resolver semantics
+      untouched). Landed: CONSTANTS **C70** (+ the C68/C69 line-94
+      split), this entry **(91)**, VERIFIED **§8 row 26** + §12
+      dig-91 bullet + the (90)-bullet attribution fix, Current_work
+      Status/Landed/Next refresh. ISSUES: none filed (I20 remains next
+      free). Tests **177/177**; y224 byte bar **0/12 rms 0.0000**.

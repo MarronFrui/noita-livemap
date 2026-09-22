@@ -175,6 +175,7 @@ of these mechanisms, cite the row instead of re-running it.
 | 23 | The key-string-dispatcher hunt for the Topology/ramp slot-fillers (the C52 attr-name imm32 xref technique applied to mGradientStartY/EndY/HighNoise/LowNoise/NoiseScale/MinY/MaxY/Type/SinMultiple*) | **OVERTURNED dig #85**: full-file scan = **15 imm32 code refs per name** (first @file 0x9624f.. = true 0x496e4f.. — registration cluster + parse-walk pushes), all lower .text outside text.bin (same C57 scope defect as row 22); the xref technique WORKS and delivered the 38-pair bind table (C58) = the write side. The (82)/(84) "ZERO refs" eliminations stand corrected | ✅ ABOUT_MATH §6 (82),(85); CONSTANTS C58 |
 | 24 | Writing `[owner+0xb4]` (the sampler's float-wrapper gate target, C34/C54): an independent base-install site — plus the candidates below | ELIMINATED dig #85 (REGION-scoped): no install among the ③-region sites examined — ctor null-inits 0x791c8e×2 + 0x8f9565/0x8f956b and config pins 0x8ee3fb/0x8ee694 only (fresh full-.text census, file 0x400..0xd49200: mod=10 disp32 0xb4 → 475 store-patterns/91 loads/761 lea, 0xb8 → 1060/846/710 — counts not individually re-examined ⇒ REGION scope). Ruled out: g_genome_herd_relations 0x12ec8b8 (writers 0x592270/0x5932f0); name→member dispatch 0x4f8857 (invincibility_frames/falling_damages); ctor null-inits; classifier 0x8f5030 refuted twice (body 0x8f5030..0x8f5754, zero member stores). Consistent with C61/C62 aliasing: **owner = P − 0x9c ⇒ owner+0xb4 ≡ P+0x18**, the wrapper LoadFromImageData writes — instance-identity byte-link still OPEN (resolved: row 25) | ✅ ABOUT_MATH §6 (85); CONSTANTS C64 |
 | 25 | C62's ③ OPEN: instance identity `kind2-esi == P == sampler-owner+0x9c` + C34's +0x1e0 lane fit ("predicted +0xf4"); (85)'s "owner = P − 0x9c" read as instance identity | SPLIT dig #86: `kind2-esi == P` **PROVEN** (Serialize kind2 arm `call 0x8ee440` @0x8f36fe → fn2 ret @0x8ee741 ← [ebp−0x18] ← its `new(0xb8)` gen → `mov %eax,0x1d4(%ecx)` @0x8f3708, byte chain); `P == owner+0x9c` **REFUTED as instances** — owner+0x9c = in-place embed (ctor @0x90ce66 / Load @0x90d1ab / dtor @0x910a6f, embed end owner+0x154), P = `[config+0x1d4]` ← five standalone/static-gen stores (kind2 fn2 gen; `0x8f2ff0`/`0x8ee230` returns; static imm @0x908583-fifth @0x905fb0 + `movl $0x132b518` @0x8f388f) — heap/static ≠ owner interior ⇒ distinct addresses, same class; **+0x1e0 = owner-own decor u16 grid** (@0x90d2c1/0x90d2e9) never a gen lane ⇒ "+0xf4" premise dissolved; sampler **mixes the two gens** (gate reads embed owner+0x9c/+0xb4 @0x90dba5.., wrap reads config-P). "owner = P − 0x9c" survives as LAYOUT equivalence only | ✅ ABOUT_MATH §6 (86); CONSTANTS C65 |
+| 26 | (90)'s ①f read: the record-parser `call 0x7364f0` @0x9eb1aa sits **inside fn 0x9eb020**, so (89)'s grey-error target is also a record-parser caller = a "role reconciliation" OPEN | CORRECTED dig #91: fn 0x9eb020 ends `ret $0x4` @0x9eb131 + int3 pad 0x9eb134..0x9eb13f ⇒ the synthetic-node builder is the next function, **fn 0x9eb140** (guard `test %ecx,%ecx; je 0x9eb1c1` @0x9eb168; `call 0x7364f0` @0x9eb1aa ∈ 0x9eb140, NOT 0x9eb020; `call 0x9eb140` = exactly 3 e8 sites — 0x745b3f / 0x746263 / 0x746530, all in fn 0x7459d0). fn 0x9eb020 = the grey-error logger **only** (this = global 0x132b624, pushed arg 0x11a0738, call site 0x745999) ⇒ the reconciliation OPEN **dissolves** (two adjacent functions, one role each); (89)'s grey-error label and (90)'s parse-fn byte-facts (guard, second wrapper 0xa70d74) all stand | ✅ ABOUT_MATH §6 (91); CONSTANTS C70 |
 
 ## 9. Open frontier (ranked)
 
@@ -736,15 +737,78 @@ binary side unread) · ❌ unexplored.
   attr ⇒ default arm @0x736c17..0x736c2c round-trips the record's
   current +0x40 through the inverse pair (top-byte format fidelity
   UNVERIFIED). Sibling: `gfx_glow_color` (0x119f068) → **+0x48**
-  @0x736c1d. Parse-fn callers: 0x9eb1aa (fn 0x9eb020 = (89)'s
-  grey-error target ✓ — its parser-calling role = NEW OPEN) +
-  0xa70d74. Remaining Phase-2 opens (dig #91+): [factory+0x2c],
+  @0x736c1d. Parse-fn callers: 0x9eb1aa (fn **0x9eb140**, corrected
+  dig #91 — fn 0x9eb020 = (89)'s grey-error logger only, see §8
+  row 26) + 0xa70d74. Remaining Phase-2 opens (dig #91+): [factory+0x2c],
   `[0x134632c+0x18]` delegate writer, record allocation (imul
   census + esi provenance), LoadFromImageData pre/post-loop + 0xFE
   semantics, +0xe0/+0xfc consumer, then step 2b (unpack
   `data/materials.xml` — now with the byte-swap rule to spot-check)
   → 132-B walk → ladder table. No code changes; tests 177/177;
   y224 0/12 rms 0.0000.
+- **Dig #91 (leftovers ②–⑥ + step 2b)** closed all six gaps, sealed
+  (90)'s ①f boundary error, and **jacked the dig's first cross-artifact
+  constant match — `0xff420000`**: materials.xml line 80 `air` /
+  line 83 `wang_color="ff000042"` → C69 R↔B swap (b0↔b2) → the ctor
+  `0x740b70` immediate; the same u32 is also C1's hasPath start-mark
+  (`cmp eax,0xFF420000` @0x901a4d, relationship = new OPEN).
+  **①f CORRECTION (§8 row 26):** fn 0x9eb020 ends `ret $0x4` @0x9eb131
+  + int3 pad ⇒ the builder is fn **0x9eb140** (guard @0x9eb168,
+  `call 0x7364f0` @0x9eb1aa ∈ 0x9eb140; `call 0x9eb140` = 3 e8 sites
+  0x745b3f/0x746263/0x746530, all in fn 0x7459d0); 0x9eb020 = the
+  grey-error logger only (this = global 0x132b624, pushed arg
+  0x11a0738, site 0x745999) ⇒ the role-reconciliation OPEN dissolves.
+  **②:** ctor `movl $0xff420000,0x2c(%ebx)` @0x740bfd; imm-0x2c census
+  0x740000..0x746fff = 0x740bfd + 0x7450de only, and 0x7450de = the
+  second SSO string's size zero-init in frameless fn **0x7450c0**
+  (fn 0x7449e0 ends @0x7450af), NOT a factory store; reg-source =
+  0x7401b3 (ebp local) ⇒ Load never writes +0x2c in-region (file-wide
+  380 hits unexamined = REGION-scoped). **③:** the only two
+  `[0x134632c+0x18]` writers (0x729753, 0x79de90) both do `new(0xd8)`
+  → ctor 0x740b70 → `call 0x43ac50` → store → `call 0x7449e0(this=obj)`
+  (site 2: bss install @0x79de46, guard `cmpl $0,0x18(%eax)` @0x79de4b,
+  `push $0xd8` @0x79de55, ctor @0x79de6f, store @0x79de90; fn 0x7449e0
+  prologue `mov %ecx,%ebx` @0x744a0b) ⇒ **the delegate = a 0xd8 factory
+  instance** (C66's writer-OPEN CLOSED). **④:** record origin =
+  in-place `[factory+0x1c]+[ebp−0x3cc]` in fn **0x7459d0** (type gate
+  `[esi+0x20]==1` @0x745a0c else 0x7461df; `cmpl $1,0x28(%eax); jle
+  0x745b92` @0x745a26; index ←1 @0x745a1e, offset ←0x290 @0x745a30..37;
+  step `add $0x290`/`inc`/`jl` @0x745b71..86 ⇒ **records i = 1..size−1**,
+  record 0 skipped = C67 ✓); parse sites = in-place 0x745b3f +
+  0x745e96 (wrappers 0x9eb140/0xa70cd0) and staging 0x746263/0x746530
+  (local `[ebp−0x364]`, ctor 0x747160 @0x7464f0..f6,
+  `movb $0x13,-0x4(%ebp)`) ⇒ both patterns live, staging→table copy
+  OPEN; growth 0x92fc90 ← 0x740db7/0x73624d (latter after dtor loop
+  0x736050 with size zeroed before+after ⇒ mCellData ✓); full-realloc
+  0x978aa0 = 0 call/jmp sites file-wide. **⑤:** pass-1 inits/counters
+  ([ebp−0x34]←this @0x8f9ae0, −0x18←arg1, −0x5c←gen+0x20, −0x80←arg6;
+  −0x6c bumped @0x8f9f19 after u16==1 record-0 writes, −0x68 bumped
+  @0x8fa0d4 after `call 0x92eb70`, identity OPEN), both
+  `jle 0x8fa489` gates, phase-2 flag `cmpb $0,0x10(%ebp)` @0x8fa194,
+  assert lines **0x2a7/0x2a8** (locals 0x1173830/0x11738dc, crash
+  `movl $0x1ca9`), fill pass 0x8fa361..47d (u8≠0 ∧ self u16==0 ∧
+  4 neighbors==1 → u16=1 + f32=−1.0f ⇒ lanes gen+0x00/+0x20/+0x40 =
+  C67 ✓), phase-2 @0x8fa6e9 = ctor + header copy + u16 ×2 resize +
+  walk u16==0 (tail ~0x8fa7e0 OPEN); **dilation body 0x8fa4ff..0x8fa6b9
+  OPEN**; callers 0x8fa99b/0x905dd7/0x905f1e with @0x905dd7 arg1 = the
+  C67 pixel container (`push (%edi)/0x4(%edi)` = w/h) ✓, full signature
+  OPEN. **⑥:** whole sequence ∈ link-pass fn **0x7455b0**; +0xe0 ←
+  GetType("fire" 0x1171bc0) @0x74581d or name-absent default
+  GetType("smoke" 0x117cbdc) @0x74588a, +0xfc ← GetType(+0xe4) only
+  when named (`[ebx+0xf4]` guard) @0x745844 ⇒ **+0xe0 = fire/smoke
+  DEFAULT type, +0xfc = NAMED type** (C68 asymmetry resolved); guarded
+  stores +0x1e8/+0x204/+0x148/+0x144 (2 writers @0x74593c/@0x745968);
+  grey check @0x74597a = b0==b1==b2, **alpha ignored** → logger
+  0x9eb020 @0x745999 → ret @0x7459cf → prologue 0x7459d0 (abut); the
+  paired reads 0x741e4c/0x741e72 = record-assign **0x741d20** field
+  copies (+ twin 0x7472f1..37) ⇒ COPYING, **consumer still OPEN**.
+  **step 2b:** materials.xml 418,728 B md5 `d782fb8c…`; `<CellData` 224 +
+  `<CellDataChild` 245 = **469** = wang_color count exactly (8 hex
+  digits, no 0x; record order = type order ✓). New opens for dig #92:
+  staging→table copy, 0x978aa0 zero callers, phase-2 walk tail,
+  dilation body, the C1-vs-ctor 0xff420000 relationship, +0xe0/+0xfc
+  consumer. Row **C70**, entry **(91)**. No code changes; tests
+  177/177; y224 0/12 rms 0.0000.
 - Cache policy: `out/gen-cache/r3i` holds ONLY wang-area bins
   (seed+area-keyed); the cave-field/opt-in lanes live in non-cached
   in-memory buffers, so no bump was required for the revert; bump
