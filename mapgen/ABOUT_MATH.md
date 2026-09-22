@@ -5251,3 +5251,205 @@ first use from now on):**
     map) + **C55** (the evaluator2/warp const recipe); C37 row updated
     (surfaceField's single caller + the P fill + the ramp candidate).
     VERIFIED §12 appended (dig 83). Tests re-run below.
+- **2026-09-22 (84) — surface-level plan Phase 1 follow-up: the
+  `[config+0x1d4]` (P) fill chain read byte-exact — and it is NOT the
+  ramp. The 0x533580→0x7EC4E0 sub-chain builds `BiomeSpawnScripts`
+  ((83)'s "ramp-generator candidate" = OVERTURNED); the C27 gen is a
+  seed-RNG + containers + script-callback object; Serialize dispatch,
+  the driver/evaluator2 boundary and the C55 tail are re-verified
+  byte-exact; the imm32 driver scan = 0 hits.**
+  - **Verbatim re-reads this increment** (objdump over text.bin
+    slab-VA + lower2.bin true-VA; lower2 = file 0x3E9000..0x3EC400,
+    `--adjust-vma=0x7E9C00`): fn1 whole **slab 0x4EDA30..0x4EDC3F**,
+    fn2 call site **0x4F2EC8..0x4F2F1E**, Serialize dispatch
+    **0x4F2E40..0x4F2F96**, C27 ctor tail **0x4F8D00..0x4F8DBF**,
+    evaluator2 tail + driver head **0x5086F0..0x50878F**, builder
+    tail **true 0x7EC5C0..0x7EC66F**, delegate fn **0x7EB220..**,
+    ctor wrappers **true 0x7EAAF0 / 0x85D1A0**, clone body
+    **slab 0x680DA0**; const/string re-reads 0x11e0220 /
+    0x11e0ba0 / 0x11e0504 / 0x11e04ec / 0x1154528 / 0x1154694 /
+    0x1150f60 / 0x1172ea8 / 0x119ea60 / 0x12f2f40.
+  - **fn1 = slab 0x4EDA30..0x4EDC3F (true 0x8EE230..0x8EE43C), the
+    Serialize kind-0 arm — whole function read:**
+    - prologue: `edx → [ebp-0x1c]` (= &config+0x1d8 from Serialize),
+      `ecx → ebx` (= &config+0xa8); cache head = `push ebx; mov ecx,
+      0x132a528; call 0x582bc0` (map FIND — **KEY = the ADDRESS
+      &config+0xa8**) → eq via `push &node+0x10; push ebx; call
+      0x3b600` → hit → **`eax = [iter+0x28]`** → return.
+    - miss @0x4edaac: `push [ebp-0x1c]` (the &cfg+0x1d8 string —
+      scheduler-hoisted arg) → **`call slab 0x533580`** (argless
+      getter, bss 0x1346CD8 — no stack adjust by the caller) →
+      `mov ecx,eax` → **`call slab 0x3ebce0`** (true 0x7EC4E0) →
+      result → [ebp-0x1c]. fn2's twin call pushes the string
+      IMMEDIATELY before `call 0x3ebce0` ⇒ **0x3ebce0 = __stdcall,
+      its 1 stack arg = the noise_type string (&cfg+0x1d8)** and the
+      earlier push belongs to it (0x533580 argless).
+    - null → assert: **fmt 0x1150f60 = `Assert failed: (%s) in %s at
+      line %d\n`**, cond **0x1154820 = `lua_manager`**, file
+      **0x1172ea8 = `d:\projects\nollagames\fallingeverything\
+      build\vc12\..\..\source\procedural_utils\biome.cpp`**,
+      line **0x178 = 376**; emitted bare + timestamped (`a`
+      0x1151070, `log_asserts.txt` 0x1151074, `%d, %d, %d - %d:%d\n`
+      0x1151084; tm year +0x76c, mon +1) → filter `call 0xc070c0`
+      → fail = **deliberate null-write `movl $0x1ca9,(%eax)`
+      @0x4edb7b (eax=0)** = abort.
+    - build: `esi = *[0x114a34c]`; `push $0xb8; call *esi` (malloc)
+      → `push [ebp+8]` (Serialize's local −0xb8) → `ecx=eax; call
+      slab 0x4f8c70` (**C27 gen ctor**) → edi = gen →
+      **`movl $0x8ee1b0, 0xb0(%edi)` @0x4edba7 = true 0x8EE3A7** —
+      the A-resolver store pin ((83)'s cite re-verified byte-exact).
+    - callback: `push $0x10; call *esi` (malloc 0x10) → temp =
+      `{[0]=0x119a2a0, [4]=1, [8]=0x7eb220, [0xc]=[ebp-0x1c] = the
+      0x94-obj}` (@0x4edbbf..0x4edbcf) → `mov (%esi),%eax; mov
+      %esi,%ecx; call *0x24(%eax)` @0x4edbec = **slot+0x24 → slab
+      0x680DA0 = CLONE** (verbatim: malloc 0x10, copy {vtable, cnt=1,
+      fn@+8, ctx@+0xc}) → **release-setter on `[gen+0xb4]`**:
+      `old=[edi+0xb4]; [edi+0xb4]=clone; if(old){eax=[old]; push $1;
+      call *(%eax)}` @0x4edbf3..0x4edc07 → temp released the same
+      way @0x4edc10..
+    - insert + return: `push %ebx; mov ecx,0x132a528; call slab
+      0x542970` → `mov %edi,(%eax)` (value ← gen) → **return edi**.
+    - ⇒ **&config+0xa8's CONTENTS are never read in fn1 — the
+      address is only the cache key** ((83)'s "presumed
+      mGradient-params block" is NOT consumed here).
+  - **fn2 = slab 0x4EDC40.. (true 0x8EE440..), the kind-2 arm — call
+    site byte-exact @0x4F2EFE:** `push [ebp−0xc4]; lea edx,
+    [eax+0x1d8]; push [cfg+0x1d0]; lea ecx,[eax+0x1b4]; push
+    [cfg+0x1cc]` ⇒ **this = &cfg+0x1b4, edx = &cfg+0x1d8 string,
+    [ebp+8] = [cfg+0x1cc] = w, [ebp+0xc] = [cfg+0x1d0] = h,
+    [ebp+0x10] = local −0xc4** → `mov %eax,0x1d4(%ecx)` @0x4f2f08
+    (the P store ✓). Body: `[this+0x10]` gate → grid = w×h (imul)
+    alloc (IAT 0x114a358/0x114a35c) + memset + `call 0x4ecc90`
+    (census: SOLE caller) → inline singleton lazy-init
+    @0x4edd19..0x4edd47 (push 0x2c → malloc → ctor 0x7EC3B0 →
+    [0x1346CD8]) → `push esi; mov ecx,eax; call 0x3ebce0`
+    @0x4edd4f → null → assert (**line 0x18d = 397**, same
+    fmt/cond/file) → malloc 0xB8 + C27 ctor (arg [ebp+0x10]) →
+    A-resolver store + temp/clone/release-setter (the SAME tail as
+    fn1, inlined a second time) → **`call slab 0x4fa130` @0x4EDEBB
+    = true 0x8EE6BB = SetSize+Load ((83)'s cite ✓)** → `"wang: "`
+    check @0x4EDEE0.
+    ⇒ (83)'s "biome.cpp BitmapNoise setup (slab 0x4EDE50..0x4EDEF0)"
+    = **fn2's tail, not a separate setup** — the two "arms" (83)
+    described are fn1 (kind-0) and fn2 (kind-2), each with its own
+    inlined copy of the gen-build tail.
+  - **Serialize dispatch byte-exact (slab 0x4F2E77..0x4F3030):**
+    1. kind-1 pre-pass: `[cfg+0x1a8]≠0 && [cfg+4]==1 &&
+       [cfg+0x1b0]==0` → `lea ecx,[eax+0x198]; mov $1,%dl; call
+       0x4a0d80` → `[cfg+0x1b0]=ret` @0x4f2ebc ⇒ builder this =
+       **&cfg+0x198** (+0x1a8 = a field of that sub-object, its ≠0
+       gate) — (83) said "&cfg+0x1a8": **corrected**.
+    2. kind==2 (`mov 0x4(%eax),%ecx; cmp $2,%ecx; jne 0x4f2f7d`):
+       `[cfg+0x1d4]≠0` → done; else fn2 (above) → store → post-step:
+       `[cfg+0xc0]≠0` → string copy `cfg+0x1d8 → [cfg+0xc0]+0x88`
+       (self-guard vs `[cfg+0xc0]+0x88`) + int[ebp−0xcc] → f64 via
+       the {0.0, 4294967296.0} table → `call slab 0x523a0`
+       (this = &[ebp−0xbc]) → `call slab 0x4ef5d0(&local,
+       [cfg+0xc0], P)` → end.
+    3. kind==0 (0x4f2f7d): kind∉0 → done; `[cfg+0x1d4]≠0` → done;
+       `[cfg+0xc0]≠0` → `push [ebp−0xc8]; call 0x4f27f0` → store;
+       `[cfg+0xb8]≠0` → **fn1** (`push [ebp−0xb8]; lea edx,
+       [eax+0x1d8]; lea ecx,[eax+0xa8]` @0x4f2fc2..0x4f2fd4) → store
+       @0x4f2fde; both-zero → global default @0x4f2fe9: local string
+       ← **0x1173214 `BiomeHelper::Serialize - new BitmapNoise`**,
+       `call 0x259e40`, then `push 1; push 1; mov ecx,0x132b518;
+       call slab 0x52c1e0` and `push 1; push 1; mov ecx,0x132b538;
+       call slab 0x52e000` ⇒ **(83)'s "0x52c240 / 0x52e050" is wrong
+       — corrected to 0x52c1e0 / 0x52e000** (decoded from `e8 c4 91
+       03 00` @0x4f3017 and `e8 d6 af 03 00` @0x4f3025).
+  - **The 0x94-object = `BiomeSpawnScripts` — the ramp hypothesis for
+    the 0x533580→0x7EC4E0 chain is OVERTURNED:**
+    - ctor wrapper **true 0x7EAAF0**: `push $0x11; push $0x1154528`
+      → string assign → **0x1154528 = `BiomeSpawnScripts`** (17
+      chars; neighbor 0x1154540 = `g lua spawn function: `) → `push
+      0; push 0; push &str; mov ecx,esi; call true 0x85D1A0`.
+    - real ctor **slab 0x45C9A0 (true 0x85D1A0)**: `[esi]=0x119A724`
+      → `call 0x547920` → **`[esi]=0x119EA60` (final vtable**; the
+      adjacent rdata string 0x119ea6c = `GridWorldSprite::Draw` —
+      unrelated neighbor**)** + SSO strings at +8..+0x1c / +0x20 /
+      +0x50 and containers at +0x3c / +0x44.
+    - populate **true 0x7EB020** = walk of the object's **map at
+      [this+0x8c]**: `cmp %edi,0x10(%eax)` (key = the dword arg),
+      value `[node+0x14]`; error path appends **`Lua error -
+      AddScriptColor( `** (0x1154694) into bss **0x132B624**.
+    - memo builder **true 0x7EC4E0(singleton(ecx), string arg)**:
+      find (value at `[iter+0x28]`) → miss: `push $0x94; malloc;
+      call 0x7eaaf0` → edi; loop over **[singleton+0xc]** (stride
+      **0x14**): `ecx=[cur+0x10]` (key) → `cur += 0x14` → local
+      string via `call 0x41d770(dst, (cur+0x14), 0, −1)` [arg
+      semantics OPEN] → `push &local; push key; mov ecx,edi; call
+      0x7eb020` → iterator++ `0x980450` → loop; then **`mov
+      (%edi),%eax; push $0; push ebx; call *0x8(%eax)` @0x7ec60c =
+      vtable 0x119EA60 slot+0x08 → true 0x85D980, called (key, 0)`**
+      → memo on **[singleton+0x24]** (find 0x97aa70, eq 0x43be00,
+      insert 0xa52290/0xa52340, **`mov %edi,0x28(%esi)`**) → return.
+    - delegate fn **true 0x7EB220** = __stdcall (`ret $4`) map-get
+      on `[ctx+0x8c]` → `[node+0x14]` or −1; the class type-name
+      getter (slab 0x680E00) returns **0x12f2f40 = an MSVC
+      `_Func_class@…Job_GenerateParticleVertices…` mangled name**
+      ⇒ the `[gen+0xb4]` object = **a cloned callback
+      {fn=0x7EB220, ctx=BiomeSpawnScripts*}**, not "the B-map"
+      (C39's label — corrected).
+  - **C27 gen ctor slab 0x4F8C70 (true 0x8F9470) = seed-RNG init
+    ONLY (__stdcall, `ret $4` @0x4f8dbd) — byte-read:** four 0x20-B
+    container blocks at **+0x00/+0x20/+0x40/+0x60** (self-ptr
+    sentinel at block+0x10) + vector {0,0,0} at +0x80..+0x88;
+    **`[gen+0x8c] = arg int`**; **`[gen+0x90] = 1.0f`
+    (0x3f800000)**; **`[gen+0x94]`** = 0 then overwritten:
+    `movd/cvtdq2pd; shr $0x1f; addsd 0x11e0ba0(,eax,8)` =
+    (double)(int) via the **{0.0, 4294967296.0}** sign table →
+    `comisd [0x11e0220] = 2147483647.0 (INT_MAX); jb; mulsd
+    [0x11dfdd8] = 0.5` → **two `call 0xc090c0`** (thiscall on the
+    stack-double state) → `cvtsd2ss; mulss [0x11e0504] =
+    200000.0f; subss [0x11e04ec] = 100000.0f; movss [gen+0x94]`
+    ⇒ **[gen+0x94] = f32(draw) × 200000 − 100000**; SSO string at
+    +0x98 (size @+0xa8 = 0, res @+0xac = 0xf); **[gen+0xb0] = 0,
+    [gen+0xb4] = 0** (the fn1/fn2 tail then fills them). Size
+    0xB8 ✓. ⇒ **no mGradient read anywhere in the P-build chain.**
+  - **Driver/evaluator2 boundary + C55 re-verified byte-exact:**
+    evaluator2 tail = `mulss 0x11df944; call 0x4fc260; movaps xmm1;
+    movss [ebp−4]; mulss; mulss 0x11e00b4 (5.35); mulss 0x11dfbac
+    (0.95); mulss xmm1; movss 0x11dfa94 (0.5f); addss [ebp−8];
+    comiss; ja; movaps; mov ebp,esp; pop ebp; ret` → **ret
+    @0x508737** (C55's `max(0.5, res)` exact) → **int3 pad
+    0x508738..0x50873f** → **driver prologue @0x508740**: `55 8b ec
+    83 ec 2c / 53 / 56 / movapd xmm1,xmm0 / movsd xmm2→[ebp−0x20] /
+    mov ecx→esi / movsd xmm0→[ebp−0x28] / 57 / mov esi→[ebp−4] /
+    call 0x5095a0 @0x50875c / test ebx; je 0x508b67 @0x508765 /
+    mov eax,[ebx+4] @0x50876b / test; jne 0x5087bc` → kind==0:
+    `movsd ...→xmm2/xmm1; addsd 0x11dfdd8 both (y+0.5, x+0.5); push
+    ebx` → surfaceField. Args: xmm1/xmm2 = f64 pair, ecx = this.
+    ⇒ (83)'s driver-boundary extrapolation = **correct**, now
+    byte-pinned.
+  - **Census (fresh this increment):** fn1 = 1 caller (true
+    0x8F37D9 / slab 0x4F2FD4, Serialize); fn2 = 1 (true 0x8F3703 /
+    slab 0x4F2EFE, Serialize); `0x4ecc90` = 1 (fn2); C27 ctor =
+    **7** (slabs 0x4EDB9A, 0x4EDE33, 0x4F0B23, 0x4F293C, 0x5043EE,
+    0x506B41, 0x50C66C); `0x533580` = **5** (0x4EDAAF fn1, 0x4EE5C5,
+    0x5074BE, 0x50EDA0, 0x50FECD); `0x3ebce0` = **10** (0x4EDAB6
+    fn1, 0x4EDD4F fn2, 0x4EE5CC, 0x4F0BCC, 0x4F10BF, 0x5051F4,
+    0x50681B, 0x50760E, 0x50765A, 0x50EDA7).
+    **imm32 re-scan of text.bin: 0 hits for 0x00908F40 / 0x00508740
+    / 0x00908F9B** ⇒ the driver's address appears nowhere raw —
+    indirect invocation confirmed; capture site still OPEN.
+  - **Question A (the ramp) — new frontier:** the P-build chain is
+    now fully read and **eliminated** as the mGradient consumer
+    (fn1: address-key-only; C27 ctor: seed only; builder chain:
+    BiomeSpawnScripts). mGradient (StartY −1024 / EndY 1024 /
+    HighNoise 234 / LowNoise −292 / NoiseScale — (82)'s
+    Topology-XML census) must be (a) WRITTEN by the XML-parse family
+    (0x496a2e..0x4a97ed — C50's named hunt) and (b) READ somewhere —
+    re-check C37's surfaceField config range (+0x220..+0x268) for
+    the matching read. Also flagged: (83)'s "wrap this = P+0x20 =
+    dims" vs this read (**P+0x20 = container block #2** on the C27
+    gen, not scalar dims) — re-verify the sampler's wrap-arg source.
+  - Open queue: driver indirect capture (vtable 0x118f9e4 targets /
+    FF15-style); `[config+4]` kind value for P1; fn1/fn2 seed-local
+    inits (`[ebp−0xb8]` / `[ebp−0xc4]`); 0x41d770 string-arg
+    semantics; 0x85D980 body; the 3rd singleton→builder instance
+    @0x4EE5C5 (and the other 8 builder callers' configs); Phase-2
+    (132-B walk + planters); fnB queue (xmm4 @4f00e5).
+  - Status: docs only (no port changes). New constants → CONSTANTS
+    **C56** + a C54 correction clause; VERIFIED §8 rows 21–22 +
+    §12 dig-84 update. Tests **177/177**; y224 byte bar **0/12 rms
+    0.0000** re-confirmed.

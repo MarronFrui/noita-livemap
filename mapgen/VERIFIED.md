@@ -170,6 +170,8 @@ of these mechanisms, cite the row instead of re-running it.
 | 18 | C51's CaveStructure record shape: "28-byte member, count pair [+0x28]/[+0x30], list-scan magic 0x88888889 = ÷12 ({x, y, B, B−1} family)" | OVERTURNED dig #81: the record dispatcher (true VA 0x4ABD60, nine keyed stores) closes at +0x3c = a **60-byte** member (4-B header + 24-B image_file SSO + 8×4 fields); count pair reads at **+0x1c/+0x20** (fnB `mov 0x20/0x1c(%eax)` @4f09cf..4f09d5); the ÷60 form (imul 0x88888889, sar $5) script-verified 60→1, 600→10, 3584→59 | ✅ ABOUT_MATH §6 (81) |
 | 19 | "[config+0x98] = the second do_beginning gate byte" / "per-record flags [obj+0x30]/[obj+0x98]" | OVERTURNED dig #81: those are CONFIG offsets — [config+0x30] = do_beginning_paths (the real gate, `cmpb` @4f0f3c → je 0x4f271e), [config+0x98] = the mLuaScript string SIZE (string base +0x88; `cmpl $0x0,0x98(%edi)` @4f100f pairs with assert `caves.mLuaScript.empty() == false` @0x11731a4 = script presence, not a gate) | ✅ ABOUT_MATH §6 (81) |
 | 20 | C46 scatter engine true VA = 0x8EF2D0 | OVERTURNED dig #81 (re-pinned from exe): true = **0x8EEAD0** (file 0x4EDED0) — the old label is +0x800 off and lands mid-instruction in fn A's L1 lane; the corrected window is the full 416-B function (the comiss-0.5 gate @0x8eec4e..59, `call 0x8fafc0` @0x8eec65, `ret` @0x8eec6f) ending 1 byte before fn A's prologue @0x8EEC70 (C44's fn A VA ✓); fnb calls `call 0x4ee2d0` @4f1d5d/4f26fb | ✅ ABOUT_MATH §6 (81) |
+| 21 | The P-build chain (Serialize → fn1 slab 0x4EDA30 → 0x533580 → 0x7EC4E0 → C27 ctor 0x4F8C70) as the mGradient/ramp consumer; true 0x7EC4E0 = "the ramp-generator" ((83) label); `[gen+0xb4]` = "the B-map" (C39 label) | OVERTURNED dig #84: whole chain byte-read — fn1 uses `&config+0xa8` as an ADDRESS cache key only (contents never read); the C27 ctor consumes a seed int only (2×NextRandom → draw×200000−100000; size 0xB8); the 0x533580→0x7EC4E0 sub-chain builds a **BiomeSpawnScripts** object (literal 0x1154528, map @+0x8c, memo @[singleton+0x24]); `[gen+0xb4]` = a cloned callback {fn 0x7EB220, ctx=BiomeSpawnScripts*} (vtable 0x119a2a0, slot+0x24 = clone @slab 0x680DA0). mGradient consumption remains unseen → hunt moved to the XML-parse family (0x496a2e..0x4a97ed) + surfaceField's config-range read | ✅ ABOUT_MATH §6 (84) |
+| 22 | Recovering the driver's address (true 0x908F40 / slab 0x508740 / surfaceField-ret 0x908F9B) as raw imm32 immediates in text.bin | 0 / 0 / 0 hits (fresh scan) — invoked indirectly only (job-functor capture still OPEN) | ✅ ABOUT_MATH §6 (84) |
 
 ## 9. Open frontier (ranked)
 
@@ -600,7 +602,9 @@ binary side unread) · ❌ unexplored.
   0x132A528 keyed &config+0xa8 + the config+0x1d8 noise_type string;
   miss → true 0x933D80 → **true 0x7EC4E0 = the ramp-generator
   candidate, below the text.bin floor 0x801800 — lower-.text slice
-  dump = the immediate next move**); the global-default arm builds bss
+  dump = the immediate next move** [SUPERSEDED by dig #84: 0x7EC4E0
+  = the BiomeSpawnScripts memo, NOT the ramp — §8 row 21]); the
+  global-default arm builds bss
   0x132B518 with the C48 ×5 toucher form. Also byte-read: the biome.cpp
   `[owner+0xb4]` release-setter + SetSize+Load @true 0x8EE6BB (C39
   re-verified), the noise_utils.cpp `script_id < 255` resolver on the
@@ -608,6 +612,24 @@ binary side unread) · ❌ unexplored.
   (`buf2 = buf1 + (target−buf1)·q²`, slab 0x4ee130..) and the **C46
   scatter body** (±0.5f + xorps-mask + NextRandom 0xc090c0, assert
   `bitmap_noise`). No code changes; tests 177/177.**
+- **UPDATE — dig #84 (2026-09-22): the `[config+0x1d4]` (P) fill chain is
+  byte-read end-to-end AND the ramp hypothesis is OVERTURNED** (ABOUT_MATH
+  (84), CONSTANTS C56 + C54 corrections; §8 rows 21–22). Serialize dispatch
+  exact: kind-1 builder this = &config+0x198 (not +0x1a8); kind-2 → fn2 slab
+  0x4EDC40 (w/h at +0x1cc/+0x1d0); kind-0 `[config+0xb8]≠0` → **fn1 slab
+  0x4EDA30..0x4EDC3F** (address-keyed memo → 0xB8 C27 gen → P store;
+  global-default prop setters corrected to slab 0x52c1e0/0x52e000).
+  **The 0x533580→0x7EC4E0 chain = the `BiomeSpawnScripts` factory (NOT the
+  ramp)**; `[gen+0xb4]` = a cloned script-lookup callback {fn 0x7EB220,
+  ctx=BiomeSpawnScripts*} (C39's "B-map" corrected); the C27 ctor = seed-RNG
+  init only (seed @+0x8c, 1.0f @+0x90, draw×200000−100000 @+0x94,
+  [+0xb0]=0x8EE1B0, [+0xb4]=callback). driver/evaluator2 boundary + C55 tail
+  byte-verified (ret 0x508737, int3 pad, prologue 0x508740, `call
+  0x5095a0`); imm32 driver scan = 0 hits. **Question A now hunts the
+  XML-parse family (0x496a2e..0x4a97ed) for the mGradient writes +
+  surfaceField's config-range read (+0x220..+0x268); the (83) "wrap this =
+  P+0x20 = dims" claim is flagged (P+0x20 = a container block).** No code
+  changes; tests 177/177; y224 byte bar 0/12 rms 0.0000.
 - Cache policy: `out/gen-cache/r3i` holds ONLY wang-area bins
   (seed+area-keyed); the cave-field/opt-in lanes live in non-cached
   in-memory buffers, so no bump was required for the revert; bump
