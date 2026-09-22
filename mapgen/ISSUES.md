@@ -315,6 +315,20 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   (19)-era ABOUT_MATH mentions keep their historical text
   (append-only — corrected by entry (85)). Source: ABOUT_MATH §6 (85).
 
+- [x] **I19. Dig-#85/86 doc defects: ③ identity misread + phantom
+  carry-over byte facts** (opened + closed 2026-09-22, dig #86):
+  (85)'s §6/C62 read the lane arithmetic "owner = P − 0x9c" as
+  **instance** identity (⇒ the failed "predicted +0xf4" for C34's
+  +0x1e0), and the handover carried three nonexistent/ wrong byte
+  facts — `call 0x8ed180` (0 hits exe-wide), `movl $0x132b518,
+  0x38(%esi)` (real: `mov $0x132b518,%ecx` ×4 + `movl $0x132b518,
+  0x1d4(%eax)` @0x8f388f), "wang-fill @0x8ee5bd" (inside
+  `mov 0x114a37c,%esi` IAT load; nearby `add $0x76c,%eax` =
+  year+1900 log). Fixed in C65 (phantom do-not-cite list), C62
+  (OPEN → RESOLVED pointer), VERIFIED §8 row 25; (85)-era text keeps
+  its historical form (append-only — corrected by entry (86)).
+  Source: ABOUT_MATH §6 (86).
+
 ## Strategy (agreed)
 
 1. Keep the verified wang core (prediction-solved, oracle-validated).

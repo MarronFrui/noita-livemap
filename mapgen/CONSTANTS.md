@@ -88,6 +88,7 @@
 | C62 | LoadFromImageData store sites + getters (dig #85; EXTENDS C31/C32 — cite, don't re-register) | fn `0x8f9ab0..0x8fa930` (no 2nd prologue in-span; next = C39 wrapper @0x8fa930): f32 `movss` **@0x8fa15e** via `lea 0x18(%esi),%ecx` + getter **0x9499f0**; ±1.0f twins **@0x8f9f04/0x8f9f39**; u16 via getter **0x94a8f0** with `lea 0x20(%esi),%edi` @0x8fa162 → edi+0x18 (=+0x38); getters = CSafeArray {base@+0,count@+4} f32/u16/u32 = 0x9499f0/0x94a8f0/0x949f60; e8 callers (rel32 verified) = **0x8fa99b** (wrapper Load step) + **0x905dd7/0x905f1e** (§11 F3 wang pair); unit noise_utils.cpp, assert line 0x263 |
 | C63 | A-resolver imm `0x8ee1b0` pin census (dig #85) | exactly 4 imm32 occurrences file-wide: movl starts **0x8ee3a7** (fn1 0x8EE230 body) + **0x8ee643** (fn2 0x8EE440 body), each followed by a +0xb4 store (**0x8ee3fb/0x8ee694**) = C56's {resolver, cb} pair, one install per fill path; `movl $0x8ee1b0,0x140(%eax)` imm @0x905ad3; stack-local 0x64c7ab; resolver.dis label trap: displayed 0x8ee243 = true 0x8ee643 (−0x400 slice error) |
 | C64 | ③/P1 ruled-out candidates (dig #85; do-not-re-dig) | `0x12ec8b8` = g_genome_herd_relations (writers 0x592270/0x5932f0, genomedata_component.cpp); name→member dispatch 0x4f8857 = the invincibility_frames/falling_damages member; ctor null-inits 0x791c8e pair + 0x8f9565/0x8f956b; classifier (C33 true 0x8F5030) refuted as the `[owner+0xb4]` writer (body 0x8f5030..0x8f5754, zero member stores); no independent +0xb4 wrapper-base install among the ③-region sites examined (fresh full-.text census file 0x400..0xd49200: mod=10 disp32 0xb4 → 475 store-patterns/91 loads/761 lea, 0xb8 → 1060/846/710 — counts not individually re-examined ⇒ elimination is REGION-scoped) |
+| C65 | P/owner instance identity + sampler dispatch chain (dig #86) | `kind2-esi == P` **PROVEN** (Serialize kind2 arm @0x8f36c7..0x8f3708: fn2-this = config+0x1b4, `call 0x8ee440` @0x8f36fe → `mov %eax,0x1d4(%ecx)`; fn2 = **0x8ee440..0x8ee741**, ret = its `new(0xb8)` gen) · `P == owner+0x9c` **FALSE as instances** (owner+0x9c = embed: ctor **0x90ce66** / Load **0x90d1ab** / dtor **0x910a6f**, embed ends owner+0x154; P ← five standalone/static-gen stores, incl. fifth **0x908583** in fn 0x905fb0) · sampler vtable **0x118f9e4** → slot+8 thunk **0xa9a120** → 0x90d860; owner = fn **0x90cfb0**'s this; gate reads embed (owner+0x9c/+0xb4 @0x90dba5..), wrap reads `[config+0x1d4]` ⇒ sampler mixes two gens, one class · **+0x1e0 = owner-own decor u16 grid** (0x90d2c1/0x90d2e9) · phantoms do-not-cite: `call 0x8ed180` 0 hits, `movl $0x132b518,0x38(%esi)` nonexistent, "wang-fill @0x8ee5bd" wrong |
 
 ### C1 — coalmine start-path mark `0xFF420000`
 - `cmp eax, 0xFF420000` @ true **0x901a4d** (byte-pinned — slab 0x50124d).
@@ -1772,10 +1773,13 @@ Source: ABOUT_MATH 2026-09-22 (84).
 - **③ aliasing:** sampler-owner lanes +0x9c/+0xb4/+0xd4 ↔ BitmapNoise
   +0/+0x18/+0x38 = three lanes exact under **owner = P − 0x9c** ⇒
   the gate target `owner+0xb4` IS P+0x18 — the wrapper written @
-  0x8fa15e (explains zero install sites). **OPEN: instance identity**
-  (kind2-`esi` == P == sampler-owner+0x9c) and C34's +0x1e0 lane
-  doesn't fit the map (predicted +0xf4).
-- Source: ABOUT_MATH §6 (85).
+  0x8fa15e (explains zero install sites). **RESOLVED dig #86 (C65):
+  layout equivalence only —** the gate reads the owner's EMBED
+  (owner+0x9c = in-place gen), the wrap reads `[config+0x1d4]` = P
+  (standalone); `kind2-esi == P` PROVEN, `P == owner+0x9c` FALSE as
+  instances, and C34's +0x1e0 = owner-own decor grid (the "+0xf4"
+  prediction's premise dissolved).
+- Source: ABOUT_MATH §6 (85), resolution (86).
 
 ### C63 — A-resolver imm `0x8ee1b0` pin census (dig #85)
 
@@ -1809,3 +1813,90 @@ Source: ABOUT_MATH 2026-09-22 (84).
   consistent with C62's aliasing (owner+0xb4 ≡ P+0x18 needs no
   separate install).
 - Source: ABOUT_MATH §6 (85).
+
+### C65 — P/owner instance identity + sampler dispatch chain (dig #86)
+
+All VAs true (PE-native, C57); method = one cached full-.text dump
+(`objdump -D -M att --start-address=0x401000 --stop-address=0x1000d70`,
+3.9M lines) + python imm32 byte-find with per-section file↔VA.
+
+- **kind2-`esi` == P: PROVEN (byte chain).** Serialize kind2 arm —
+  `mov 0x4(%eax),%ecx; cmp $0x2,%ecx` @0x8f36c7/ca, null check
+  `cmpl $0x0,0x1d4(%eax)` @0x8f36d3, ecx = `lea 0x1b4(%eax)` = fn2-
+  this = config+0x1b4, pushes config+0x1cc/+0x1d0/+0x1d8 + stack
+  −0xc4 → **`call 0x8ee440` @0x8f36fe** → `mov %eax,0x1d4(%ecx)`
+  @0x8f3708 (ecx = `mov (%edi),%ecx` = config) ⇒ P = fn2's return.
+  fn2 window split: **fn2 = 0x8ee440..0x8ee741** (sole ret), fn3 =
+  0x8ee750..0x8ee92f, LERP = 0x8ee930 (C54 pin ✓), fn5 = 0x8eead0..
+  0x8eec6f (the 0x8eec20 fill block belongs to fn5, NOT fn2). fn2 ret
+  @0x8ee741 returns [ebp−0x18] (`mov -0x18(%ebp),%eax` @0x8ee72a)
+  ← last write `mov %edi,-0x18(%ebp)` @0x8ee640 ← edi = `call
+  0x8f9470` gen-ctor (ecx from `push $0xb8; call new`) @0x8ee633 ⇒
+  **P(kind2) = fn2's heap `new(0xb8)` gen**; its Load = wrapper
+  0x8fa930 → `call 0x8f9ab0` @0x8fa99b (this = gen, C62 ✓).
+- **P == sampler-owner+0x9c: FALSE (as instances; same class).**
+  owner+0x9c = in-place **embedded** gen — ctor `lea 0x9c(%esi),
+  %ecx; call 0x8f9470` @0x90ce66 (atomic +0x98 zero @0x90ce5d;
+  `movl $0,0x154(%esi)` @0x90ce71 = 0x9c+0xb8 = embed end ✓); Load
+  `lea 0x9c(%edi),%ecx; call 0x8fa930` @0x90d1ab (in fn 0x90cfb0);
+  dtor `lea 0x9c(%edi),%ecx; call 0x64cad0` @0x910a6f (+ zeros
+  +0x154/+0x158/+0x15c, then `call 0x63eef0` @0x910a80). P =
+  `[config+0x1d4]` has **five writers, all storing standalone/static
+  gens**: kind2 fn2 heap gen (above); kind0+c0 `call 0x8f2ff0`
+  @0x8f37a4 → store @0x8f37ae; kind0+b8 `call 0x8ee230` @0x8f37d4
+  → store @0x8f37de; static imm `movl $0x132b518,0x1d4(%eax)`
+  @0x8f388f; **fifth** `mov %ecx,0x1d4(%eax)` @0x908583 (fn
+  **0x905fb0**, frame 0x408; ecx = [ebp−0x294] = the fn's own
+  `push $0xb8; new; call 0x8f9470` @0x907323-341). Heap/static blocks
+  ≠ interior of the owner's allocation ⇒ never the same address ⇒
+  **instances distinct, class identical** (BitmapNoise lane map,
+  C61/C62).
+- **Sampler dispatch chain:** sampler = payload obj+4 (vtable
+  **0x118f9e4**; getter `lea 0x4(%ecx),%eax; ret` = slot+0x18);
+  slot+8 thunk **0xa9a120** (`add $0x4,%ecx; jmp 0x90d860`; e9 @
+  0xa9a123; imm32 single hit file 0xd8ebec); clone = slot+4 0xa9a0c0
+  (`new(0x40)`, `movl $0x118f9e4,(%eax)` @0xa9a0e2, xmm payload
+  copy +4..+0x3f); +0 = 0xa9a060, +0xc = 0xa9a130 (`mov $0x12f83d4,
+  %eax; ret`), +0x10 = 0xa9a150, +0x14 = 0xa9b430. Functor ctor
+  @0x90d507: `new(0x40)`, vtable @0x90d529, payload = movdqu
+  [ebp−0xd0..−0xa0] → obj+4..+0x3b, owner = obj+0x1c ← [ebp−0xb8];
+  sole writer `mov %edi,-0xb8(%ebp)` @0x90d4f5 in fn **0x90cfb0**
+  (edi set once `mov %ecx,%edi` @0x90cfdd; frame 0x118, SEH
+  0x10a5dd1) ⇒ **sampler-owner = fn0x90cfb0's this**; its single e8
+  caller 0x90f6bf: owner = [outer+0x84]; outer stores `[obj+0x90]`
+  @0x90f6a7 / `[obj+0x94]` @0x90f6b3 = C34's lookup lanes ✓. Driver
+  0x908F40 imm32 = 0 hits (C60 scope stands). RTTI COL name read =
+  unresolved (layout misread).
+- **Sampler mixes the two gens** (gate block @0x90dba5..0x90dbe7):
+  ecx = [sampler+0x18] owner; `mov 0x9c(%ecx),%eax` = embed gen+0
+  (stride); `add $0xb4,%ecx` → embed gen+0x18 = f32 CSafeArray;
+  idx = y·stride+x → getter 0x9499f0 → comiss 0x11dfa94 (0.5f) →
+  jbe 0x90e02b; then P via double-deref `mov 0x20(%ebx),%eax; mov
+  (%eax),%eax; mov 0x1d4(%eax),%eax` = **[config+0x1d4]** + null
+  skip.
+- **C34 +0x1e0 = owner-own DECOR u16 grid:** `movl $0,0x1e0(%edi)`
+  @0x90d2c1, `mov %eax,0x1e0(%edi)` @0x90d2e9 (both in fn0x90cfb0;
+  sibling @0x9109a1): embed ends owner+0x154 < 0x1e0 (and 0x1e0−0x9c
+  = 0x144 > 0xb8) ⇒ never a gen lane; (85)'s "predicted +0xf4"
+  premise (= P == embed) dissolved.
+- **Carry-over phantoms (do-not-cite, I19):** `call 0x8ed180` =
+  **0 hits exe-wide**; `movl $0x132b518,0x38(%esi)` = **nonexistent**
+  (real: `mov $0x132b518,%ecx` ×4 + the 0x1d4 imm store @0x8f388f);
+  "wang-fill @0x8ee5bd" = inside `mov 0x114a37c,%esi` (IAT load;
+  nearby `add $0x76c,%eax` = year+1900 log) — not a fill.
+- **Census corrections:** non-esp `lea 0x9c` ≈ 250 sites (owner
+  family 0x90ce66/0x90d1ab/0x910a6f; string-member family 0x46fxxx+
+  via `call 0x442f50` — an (85)-era "zero" was a `sed -n 1,20p`
+  truncation artifact); `lea -0x9c` all %ebp; no `add/sub $0x9c`
+  object arithmetic. The 0x4f72b3/0x4f8857/0x4f9673 "+0xb4 stores"
+  = property-clone field copies (`mov 0xb4(%ebx),%eax; mov %eax,
+  0xb4(%edi)`, descriptors 0x1180a08/0x1180a68) ⇒ C64's "no
+  gate-f32 install" stands.
+- **OPEN sub-notes:** (i) fifth store's target = [esi] of fn0x905fb0's
+  element table (`mov (%ecx,%edx,4),%esi` @0x908067 → `mov (%esi),
+  %eax` @0x9080f7; loop-carried via [ebp−0x2d4], store after loop
+  exit @0x908572) — structural config-class (+0x1d4 gen slot; fn runs
+  a serializer field walk, cf. string 0x115144c "couldn't find
+  field"); instance identity with Serialize's config unverified;
+  (ii) sampler payload RTTI COL name unresolved.
+- Source: ABOUT_MATH §6 (86).

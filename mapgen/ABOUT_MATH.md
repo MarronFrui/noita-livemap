@@ -5539,3 +5539,72 @@ first use from now on):**
     dig-85 bullet + C33 fix, ISSUES **I18**, Current_work Phase-1
     tags (①②④ closed, ③ identity link open ⇒ Phase 1 stays [ ]).
     Tests **177/177**; y224 byte bar **0/12 rms 0.0000**.
+- **2026-09-22 (86) — Phase-1 ③ instance-identity byte-link (dig
+  #86): the SPLIT verdict — `kind2-esi == P` PROVEN, `P ==
+  sampler-owner+0x9c` REFUTED as instances; the sampler's dispatch
+  chain decoded end to end; C34's `+0x1e0` = owner-own decor grid;
+  three carried-over byte "facts" exposed as phantoms.**
+  - Method/scope: C57's PE-native objdump; one cached full-.text
+    dump (`--start-address=0x401000 --stop-address=0x1000d70`, 3.9M
+    lines) instead of text.bin + python imm32 byte-find with
+    per-section file↔VA (text file = VA − 0x400C00, rdata −
+    0x400E00, data − 0x401A00); controls: vtable 0x119a2a0 = 5 hits,
+    `call 0x8ee440` = 1 hit. Beware `sed -n 1,20p` truncation on
+    censuses (it caused a false "zero lea 0x9c") and mid-instruction
+    objdump windows.
+  - **③ identity SPLIT — C65.** kind2 arm bytes: kind test
+    `mov 0x4(%eax),%ecx; cmp $0x2` @0x8f36c7/ca, P-null check
+    `cmpl $0x0,0x1d4(%eax)` @0x8f36d3, fn2-this = config+0x1b4
+    (`lea 0x1b4(%eax),%ecx` @0x8f36f2; pushes config+0x1cc/+0x1d0/
+    +0x1d8), `call 0x8ee440` @0x8f36fe → `mov %eax,0x1d4(%ecx)`
+    @0x8f3708 ⇒ P = fn2's return; fn2 ret chain (`mov -0x18(%ebp),
+    %eax` @0x8ee72a ← `mov %edi,-0x18(%ebp)` @0x8ee640 ← edi =
+    `call 0x8f9470` @0x8ee633, ecx = `push $0xb8; new`) ⇒ **P(kind2)
+    = a heap `new(0xb8)` gen**. owner+0x9c = in-place **embed** with
+    its own ctor **0x90ce66** / Load **0x90d1ab** / dtor **0x910a6f**
+    (embed ends owner+0x154); P's **five** writers all yield
+    standalone/static gens (kind2 fn2 gen; 0x8f2ff0/0x8ee230
+    returns; static imm @0x8f388f; **newly found fifth** `mov %ecx,
+    0x1d4(%eax)` @0x908583 in fn 0x905fb0, ecx = its own new(0xb8)
+    gen @0x907323) ⇒ heap/static blocks ≠ owner interior ⇒ **never
+    the same instance; same class**. (85)'s "owner = P − 0x9c"
+    survives as LAYOUT equivalence only.
+  - **Sampler chain:** vtable **0x118f9e4** (slot+8 thunk **0xa9a120**
+    `add $0x4,%ecx; jmp 0x90d860`; clone slot+4 0xa9a0c0; getter =
+    slot+0x18 `lea 0x4(%ecx),%eax; ret`) → functor ctor **0x90d507**
+    (owner = obj+0x1c ← [ebp−0xb8], sole writer `mov %edi,-0xb8
+    (%ebp)` @0x90d4f5) ⇒ **owner = fn0x90cfb0's this** (`mov %ecx,
+    %edi` @0x90cfdd; single e8 caller 0x90f6bf: owner = [outer+0x84];
+    outer stores [obj+0x90]/[obj+0x94] @0x90f6a7/b3 = C34's lanes).
+    Gate block @0x90dba5..0x90dbe7 reads the **embed** (owner+0x9c =
+    stride, owner+0xb4 = f32 array via getter 0x9499f0, comiss 0.5f
+    @0x11dfa94), wrap reads **[config+0x1d4]** (double-deref
+    `mov 0x20(%ebx),%eax; mov (%eax),%eax; mov 0x1d4(%eax),%eax`) ⇒
+    **the sampler mixes two gens of one class**.
+  - **+0x1e0 explained:** owner-own DECOR u16 grid (`movl $0,
+    0x1e0(%edi)` @0x90d2c1, `mov %eax,0x1e0(%edi)` @0x90d2e9 in
+    fn0x90cfb0; sibling @0x9109a1); embed ends owner+0x154 < 0x1e0 ⇒
+    the (85) "+0xf4" prediction's premise (= P == embed) dissolved.
+  - **fn2 window split:** fn2 = 0x8ee440..0x8ee741 (sole ret) · fn3
+    = 0x8ee750..0x8ee92f · LERP = 0x8ee930 (C54 pin ✓) · fn5 =
+    0x8eead0..0x8eec6f — the 0x8eec20 fill block belongs to **fn5**,
+    not fn2.
+  - **Corrections (C65 do-not-cite list + I19):** `call 0x8ed180` =
+    0 hits exe-wide; `movl $0x132b518,0x38(%esi)` = nonexistent
+    (real: `mov $0x132b518,%ecx` ×4 + `movl $0x132b518,0x1d4(%eax)`
+    @0x8f388f); "wang-fill @0x8ee5bd" = inside `mov 0x114a37c,%esi`
+    (IAT load; nearby `add $0x76c,%eax` = year+1900 log); non-esp
+    `lea 0x9c` ≈ 250 sites (string-member family dominates — the
+    (85)-era "zero" was a truncation artifact); the 0x4f72b3/
+    0x4f8857/0x4f9673 "+0xb4 stores" = property-clone field copies
+    (descriptors 0x1180a08/0x1180a68) ⇒ C64's "no gate-f32
+    install" stands.
+  - OPEN sub-notes: fifth store's target = fn0x905fb0's [esi] table
+    element's first member (structural config-class; instance
+    identity with Serialize's config unverified); sampler payload
+    RTTI COL name unresolved.
+  - Status: docs only. Landed: CONSTANTS **C65** (+ C62 OPEN →
+    RESOLVED pointer), this entry **(86)**, VERIFIED **§8 row 25** +
+    §12 dig-86 bullet, ISSUES **I19**, Current_work Phase-1 (d) tag
+    + Status refresh. Tests **177/177**; y224 byte bar **0/12 rms
+    0.0000**.

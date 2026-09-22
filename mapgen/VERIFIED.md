@@ -173,7 +173,8 @@ of these mechanisms, cite the row instead of re-running it.
 | 21 | The P-build chain (Serialize → fn1 slab 0x4EDA30 → 0x533580 → 0x7EC4E0 → C27 ctor 0x4F8C70) as the mGradient/ramp consumer; true 0x7EC4E0 = "the ramp-generator" ((83) label); `[gen+0xb4]` = "the B-map" (C39 label) | OVERTURNED dig #84: whole chain byte-read — fn1 uses `&config+0xa8` as an ADDRESS cache key only (contents never read); the C27 ctor consumes a seed int only (2×NextRandom → draw×200000−100000; size 0xB8); the 0x533580→0x7EC4E0 sub-chain builds a **BiomeSpawnScripts** object (literal 0x1154528, map @+0x8c, memo @[singleton+0x24]); `[gen+0xb4]` = a cloned callback {fn 0x7EB220, ctx=BiomeSpawnScripts*} (vtable 0x119a2a0, slot+0x24 = clone @slab 0x680DA0). mGradient consumption remains unseen → hunt moved to the XML-parse family (0x496a2e..0x4a97ed) + surfaceField's config-range read | ✅ ABOUT_MATH §6 (84) |
 | 22 | Recovering the driver's address (true 0x908F40 / slab 0x508740 / surfaceField-ret 0x908F9B) as raw imm32 immediates in text.bin | imm32 = 0 hits in text.bin still true, but the "invoked indirectly only / capture OPEN" inference is **OVERTURNED dig #85**: 3 direct e8 rel32 byte-verified →0x908F40 at true 0x7930d3 / 0x7938d1 / 0x7938fe (+ sibling 0x793358 → 0x909370) — all at file 0x3924d3.. = lower .text OUTSIDE text.bin (C57 scope defect); job-functor theory dropped, capture CLOSED. Driver loop extent/y-range still OPEN (caller body unread) | ✅ ABOUT_MATH §6 (84),(85); CONSTANTS C57/C60 |
 | 23 | The key-string-dispatcher hunt for the Topology/ramp slot-fillers (the C52 attr-name imm32 xref technique applied to mGradientStartY/EndY/HighNoise/LowNoise/NoiseScale/MinY/MaxY/Type/SinMultiple*) | **OVERTURNED dig #85**: full-file scan = **15 imm32 code refs per name** (first @file 0x9624f.. = true 0x496e4f.. — registration cluster + parse-walk pushes), all lower .text outside text.bin (same C57 scope defect as row 22); the xref technique WORKS and delivered the 38-pair bind table (C58) = the write side. The (82)/(84) "ZERO refs" eliminations stand corrected | ✅ ABOUT_MATH §6 (82),(85); CONSTANTS C58 |
-| 24 | Writing `[owner+0xb4]` (the sampler's float-wrapper gate target, C34/C54): an independent base-install site — plus the candidates below | ELIMINATED dig #85 (REGION-scoped): no install among the ③-region sites examined — ctor null-inits 0x791c8e×2 + 0x8f9565/0x8f956b and config pins 0x8ee3fb/0x8ee694 only (fresh full-.text census, file 0x400..0xd49200: mod=10 disp32 0xb4 → 475 store-patterns/91 loads/761 lea, 0xb8 → 1060/846/710 — counts not individually re-examined ⇒ REGION scope). Ruled out: g_genome_herd_relations 0x12ec8b8 (writers 0x592270/0x5932f0); name→member dispatch 0x4f8857 (invincibility_frames/falling_damages); ctor null-inits; classifier 0x8f5030 refuted twice (body 0x8f5030..0x8f5754, zero member stores). Consistent with C61/C62 aliasing: **owner = P − 0x9c ⇒ owner+0xb4 ≡ P+0x18**, the wrapper LoadFromImageData writes — instance-identity byte-link still OPEN | ✅ ABOUT_MATH §6 (85); CONSTANTS C64 |
+| 24 | Writing `[owner+0xb4]` (the sampler's float-wrapper gate target, C34/C54): an independent base-install site — plus the candidates below | ELIMINATED dig #85 (REGION-scoped): no install among the ③-region sites examined — ctor null-inits 0x791c8e×2 + 0x8f9565/0x8f956b and config pins 0x8ee3fb/0x8ee694 only (fresh full-.text census, file 0x400..0xd49200: mod=10 disp32 0xb4 → 475 store-patterns/91 loads/761 lea, 0xb8 → 1060/846/710 — counts not individually re-examined ⇒ REGION scope). Ruled out: g_genome_herd_relations 0x12ec8b8 (writers 0x592270/0x5932f0); name→member dispatch 0x4f8857 (invincibility_frames/falling_damages); ctor null-inits; classifier 0x8f5030 refuted twice (body 0x8f5030..0x8f5754, zero member stores). Consistent with C61/C62 aliasing: **owner = P − 0x9c ⇒ owner+0xb4 ≡ P+0x18**, the wrapper LoadFromImageData writes — instance-identity byte-link still OPEN (resolved: row 25) | ✅ ABOUT_MATH §6 (85); CONSTANTS C64 |
+| 25 | C62's ③ OPEN: instance identity `kind2-esi == P == sampler-owner+0x9c` + C34's +0x1e0 lane fit ("predicted +0xf4"); (85)'s "owner = P − 0x9c" read as instance identity | SPLIT dig #86: `kind2-esi == P` **PROVEN** (Serialize kind2 arm `call 0x8ee440` @0x8f36fe → fn2 ret @0x8ee741 ← [ebp−0x18] ← its `new(0xb8)` gen → `mov %eax,0x1d4(%ecx)` @0x8f3708, byte chain); `P == owner+0x9c` **REFUTED as instances** — owner+0x9c = in-place embed (ctor @0x90ce66 / Load @0x90d1ab / dtor @0x910a6f, embed end owner+0x154), P = `[config+0x1d4]` ← five standalone/static-gen stores (kind2 fn2 gen; `0x8f2ff0`/`0x8ee230` returns; static imm @0x908583-fifth @0x905fb0 + `movl $0x132b518` @0x8f388f) — heap/static ≠ owner interior ⇒ distinct addresses, same class; **+0x1e0 = owner-own decor u16 grid** (@0x90d2c1/0x90d2e9) never a gen lane ⇒ "+0xf4" premise dissolved; sampler **mixes the two gens** (gate reads embed owner+0x9c/+0xb4 @0x90dba5.., wrap reads config-P). "owner = P − 0x9c" survives as LAYOUT equivalence only | ✅ ABOUT_MATH §6 (86); CONSTANTS C65 |
 
 ## 9. Open frontier (ranked)
 
@@ -635,6 +636,25 @@ binary side unread) · ❌ unexplored.
   fit). ④ = 3 direct e8 callers (C60) — both old zero scans were the
   C57 text.bin scope defect; loop extent OPEN. Phase 1 stays [ ]
   pending the ③ link (or an explicit user waiver). No code changes;
+  tests 177/177; y224 0/12 rms 0.0000.
+- **UPDATE — dig #86 (2026-09-22): ③ instance identity byte-linked
+  (SPLIT verdict)** — `kind2-esi == P` **PROVEN** (Serialize kind2
+  arm `call 0x8ee440` @0x8f36fe → fn2 = 0x8ee440..0x8ee741 → its
+  `new(0xb8)` gen → `mov %eax,0x1d4(%ecx)` @0x8f3708); `P ==
+  sampler-owner+0x9c` **REFUTED as instances** (owner+0x9c =
+  in-place embed — own ctor 0x90ce66 / Load 0x90d1ab / dtor
+  0x910a6f, ends owner+0x154; P ← five standalone/static-gen stores,
+  incl. the newly found fifth @0x908583 in fn 0x905fb0). Sampler
+  decoded: vtable 0x118f9e4 → slot+8 thunk 0xa9a120 → 0x90d860;
+  owner = fn0x90cfb0's this (functor ctor 0x90d507, sole edi writer
+  0x90d4f5); **gate reads the embed, wrap reads [config+0x1d4] ⇒
+  TWO gens, one class.** C34 +0x1e0 = owner-own decor u16 grid
+  (0x90d2c1/0x90d2e9) — the "+0xf4" premise dissolved. Phantom
+  carry-overs corrected (`call 0x8ed180` 0 hits; `movl $0x132b518,
+  0x38(%esi)` nonexistent; "wang-fill @0x8ee5bd" wrong).
+  (ABOUT_MATH (86); CONSTANTS C65 + C62 RESOLVED; §8 row 25; ISSUES
+  I19.) Phase 1 stays [ ] pending the user's byte-close vs waiver
+  (residuals: ramp-slot READS + driver extent). No code changes;
   tests 177/177; y224 0/12 rms 0.0000.
 - Cache policy: `out/gen-cache/r3i` holds ONLY wang-area bins
   (seed+area-keyed); the cave-field/opt-in lanes live in non-cached
