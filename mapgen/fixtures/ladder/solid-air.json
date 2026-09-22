@@ -1,0 +1,190 @@
+{
+  "name": "solid-air ladder",
+  "purpose": "Phase-4/5 test vectors for the material-ID ladder (field -> gate -> u16 cell -> material ID -> color). SOLID = a write arm ran; AIR = a merge/classifier skip (unpainted). Structural rung/dispatch cases + provenance + worked data-side tuples. No vitest wired yet (Phase 4 consumes this fixture).",
+  "provenance": {
+    "binary": "noita_dev.exe (17,007,104 B, md5 8b611494212a69492dd0a4527d9c92e0)",
+    "disasm": "/tmp/opencode/fulltext86.asm (true-VA anchors)",
+    "rdata_rule": "file_off = VA - 0x400e00 (CONSTANTS C13)",
+    "dig": 93,
+    "date": "2026-09-22",
+    "entry": "mapgen/ABOUT_MATH.md section 6 entry (93)",
+    "constants": ["C33", "C54", "C62", "C65", "C66", "C67", "C69", "C70", "C72"],
+    "canon": [
+      "mapgen/VERIFIED.md section 8 row 28",
+      "mapgen/VERIFIED.md section 12 dig-93 bullet"
+    ]
+  },
+  "semantics": {
+    "solid": "at least one write arm ran (kind-3 writer 0xa047d0, or the planter 0x7644d0 -> dword grid store @0x90de9c)",
+    "air": "skip: no record at MERGE @0x90dd89 (je 0x90ddb0) or classifier returned 0 - unpainted",
+    "slot_note": "owner+0x1e0 stores DWORDS (4-byte slots: accessor 0x95a5e0 returns base+idx*4, lea @0x95a6ae; store mov %ecx,(%eax) @0x90de9c). The old 'u16' label on +0x1e0 is eliminated - VERIFIED section 8 row 28. The u16 read = wrap 0x9fe4e0(this=P+0x20) movzwl;dec @0x90dcd3 (getter 0x94a8f0); the u16 fill container = gen+0x20.",
+    "value_note": "what the dword store at 0x90de9c holds (slot id vs record pointer) = OPEN, entry (93)"
+  },
+  "rungs": [
+    {
+      "rung": "field",
+      "read": "[owner+0xb4] raw f32 (per-chunk owner layout)",
+      "gate": "<= 0.5 -> skip (no write) | > 0.5 -> warp/floor/wrap -> id-1",
+      "constants": "C34/C54"
+    },
+    {
+      "rung": "u16-content",
+      "read": "wrap-modulo 0x9fe4e0(this=P+0x20) -> movzwl; dec = id1 @0x90dcd3",
+      "branch": {
+        "id1 >= 1": "cell = 0x4b80e0([obj+0x90], id1) @0x90dcec -> MERGE",
+        "id1 <= 0": "config gate"
+      },
+      "constants": ["C62", "C67"]
+    },
+    {
+      "rung": "config-gate",
+      "read": "[owner+0x2a4] (component-set pointer; also the classifier's this)",
+      "branch": {
+        "== 0": "AIR (skip @0x90ddb0, unpainted)",
+        "!= 0": "evaluator2 0x908e70 -> floor dance (IAT 0x114a434 + 0x1033970) -> classifier 0x8f5030"
+      },
+      "constants": ["C54", "C72"]
+    },
+    {
+      "rung": "classifier",
+      "fn": "0x8f5030..0x8f5749 (biome_materials.cpp, file 0x1173240)",
+      "signature": "thiscall ecx = [config+0x2a4], 2 int stack args, v in xmm3",
+      "returns": "material/cell record POINTER ([component+0x04]) or 0",
+      "gate_order": [
+        "assert 0xfe mInitialized (expr 0x118c9f4)",
+        "range [this+0] <= v <= [this+4] (jne 0x8f5110)",
+        "assert 0x108 mCellFactory (expr 0x11732c0; cmpl $0,0x30(%eax) @0x8f5221)",
+        "per component: assert 0x107 (expr 0x1151e28)",
+        "[+0x04] resolved record (null -> require [+0x18]==0; else 0x442610 al!=0 -> logger 0x132b624 + assert 0x10f expr 0x1173304)",
+        "int-range flag [+0x39]: arg2 in [[+0x3c],[+0x40]] @0x8f53f0",
+        "polygon flag [+0x74]: count = ([+0x7c]-[+0x78])/8 >= 3 else assert 0x118 expr 0x1173340; query = {(arg1 mod 512)*0x11df8b4, (arg2 mod 512)*0x11df8b4} -> callee 0x10096a0",
+        "null-resolve check cmpl $0,0x4(%ebx) @0x8f5572",
+        "v' adjust flag [+0x2c]: + 0x8fc020(arg1*[+0x30], arg2*[+0x34])",
+        "main gate [[+0x24],[+0x28)) @0x8f55b6",
+        "flag [+0x38]: 0 -> ACCEPT (je 0x8f5740)",
+        "transform X = [+0x54]+arg1*[+0x48], Y = [+0x58]+arg2*[+0x4c]",
+        "jitter flag [+0x50]: rng 0x9119d0 + sign table 0x11e0ba0, X += rand*0x11dfa70 (1.53841e-05), Y += rand*0x11dfa88 (2.50832e-05)",
+        "noise flag [+0x44], selector [+0x45]: 0x9fad90 (f32) | 0x8fc020 (f64->f32) -> gate ((+0x6c),(+0x70]] (jae/ja -> 0x8f5704)",
+        "ramp flag [+0x46]: 0x8fbe60(X,Y,[+0x5c],[+0x60],[+0x68], cl=[+0x64]) -> same gate -> jbe 0x8f5740 (at @0x8f5702) ACCEPT"
+      ],
+      "constants": ["C33", "C72"]
+    },
+    {
+      "rung": "merge-kind",
+      "merge": "@0x90dd89 (null -> AIR skip)",
+      "kind_read": "[record+0x38] via mov 0x38(%ecx),%eax",
+      "branch": {
+        "3": "writer 0xa047d0 (this = [sampler+4], flag *(u8*)0x1344ce1) @0x90ddab -> loop tail 0x90ddb0; NO +0x1e0 store",
+        "1 (table != 0)": "intern: lock xadd, cap 0x2000, value = [tbl+old*4+4] @0x90de1b -> planter",
+        "other (not 1, not 3)": "intern-value 0 @0x90de2c -> planter"
+      },
+      "constants": ["C54", "C65", "C72"]
+    },
+    {
+      "rung": "write-arms",
+      "planter": "0x7644d0 (this = *([sampler+0x2c]); args = record, value, x+*([sampler+0x24]), y+*([sampler+0x28]))",
+      "free_old": "IAT 0x114a348 (free the old value if different)",
+      "grid_store": "accessor 0x95a5e0(this=owner+0x1e0, idx = y*[owner+0x1c8]+x) -> mov %ecx,(%eax) DWORD @0x90de9c (4-byte slots; VERIFIED section 8 row 28)",
+      "gates_after_store": [
+        "bounds: x < [owner+0x168] and y < [owner+0x16c]",
+        "alpha accessor 0x949e80(this=owner+0x180): testl $0xff000000,(%eax) @0x90ded0 == 0 -> no callback",
+        "else: call *0x1c(%edx) (vtable +0x1c on-place callback, arg = cell u32)"
+      ],
+      "constants": ["C65", "C72"]
+    },
+    {
+      "rung": "color",
+      "read": "record[cell+0x40] = wang_color (C69) | [factory+0x2c] = ctor fast-color 0xff420000 (C70)",
+      "color_to_index": "delegate 0x741a50 (C66/C67)",
+      "constants": ["C66", "C69", "C70"]
+    }
+  ],
+  "cases": [
+    {
+      "id": "air-field-gate",
+      "when": { "field": "<= 0.5" },
+      "expect": { "outcome": "air", "write_arm": null, "why": "raw >0.5 gate skips the cell (C54)" },
+      "src": "C54; entry (93)"
+    },
+    {
+      "id": "air-config-absent",
+      "when": { "field": "> 0.5", "u16": "<= 1 (id1 <= 0)", "[owner+0x2a4]": 0 },
+      "expect": { "outcome": "air", "write_arm": null, "why": "skip je 0x90ddb0 (unpainted)" },
+      "src": "C54, C72; entry (93)"
+    },
+    {
+      "id": "classifier-path-config-present",
+      "when": { "field": "> 0.5", "u16": "<= 1 (id1 <= 0)", "[owner+0x2a4]": "!= 0" },
+      "expect": {
+        "outcome": "evaluator2 0x908e70 -> floor -> classifier 0x8f5030",
+        "note": "classifier decides: 0 -> AIR (merge skip), record -> kind dispatch"
+      },
+      "src": "C54, C72; entry (93)"
+    },
+    {
+      "id": "air-classifier-miss",
+      "when": { "classifier": "returns 0 (no component accepts)" },
+      "expect": { "outcome": "air", "write_arm": null, "why": "MERGE null check @0x90dd89 -> je 0x90ddb0" },
+      "src": "C33, C72; entry (93)"
+    },
+    {
+      "id": "content-u16-lookup",
+      "when": { "u16": ">= 2 (id1 >= 1)" },
+      "expect": {
+        "outcome": "cell = 0x4b80e0([obj+0x90], id1) @0x90dcec -> MERGE (same kind dispatch as a classifier hit)",
+        "note": "the lookup is assert-guarded (C68/C54); a null at MERGE still -> AIR"
+      },
+      "src": "C54, C72; entry (93)"
+    },
+    {
+      "id": "solid-kind1-intern",
+      "when": { "[record+0x38]": 1, "intern_table": "!= 0" },
+      "expect": {
+        "outcome": "solid",
+        "write_arm": "planter 0x7644d0 -> dword store @0x90de9c (alpha-gated callback may follow)",
+        "intern_value": "[tbl+old*4+4] (lock xadd, cap 0x2000)",
+        "note": "the dword stored at 0x90de9c (intern value vs record pointer) = OPEN, entry (93)"
+      },
+      "src": "C54, C72; entry (93)"
+    },
+    {
+      "id": "solid-kind-other",
+      "when": { "[record+0x38]": "not 1 and not 3" },
+      "expect": {
+        "outcome": "solid",
+        "write_arm": "planter 0x7644d0 -> dword store @0x90de9c",
+        "intern_value": 0,
+        "note": "kind != 1 uses intern-value 0 but STILL runs the planter (value semantics OPEN)"
+      },
+      "src": "C54, C72; entry (93)"
+    },
+    {
+      "id": "solid-kind3-writer",
+      "when": { "[record+0x38]": 3 },
+      "expect": {
+        "outcome": "solid",
+        "write_arm": "0xa047d0 only (this = [sampler+4], flag *(u8*)0x1344ce1)",
+        "note": "no +0x1e0 store and no alpha-gate callback on this arm; 0xa047d0 internals = OPEN"
+      },
+      "src": "C54, C72; entry (93)"
+    }
+  ],
+  "data_probe": {
+    "how": "loadMaterials(dataDir) via mapgen/lib/colorize.mjs, run 2026-09-22 (dig #93)",
+    "entries": 465,
+    "worked_tuple": {
+      "material": "air",
+      "color6": "000042",
+      "wang_color": "ff000042",
+      "ctor_color_u32": "0xff420000",
+      "chain": "materials.xml wang_color ff000042 -> C69 byte swap -> 0xff420000 = ctor immediate (C70) = C1's hasPath mark @0x901a4d",
+      "src": "C69, C70, C1 + this session's loadMaterials probe (color6 = wang_color's low 6 for air)"
+    },
+    "probed_colors": [
+      { "material": "water", "color6": "2f554c", "src": "loadMaterials probe (wang_color not separately verified)" },
+      { "material": "coal", "color6": "505052", "src": "loadMaterials probe (wang_color not separately verified)" },
+      { "material": "oil", "color6": "3b3b3c", "src": "loadMaterials probe (wang_color not separately verified)" },
+      { "material": "rock", "color6": null, "src": "loadMaterials probe: key not present in the map" }
+    ]
+  }
+}

@@ -6422,3 +6422,138 @@ first use from now on):**
       elimination table) + **§12** dig-92 bullet, Current_work
       Status/Landed/Next refresh. ISSUES: none filed (I20 remains next
       free). Tests **177/177**; y224 byte bar **0/12 rms 0.0000**.
+  - **2026-09-22 (93) — Phase 2 step 3 (dig #93): the material-ID
+    LADDER closed (Phase 2 byte-CLOSED) — the 132-B component walk:
+    classifier `0x8f5030`'s full gate chain + its 3 callers, the
+    sampler merge/kind-dispatch write arms, the `<RandomColor>` parser,
+    and the `+0x1e0` slot-width overturn (§8 row 28).**
+    - Method: byte RE of `noita_dev.exe` (17,007,104 B, md5
+      `8b611494212a69492dd0a4527d9c92e0`) — awk/grep windows over the
+      cached true disassembly (`/tmp/opencode/fulltext86.asm`) +
+      python `.rdata` scans (`file_off = VA − 0x400e00`, C13).
+      Docs-only dig; no port changes; `lib/` untouched.
+    - **① Classifier `0x8f5030..0x8f5749`** (file string 0x1173240 =
+      `biome_materials.cpp` ✓ C54): thiscall ecx = `[config+0x2a4]`,
+      2 int stack args, **v arrives in xmm3** (slot-verified in the
+      sampler: `movss %xmm0,0x28(%esp)` @0x90dd29 → `movss
+      0x2c(%esp),%xmm3` @0x90dd6c, net esp −4); returns the record
+      POINTER or 0 (accept `mov 0x4(%ebx),%eax` @0x8f5740 → `ret $8`
+      @0x8f5749; miss `xor %eax,%eax` @0x8f574e); component stride
+      `add $0x84,%esi` @0x8f5713 = **132 B**; count magic 0x3e0f83e1
+      re-derived each iteration @0x8f5707. Gate order (byte-read):
+      assert **0xfe** mInitialized (expr 0x118c9f4) → range `[this+0]
+      ≤ v ≤ [this+4]` (jne 0x8f5110) → assert **0x108** mCellFactory
+      (expr 0x11732c0; `cmpl $0,0x30(%eax)` @0x8f5221 → continue
+      0x8f52e9) → per component: assert **0x107** (expr 0x1151e28) →
+      name/coherence @0x8f52e9: **[+0x04] = the resolved
+      material/cell record POINTER** (null → require `[+0x18]==0`;
+      else `call 0x442610`, al ≠ 0 → logger 0x132b624 msg 0x11732d0
+      `"Error! couldn't find material: "` + assert **0x10f** expr
+      0x1173304) → int-range flag **[+0x39]** @0x8f53f0: arg2 ∈
+      `[[+0x3c],[+0x40]]` → polygon flag **[+0x74]** @0x8f5418: count =
+      ([+0x7c]−[+0x78])/8 ≥ 3 else assert **0x118** expr 0x1173340;
+      query = {(arg1 mod 512)·0x11df8b4, (arg2 mod 512)·0x11df8b4}
+      signed-mod @0x8f54f2/0x8f5511 → callee **0x10096a0**, miss →
+      next @0x8f5704 → `cmpl $0,0x4(%ebx)` @0x8f5572 → v′ = v [+ flag
+      **[+0x2c]**: + fn **0x8fc020**(arg1·[+0x30], arg2·[+0x34])] →
+      **main gate `[[+0x24],[+0x28))`** @0x8f55b6 (**C33 refined**:
+      half-open) → flag **[+0x38]**: 0 → **ACCEPT** (`je 0x8f5740`);
+      ≠0 → transform X = [+0x54]+arg1·[+0x48], Y = [+0x58]+arg2·
+      [+0x4c] → jitter flag **[+0x50]** (EFLAGS live across the SSE
+      block): rng **0x9119d0** ×2 + sign table 0x11e0ba0, X += rand·
+      **0x11dfa70 = 1.53841e-05**, Y += rand·**0x11dfa88 =
+      2.50832e-05** (rng range + scale unit OPEN) → noise flag
+      **[+0x44]**, selector **[+0x45]**: ≠0 → **0x9fad90** | ==0 →
+      **0x8fc020** → out-gate **((+0x6c),(+0x70]]** (jae / ja →
+      0x8f5704) → ramp flag **[+0x46]**: 0 → ACCEPT; ≠0 →
+      **0x8fbe60**(X,Y,[+0x5c],[+0x60],[+0x68], cl=[+0x64]) → same
+      out-gate → `jbe 0x8f5740` @0x8f5702.
+    - **② The 3 callers** (grep `8f5030`): fn **0x908f40..0x90936f**
+      (procedural_terrain.cpp, file 0x1173a10): zone kind
+      `[0x909da0()+4]` = 0 → path A (v = 0x90a860 + 0.5, literal
+      0x11dfdd8; `cvttsd2si` args → tail @0x908fb0) | 1 → path B
+      (assert `biome->bitmap_data` expr 0x1175088 line **0xa6e**
+      @0x908fd2 → f32-pair walk 0x8fa9b0/0x8fae40 over
+      `[config+0x1d4]` → evaluator2 **0x908e70** @0x90930c → floor
+      dance (IAT 0x114a434 + 0x1033970) → tail @0x90935b) | other →
+      **0x9091c6** (OPEN); path-B middle loop 0x909090..0x9092a2 OPEN.
+    - **③ Sampler tail + MERGE (the solid/air fork):** u16 read =
+      wrap-modulo **0x9fe4e0**(this = P+0x20) → `movzwl; dec` = id1
+      @0x90dcd3; id1 ≥ 1 → cell = **0x4b80e0**([obj+0x90], id1)
+      @0x90dcec → jmp merge; id1 ≤ 0 → `[owner+0x2a4]==0` → **skip**
+      (`je 0x90ddb0` = unpainted = **air**) else evaluator2 @0x90dd24
+      (args = f64 outer/esi, f64 inner/edi, f32 field; the classifier
+      floor dance passes floor(esi), floor(edi) — axis order OPEN)
+      → classifier @0x90dd7e. **MERGE @0x90dd89:** null → skip
+      (air); else kind = `mov 0x38(%ecx),%eax`: **kind 3** → `push`
+      flag `*(u8*)0x1344ce1` @0x90dd9c + coords + record → **call
+      0xa047d0** @0x90ddab (this = `[sampler+4]`; C54 slab 0x603fd0
+      ✓; internals OPEN) → loop tail 0x90ddb0; **kind ≠ 3 →
+      0x90de0e** (C54 slab 0x50d60e ✓): kind==1 ∧ table ≠ 0 → intern
+      (lock xadd, `cmp $0x2000` cap, value = `[edx+old·4+4]`
+      @0x90de1b..2a); kind ≠ 1 → value 0 @0x90de2c; **both → planter
+      0x7644d0** (C54 slab 0x363cd0 ✓; this = `*([sampler+0x2c])`, 4
+      stack args = record, value, x+`*([sampler+0x24])`,
+      y+`*([sampler+0x28])`) → free-old (IAT 0x114a348) → grid write:
+      accessor **0x95a5e0** (this = owner+0x1e0, idx = y·
+      `[owner+0x1c8]`+x) → `mov %ecx,(%eax)` **DWORD** @0x90de9c →
+      bounds (x < `[owner+0x168]`, y < `[owner+0x16c]`) → alpha
+      accessor **0x949e80** (owner+0x180), `testl $0xff000000,(%eax)`
+      @0x90ded0 → ≠0 → `call *0x1c(%edx)` (on-place callback, arg =
+      cell u32) → loop tail.
+    - **④ `<RandomColor>` parser** = fn **0x8eb300..0x8eb72e** (biome.cpp
+      file 0x1172ea8, `ret $0x4`): tag-eq **0x42c440** vs literal
+      0x1172f04 `"RandomColor"`; create/append: factory **0xa75470**,
+      parent-link `[new+4]=[ebx+0x28]`, append `[[ebx+0x28]+0x38]`
+      via **0x10149a0**; index loop @0x8eb610 (name-cmp **0x42b780**,
+      len == 11) → parse **0x92edd0 → 0x92a910** @0x8eb6c7; sibling
+      keys extracted: **0x1172f10 = `input_color`, 0x1172f1c =
+      `output_colors`** (next fn 0x8eb740 = input_color handler).
+      **Runtime consumer OPEN** (build fn unread): biome nodes →
+      component fill / resolver `[gen+0xb0]` — working hypothesis,
+      OPEN.
+    - **⑤ The `+0x1e0` overturn → §8 row 28:** accessor **0x95a5e0**
+      (§11/§12's slab 0x559de0) success path = `mov -0x4(%ebp),%eax;
+      mov (%eax),%eax; lea (%eax,%ebx,4),%eax; ret $0x4`
+      @0x95a6a7..b5 ⇒ **base + idx·4 → 4-byte slots**; bounds
+      `idx < [this+4]`, OOB assert line **0x4b**, file 0x117a570,
+      expr 0x1179b74 (fmt 0x1150f60 = the shared assert format ✓);
+      the store @0x90de9c is `mov %ecx,(%eax)` dword; C65's cited
+      sites 0x90d2c1/0x90d2e9 are dword ⇒ **+0x1e0 = a 4-byte-slot
+      grid, NOT a u16 grid** — the "u16 DECOR write/grid" label (§11
+      ×2, §12 (86), C65) → §8 row 28; C65 amended in-row. The
+      sampler's actual u16 read = wrap(this=P+0x20) `movzwl`
+      @0x90dcd3 (getter 0x94a8f0, C62); the u16 fill container =
+      gen+0x20 (C67/C62); the dword store's value (slot id vs record
+      pointer) @0x90de9c = **OPEN**.
+    - **⑥ Reconciliations + ladder:** C54 **byte-exact** (all 3 call
+      sites, the `[cell+0x38]` dispatch, planter/bss/slab match its
+      prose); C33 **refined** via C72 ([+0x04] = record POINTER, not
+      an id; main gate = half-open `[[+0x24],[+0x28))` + the full
+      chain); C65 **amended** (⑤). Ladder assembled → **C72** (field →
+      >0.5 gate → u16 cell → material ID → color; **solid** = any
+      write arm, **air** = the skips); fixture =
+      `mapgen/fixtures/ladder/solid-air.json` (structural
+      rung/dispatch cases + provenance + worked data tuples — this
+      session's loadMaterials probe = **465** entries: air `000042` →
+      wang_color `ff000042` → `0xff420000` = ctor immediate = C1's
+      hasPath mark; water `2f554c`, coal `505052`, oil `3b3b3c`,
+      `rock` absent from the map).
+    - **OPEN (recorded non-blockers → Current_work Next):** the
+      RandomColor runtime consumer + the component-BUILD/resolve fn
+      (XML/biome nodes → the 132-B components, `[+0x04]` fill) + the
+      `[+0x4]` ↔ GetCellData array-membership check; 0x9119d0's range +
+      the jitter-scale units; the classifier's int-arg axis order
+      (row/col vs polygon-vertex order); the kind enum `[cell+0x38]`
+      {3,1,other} semantics + 0xa047d0 internals + 0x442610's exact
+      predicate; fn 0x908f40's path-B middle loop + kind∉{0,1} arm
+      0x9091c6; the grid-store slot vs record-pointer distinction
+      @0x90de9c.
+    - Status: docs only (no port changes; `lib/` resolver semantics
+      untouched). Landed: CONSTANTS **C72** (+ the **C65** in-row
+      amendment), this entry **(93)**, VERIFIED **§8 row 28** +
+      **§12** dig-93 bullet, fixture
+      `mapgen/fixtures/ladder/solid-air.json`, Current_work
+      Status/Landed/Next refresh (Phase 2 → **byte-CLOSED**). ISSUES:
+      none filed (I20 remains next free). Tests **177/177**; y224 byte
+      bar **0/12 rms 0.0000**.
