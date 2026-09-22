@@ -4,6 +4,7 @@ public/noitamap/
 *.log
 .DS_Store
 SESSION_CONTEXT.md
+Current_work.md
 tools/
 mapgen/out/
 mapgen/noita-dat
