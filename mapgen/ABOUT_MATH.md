@@ -5777,3 +5777,191 @@ first use from now on):**
     this entry **(88)**, VERIFIED §12 dig-88 bullet, Current_work
     Phase-2 tag + Status refresh. Tests **177/177**; y224 byte bar
     **0/12 rms 0.0000**.
+- **2026-09-22 (89) — Phase 2 (dig #89): the 0x290 record class
+  byte-decoded — CellFactory/CellData = the `data/materials.xml`
+  rows (string-anchored); accessors, object layout, the
+  mCellDataSize high-water store, and the name→type map fill; the
+  draft "0x745051 = table-count store" reading CORRECTED (it writes
+  a map node's pair.second).**
+  - Method/scope: C57's PE-native objdump (true VAs, windows at
+    prologue/int3 boundaries), exe re-verified on disk THIS session:
+    `/mnt/e/Programmes/Steam/steamapps/common/Noita/noita_dev.exe`,
+    17,007,104 B, md5 `8b611494212a69492dd0a4527d9c92e0`. Fresh
+    windows this dig: GetCellData 0x4b80e0..0x4b81d2 (prologue) +
+    0x4b81c9 via the cached full-.text sweep; fn0x742b30
+    0x742b30..0x742d30 (boundary count = its own prologue only ⇒
+    single fn) + 0x742d11..0x742d34 context; fn0x7449e0
+    0x744f20..0x745090 + 0x744a00..0x744f60 boundary scan (zero
+    ret/int3/push-ebp ⇒ names loop ∈ fn0x7449e0); 0x7415e0
+    0x7415e0..0x7416ff; 0x43db70 0x43db70..0x43dbae; 0x4496a0
+    0x4496a0..0x44975d; 0x744a67..0x744abf cleanup loop. Before the
+    hunt: VERIFIED §8 rows 18–25 + C64/C65 re-read; phantoms
+    honored (no `call 0x8ed180`, no `movl $0x132b518,0x38(%esi)`,
+    no "wang-fill @0x8ee5bd"); new trap registered this dig —
+    orphan literals **0x11a0008 / 0x11a0030** (0 byte-refs
+    file-wide; never cite). Register at start: entry (89), C68, I20.
+  - **Identity — the 0x290 record class IS CellData/CellFactory =
+    materials.xml rows:** `"data/materials.xml"` 0x119ffe0 pushed
+    @0x405b97; assert file 0x117cb10 = `…grid/cells/cellfactory.`,
+    exprs `type >= 0` 0x117cc3c (line 0x361) / `type < (int)
+    mCellDataSize` 0x117cc48 (line 0x362) in GetCellData fn
+    0x4b80e0; `celldata->material_type < (int)mCellData.size()`
+    0x11a021c (line 0x52e) pushed @0x742eb0/0x742f24/0x742f48 in
+    fn 0x742b30; `IMPL_cell_reactions.empty()` 0x11a06b4 (0x631) +
+    `IMPL_required_reactions.empty()` 0x11a06d0 (0x632) in fn
+    0x7449e0; `"ERROR in materials.xml!!! wang_color for "` 0x11a0738
+    + `" is completely grey."` 0x11a0790 pushed @0x74598f/0x7459a8
+    (link-pass tail); `"Error! CellFactory::GetType() couldn't find
+    material: "` 0x11a00a0 pushed @0x74184c (GetType miss path);
+    `"Too many CellData's … CELLFACTORY_CELLDATA_MAX_COUNT in
+    magic_numbers.xml"` body 0x11a0068 pushed @0x741305; attr
+    `"wang_color"` 0x119f078 @0x736c56/0x736caf/0x736cd6 in the
+    parse region ~0x736c00; source file literal 0x119ef60 =
+    `d:\…\source\grid\cells\cellfactory.cp`.
+  - **Layout (all offsets re-derived this dig):** names vector
+    {begin **+0x8**, end **+0xc**} of 24-B wstrings — count via
+    `mov $0x2aaaaaab` + sar2 ((end−begin)/24) @0x744f35..4e (map
+    fill loop) and @0x7415f3..fd (linear resolver); wstring SSO
+    {data@0, size@0x10, cap@0x14} from the inline tests
+    `cmpl $0x10,0x14(%edx)` @0x43db94/0x43dba3. name→type
+    std::map {head **+0x14**, size **+0x18**}: find **0x43db70**
+    takes this = table+0x14, `mov (%ecx),%ebx` = head @0x43db77,
+    walks root with `_Isnil` `cmpb $0x0,0xd(%edi)` @0x43db80 and
+    `lea 0x10(%edi)` = &_Myval @0x43db98 ⇒ MSVC node = {_Left@0,
+    _Parent@4, _Right@8, color@0xc, isnil@0xd, key wstring
+    @0x10..0x27, **int second @0x28**}; end-test
+    `cmp 0x14(%ebx),%esi; je` @0x744f73 (= node == head ⇒ miss);
+    insert-helper **0x4496a0** gets ecx = table+0x14 @0x745038 and
+    tests `cmpl $0x0,0x4(%ebx)` @0x4496d4 ⇒ [table+0x18] = _Mysize
+    (empty-map fast path), `ret $0x10` (4 stack args; arg1 = the
+    `&[ebp−0x50]` out-param, written through by 0x44b9d0). Records:
+    {begin **+0x1c**, end **+0x20**, cap **+0x24**} stride **0x290**
+    — the cleanup loop @0x744a6d..0x744aae computes
+    (end−begin)/0x290 via `0x63e7063f` + sar8 and destroys records
+    at [ebx+0x1c] + i·0x290 (`call 0x736050`, esi += 0x290).
+    **mCellDataSize = dword +0x28** (see the writer below);
+    fast-color **+0x2c** (identity OPEN); one-shot flag **+0xb8**.
+  - **Accessors (the register riddle confirmed):** the earlier
+    apparent contradiction = two separate functions split by int3
+    padding. **0x741770** = GetType(name) → 0-based type or −1
+    (map path → [node+0x28] @0x7417aa; empty name → −1 @0x74186c;
+    linear counter → match @0x741878; miss → error log
+    0x11a00a0 then −1). **0x7415e0** = a second, stdcall linear
+    resolver (1 arg, `ret $4` @0x7416ed): scans this+0x8 names,
+    `add $0x18,%ebx` per element @0x7416bd, full key+length match →
+    `mov -0x4(%ebp),%eax` @0x7416e4 = **the matching index**; miss
+    tail starts @0x7416f0 (return value unread = OPEN). **0x741890**
+    = name → &mCellData[i] (`imul $0x290,i; add [this+0x1c]`
+    @0x741995; miss/empty → 0 @0x7419ad; callers 0x746456/0x746c72/
+    0x8f8f48/0xc3df8d/0xc3dff6/0xc3e0aa). **0x4b80e0** =
+    GetCellData(type): this spilled `[esp+4]` @0x4b80f3, reloaded
+    `mov 0x14(%esp),%ecx` @0x4b81a4 after the assert machinery (ecx
+    = this on BOTH paths); assert 0x361 `test %ebx,%ebx; jns
+    0x4b81c9`; assert 0x362 **`cmp 0x28(%ecx),%ebx; jl 0x4b827c`**
+    @0x4b81c9 = signed `type < [this+0x28]`; **type==0 → NULL**
+    @0x4b827c..88; else base + type·0x290 @0x4b828b. **0x4b82a0** =
+    GetCellData(GetType(name)) (callers 0x6515f8/0x65167b) ⇒
+    **type 0 is unreachable through GetCellData** — the air-candidate
+    reading now has a second byte anchor (besides the sampler skip).
+  - **mCellDataSize writer = the high-water store, fn 0x742b30:**
+    `push %ebx; mov %esi,%ecx; call 0x7415e0` @0x742d11..14 (this =
+    table, arg = the record's name field) → `mov %eax,0x30(%ebx)`
+    (celldata->material_type) + `mov %eax,0x34(%ebx)` @0x742d19/1c →
+    **`cmp %eax,0x28(%esi); jg 0x742d28; inc %eax; mov %eax,0x28(%esi)`**
+    @0x742d1f..0x742d25 ⇒ `[table+0x28] := max(size, resolved+1)`
+    (signed jg) → loop gate `cmp %edi,0x28(%esi); jle 0x742d9b`
+    @0x742d2a/2d. esi = table confirmed by `imul $0x290,0x30(%ebx),
+    %ecx; add 0x1c(%esi)` @0x742f63 (record lookup by material_type)
+    and ecx=esi thiscall setup @0x742d12. This is the field
+    GetCellData's assert 0x362 and the link-pass caller loop
+    (@0x747bf7, i=1..[esi+0x28]) both bound against.
+  - **CORRECTION — `mov %edi,0x28(%esi)` @0x745051 is NOT the
+    table-count store (the pre-dig draft claim):** verified from the
+    prologue-anchored window: counter `[ebp−0x64]` = 0 @0x744f3f,
+    loop head 0x744f60, per iteration the tail does
+    `mov -0x50(%ebp),%esi` (insert out-param, skip-path keeps the
+    find result), `mov -0x64(%ebp),%edi` (counter), **store
+    @0x745051, THEN `inc %edi` @0x745054, spill @0x745063**, name
+    stride `add $0x18,%esi` @0x745060, back-edge `jb 0x744f60`
+    @0x745075 ⇒ the value written = the loop index = **the record
+    index**, and the target esi = **the tree node** (insert path:
+    0x4495f0 lower/find + 0x4496a0 insert with `&[ebp−0x50]` out;
+    reuse path: find result still in esi). node+0x28 = pair.second
+    structurally proven above ⇒ **the loop fills the name→type map:
+    map[names[i]].second = i**, with seconds 0..count−1 (last store
+    before exit = count−1 — store-before-inc). No store to
+    `0x28(%ebx)` (the table) exists anywhere in fn0x7449e0 (grep:
+    only this one store; all other +0x28 hits are loads
+    @0x745189/0x745230/0x74526b/0x74530b/0x7453a5/0x7453e0/
+    0x745455/0x7454f0/0x74552b) ⇒ C68's "+0x28 = mCellDataSize"
+    now cites 0x742d25 instead. Cross-check: GetType's map path
+    reads exactly this [node+0x28] as the returned type ✓.
+  - **Record assign 0x741d20 (dst ecx, src [ebp+8], `ret $4`)** —
+    the full 0x290 field map: wstring members {+0x00, +0x18, +0xac,
+    +0xc8, +0xe4, +0x114, +0x12c, +0x1b4, +0x1d0, +0x1ec, +0x20c,
+    +0x240, +0x250, +0x25c}; dwords +0x30 (**material_type**),
+    +0x34/0x38/0x3c, **+0x40 = wang_color (store @0x741d68)**,
+    +0x44/+0x48; sub-objects +0x4c (ctor 0x736150); byte groups
+    +0x8c..0x8f, +0xa8, +0x150..0x163, +0x1ac..0x1b1, +0x24c..0x24f,
+    +0x268/0x269, +0x27c, +0x288..0x28a; typed dwords +0xc4, +0xe0,
+    +0xfc, +0x144, +0x148, +0x1cc, +0x1e8, +0x204; u16 +0x14c/+0x14e;
+    **ptr +0x88 deliberately OMITTED (rebuilt by 0x740780 when
+    [rec+0x5c]≠0, sites @0x742f8f..0x742f9d), ptr +0x28c raw-copied
+    @0x7422d4**. CellData copy **0x740410** (movdqu +0x00..+0x3f,
+    dword +0x40 @0x740466..69, sub-objs +0x44/+0x50 via 0x928630;
+    callers 0x7466b4/0x746935/0x9305aa). Per-record random
+    **0x7409b0** (15 call sites incl 0x744ef2): gate = [rec+0x88] ≠ 0
+    + flag [rec+0x6c], two uniforms derived from the record index
+    (hash `imul $0x5b` + 0x37e40765/0x9eec9ad1, MSVC LCG
+    0x343fd/0x269ec3, mask 0x7fff −0x3fff, norm tables
+    0x11dfae0/0x11e0038) → `call 0x740580(obj,u1,u2)` (assert line
+    0x2e7 `width > 0` 0x119fec4; fn assert line 0x328 `celldata`
+    0x117d2e4).
+  - **Link pass 0x7455b0 (per-record, caller loop @0x747bf7:
+    i=1..[esi+0x28], stride 0x290; asserts lines 0x766/0x767)** —
+    wstring→type-dword resolution: +0x1b4→+0x1cc (empty→0),
+    +0xac→+0xc4 (empty→skip), +0xc8→+0xe0 (empty → default
+    **`fire`** 0x1171bc0 len4 @0x7457df), +0xe4→+0xfc (empty →
+    default **`smoke`** 0x117cbdc len5 pushed @0x74584c, **but the
+    store @0x74588a writes +0xe0, not +0xfc — byte-verified
+    asymmetry; semantics OPEN, reported as a byte fact, not an
+    ISSUES defect (no repro)**), +0x1d0→+0x1e8, +0x1ec→+0x204,
+    +0x114→+0x148 (extra: type>0 && [rec+0x150]==0 → GetType →
+    GetCellData → `mov 0x30(%ebx),%ecx; mov %ecx,0x144(%eax)`
+    @0x74593c), +0x12c→+0x144. Tail grey check @0x74597a:
+    color = [ebx+0x40], byte0==byte1==byte2 → error log
+    0x9eb020/0x65cfe0/0x9cfff0 (the completely-grey wang_color
+    message). One-shot init **0x741ac0**: guard [this+0xb8] →
+    GetType([0x1328004+0x17c]) @0x741b1d → GetCellData @0x741b25 →
+    saved @0x741b2a; same pattern for +0x194 @0x741b34.
+  - **Census:** `imul $0x290` = exactly 15 sites (0x4b828b,
+    0x741995, 0x742379, 0x742f63/0x742f72/0x742f82, 0x743d12,
+    0x74484b, 0x74489c, 0x92fce4, 0x92fd79, 0x978ae0, 0x978b60,
+    0x978b6e); `push $0x290` re-confirmed = assert line 656 decoy
+    (0x43d5e6/0x43d654/0x43d67a, 0x7427fb, 0x95b876/0x95b8e4/
+    0x95b90a, 0x95c2f6/0x95c364/0x95c38a) — do not chase;
+    +0x40 store sites = 0x740469/0x741cb3/0x742412/0x7471f3/
+    0x747925/0x747ab5, all copies/assigns ⇒ **the parse-time store
+    that writes the parsed wang_color u32 into a record +0x40 is
+    NOT among them** (parse region ~0x736c00 has the attr read
+    @0x736c56/0x736caf/0x736cd6 but the value's journey to +0x40 =
+    OPEN).
+  - **OPEN (dig #90+):** ① writer of `[0x134632c+0x18]` (delegate
+    object identity; ctor 0x65F480 zero-inits it); ② [factory+0x2c]
+    writer/identity (orphan trap: 0x11a0008/0x11a0030 = 0 refs —
+    never cite); ③ the wang_color parse store (fn ~0x736c00 →
+    record+0x40) = the color origin for the ladder; ④ record
+    allocation site (vector growth; imul census candidates 0x92fce4/
+    0x92fd79/0x978ae0..unexamined); ⑤ 0x7415e0 miss tail; ⑥ the
+    +0xe0/+0xfc smoke-default asymmetry consumer; ⑦ LoadFromImageData
+    pre-loop inits + post-loop counter branches @0x8fa489/0x8fa6e9
+    and the 0xFE top-byte + u32 channel-order semantics. Phase-2
+    step 2 parallel track: **unpack `data/data.wak` → read the
+    literal `data/materials.xml`** (record order = type order,
+    wang_color = +0x40) — official unpacker
+    `tools_modding/data_wak_unpack.bat`; spot-verify vs the exe.
+  - Status: docs only (no port changes; `lib/` resolver semantics
+    untouched). Landed: CONSTANTS **C68**, this entry **(89)**,
+    VERIFIED §12 dig-89 bullet, Current_work Phase-2 tag + Status
+    refresh. ISSUES: none filed (I20 remains next free). Tests
+    **177/177**; y224 byte bar **0/12 rms 0.0000**.

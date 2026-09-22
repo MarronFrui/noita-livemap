@@ -688,6 +688,39 @@ binary side unread) · ❌ unexplored.
   +0xb4). Next: delegate-writer + 0x290-record content (fn 0x741AC0
   family) → then the 132-B walk. No code changes; tests 177/177;
   y224 0/12 rms 0.0000.
+- **The 0x290 record class = CellFactory/CellData = the
+  `data/materials.xml` rows (dig #89):** record stride 0x290, color
+  @+0x40, `material_type` @+0x30; factory layout = names {+0x8,
+  +0xc} 24-B wstrings + name→type std::map {head +0x14, size +0x18,
+  node second @node+0x28} + records {begin +0x1c, end +0x20, cap
+  +0x24} + **mCellDataSize +0x28** + fast-color +0x2c (OPEN) +
+  one-shot +0xb8. **mCellDataSize's writer = the high-water store
+  `max(size, resolved+1)` @0x742d1f..0x742d25 (fn 0x742b30)** —
+  NOT `mov %edi,0x28(%esi)` @0x745051, which fills the name→type
+  **map node's pair.second := index** (fn 0x7449e0 counter loop;
+  draft reading corrected in (89)). Accessors: GetType **0x741770**
+  (0-based type, −1 miss), name→record **0x741890** (pointer, 0
+  miss), linear resolver **0x7415e0** (stdcall, returns the index),
+  GetCellData **0x4b80e0** (asserts type ≥ 0 / signed type <
+  [this+0x28]; **type 0 → NULL @0x4b827c** ⇒ type 0 unreachable via
+  GetCellData(0)=0x4b82a0 wrapper — the record-0 = air-candidate
+  rung now has a second byte anchor beside the sampler skip), else
+  base+type·0x290. Record assign **0x741d20** = the field map (+
+  0x40 wang_color @0x741d68; +0x88 omitted/rebuilt, +0x28c
+  raw-copied). Link pass **0x7455b0** resolves wstring fields →
+  type dwords with defaults `fire` (→+0xe0) / `smoke`; the
+  smoke-default store @0x74588a targets **+0xe0, not +0xfc** —
+  byte-verified asymmetry, semantics OPEN (reported as fact, not a
+  defect); grey-color check @0x74597a. Literal materials.xml still
+  unread (packed in `data/data.wak` — Phase-2 step 2: unpack →
+  record order = type order, wang_color = +0x40, spot-verify vs
+  exe). Traps: orphan literals **0x11a0008/0x11a0030 = 0 refs
+  file-wide (never cite)**; `push $0x290` = assert line 656.
+  OPEN → dig #90+: wang_color parse store → +0x40 (color origin),
+  [factory+0x2c], delegate writer `[0x134632c+0x18]`, record
+  allocation, LoadFromImageData pre/post-loop counters + 0xFE
+  semantics (ABOUT_MATH (89); CONSTANTS C68). No code changes;
+  tests 177/177; y224 0/12 rms 0.0000.
 - Cache policy: `out/gen-cache/r3i` holds ONLY wang-area bins
   (seed+area-keyed); the cave-field/opt-in lanes live in non-cached
   in-memory buffers, so no bump was required for the revert; bump
