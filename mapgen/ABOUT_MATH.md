@@ -5965,3 +5965,138 @@ first use from now on):**
     VERIFIED §12 dig-89 bullet, Current_work Phase-2 tag + Status
     refresh. ISSUES: none filed (I20 remains next free). Tests
     **177/177**; y224 byte bar **0/12 rms 0.0000**.
+- **2026-09-22 (90) — Phase 2 (dig #90): the wang_color color origin
+  CLOSED — the parse store is `mov %eax,0x40(%esi)` @0x736d37 in
+  record-parser fn 0x7364f0; the shared color converter pair
+  0x454d90 (string→u32, R/B byte swap) / 0x454e80 (u32→string,
+  inverse) read; the absent-attr default arm = a round-trip of the
+  record's current +0x40; sibling store +0x48 = gfx_glow_color;
+  sentinel 0xFFEEFFC0 = swap⁻¹(0xFFC0FFEE).**
+  - Method/scope: C57's PE-native objdump (true VAs, prologue/int3
+    boundaries), exe re-verified on disk THIS session:
+    `/mnt/e/Programmes/Steam/steamapps/common/Noita/noita_dev.exe`,
+    17,007,104 B, md5 `8b611494212a69492dd0a4527d9c92e0`. Fresh
+    windows this dig: parse fn **0x7364f0..0x736d80** (prologue
+    found = nearest `push %ebp` below 0x736c00 = 0x7364f0, prologue
+    byte-verified: unwind push `$0x1079c8b`, `sub $0x1c0`, GS cookie
+    0x12eb000); converter **0x454d90..0x454f20** (incl. full body
+    + ret @0x454e7b) and **0x454e80..0x454fd0** (incl. return path
+    `mov %edi,%eax` @0x454f66 + ret @0x454f78); caller1 head
+    **0x9eb020..0x9eb090** + call context **0x9eb150..0x9eb1d0**;
+    caller2 **0xa70d20..0xa70d90**; flag cb **0x428e30..0x428ea0**;
+    type-1 wrapper **0x42bc50..0x42bcb0** (partial); string literals
+    read by dd at file = VA − 0x400E00: 0x119f068 = `gfx_glow_color`,
+    0x119f078 = `wang_color`, 0x114b900 = dword `0a 00 00 00` +
+    `vector<T> too long` (hexdump). Call-site censuses from the
+    cached full-.text sweep /tmp/opencode/fulltext86.asm (this
+    session). Before the hunt: VERIFIED §8 rows 18–25 + C64–C68
+    re-read; phantoms honored (no `call 0x8ed180`, no `movl
+    $0x132b518,0x38(%esi)`, no "wang-fill @0x8ee5bd", no `push
+    $0x290` = assert 656); orphan literals 0x11a0008/0x11a0030 not
+    cited. Register at start: entry (90), C69, I20.
+  - **① THE ORIGIN STORE — closed:** fn **0x7364f0** (prologue-
+    anchored): esi = this (`mov %ecx,%esi` @0x73651e, spilled
+    [ebp−0x114] @0x736520), arg1 = [ebp+8] → edi @0x736526 = the
+    node. Node-type dispatch `mov 0x20(%edi),%eax; cmp $0x1` @
+    0x736c3f..45: type-1 arm fetches attr `wang_color` (literal
+    push @0x736c56) through temp [ebp−0x38] pre-seeded from the
+    accumulator by 0x42bc50 + generic getter **0x42c070** (600+
+    sites — a shared XML attr accessor across the whole parse
+    family; its wrapper mechanics unread); type-0 arm (literal
+    pushes @0x736caf/0x736cd6): has-attr **0x100a6f0** → get
+    **0x100a960** → convert **0x4430b0** → **accumulator assign
+    0x43a5a0 @0x736d0d**. Both arms converge @0x736d2c: `lea
+    −0xa4(%ebp),%ecx; call 0x454d90` → eax = parsed u32 → **`mov
+    %eax,0x40(%esi)` @0x736d37 = record+0x40 = wang_color — THE
+    origin** (disp8 encoding `89 46 40`, in the parse region —
+    which (89) had already flagged as "the value's journey to +0x40
+    = OPEN"; it sits outside (89)'s six store sites, all ≥
+    0x740469). The store EXECUTES BEFORE the sentinel check: `cmp
+    $0xffeeffc0,%eax; jne 0x736d68` @0x736d3a; the sentinel arm
+    (0x9ea780 → 0x65cfe0(obj, record) → 0x4429a0(obj, literal
+    0x114b900 = `"vector<T> too long"` after a `0a 00 00 00` dword))
+    falls through to the esi restore @0x736d62 and rejoins @0x736d68
+    — **the +0x40 value is never undone**, and node processing
+    continues. esi = the CellData record is structurally consistent
+    with C68's field map ({+0x40 wang_color, +0x48 dword} both
+    land); the caller-chain proving esi = &mCellData[i] (vs a
+    staging copy later moved by 0x740410) = OPEN, tied to ④
+    (allocation).
+  - **①b sibling — record+0x48 = gfx_glow_color:** attr
+    `gfx_glow_color` 0x119f068 fetched @0x736b85..0x736bf3 →
+    converge-pair @0x736c0c (`call 0x454d90` @0x736c12) → **`mov
+    %eax,0x48(%esi)` @0x736c1d** — C68's assign-map dword +0x48 ✓.
+    New store-census entries: +0x40 store += 0x736d37, +0x48 store
+    += 0x736c1d, +0x40 LOAD = 0x736c17.
+  - **①c the absent-attr default arm = round-trip:** immediately
+    after the glow store, `mov 0x40(%esi),%edx` @0x736c17 loads the
+    record's CURRENT +0x40 as the register arg of **0x454e80** @
+    0x736c20 (out = [ebp−0x2c], u32 = edx; confirmed __fastcall-
+    style: `mov %ecx,%edi; mov %edx,%esi` at its entry) → returns
+    the out-string pointer (`mov %edi,%eax` @0x454f66) → acc-assign
+    `push %eax; lea −0xa4(%ebp),%ecx; call 0x43a5a0` @0x736c26..2c.
+    ⇒ when the `wang_color` attr is absent, the accumulator holds
+    the string form of the record's existing +0x40 and the converge
+    re-parses it — i.e. **+0x40 round-trips unchanged**. Lossless-
+    ness is INFERRED from the verified inverse swizzle pair (below);
+    the number-format's full-u32 fidelity (top byte) is UNVERIFIED
+    — OPEN.
+  - **①d the converter pair (the color codec):**
+    **0x454d90 = string→u32** — stream ctor **0x927f00** with the
+    accumulator pointer pushed as its string arg @0x454dbc, IAT
+    chain **\*0x114a2a4** / **\*0x114a298** with flag-callback
+    **0x428e30** (body read: `and $0xfffff9ff; or $0x800` into
+    [arg+0x14] — a fmt-flag setter, exact meaning unread) → result
+    dword @ [ebp−0x10] → **byte swap 0↔2** (bytes 1,3 pass through:
+    `movzbl %cl; shl $0x10` | `shr $0x10; and $0xff` | `and
+    $0xff00ff00`, or'd) @0x454df1..0x454e06 → return eax @0x454e6a;
+    **12 call sites** (0x64c9d2, 0x736c12, 0x736d32, 0x73cd3e,
+    0x73de5b, 0x7ebca9, 0x818b0a, 0x889aaa, 0x8eb913, 0x8ebcd8,
+    0x8f4676, 0x903e48) = **the exe's shared color-string→u32
+    helper** (materials + biome/pixel-scene lanes both use it).
+    **0x454e80 = u32→string, the exact inverse**: args ecx=out,
+    edx=u32 (entry `mov %ecx,%edi; mov %edx,%esi` @0x454ea9/ac),
+    mirrored byte swap @0x454eae..0x454ed5, formats via
+    \*0x114a1e8/\*0x114a174 + 0x429a40, returns the out pointer;
+    **10 call sites** (0x736b08, 0x736c20, 0x73cbc7, 0x73dd8a,
+    0x7eb0a1, 0x889a20, 0x8eb781, 0x8eb94a, 0x903ccb, 0x906dc7).
+    ⇒ **XML color literals are stored byte-swapped relative to the
+    u32 record field** (R↔B): field = swizzle(parsed-literal), the
+    swap is an involution.
+  - **①e sentinel:** 0xFFEEFFC0 = swizzle⁻¹(0xFFC0FFEE) by the exact
+    byte math (involution) — the **C0FFEE-family marker** (cf. C22's
+    walker colors); a wang_color literal parsing to 0xFFC0FFEE lands
+    as 0xFFEEFFC0 and takes the error arm — but the arm's semantics
+    (0x9ea780/0x65cfe0/0x4429a0 + the `"vector<T> too long"`
+    literal; possibly a length-error throw caught by the fn's EHa
+    try) = OPEN, and which/if any materials.xml row triggers it =
+    OPEN (step-2b's literal file will answer).
+  - **①f callers of the parse fn (new cross-links):** exactly 2 e8
+    sites — **0x9eb1aa** inside fn **0x9eb020** and **0xa70d74**
+    inside a second wrapper (synthetic node type-1, pre-call
+    0x100ab30, returns esi). fn 0x9eb020's own callers: 0x745999
+    (**the (89) grey-error call site ✓ — its C68 "error log" label
+    re-confirmed**), 0x8c6955, 0xab74f4, 0xabc412, 0xbd95fa. Its
+    body builds a synthetic node (type field [−0x20]=0, guard
+    `test %ecx,%ecx; je 0x9eb1c1` @0x9eb168) and CALLS THE RECORD
+    PARSER — **the reconciliation of "error-log call target" with
+    "record-parser caller" = NEW OPEN** (does not disturb (89)'s
+    label; both byte-facts stand).
+  - **Still OPEN (dig #91+, unchanged except ①):** ② [factory+0x2c]
+    writer/identity (orphan trap: 0x11a0008/0x11a0030 = 0 refs,
+    never cite); ③ `[0x134632c+0x18]` delegate-writer; ④ record
+    allocation site (imul-$0x290 census candidates 0x92fce4/
+    0x92fd79/0x978ae0/0x978b60/0x978b6e unexamined; also proves
+    esi=&mCellData[i] vs staging copy); ⑤ LoadFromImageData pre-
+    loop inits + post-loop counter branches @0x8fa489/0x8fa6e9 +
+    0xFE top-byte + u32 channel-order semantics; ⑥ the +0xe0/+0xfc
+    smoke-default consumer (0x74588a); ⑦ 0x7415e0 miss tail; plus
+    the new 0x9eb020-role and sentinel-arm questions. Phase-2 step
+    2b (parallel): unpack `data/data.wak` → literal
+    `data/materials.xml` (record order = type order, wang_color =
+    +0x40, now with the byte-swap rule from ①d to apply/spot-check).
+  - Status: docs only (no port changes; `lib/` resolver semantics
+    untouched). Landed: CONSTANTS **C69**, this entry **(90)**,
+    VERIFIED §12 dig-90 bullet, Current_work Phase-2 tag + Status
+    refresh. ISSUES: none filed (I20 remains next free). Tests
+    **177/177**; y224 byte bar **0/12 rms 0.0000**.

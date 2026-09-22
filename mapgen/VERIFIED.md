@@ -721,6 +721,30 @@ binary side unread) · ❌ unexplored.
   allocation, LoadFromImageData pre/post-loop counters + 0xFE
   semantics (ABOUT_MATH (89); CONSTANTS C68). No code changes;
   tests 177/177; y224 0/12 rms 0.0000.
+- **UPDATE — dig #90 (2026-09-22): the wang_color color origin is
+  byte-CLOSED** (ABOUT_MATH (90); CONSTANTS C69). The parse store =
+  **`mov %eax,0x40(%esi)` @0x736d37** in record-parser fn
+  **0x7364f0** (esi = this = the record, offset profile = C68's
+  field map; arg1 = the node): the `wang_color` attr (both node-
+  type arms, accumulator [ebp−0xa4]) is converted by **0x454d90 =
+  string→u32 with an R↔B byte swap (bytes 0↔2, an involution)** —
+  the exe's shared color codec (12 call sites), inverse **0x454e80**
+  = u32→string (10 sites) — then stored **before** the sentinel
+  check (`cmp $0xffeeffc0` = swap⁻¹(0xFFC0FFEE), C0FFEE-family;
+  error arm 0x9ea780/0x65cfe0/0x4429a0 + `"vector<T> too long"`
+  @0x114b900; store never undone — arm semantics OPEN). Absent
+  attr ⇒ default arm @0x736c17..0x736c2c round-trips the record's
+  current +0x40 through the inverse pair (top-byte format fidelity
+  UNVERIFIED). Sibling: `gfx_glow_color` (0x119f068) → **+0x48**
+  @0x736c1d. Parse-fn callers: 0x9eb1aa (fn 0x9eb020 = (89)'s
+  grey-error target ✓ — its parser-calling role = NEW OPEN) +
+  0xa70d74. Remaining Phase-2 opens (dig #91+): [factory+0x2c],
+  `[0x134632c+0x18]` delegate writer, record allocation (imul
+  census + esi provenance), LoadFromImageData pre/post-loop + 0xFE
+  semantics, +0xe0/+0xfc consumer, then step 2b (unpack
+  `data/materials.xml` — now with the byte-swap rule to spot-check)
+  → 132-B walk → ladder table. No code changes; tests 177/177;
+  y224 0/12 rms 0.0000.
 - Cache policy: `out/gen-cache/r3i` holds ONLY wang-area bins
   (seed+area-keyed); the cave-field/opt-in lanes live in non-cached
   in-memory buffers, so no bump was required for the revert; bump
