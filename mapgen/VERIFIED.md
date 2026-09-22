@@ -167,6 +167,9 @@ of these mechanisms, cite the row instead of re-running it.
 | 15 | FUN_00fec850 as the fill | it is the OpenGL world renderer (indirect calls = GL function pointers) | 🔬 ledger "Correction 2026-09-05" |
 | 16 | FUN_00794620 as the fill | world-grid scatter utility (falling-sand cell indexing + per-object LCG picks) | 🔬 ledger queue item 1 |
 | 17 | Lab-keyed eliminations transferring to regular-area fills | the lab biome is runtime-injected and fills via a non-Init path (sub-seed at orbit distance 1.6e9 from ws); the Init chain is runtime-confirmed for regular areas (§5) — lab-keyed negatives (row 5) do not transfer | ✅ 2026-09-08 |
+| 18 | C51's CaveStructure record shape: "28-byte member, count pair [+0x28]/[+0x30], list-scan magic 0x88888889 = ÷12 ({x, y, B, B−1} family)" | OVERTURNED dig #81: the record dispatcher (true VA 0x4ABD60, nine keyed stores) closes at +0x3c = a **60-byte** member (4-B header + 24-B image_file SSO + 8×4 fields); count pair reads at **+0x1c/+0x20** (fnB `mov 0x20/0x1c(%eax)` @4f09cf..4f09d5); the ÷60 form (imul 0x88888889, sar $5) script-verified 60→1, 600→10, 3584→59 | ✅ ABOUT_MATH §6 (81) |
+| 19 | "[config+0x98] = the second do_beginning gate byte" / "per-record flags [obj+0x30]/[obj+0x98]" | OVERTURNED dig #81: those are CONFIG offsets — [config+0x30] = do_beginning_paths (the real gate, `cmpb` @4f0f3c → je 0x4f271e), [config+0x98] = the mLuaScript string SIZE (string base +0x88; `cmpl $0x0,0x98(%edi)` @4f100f pairs with assert `caves.mLuaScript.empty() == false` @0x11731a4 = script presence, not a gate) | ✅ ABOUT_MATH §6 (81) |
+| 20 | C46 scatter engine true VA = 0x8EF2D0 | OVERTURNED dig #81 (re-pinned from exe): true = **0x8EEAD0** (file 0x4EDED0) — the old label is +0x800 off and lands mid-instruction in fn A's L1 lane; the corrected window is the full 416-B function (the comiss-0.5 gate @0x8eec4e..59, `call 0x8fafc0` @0x8eec65, `ret` @0x8eec6f) ending 1 byte before fn A's prologue @0x8EEC70 (C44's fn A VA ✓); fnb calls `call 0x4ee2d0` @4f1d5d/4f26fb | ✅ ABOUT_MATH §6 (81) |
 
 ## 9. Open frontier (ranked)
 
@@ -493,13 +496,15 @@ binary side unread) · ❌ unexplored.
 - **The caves-field lane (`lib/caves-field.mjs`) — status update
   2026-09-21 (CONSTANTS.md C51):** the WRITER census is now byte-closed —
   the band stacks (L1/L2/L3 = `0x8EE750`) are **max-bleed raise-only**
-  (`push $0` single-point lane); the scatter (`0x8EF2D0`) = the `< 0.5`
+  (`push $0` single-point lane); the scatter (`0x8EEAD0`, VA re-pinned
+  dig #81) = the `< 0.5`
   empty-cell gate only; **the only lowering-capable writer = the
   smoothstep LERP stamp `0x8EE930`** (`v_out = (v_src−v_dst)·t + v_dst`
   per cell) and the **C32 LoadFromImageData ±1.0 family**; the
   **CaveStructure record lane (the fnB load phase) stamps the BYTE
   grid** (`0x8EF950`, the [P+0x58] byte lane) with its own per-record
-  count pair [+0x28]/[+0x30] + strength pair [+0x34]/[+0x38] = the
+  count pair [+0x1c]/[+0x20] (dig #81 correction; +0x28/+0x30 = the
+  AABB lane) + strength pair [+0x34]/[+0x38] = the
   XML's per-record strength_min/max (byte-verified vs hills.xml's 10
   records) and the NEGATIVE-grade NextU-scale roll (`mulsd 0x11e0578`).
   BYTE-EXACT in the port: fn C1's 1.0 base + the ×5·w toucher, the C27
@@ -543,9 +548,33 @@ binary side unread) · ❌ unexplored.
   remaining divergence = the per-phase draw COUNTS + the record
   IMAGE-lane stamps (the bump/y16-plateau shapes = CaveStructure image
   content — the C48 identify target resolved to the image blend) + the
-  fnA y-drift span (queue #2). One doc-arithmetic OPEN item: C46's
-  scatter pair "0x8EF2D0/0x4ee2d0" violates the C13 map by exactly
-  0x800 — re-pin from the exe before the next scatter read.**
+  fnA y-drift span (queue #2). The former doc-arithmetic OPEN item
+  (C46's scatter pair violating the C13 map by 0x800) is RESOLVED dig
+  #81: true = 0x8EEAD0 (§8 row 20).**
+  **UPDATE (dig 81, 2026-09-22): queue #1 CLOSED — both BitmapCaves
+  dispatchers are now byte-read from the exe.** The config dispatcher
+  (true VA 0x4B1410, class "CavesSetup") yields the full slot map
+  (CONSTANTS C52): dims = size_x/size_y **+0x1c/+0x20** (the old
+  "+0x00/+0x04 = dims" census overturned), the two bool gates
+  do_beginning_paths/down = **+0x30/+0x31** (consumed at @4f0f3c /
+  @4f1da1), the eight knob pairs (cave_count +0x28/+0x2c ·
+  surface_caves +0x34/+0x38 · cave_strength +0x3c/+0x40 · cave_childs
+  +0x44/+0x48 · surface_cave_childs +0x4c/+0x50 · mountain_count
+  +0x54/+0x58 · mountain_size +0x5c/+0x60 · blob_count +0x64/+0x68 ·
+  blob_strength +0x6c/+0x70 · blob_radius +0x74/+0x78), the
+  structures vector +0x7c..+0x88, mLuaScript +0x88..+0xa0 (size @+0x98
+  — NOT a gate, §8 row 19), DEBUG_output_image +0xa0. The record
+  dispatcher (0x4ABD60, "CaveStructure") closes the record at 60 B
+  with the count pair +0x1c/+0x20 and the strength pair +0x34/+0x38
+  (§8 row 18). **The loop→knob map is byte-shown (CONSTANTS C53):**
+  loop A = cave_count (@4ef701/4ef704), loop B = **mountain_count**
+  (@4eff36/4eff39), loop C = blob_caves_count (@4f05a0/4f05a9) — so
+  the port's phase-1 = the MOUNTAIN lane (the flagged guess replaced;
+  `blobPhase1` now rolls mountainCountMin/Max, pinned by a disjoint-
+  span regression test). L2/L3 counts = literal 120+⌊81u⌋ × 2 L2
+  passes (READ, not yet ported); loop-B's inner structure stays
+  BLOCKED on the xmm4 base provenance (@4f00e5). Tests 177/177; the
+  y224 byte bar re-run = 0/12, rms 0.0000 BYTE-EXACT.**
 - Cache policy: `out/gen-cache/r3i` holds ONLY wang-area bins
   (seed+area-keyed); the cave-field/opt-in lanes live in non-cached
   in-memory buffers, so no bump was required for the revert; bump

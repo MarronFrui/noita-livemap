@@ -66,7 +66,7 @@
 | C43 | gradient-grid setter stacks (W5 core) | 0x4edf50 = float-grid setter; 3 layer-callers with fraction-bands (0.32·d+0.35 / 0.35·d+0.65); mGradient* = likely these stacks' params. **CE-VERIFIED 2026-09-20 (35): [uid+0x224] = 5 = noiseType-int (the dispatcher case = the 0x8fc020 crest — W2 CLOSED empirically); [uid+0x220] = addNoise {3, 0}; [uid+0x230/0238] = f64 ScaleX/Y (0.9999-hills ✓); [uid+0x244/248] = 0.057143 / 2.0 ✓; [uid+0x264] = mMultiplierGradient (0.871429-hills ✓); [uid+0x268] = mMultiplierPerlin (1.0-hills / 0.642857-winter ✓ — CORRECTION of the (23)-map: the pair swapped); [uid+0x1d4] = the BitmapNoise ptr — the hills-class = w260✓h260 = a real 67600-float grid (row [1,1,1…0.7961…1]); the winter-class pointer = a 1×1-unbound placeholder; one candidate = a 3584×2457-cnt-8.8M = the WORLD-state-grid (C31-family!)** |
 | C44 | BitmapCaves band-stack family (P5) | fn A true 0x8EEC70 (L1) · fn B true 0x8F5DD0 (L2+L3) · factory fn C1 true 0x8F2FF0 (dims = BitmapCaves size_x/y = w[+0x1c]/h[+0x20]; cache map @0x132aae8 keyed by name); band consts 0.32@0x11dfa00 / 0.35@0x11dfa20 / 0.65@0x11dfb14 (all pinned 2026-09-21); [-0x128]=d·3.0+1.0, [-0x108]=d·0.1+0.1. **NO C37 config slot read by the family ⇒ "mGradient* = band-stack params" ELIMINATED** (see the C44 registry row) |
 | C45 | FNV24 hash + lattice + corner table | hash true 0x8FB2D0 (FNV-1a over 24B {x_d64\|y_d64\|1234567.0-sentinel @0x11e0180}, idx = ((h>>8)&0xff)^(h&0xff)); the 256-f64 corner table .data 0x12eb950 (data_raw off 0x950; the C41 "12-dir pairs" = only the first 12, SUPERSEDED); lattice true 0x8fc940 = smoothstep 4-corner bilinear (rows in x by wx, out = wy·(rowT−rowB)+rowB; corner order pinned). C41's "0xc31cea walk" = the /GS cookie check (retired). fbm = CONSTANT quad {sin1,cos1,cos1,−sin1} @0x11e0c70 + **lac 2.01 @0x11dfe78** (new pin); case-4 args 7123.1234 @0x11e00d8 / 1020304.1234 @0x11e0170 |
-| C46 | BitmapCaves stamp-carve family (W5 field build) | fn A true 0x8EEC70 (CaveStructure stamp walker, recursion = cave_childs) · blob setter true 0x8EE750 (max-bleed + circle falloff) · scatter engine 0x8EF2D0 · blend twins 0x8EF870/0x8EF950 · roll/envelope consts 0.35/0.25/0.32/0.35 @0x11dfa1c/d0/a00/a1c, envelope 0.2/0.3/0.4/0.6/0.7/0.33; READ, not ported (sub-reads named) |
+| C46 | BitmapCaves stamp-carve family (W5 field build) | fn A true 0x8EEC70 (CaveStructure stamp walker, recursion = cave_childs) · blob setter true 0x8EE750 (max-bleed + circle falloff) · scatter engine 0x8EEAD0 (dig #81 re-pin from exe; the old 0x8EF2D0 was +0x800 off) · blend twins 0x8EF870/0x8EF950 · roll/envelope consts 0.35/0.25/0.32/0.35 @0x11dfa1c/d0/a00/a1c, envelope 0.2/0.3/0.4/0.6/0.7/0.33; READ, not ported (sub-reads named) |
 
 | C47 | C24 runtime decode (CE v4) | [0x1327670] = **17920.0**, [0x13289a8] = **7168.0** = the canvas/world offset pair (NOT a fill window; the "159/223 = engine defaults" reading dies); slopeFlag [+0x24c] = 0 all 42 uids (slope arm dead in live data); BitmapCaves std::map count = 4; A-resolver [P+0xb0] = NIL (P = the caves-grid object does NOT carry it; target corrected to BitmapNoise instances); live 512x256 bitmap_hills grid values recorded (byte-level I1 validation anchor; y=0 rows exceed 1.0 per the (y/25)^8 eave) |
 | C48 | caves-grid [P+0x94] signature + byte oracle | [P+0x94] = (w·0.5)/0.1 on cave grids (512→2560.0, 1×1→5.0 = the fn C1 ×5 toucher, byte-cross-verified); the world-state grid keeps the RAW C27 draw (−56909.828125, no ×5); both 512×256 cached grids byte-identical ⇒ the caves field = deterministic (diddled ws, name, XML params); the y=0 bump (peak 1.454@x≈19) = a stamp ADD-BLEND over the 1.0 base (writer = 0x8EF870 twin / bake, named target); oracle artifact `mapgen/out/oracle/caves-grid-2026-09-21.json` |
@@ -74,7 +74,9 @@
 | C49 | pinpoint pickup v5.2 results | [P+0x8c] = the RAW worldseed runtime-pinned both seeds (C27 confirmed in-memory); hills-class knobs [+0x34]=0.546875 / [+0x74]=1.549988 (seed-independent, hills.xml 1.55-family); [+0x2c/0x30/0x38] = pointer slots; [+0x58] deref = a REAL per-grid byte allocation (first64 all-zero); the 0x132aae8 RBTree layout cracked (L/P/R/color_isnil/key-SSO/size/cap, VALUE@0x28 = the cave-grid ptr; keys = the CaveStructure FILE PATTERNS incl. "eye_0$[1-4]"); the V4d A-resolver hunt RESOLVED: [P+0xb0] = 0x008EE1B0 on the 0-dim uids (a real fn entry, objdump next); [P+0x94] draw ADVANCES per build instance; the 1x1 struct P = 0132B518 STATIC |## Registry
 
 | C50 | the +0x34/+0x74 knob pair (dig #29) | [P+0x74]/[P+0x78] = the blob-strength (min,max) pair consumed by fnB (slab 0x4f0931..0x4f0958: v = A + d·(B−A) → the 0x4ee130 blob-setter v_arg; decl-loop = the blob-count phase); CE:(+0x74,+0x78)=(1.549988,0.0) hills-class / (0,0) on the second 512x256 class — the C48 bump peak lives INSIDE the span ✓; [+0x34] = a DIFFERENT struct (the CaveStructure PATTERN record window +0x24/0x2c/0x34/0x38, the f32-read vs int-read sites differ, NOT a contradiction); the knob WRITER = not in the fnB/fnA/ctor family — the named hunt = fn C2 body + the XML-parse family (0x496a2e..0x4a97ed) |
-| C51 | CaveStructure record walk (fnB load phase) | fnB's "loader pair" 0x533860/0x5bff80/0x5bffb0 = a 28-byte × 128 ARENA allocator (`push $0xe00` + engine alloc, edx = 128 slots; 0x651a60 init; vector grow at 0x5bff80/0x5bffb0). Per CaveStructure record (28-byte member): COUNT pair read at [+0x28]/[+0x30]; **STRENGTH pair read at [+0x34]/[+0x38] (f32) = the XML's per-record strength_min/max** (byte-verified vs hills.xml's 10 records: cave_$ 0.55..2.15, mountain_rock/skull 1.45..1.55, eye 1.45..1.55, pit 0..0.65; the C49 knobs 0.546875/1.549988 = values of these slots per record, C50's "DIFFERENT struct" note resolved to this struct); **the roll = `value = max − trunc(|draw|·(max−min+1))` via `mulsd 0x11e0578` = the NEGATIVE NextU scale (−4.656612875e-10)** — the first pinned NEGATIVE-scale roll; **the write = `call 0x4ef150` = true 0x8EF950 = the BYTE-GRID blend twin** ([P+0x58] byte lane; the C49 "+0x58 first-64 all-zero" = unwritten rows ✓); the per-iteration loop `decl −0x120(%ebp)` + `jne 0x4f0a95`; the record cursor +0x3c @0x4f0f03; the list-scan via {begin,end} × magic 0x88888889 (÷12-byte records with the {x, y, B, B−1} family — C46's +0x80 vector). **true 0x8EE930 (slab 0x4ee130..0x4ee2c8) = the smoothstep LERP stamp — the ONLY lowering-capable writer in the fnA/fnB census** (`v_out = (v_src−v_dst)·t + v_dst` per cell @0x4ee294..0x4ee2a3); all the blob-setter lanes push $0 = max-bleed raise-only; scatter 0x8EF2D0 = `<0.5` empty-cell gate only ⇒ **the float-grid CARVE = the 0x8EE930 LERP + the C32 LoadFromImageData ±1.0 pass; the CaveStructure record lane writes the BYTE grid.** |
+| C51 | CaveStructure record walk (fnB load phase) | RECORD-ARENA allocator pair 0x533860/0x5bff80/0x5bffb0 (engine alloc `call *0x114a34c`; slot init edx = 0x80 via 0x651a60; vector grow at 0x5bff80/0x5bffb0; NOT image loaders — dig #27 label). **dig #81 corrections: the record = 60 B, not 28** (4-B header + 24-B image_file SSO string + 8×4 fields; the dispatcher = true VA 0x4ABD60, class "CaveStructure" 0x117bf0c, nine keyed stores closing at +0x3c); **COUNT pair = [+0x1c]/[+0x20]**, not +0x28/+0x30 (dispatcher `mov %eax,0x1c(%esi)` @4abe0e + fnB read @4f09cf..4f09d5); `push $0xe00` (3584 B) label **RE-FLAGGED** (3584 is not a multiple of 60: ÷60 → 59); **STRENGTH pair read at [+0x34]/[+0x38] (f32) = the XML's per-record strength_min/max** (byte-verified vs hills.xml's 10 records: cave_$ 0.55..2.15, mountain_rock/skull 1.45..1.55, eye 1.45..1.55, pit 0..0.65; the C49 knobs 0.546875/1.549988 = values of these slots per record, C50's "DIFFERENT struct" note resolved to this struct); **the roll = `value = max − trunc(|draw|·(max−min+1))` via `mulsd 0x11e0578` = the NEGATIVE NextU scale (−4.656612875e-10)** — the first pinned NEGATIVE-scale roll; **the write = `call 0x4ef150` = true 0x8EF950 = the BYTE-GRID blend twin** ([P+0x58] byte lane; the C49 "+0x58 first-64 all-zero" = unwritten rows ✓); the per-iteration loop `decl −0x120(%ebp)` + `jne 0x4f0a95`; the record cursor +0x3c @0x4f0f03; the list-scan via {begin,end} × magic 0x88888889 = **÷60-B records** (the ÷12 label OVERTURNED dig #81; script-verified 60→1/600→10/3584→59; the vector = the config's +0x7c/+0x80 `structures` pair). **true 0x8EE930 (slab 0x4ee130..0x4ee2c8) = the smoothstep LERP stamp — the ONLY lowering-capable writer in the fnA/fnB census** (`v_out = (v_src−v_dst)·t + v_dst` per cell @0x4ee294..0x4ee2a3); all the blob-setter lanes push $0 = max-bleed raise-only; scatter 0x8EEAD0 (VA re-pinned dig #81; the old 0x8EF2D0 was +0x800 off) = `<0.5` empty-cell gate only ⇒ **the float-grid CARVE = the 0x8EE930 LERP + the C32 LoadFromImageData ±1.0 pass; the CaveStructure record lane writes the BYTE grid.** |
+| C52 | BitmapCaves "CavesSetup" config slot map (dig #81) | dispatcher true VA 0x4B1410, class "CavesSetup" @0x117c1cc (error push @4b187c; anchors "Config error ( " 0x116b1c4 / " ) - SetValue( " 0x116b1f8 / " ) - couldn't find the member\n" 0x116b220); getters int 0x4448e0, f32 0x444970, bool 0x444850, string 0x445820, presence 0x4447f0; arm rule = key imm +0x16 → store. Slots (byte-read): +0x00 header · name SSO +0x04..+0x1c · **size_x +0x1c / size_y +0x20 (dims — the "+0x00/+0x04 = dims" reading overturned)** · spawn_percent +0x24 · cave_count +0x28/+0x2c · **do_beginning_paths +0x30 / do_beginning_down +0x31 (bools, stores @4b156c/4b158b)** · surface_caves_count +0x34/+0x38 · cave_strength +0x3c/+0x40 · cave_childs +0x44/+0x48 · surface_cave_childs +0x4c/+0x50 · mountain_count +0x54/+0x58 · mountain_size +0x5c/+0x60 (f32) · blob_caves_count +0x64/+0x68 · blob_caves_strength +0x6c/+0x70 · blob_caves_radius +0x74/+0x78 · structures vector +0x7c..+0x88 · mLuaScript string +0x88..+0xa0 (**size @+0x98**) · DEBUG_output_image +0xa0. Consumers: [config+0x30] read @4f0f3c, [config+0x31] @4f1da1, [config+0x98] = mLuaScript.size @4f100f (the "second gate" claim overturned) |
+| C53 | fnB draw-budget formulas (dig #81; NOT yet fully ported) | loop→knob: loop A = cave_count (+0x28/+0x2c, read @4ef701/4ef704), loop B = **mountain_count** (+0x54/+0x58, @4eff36/4eff39), loop C = blob_caves_count (+0x64/+0x68, @4f05a0/4f05a9). L2/L3 counts = literal **120 + ⌊81u⌋** (ecx=0x78; mulsd 81.0 @0x11dffd8 via @4f1518/4f1f09 after the neg-scale @4f1510/4f1f01; stores −0x118 @4f1542/4f1f33; re-rolled per pass; L2 = 2 passes: counter −0x10c, inc @4f1d8b, cmp $0x2 @4f1d92). Gate family = trunc(u × 101.0 @0x11dffe8) < K: 33 @4efc9e, 10 @4efd21, 20 @4efe01/4f02f5, 50 @4efe51/4efe7c/4f04ad/4f12d1, tail 5 @4f1c6b/4f2609, 95 @4f1d2d/4f26cb (mulsd sites @4efc92/4efd15/4efdf5/4efe45/4efe68/4f02e9/4f04a1/4f12c5; movsd loads @4f1c47/4f1cba/4f25e5/4f2658; 11.0 @4f024f). Loop-B X-roll @4f00ad..4f00e9: x = 5 + ⌊(W−9)·u⌋ ∈ [5,507] → −0x134; base = cvttss2si xmm4 @4f00e5 → −0x118 (**xmm4 provenance UNPINNED = the loop-B porting blocker**); mountain_size +0x5c/+0x60 → −0x100/−0x124; inner bound = base + 15 + ⌊11u⌋ (20%/50% gates @4f02f5/4f04ad); setter call 0x4ee130 @4f036d. Scatter calls @4f1d5d/4f26fb (rel e8 → 0x4ee2d0 = true 0x8EEAD0) |
 ### C1 — coalmine start-path mark `0xFF420000`
 - `cmp eax, 0xFF420000` @ true **0x901a4d** (byte-pinned — slab 0x50124d).
   Written as cell value in the coalmine hax overlay; NOT the same thing as
@@ -1004,7 +1006,8 @@
     new > existing; getter/setter 0x5491f0); path (b) the circle
     walk (r0 = trunc(value+0.5), skip dist² > r², flag-gated falloff
     blend — the exact falloff block slab 0x4ee044..0x4ee11c = OPEN).
-  - multi-blob scatter engine true **0x8EF2D0** (slab 0x4ee2d0).
+  - multi-blob scatter engine true **0x8EEAD0** (slab 0x4ee2d0; VA
+    re-pinned dig #81 — fn A's prologue abuts it at 0x8EEC70).
   - blend twins: float-grid `dst += v·(src−dst)` true **0x8EF870**
     (slab 0x4ef070); byte-grid copy true **0x8EF950** (slab 0x4ef150).
 - rdata pins (byte-read from rdata.bin, .rdata rule; trust anchored by
@@ -1028,13 +1031,13 @@
     if flag≠0 ∧ y<25: final = ((y_int−1)/25(f32 @0x11e01e0))⁸·v0 +
     1.0 (a top-row solid eave); write = MAX-BLEED into [+0x18]
     (write iff existing < new).
-  - (b) partial: scatter true 0x8EF2D0 draws 1 poro Next, rolls a
+  - (b) partial: scatter true 0x8EEAD0 draws 1 poro Next, rolls a
     point inside the range (x = trunc(v·−0.5 @0x11e058c) + trunc(−v·0.5)
     lanes), bounds-checks, gates on cell < 0.5 (canon 0.5 @0x11dfa94)
     and recurses into true **0x8FAFC0** (slab 0x4fa7c0) with
     (y-int, x-int, value) — 0x8FAFC0 = the OPEN worm-branch body.
 - Status: READ (structure) — NOT ported (no-guessing mandate; the
-  named sub-reads = falloff block + 0x8EF2D0 + fn B worm/surface
+  named sub-reads = falloff block + 0x8EEAD0 + fn B worm/surface
   machinery). Source: ABOUT_MATH 2026-09-21 (42)/(43). **dig #27
   corrections (46): the "worm-branch" label @0x8FAFC0 RETIRED — it is
   the B-CHANNEL/script-mark recorder (C32's in-binary twin; byte
@@ -1174,13 +1177,22 @@
   (both pastes verbatim).
 
 ### C51 — the CaveStructure RECORD walk (fnB load phase; 2026-09-21 digs 55–61)
-- **fnB's "loader pair" 0x533860 / 0x5bff80 / 0x5bffb0 = a 28-byte × 128
-  RECORD-ARENA allocator** (`push $0xe00` = 3584 B = 128×28; engine alloc
-  `call *0x114a34c`; slot init `edx = 0x80` via 0x651a60; the vector
-  grow/copy pair = 0x5bff80/0x5bffb0). NOT image loaders — the dig #27
-  phase-map label corrected.
-- Per CaveStructure record (the 28-byte member; obj = [−0x110] pattern):
-  - **COUNT pair** read at **[obj+0x28] → [−0x108] / [obj+0x30] → [−0x100]**.
+- **fnB's "loader pair" 0x533860 / 0x5bff80 / 0x5bffb0 = the RECORD-ARENA
+  allocator** (engine alloc `call *0x114a34c`; slot init `edx = 0x80` via
+  0x651a60; the vector grow/copy pair = 0x5bff80/0x5bffb0). NOT image
+  loaders — the dig #27 phase-map label corrected. **`push $0xe00` (3584 B)
+  RE-FLAGGED (dig #81): it is neither 128×28 nor a multiple of 60 (÷60 → 59
+  remainder 44) — do not relabel until re-read.**
+- Per CaveStructure record (**the 60-byte member — dig #81 correction**;
+  4-B header + 24-B image_file SSO string at +0x04 + 8×4 fields, ending
+  exactly at +0x3c; the record dispatcher = true VA 0x4ABD60, class
+  `"CaveStructure"` @0x117bf0c, arm rule = key imm +0x16 → store):
+  - **COUNT pair** read at **[obj+0x1c] → [−0x120] / [obj+0x20] → ecx**
+    (@4f09cf..4f09d5: `mov 0x20(%eax),%ecx; mov 0x1c(%eax),%eax; mov
+    %eax,−0x120(%ebp)`; dispatcher stores `mov %eax,0x1c(%esi)` @4abe0e
+    / `0x20(%esi)` @4abe3c; keys count_min 0x117bf38 / count_max
+    0x117bfa0). The old **+0x28/+0x30 slots OVERTURNED (dig #81)** —
+    +0x28/+0x30 = aabb_min_y/aabb_max_y (this record's AABB lane).
   - **STRENGTH pair** read at **[obj+0x34] / [obj+0x38]** (f32) = the XML's
     **per-record strength_min/max** — byte-verified against hills.xml's 10
     CaveStructure records (cave_$ 0.55..2.15 · mountain_rock/skull 1.45..1.55
@@ -1196,21 +1208,116 @@
     these records' un-written rows ✓). Value compose = C50 inline
     (`subss/mulss/addss` @0x4f0e84..0x4f0eb7 = A + d·(B−A)).
   - Loop: `decl −0x120(%ebp)` + `jne 0x4f0a95`; record cursor `+0x3c`
-    (@0x4f0f03); list-scan via {begin,end} with magic **0x88888889**
-    (the ÷12 = the 12-byte {x, y, B, B−1} record family — C46's +0x80
-    vector); per-record flags [obj+0x30] / [obj+0x98] (@0x4f0f3c —
-    the beginning-paths-family byte).
+    (@4f0f03 = the 60-B stride); record COUNT = the {begin,end} vector
+    walk (`mov 0x80(%eax),%ecx; sub 0x7c(%eax),%ecx` @4f0989/4f098f,
+    `je 0x4f0f36` if empty, `jb 0x4f09b3` @4f0f31) with magic
+    **0x88888889 = the ÷60 form** (@4f0992..4f09a5 + 4f0f0f..4f0f2c;
+    script-verified 60→1, 600→10, 3584→59 — the old ÷12 reading
+    OVERTURNED dig #81); the vector = the config's `structures`
+    member +0x7c..+0x88 (`lea 0x7c(%esi)` @4b17ed). The old
+    "[obj+0x30] / [obj+0x98] per-record flags" reading OVERTURNED
+    (dig #81): those are CONFIG offsets — **[config+0x30] =
+    do_beginning_paths** (bool, `cmpb $0x0,0x30(%edi)` @4f0f3c →
+    je 0x4f271e; store `mov %al,0x30(%esi)` @4b156c) and
+    **[config+0x98] = the mLuaScript string SIZE** (string base +0x88;
+    `cmpl $0x0,0x98(%edi)` @4f100f pairs with the assert
+    `caves.mLuaScript.empty() == false` @0x11731a4 line 975 = a
+    script-presence check, NOT a gate); the second bool
+    `do_beginning_down` ([config+0x31]) is consumed at
+    `cmpb $0x0,0x31(%eax)` @4f1da1.
 - **true 0x8EE930 (slab 0x4ee130..0x4ee2c8) = the smoothstep LERP stamp
   writer** — the ONLY lowering-capable writer in the fnA/fnB census:
   per cell `v_out = (v_src − v_dst)·t + v_dst` (@0x4ee294..0x4ee2a3),
   the falloff t via `divss`-by-radius + the squared weight @0x4ee22a..ff.
   All blob-setter lanes push $0 = max-bleed raise-only; the scatter
-  0x8EF2D0 = the `< 0.5` empty-cell gate only.
+  0x8EEAD0 (dig #81 re-pin) = the `< 0.5` empty-cell gate only.
 - ⇒ **The caves-field carve (AIR) split, byte-resolved:** the float grids
   are lowered by (a) the **0x8EE930 LERP stamps** (fn A's stamp walk) and
   (b) the **C32 LoadFromImageData ±1.0 pass** (float −1.0 = the air
   candidate); the CaveStructure RECORD lane stamps the **BYTE grid**
   (0x8EF950). Corrects the C46 "blob-setter smoothstep twin" gloss.
-- Status: read + pinned (2026-09-21). Sources: ABOUT_MATH 2026-09-21
-  (55)–(61); window `fnb.dis` (3551 lines, /tmp) + `scatter.dis`;
-  hills.xml data cross-check same session.
+- Status: read + pinned (2026-09-21); **corrections dig #81 (2026-09-22):
+  60-B stride, count pair +0x1c/+0x20, ÷60 walk, config +0x30/+0x98
+  semantics, scatter VA 0x8EEAD0.** Sources: ABOUT_MATH 2026-09-21
+  (55)–(61) + 2026-09-22 (81); window `fnb.dis` (3551 lines) +
+  `recparse.dis`/`recdisp2.dis` (dispatcher windows, adjust-vma
+  0x4b1100 / 0x4ABD40); hills.xml data cross-check.
+
+### C52 — the BitmapCaves "CavesSetup" CONFIG slot map (2026-09-22, dig #81)
+- **Dispatcher = true VA 0x4B1410**, class `"CavesSetup"` @0x117c1cc
+  (error push @4b187c; anchors: `"Config error ( "` @0x116b1c4,
+  `" ) - SetValue( "` @0x116b1f8, `" ) - couldn't find the member\n"`
+  @0x116b220). Getters: int 0x4448e0 · f32 0x444970 · bool 0x444850 ·
+  string 0x445820 · presence 0x4447f0. Arm rule = key imm +0x16 →
+  store. Window: `recparse.dis` (adjust-vma 0x4b1100).
+- **Slot map (every store byte-read):**
+
+  | slot | field | key imm (rdata) |
+  | ---- | ----- | --------------- |
+  | +0x00 | 4-B header (vtable presumed — not read) | — |
+  | +0x04..+0x1c | name (SSO string; `add $0x4,%esi` @4b1472) | 0x116a8fc "name" |
+  | +0x1c | **size_x** (dims w) | (getter @4b14c8 → `mov %eax,0x1c(%esi)`) |
+  | +0x20 | **size_y** (dims h) | — |
+  | +0x24 | spawn_percent | — |
+  | +0x28/+0x2c | cave_count (min,max) | 0x117c350 / 0x117c368 |
+  | +0x30/+0x31 | do_beginning_paths / do_beginning_down (bool `mov %al`, @4b156c/@4b158b) | 0x117c390 / 0x117c3b0 |
+  | +0x34/+0x38 | surface_caves_count | 0x117c3dc / 0x117c47c |
+  | +0x3c/+0x40 | cave_strength (f32) | 0x117c4c4 / 0x117c504 |
+  | +0x44/+0x48 | cave_childs (@4b162a/@4b1649) | 0x117c544 |
+  | +0x4c/+0x50 | surface_cave_childs (@4b1668/@4b1687) | 0x117c628 / 0x117c640 |
+  | +0x54/+0x58 | mountain_count (@4b16a6/@4b16c5) | 0x117c658 / 0x117c66c |
+  | +0x5c/+0x60 | mountain_size (f32, @4b16e4/@4b1705) | 0x117c680 / 0x117c694 |
+  | +0x64/+0x68 | blob_caves_count (@4b1726/@4b1745) | 0x117c6a8 / 0x117c6c0 |
+  | +0x6c/+0x70 | blob_caves_strength (@4b1764/@4b1785) | 0x117c6d8 / 0x117c6f0 |
+  | +0x74/+0x78 | blob_caves_radius (@4b17a6/@4b17c7) | 0x117c724 / 0x117c73c |
+  | +0x7c..+0x88 | structures vector (`lea 0x7c(%esi)` @4b17ed → `call 0x92ed80`) | 0x117c754 |
+  | +0x88..+0xa0 | mLuaScript string (`lea 0x88(%esi)` @4b182f); **size @+0x98** | 0x117c760 |
+  | +0xa0 | DEBUG_output_image string (`lea 0xa0(%esi)` @4b1861) | 0x117c76c |
+
+  Layout closes exactly at +0xa0 (8×4 knob slots + the vector + the two
+  strings). **dims = +0x1c/+0x20** — the same pair C44 byte-read on the
+  consumer side (w[+0x1c]/h[+0x20]); the "+0x00/+0x04 = dims" census
+  reading is OVERTURNED (grep: no VERIFIED row carried it).
+- **Gate consumers (fnB):** `[config+0x30]` = do_beginning_paths read
+  `cmpb $0x0,0x30(%edi)` @4f0f3c → je 0x4f271e (the post-record gate);
+  `[config+0x31]` = do_beginning_down `cmpb $0x0,0x31(%eax)` @4f1da1;
+  `[config+0x98]` = **mLuaScript.size** (`cmpl $0x0,0x98(%edi)` @4f100f
+  pairs with assert `caves.mLuaScript.empty() == false` @0x11731a4,
+  line 975) — NOT a second do_beginning gate (the old claim overturned).
+- Status: CLOSED (2026-09-22). Source: ABOUT_MATH 2026-09-22 (81).
+
+### C53 — fnB draw-budget formulas + loop→knob map (2026-09-22, dig #81)
+- **loop→knob (byte-shown):** loop A count = `mov 0x2c(%eax),%esi; mov
+  0x28(%eax),%edi` @4ef701/4ef704 = **cave_count**; loop B count =
+  `mov 0x58(%eax),%esi; mov 0x54(%eax),%edi` @4eff36/4eff39 =
+  **mountain_count** (the linchpin: phase 1 = the MOUNTAIN lane); loop
+  C count = `mov 0x68(%ecx),%eax` @4f05a0 / `mov 0x64(%ecx),%eax`
+  @4f05a9 = **blob_caves_count** (phase 2 ✓). Port: `blobPhase1` now
+  rolls `mountainCountMin/Max` (dig #81 regression test pins it).
+- **L2/L3 literal counts (NOT yet ported):** per pass = **120 + ⌊81·u⌋**
+  (ecx = 0x78; `mulsd 0x11dffd8` = 81.0 @4f1518 (L2) / @4f1f09 (L3)
+  after the negative-scale `mulsd 0x11e0578` @4f1510 / @4f1f01; count
+  stores −0x118 @4f1542 / @4f1f33; re-rolled every pass). **L2 = exactly
+  2 passes**: counter at −0x10c, `inc %eax` @4f1d8b, `cmp $0x2,%eax`
+  @4f1d92.
+- **Gate family** = `trunc(u × 101.0) < K` ⇒ P = K/101 (101.0 @0x11dffe8):
+  33 (`cmp $0x21`) @4efc9e · 10 @4efd21 · 20 @4efe01 + 4f02f5 ·
+  50 @4efe51/4efe7c/4f04ad/4f12d1 · tail 5 @4f1c6b/4f2609 · 95
+  (`cmp $0x5f`) @4f1d2d/4f26cb. mulsd sites: @4efc92/4efd15/4efdf5/
+  4efe45/4efe68/4f02e9/4f04a1/4f12c5; movsd loads @4f1c47/4f1cba/
+  4f25e5/4f2658; 11.0 @4f024f.
+- **Loop-B X-roll window (@4f00ad..4f00e9):** inline Schrage Next
+  (magics 0x834e0b5f/0x1f31d/0xb14/0x41a7 at (%edi)) → span =
+  [−0x128]−9 = W−9, base ecx = 5, `mulsd 0x11e0578`, `cvttsd2si`,
+  `sub` → **x = 5 + ⌊(W−9)·u⌋ ∈ [5,507]** → −0x134 @4f00e9; y-base =
+  `cvttss2si xmm4` @4f00e5 → −0x118 @4f00f3 (**xmm4 provenance
+  UNPINNED — blocks the loop-B inner-loop port**); mountain_size pair
+  `movss 0x5c/0x60` @4f00ff/4f0104 → −0x100/−0x124; inner bound =
+  base + 15 + ⌊11u⌋ (gates 20% @4f02f5 / 50% @4f04ad); setter
+  `call 0x4ee130` @4f036d.
+- Consts re-read from the exe (no chat carries): 0x11dfa94 = 0.5f ·
+  0x11e058c = −0.5f · 0x11dfa00 = 0.32 · 0x11dfa1c = 0.35 ·
+  0x11dff38 = 11.0 · 0x11dffd8 = 81.0 · 0x11dffe8 = 101.0 ·
+  0x11e0578 = −1/2147483647 · 0x11df988 = +1/2147483647.
+- Status: loop→knob CLOSED; L2/L3 budgets READ but NOT ported; loop-B
+  inner structure BLOCKED on xmm4. Source: ABOUT_MATH 2026-09-22 (81).

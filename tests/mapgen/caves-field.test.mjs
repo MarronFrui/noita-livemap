@@ -151,7 +151,7 @@ describe("the roll twins — negative stamp roll (dig #61)", () => {
   });
 });
 
-// ── the scatter engine (true 0x8EF2D0, dig #56) ─────────────────────────────
+// ── the scatter engine (true 0x8EEAD0, dig #56/#81) ──────────────────────────
 describe("scatterEmptyGate — the < 0.5 empty-cell gate + the B-recorder", () => {
   const w = 8, h = 8;
   test("fires ONLY on a carved (< 0.5) cell; marks the byte lane", () => {
@@ -253,6 +253,19 @@ describe("buildCavesField — fn C1 + the byte-cited composition order", () => {
     expect(r.meta.blobCount).toBeLessThanOrEqual(hillsBC.blobCavesCountMax);
     expect(r.meta.caveCount).toBeGreaterThanOrEqual(hillsBC.caveCountMin);
     expect(r.meta.caveCount).toBeLessThanOrEqual(hillsBC.caveCountMax);
+  });
+
+  test("phase-1 draws = the MOUNTAIN lane (dig #81 loop→knob map)", () => {
+    const r = buildCavesField(null, mkDef(hillsBC), SEED);
+    // loop B count = mountain_count (fnb @4eff36/4eff39); the hills spans
+    // are pairwise disjoint (mountain 0..15 < blob 20..55 < cave 50..100),
+    // so a regression to the old cave-lane guess fails both bounds.
+    expect(r.meta.blobPhase1).toBeGreaterThanOrEqual(hillsBC.mountainCountMin);
+    expect(r.meta.blobPhase1).toBeLessThanOrEqual(hillsBC.mountainCountMax);
+    expect(r.meta.blobPhase1).toBeLessThan(hillsBC.blobCavesCountMin);
+    expect(r.meta.blobPhase1).toBeLessThan(hillsBC.caveCountMin);
+    expect(r.meta.blobPhase2).toBeGreaterThanOrEqual(hillsBC.blobCavesCountMin);
+    expect(r.meta.blobPhase2).toBeLessThanOrEqual(hillsBC.blobCavesCountMax);
   });
 
   test("the dig #55 raise lanes keep their byte classes (C44 chain bases)", () => {

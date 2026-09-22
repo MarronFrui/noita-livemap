@@ -4819,3 +4819,159 @@ first use from now on):**
     gen-cache r3i stores only wang-area bins).
   - Status: composition transcribed (order + writer mapping); the draw
     budget + image lane + y-drift = the remaining named reads.
+
+- **2026-09-22 (81) — queue #1 CLOSED: the CavesSetup CONFIG slot map +
+  the CaveStructure RECORD layout, both dispatchers read from the exe;
+  loop→knob map byte-shown (the blobPhase fix landed); three doc
+  overturns (C51's count-slots/÷12/28-B, the [config+0x98] gate claim,
+  the C46 scatter VA). Tests 177/177 (176 baseline + 1 new regression);
+  the y224 byte bar re-run = 0/12, rms 0.0000 stays BYTE-EXACT.**
+  - **Config dispatcher = true VA 0x4B1410, class `"CavesSetup"`
+    @0x117c1cc** (error push @4b187c; error anchor `"Config error ( "`
+    @0x116b1c4 + `" ) - SetValue( "` @0x116b1f8 + `" ) - couldn't find
+    the member\n"` @0x116b220); getters int 0x4448e0, f32 0x444970, bool
+    0x444850, string 0x445820, presence 0x4447f0; arm rule = key imm
+    +0x16 → store. Window: `/tmp/opencode/recparse.dis` (adjust-vma
+    0x4b1100), every store byte-read this session.
+  - **CavesSetup slots:** header +0x00 (vtable presumed, NOT read);
+    name SSO string +0x04..+0x1c (key "name" `mov $0x116a8fc` @4b144c,
+    `add $0x4,%esi` @4b1472 + the SSO quartet `cmpl $0x10,0x14(%esi)` /
+    `movl $0xf,0x14` / `movl $0,0x10` / `movb $0,(%esi)`); `size_x`
+    +0x1c (`mov %eax,0x1c(%esi)` @4b14cf), `size_y` +0x20,
+    `spawn_percent` +0x24, `cave_count` +0x28/+0x2c (keys
+    0x117c350/0x117c368), `do_beginning_paths` +0x30 /
+    `do_beginning_down` +0x31 (bool stores `mov %al` @4b156c/4b158b,
+    keys 0x117c390/0x117c3b0), `surface_caves_count` +0x34/+0x38 (keys
+    0x117c3dc/0x117c47c), `cave_strength` +0x3c/+0x40 (keys
+    0x117c4c4/0x117c504), `cave_childs` +0x44/+0x48 (@4b162a/4b1649,
+    key 0x117c544), `surface_cave_childs` +0x4c/+0x50 (@4b1668/4b1687,
+    keys 0x117c628/0x117c640), `mountain_count` +0x54/+0x58
+    (@4b16a6/4b16c5, keys 0x117c658/0x117c66c), `mountain_size`
+    +0x5c/+0x60 f32 (@4b16e4/4b1705, keys 0x117c680/0x117c694),
+    `blob_caves_count` +0x64/+0x68 (@4b1726/4b1745, keys
+    0x117c6a8/0x117c6c0), `blob_caves_strength` +0x6c/+0x70
+    (@4b1764/4b1785, keys 0x117c6d8/0x117c6f0), `blob_caves_radius`
+    +0x74/+0x78 (@4b17a6/4b17c7, keys 0x117c724/0x117c73c),
+    `structures` vector +0x7c..+0x88 (`lea 0x7c(%esi)` @4b17ed →
+    `call 0x92ed80`, key 0x117c754), `mLuaScript` string +0x88..+0xa0
+    (`lea 0x88(%esi)` @4b182f, key 0x117c760), `DEBUG_output_image`
+    string +0xa0 (`lea 0xa0(%esi)` @4b1861, key 0x117c76c). The layout
+    closes exactly at +0xa0. **dims = +0x1c/+0x20 — the "+0x00/+0x04 =
+    dims" census reading OVERTURNED** (grep confirmed no VERIFIED row
+    carried the old offsets; +0x1c/+0x20 = the same pair C44 byte-read
+    on the consumer side, w[+0x1c]/h[+0x20]).
+  - **Record dispatcher = true VA 0x4ABD60, class `"CaveStructure"`
+    @0x117bf0c** (error arm pushes `" ) - SetValue( "` 0x116b1f8 + the
+    class name); window `/tmp/opencode/recdisp2.dis` (adjust-vma
+    0x4ABD40). Nine keyed stores, key strings read this session:
+    `image_file` 0x117bf1c → SSO string +0x04 (`add $4,%esi` @4abda2 +
+    the SSO quartet); `count_min` 0x117bf38 → `mov %eax,0x1c(%esi)`
+    @4abe0e; `count_max` 0x117bfa0 → `0x20(%esi)` @4abe3c;
+    `aabb_min_x` 0x117bfd4 → +0x24; `aabb_min_y` 0x117c00c → +0x28
+    @4abe98; `aabb_max_x` 0x117c02c → `0x2c(%esi)` @4abec6;
+    `aabb_max_y` 0x117c074 → `0x30(%esi)` @4abef4; `strength_min`
+    0x117c0b8 → `movss 0x34(%esi)`; `strength_max` 0x117c0c8 →
+    `movss 0x38(%esi)`. Ends at +0x3c = **60-byte stride** ✓.
+  - **C51 OVERTURNED (three claims):** (a) **COUNT pair = +0x1c/+0x20**,
+    not +0x28/+0x30 — dispatcher stores above + the fnB read
+    `mov 0x20(%eax),%ecx; mov 0x1c(%eax),%eax; mov %eax,-0x120(%ebp)`
+    @4f09cf..4f09d5 (+0x1c → [−0x120], +0x20 → ecx); (b) **the record =
+    60 bytes**, not 28 (4-B header + 24-B image_file SSO string + 8×4
+    fields; cursor `add $0x3c,%esi` @4f0f03); (c) **the list-scan magic
+    0x88888889 = ÷60**, not ÷12 — sequence byte-shown @4f0992..4f09a5
+    and 4f0f0f..4f0f2c (`mov $0x88888889,%eax; imul; add %ecx,%edx;
+    sar $0x5,%edx; ...`), script-verified this session: 12→0, 60→1,
+    600→10, 0→0, and **3584→59** — so `push $0xe00` (3584 B) is neither
+    128×28 nor a multiple of 60: the arena label stays **RE-FLAGGED**
+    until re-read (do not relabel). Record loop bytes: vector count
+    `mov 0x80(%eax),%ecx; sub 0x7c(%eax),%ecx` @4f0989/4f098f (end−
+    begin), `je 0x4f0f36` if empty, loop-back `jb 0x4f09b3` @4f0f31.
+  - **[config+0x98] OVERTURNED:** +0x98 = the mLuaScript string's SIZE
+    field (string base +0x88 → size at +0x10 of the SSO layout);
+    `cmpl $0x0,0x98(%edi)` @4f100f pairs with the assert string
+    `caves.mLuaScript.empty() == false` @0x11731a4 (line 0x3cf = 975)
+    = a script-presence check, NOT a second do_beginning gate. The real
+    post-record gate = `cmpb $0x0,0x30(%edi)` @4f0f3c → je 0x4f271e
+    (do_beginning_paths; also `mov 0x30(%ecx),%eax` @4f0c79); the
+    second bool `do_beginning_down` (+0x31) consumed at
+    `cmpb $0x0,0x31(%eax)` @4f1da1.
+  - **loop→knob map (fnB, byte-shown):** loop A count
+    `mov 0x2c(%eax),%esi; mov 0x28(%eax),%edi` @4ef701/4ef704 =
+    **cave_count**; loop B count `mov 0x58(%eax),%esi;
+    mov 0x54(%eax),%edi` @4eff36/4eff39 = **mountain_count** (the
+    linchpin); loop C count `mov 0x68(%ecx),%eax` @4f05a0 /
+    `mov 0x64(%ecx),%eax` @4f05a9 = **blob_caves_count**. ⇒ loop B =
+    the MOUNTAIN phase (hills 0..15), loop C = the blob phase (hills
+    20..55): the port's old `blobPhase1 = blobStamp(caveCount…)` was
+    the flagged wrong guess → **fixed to `mountainCountMin/Max`** with
+    a disjoint-span regression test (blobPhase1 ∈ [0,15] AND < 20 AND
+    < 50; blobPhase2 ∈ [20,55]); blobPhase2 unchanged ✓.
+  - **L2/L3 literal counts (NEW, not yet ported):** per-pass count =
+    **120 + ⌊81·u⌋** — ecx=0x78, `mulsd 0x11e0578` (the negative scale)
+    @4f1510/4f1f01 then `mulsd 0x11dffd8` (81.0) @4f1518/4f1f09, stored
+    −0x118 @4f1542/4f1f33; re-rolled every pass; **L2 = exactly 2
+    passes** (counter at [−0x10c]: `mov` @4f1d85, `inc %eax` @4f1d8b,
+    `cmp $0x2,%eax` @4f1d92 — the −0x10c slot is reused as an int here
+    after its early-phase float uses). The gate family =
+    `trunc(u × 0x11dffe8 = 101.0) < K` ⇒ P = K/101: 33 (`cmp $0x21`)
+    @4efc9e, 10 @4efd21, 20 @4efe01/4f02f5, 50 @4efe51/4efe7c/4f04ad/
+    4f12d1, tail 5 @4f1c6b/4f2609, 95 (`cmp $0x5f`) @4f1d2d/4f26cb;
+    101.0 mulsd sites @4efc92/4efd15/4efdf5/4efe45/4efe68/4f02e9/
+    4f04a1/4f12c5, movsd loads @4f1c47/4f1cba/4f25e5/4f2658; 11.0
+    @4f024f.
+  - **Loop-B X-roll window byte-exact (@4f00ad..4f00e9):** inline
+    Schrage Next (magics 0x834e0b5f/0x1f31d/0xb14/0x41a7 at state
+    (%edi)) → `mov -0x128(%ebp),%eax; add $0xfffffff7` (span = W−9),
+    `mov $0x5,%ecx`, `mulsd 0x11e0578`, `cvttsd2si`, `sub %eax,%ecx`
+    → **x = 5 + ⌊(W−9)·u⌋ ∈ [5,507]** stored −0x134 @4f00e9; the y-base
+    = `cvttss2si xmm4` @4f00e5 → −0x118 @4f00f3 (**xmm4 provenance
+    STILL UNPINNED = the loop-B porting blocker**); then `movss
+    0x5c/0x60(%eax)` = the mountain_size pair → −0x100 @4f010a (inner
+    bound = base + 15 + ⌊11u⌋; gates 20% @4f02f5 / 50% @4f04ad; setter
+    `call 0x4ee130` @4f036d).
+  - **C46 scatter VA re-pinned from the exe: true = 0x8EEAD0 (file
+    0x4EDED0), NOT 0x8EF2D0** — the old label lands exactly 0x800 off.
+    The corrected VA closes every check: the window is a full 0x1A0 =
+    416-B function (assert path `bitmap_noise` @0x11730cc line 0x218 +
+    `log_asserts.txt`, the roll `cvttsd2si; add` @0x8eec1f..23, bounds
+    @0x8eec2a..3e, `movss 0x11dfa94 (=0.5); comiss [eax]; jbe`
+    @0x8eec4e..59 = the `<0.5` gate, `call 0x8fafc0` @0x8eec65 = the
+    recursion, `ret` @0x8eec6f) = dig #56's slab window 0x4ee2d0..
+    0x4ee46f ✓, and **fn A's prologue sits immediately after @0x8EEC70**
+    = the C44 fn A true VA ✓ (C13 conversion both ways). fnb's
+    `call 0x4ee2d0` byte-shown @4f1d5d and @4f26fb (rel e8); no
+    `call 0x4eead0` exists. The old 0x8EF2D0 label starts mid-
+    instruction inside fn A's L1 lane (Schrage + `mulss 0x11dfa00`
+    = 0.32 + `addss 0x11dfa1c` = 0.35) = not an entry. **Supersedes the
+    `0x8EF2D0` citations at lines 3691/3789/3887/4178/4190/4215 and
+    the (80) open item at 4812–4817** (all left as-is: §6 is append-
+    only; this entry is the correction).
+  - **Spawn-key frame note (reconciled, no contradiction):** fnB's
+    prelude reads `spawn_small_enemies` @0x1173110 / `spawn_items`
+    @0x1173124 via `call 0x3eaa80` → [−0x150]/[−0x124], the 95% gate
+    `cmovl` picks −0x150 else −0x124, then `call 0x4ee2d0` with
+    x = (int)f32(−0x120), y = (int)f32(−0x138). The older (43) reading
+    "spawn_items → −0x64" (line 3701–3702) is fnA's frame — different
+    frames, flagged as such.
+  - Consts re-read from the exe this session (no chat carries):
+    0x11dfa94 = 0.5f · 0x11e058c = −0.5f · 0x11dfa00 = 0.32 ·
+    0x11dfa1c = 0.35 · 0x11dff38 = 11.0 · 0x11dffd8 = 81.0 ·
+    0x11dffe8 = 101.0 · 0x11e0578 = −1/2147483647 ·
+    0x11df988 = +1/2147483647.
+  - hills.xml cross-check on disk: 512×256; cave_count 50..100;
+    surface_caves_count 7..12; cave_strength 0.2..1; cave_childs 0..2;
+    mountain_count 0..15; mountain_size 1..10; blob_caves_count 20..55;
+    blob_radius 1..10; blob_strength 1.5..3; both do_beginning flags
+    = 1; 10 CaveStructure records.
+  - **Port + tests:** `lib/caves-field.mjs` blobPhase1 → mountainCount
+    (queue-#1-closed ledger + the scatter-VA cites fixed; the stamp
+    still carries "v4 composition"); new disjoint-span regression test.
+    `npm test` = **177/177**. Byte bar re-run
+    (`experiments/2026-09-21-caves-drawbudget-compare.mjs`): y224
+    **0/12, rms 0.0000 BYTE-EXACT** survives the count change; port
+    solid share 0.7116 vs the oracle row samples ≈ 0.5 (the position
+    divergence persists).
+  - Status: **queue #1 CLOSED** (config slot map + count-pair→phase
+    map). NEXT: pin xmm4's provenance → port loop B's inner structure;
+    port the L2/L3 120+⌊81u⌋ budget; then the material ID ladder →
+    render-flag attempt.

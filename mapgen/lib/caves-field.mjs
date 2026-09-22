@@ -14,7 +14,8 @@
 //       the ONLY lowering-capable writer: `v_out = (v_src − v_dst)·t + v_dst`.
 //     - the C50 knob consumer: v = A + d·(B − A) (the strength pair interp)
 //       feeding the 0x4ee130 setter's v_arg in a decl-loop blob-count phase.
-//     - the scatter read (true 0x8EF2D0): roll + bounds + the `< 0.5`
+//     - the scatter read (true 0x8EEAD0 = slab 0x4ee2d0 + 0x400800, dig
+//       #81 re-pin): roll + bounds + the `< 0.5`
 //       empty-cell gate + the 0x8FAFC0 recursion (dig #56).
 //     - the fnB HEAD draw order (dig #65): draw #1 = the walker's x-range
 //       count (POSITIVE fraction form), draw #2 = the y-cursor from the
@@ -28,15 +29,20 @@
 //     - the CaveStructure record roll = max − trunc(|draw|·(max−min+1))
 //       (the NEGATIVE NextU scale, dig #61).
 //   FLAGGED (composed model):
-//     the exact draw-count per phase loop (the per-phase draw BUDGET — the
-//     standing queue #1 item) and the y-drift span (the fnA window's own
-//     lane — queue #2). The composition follows the byte-cited phase ORDER;
-//     the per-roll draw counts inside walkChain are the model's.
+//     dig #81 (2026-09-22) CLOSED queue #1's count-pair→phase map (loop A
+//     = cave_count @4ef701/4ef704, loop B = mountain_count @4eff36/4eff39,
+//     loop C = blob_caves_count @4f05a0/4f05a9 — all byte-shown) and
+//     fixed phase 1 to the mountain lane. STILL FLAGGED: loop B's inner
+//     structure (per-stamp base = (int)f32(xmm4) @4f00e5, provenance
+//     unpinned), the L2/L3 literal counts (120+⌊81u⌋, L2 = 2 passes; read
+//     @4f1510/4f1518/4f1f01/4f1f09, not yet ported), and the y-drift span
+//     (queue #2). The composition follows the byte-cited phase ORDER; the
+//     per-roll draw counts inside walkChain are the model's.
 import path from "node:path";
 import { readPng } from "./images.mjs";
 import { NollaPrng } from "./wang-js.mjs";
 
-export const CAVES_FIELD_VER = "caves-field v4 composition (2026-09-21, the dig #55/#61/#64/#65/#68 byte-order swap)";
+export const CAVES_FIELD_VER = "caves-field v4 composition (2026-09-21, the dig #55/#61/#64/#65/#68 byte-order swap; 2026-09-22 dig #81: phase 1 = mountain_count)";
 
 // The C48-verified ×5 toucher: [P+0x94] = (w·0.5)/0.1
 export function toucherValue(w) {
@@ -45,7 +51,7 @@ export function toucherValue(w) {
 
 // ── the CaveStructure RECORD phase (dig #61 byte-cited) ─────────────────────
 // Per fnB's record walk (slab 0x4f0b23..0x4f0ee8):
-//   count pair = [obj+0x28]/[obj+0x30]; the roll = `value = max − trunc(
+//   count pair = [obj+0x1c]/[obj+0x20] (dig #81 correction); the roll = `value = max − trunc(
 //   draw·(max−min+1))` (the draw is SIGNED via mulsd by −4.656612875e-10
 //   = 0x11e0578, the negative NextU scale @0x11e0578 — the roll counts
 //   DOWN from max); the strength pair = the record's own [+0x34]/[+0x38]
@@ -167,7 +173,8 @@ export function walkChain(grid, gridW, gridH, prng, x0, y0, radius, vArg, dir) {
 }
 const clamp01 = (v) => v < 0 ? 0 : v > 1 ? 1 : v;
 
-// The scatter engine (true 0x8EF2D0, dig #56 byte-read end-to-end):
+// The scatter engine (true 0x8EEAD0, dig #56 byte-read end-to-end; the VA
+// re-pinned from the exe in dig #81 — the old 0x8EF2D0 was a +0x800 typo):
 // 1. TWO poro draws through the Random(min,max) closed form → a point rolled
 //    INSIDE the record's own span (the −0.5/0.5 lanes @0x11e058c/0x11dfa94).
 // 2. BOUNDS: rejected when x/y < 0 OR x ≥ w OR y ≥ h (@0x4ee42a..0x4ee43e).
@@ -203,9 +210,10 @@ function isSolidCell(v) {
  *   1. fn A stamp walk (call #1 @0x4eff03) — the LERP-stamp pass
  *   2. the blob phase (the C50 interp on [P+0x74]/[P+0x78] → the setter;
  *      count loop `decl −0x110`; the blob radius cap = 20, dig #54)
- *   3. the CaveStructure RECORD ARENA walk (dig #61: the 28-byte records;
- *      count pair [+0x28]/[+0x30]; the NEGATIVE NextU scale roll; the
- *      strength pair [+0x34]/[+0x38]; writes = the BYTE grid, 0x8EF950)
+ *   3. the CaveStructure RECORD ARENA walk (dig #61/#81: the 60-byte
+ *      records, stride 0x3c; count pair [+0x1c]/[+0x20]; the NEGATIVE
+ *      NextU scale roll; the strength pair [+0x34]/[+0x38]; writes =
+ *      the BYTE grid, 0x8EF950)
  *   4. layer-2 setter @0x4f18d1 = SINGLE-POINT MAX-BLEED raise (dig #55:
  *      push $0 = the path-(a) lane; point = {trunc(−0x120), trunc(−0x138)};
  *      value = [−0x128]·(d·0.35+0.65) — can only RAISE)
@@ -271,8 +279,12 @@ export function buildCavesField(dataDir, def, seed) {
   // CE hills: (+0x74, +0x78) = (1.549988, 0.0) ⇒ the span [0, 1.549988] —
   // the 0x8EE930 LERP toward v < 0.5 CARVES (the deep centers + gradient
   // tails), toward v > 1 RAISES (the bump class).
-  //   phase 1 = the cave_count lane, phase 2 = the blob_caves lane (the
-  //   count-pair→phase mapping = the queue #1 FLAG).
+  //   phase 1 = the MOUNTAIN lane (loop B count = mountain_count, read
+  //   @4eff36/4eff39; dig #81), phase 2 = the blob_caves lane (loop C
+  //   count = blob_caves_count, read @4f05a0/4f05a9) — the count-pair→
+  //   phase mapping is CLOSED (byte-shown, dig #81). Each phase's
+  //   per-stamp inner structure (loop B's base = (int)f32(xmm4) @4f00e5)
+  //   stays FLAGGED until xmm4's provenance is pinned.
   const strengthA = bc.blobStrengthA ?? 1.549988; // the C50 CE knob [+0x74]
   const strengthB = bc.blobStrengthB ?? 0.0;      // the C50 CE knob [+0x78]
   const blobStamp = (countMin, countMax) => {
@@ -285,7 +297,7 @@ export function buildCavesField(dataDir, def, seed) {
     }
     return n;
   };
-  const blobPhase1 = blobStamp(bc.caveCountMin ?? 0, bc.caveCountMax ?? 0);
+  const blobPhase1 = blobStamp(bc.mountainCountMin ?? 0, bc.mountainCountMax ?? 0); // dig #81: loop B = mountain_count
   const blobPhase2 = blobStamp(bc.blobCavesCountMin ?? 0, bc.blobCavesCountMax ?? 0);
 
   // ── (3) the CaveStructure RECORD ARENA walk (dig #61 byte-cited):
