@@ -5608,3 +5608,55 @@ first use from now on):**
     §12 dig-86 bullet, ISSUES **I19**, Current_work Phase-1 (d) tag
     + Status refresh. Tests **177/177**; y224 byte bar **0/12 rms
     0.0000**.
+- **2026-09-22 (87) — Phase 2 step 1 (dig #87): the A-resolver body
+  `0x8EE1B0` (C49's unread item) read end-to-end — it is a
+  lazy-singleton + DELEGATE, not the color→ID logic; the actual
+  resolve moved to true `0x741A50`.**
+  - Method/scope: C57's PE-native objdump
+    (`objdump -D -M att --start-address=0x8EE1B0
+    --stop-address=0x8EE230 noita_dev.exe`, true VAs printed), exe
+    re-verified on disk THIS session: `/mnt/e/Programmes/Steam/
+    steamapps/common/Noita/noita_dev.exe`, 17,007,104 B, md5
+    `8b611494212a69492dd0a4527d9c92e0`, build 2025-01-26. The window
+    fully covers the body: **0x8EE1B0..0x8EE221 (`ret`)**, int3 pad
+    0x8EE222..0x8EE22F, next prologue 0x8EE230 = fn1 (C63's pin ✓;
+    file = VA − 0x400C00 ⇒ 0x4ED5B0 = C49 ✓). Before the hunt: VERIFIED
+    §8 rows 18–25 + C64/C65 re-read (phantoms honored: no `call
+    0x8ed180`, no `movl $0x132b518,0x38(%esi)`, no "wang-fill
+    @0x8ee5bd").
+  - **Body decode (CONSTANTS C66):**
+    1. MSVC EHa/GS frame: `push $0xffffffff; push $0x10a49cc` (unwind
+       info), FS:0 chain at `[ebp−0xc]`, try-scope counter `[ebp−4]`
+       −1 → 0 around the lazy init, GS cookie `mov 0x12eb000,%eax;
+       xor %ebp,%eax` (`.data VA 0x12EB000` = file 0xEE9600 = .data
+       start ✓ per C57's .data rule).
+    2. **Lazy-init guard = the bss pointer itself:** `mov 0x134632c,
+       %eax; test; jne 0x8ee208` @0x8ee1d8 → miss: `push $0x1a0;
+       call *0x114a34c` (**IAT** operator new, 0x114a34c ∈ .rdata
+       IAT region ≥0x114a000) → `mov %eax,%ecx; call 0x65f480` (ctor,
+       thiscall) → `mov %eax,0x134632c` @0x8ee203; null-new path
+       `xor %eax,%eax` @0x8ee201.
+    3. **Resolve = one delegate call:** `push 0x8(%ebp)` (arg1 =
+       the resolver's single argument) + `mov 0x18(%eax),%ecx` ⇒ this
+       = **`[0x134632c + 0x18]`** — a LOADED POINTER (`mov`, not
+       `lea` ⇒ +0x18 holds an object pointer, the delegate object is
+       NOT embedded) → `call 0x741a50` @0x8ee20e → return value =
+       eax passthrough (epilogue = FS restore + `mov %ebp,%esp; pop
+       %ebp; ret`; no cookie re-check — no vulnerable buffer).
+  - **Consequence for the Phase-2 ladder:** C32's `[this+0xb0]`
+    resolver reaches a trampoline that only (a) lazily builds a
+    0x1A0-B singleton at bss `0x134632c` and (b) forwards arg1 to
+    **true 0x741A50** with this = `[0x134632c+0x18]`. Therefore the
+    "image color → material ID" semantics must be read from 0x741A50
+    + whatever ctor `0x65F480` installs at +0x18 — NOT from 0x8EE1B0.
+  - **OPEN (dig #88):** ① body of **0x741A50** (the actual
+    color→ID logic); ② ctor **0x65F480**'s store to +0x18 (delegate
+    object identity); ③ LoadFromImageData's indirect
+    `call *[…+0xb0]` site inside 0x8f9ab0..0x8fa930 (C62 span) →
+    what value is pushed (raw RGBA? A-channel?). Then Phase-2 step 2:
+    the 132-B record walk → fillRandomMaterials / DECOR u16 content
+    walk (frontier item 5; ISSUES.md:82).
+  - Status: docs only (no port changes; resolver semantics untouched
+    in `lib/`). Landed: CONSTANTS **C66**, this entry **(87)**,
+    VERIFIED §12 dig-87 bullet, Current_work Phase-2 tag + Status
+    refresh. Tests **177/177**; y224 byte bar **0/12 rms 0.0000**.

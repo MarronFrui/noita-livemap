@@ -657,6 +657,18 @@ binary side unread) · ❌ unexplored.
   residuals recorded as known-open (ramp-slot READS + driver
   extent), picked up with the next ordered items, not blockers for
   Phase 2. No code changes; tests 177/177; y224 0/12 rms 0.0000.
+- **UPDATE — dig #87 (2026-09-22): Phase-2 step 1 — the A-resolver
+  body `0x8EE1B0` (C49) is read: a lazy-singleton DELEGATE, not the
+  color→ID logic** (ABOUT_MATH (87), CONSTANTS C66). Body
+  0x8EE1B0..0x8EE221 (ret; int3 pad to 0x8EE22F; fn1 @0x8EE230 ✓
+  C63); guard = bss ptr **0x134632c** → miss: `new(0x1a0)` (IAT
+  0x114a34c) → ctor **0x65F480** → store; resolve = arg `[ebp+8]`,
+  this = **`[0x134632c + 0x18]`** (loaded pointer ⇒ delegate object,
+  not embed) → `call **0x741A50**` @0x8ee20e, eax passthrough ⇒ the
+  material-ID semantics move to 0x741A50 (+ ctor's +0x18 store +
+  LoadFromImageData's `*0xb0` call-site arg) = dig #88, then the
+  132-B record walk. No code changes; tests 177/177; y224 0/12 rms
+  0.0000.
 - Cache policy: `out/gen-cache/r3i` holds ONLY wang-area bins
   (seed+area-keyed); the cave-field/opt-in lanes live in non-cached
   in-memory buffers, so no bump was required for the revert; bump
