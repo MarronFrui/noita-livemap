@@ -526,6 +526,26 @@ binary side unread) · ❌ unexplored.
   (0.038/0.019/… toward 0.0). The remaining per-phase divergence =
   the draw-budget per phase + the exact walk steps (the standing
   FLAG); the byte bar's best row y224 now byte-matched.**
+  **UPDATE (dig 80, 2026-09-21): the composition ORDER + writer
+  mapping are transcribed byte-cited (`lib/caves-field.mjs` v4) —
+  fnB head draws (positive-fraction count roll + the y-cursor, dig 65)
+  → fnA worm walk × cave_count (the 0x8EE930 LERP stamps — the ONLY
+  lowering writer; the (43)(a) max-bleed setter per stamp REFILLS the
+  carve, so it belongs to the record/eave stamps, whose flag=1 raise
+  reproduces the C48 bump peak 1.454092 as a 1.45..1.55 strength
+  draw) → the blob decl-loop LERP stamps (v = the C50 interp on the CE
+  pair (1.549988, 0.0), radius cap 20) → the record arena (NEGATIVE-
+  scale count roll → the byte grid) → L2/L3 = SINGLE-POINT max-bleed
+  raises (dig #55) + the scatters. Instrument
+  (`experiments/2026-09-21-caves-drawbudget-compare.mjs`, in-repo):
+  y224 stays BYTE-EXACT (0/12); the value CLASSES all reproduce (deep
+  centers 0.0..0.08, gradient tails, raises ≈1.45, the 1.0 base); the
+  remaining divergence = the per-phase draw COUNTS + the record
+  IMAGE-lane stamps (the bump/y16-plateau shapes = CaveStructure image
+  content — the C48 identify target resolved to the image blend) + the
+  fnA y-drift span (queue #2). One doc-arithmetic OPEN item: C46's
+  scatter pair "0x8EF2D0/0x4ee2d0" violates the C13 map by exactly
+  0x800 — re-pin from the exe before the next scatter read.**
 - Cache policy: `out/gen-cache/r3i` holds ONLY wang-area bins
   (seed+area-keyed); the cave-field/opt-in lanes live in non-cached
   in-memory buffers, so no bump was required for the revert; bump

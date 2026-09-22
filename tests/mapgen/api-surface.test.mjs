@@ -15,6 +15,7 @@ import * as paths from "../../mapgen/lib/paths.mjs";
 import * as templateRender from "../../mapgen/lib/template-render.mjs";
 import * as mapFormat from "../../mapgen/lib/map-format.mjs";
 import * as spec from "../../mapgen/lib/map-format-spec.mjs";
+import * as cavesField from "../../mapgen/lib/caves-field.mjs";
 
 describe("wang-js.mjs", () => {
   test("exports match the documented surface", () => {
@@ -87,6 +88,20 @@ describe("world-gen.mjs", () => {
   });
   test("areaKey format is '<name>_<x1>_<y1>'", () => {
     expect(worldGen.areaKey({ name: "coalmine" }, { x1: 29, y1: 14 })).toBe("coalmine_29_14");
+  });
+});
+
+describe("caves-field.mjs", () => {
+  test("exports match the documented surface", () => {
+    expect(Object.keys(cavesField).sort()).toEqual([
+      "CAVES_FIELD_VER", "buildCavesField", "carveCircle", "caveRecordStamp",
+      "fieldSolidAt", "makeFieldGridFromTopology", "scatterEmptyGate",
+      "stampBlendLerp", "toucherValue", "walkChain",
+    ]);
+    expect(cavesField.buildCavesField.length).toBe(3);
+    expect(cavesField.walkChain.length).toBe(9);
+    expect(cavesField.toucherValue.length).toBe(1);
+    expect(typeof cavesField.CAVES_FIELD_VER).toBe("string");
   });
 });
 

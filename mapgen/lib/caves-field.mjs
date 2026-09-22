@@ -16,18 +16,27 @@
 //       feeding the 0x4ee130 setter's v_arg in a decl-loop blob-count phase.
 //     - the scatter read (true 0x8EF2D0): roll + bounds + the `< 0.5`
 //       empty-cell gate + the 0x8FAFC0 recursion (dig #56).
-//   FLAGGED (composed model, the byte read = the dig #26-#29 sub-reads):
-//     the blob/WALK/mountain/surface placement loops and the exact fnB
-//     draw-index ↔ phase-order mapping. The composed builder wires the XML
-//     knobs through the byte-exact primitives; it is an instrument lane.
-//     The oracle's two write directions are implemented separately:
-//       * interior caves CARVE DOWNWARD from the 1.0 base (min-bleed),
-//       * the y=0 mountain bump ADDS upward (max-bleed add-blend).
+//     - the fnB HEAD draw order (dig #65): draw #1 = the walker's x-range
+//       count (POSITIVE fraction form), draw #2 = the y-cursor from the
+//       record's own strength pair; the count gates 0x21/0x0a/0x14/0x32
+//       (dig #66); the walk step lane (1.0 + 2.5·d)·0.2 (dig #68/#69).
+//     - the dig #64 per-phase strength sources: L1 = clamp01((d2·0.32+0.35)
+//       ·roll); L2's v_arg = the LAST L1 output × (d·0.35+0.65); L3's
+//       v_arg = (d·0.1+0.1)·(d2·0.35+0.65).
+//     - L2/L3 = SINGLE-POINT MAX-BLEED raises (dig #55: push $0 = the
+//       path-(a) lane — they can only RAISE, never carve).
+//     - the CaveStructure record roll = max − trunc(|draw|·(max−min+1))
+//       (the NEGATIVE NextU scale, dig #61).
+//   FLAGGED (composed model):
+//     the exact draw-count per phase loop (the per-phase draw BUDGET — the
+//     standing queue #1 item) and the y-drift span (the fnA window's own
+//     lane — queue #2). The composition follows the byte-cited phase ORDER;
+//     the per-roll draw counts inside walkChain are the model's.
 import path from "node:path";
 import { readPng } from "./images.mjs";
 import { NollaPrng } from "./wang-js.mjs";
 
-export const CAVES_FIELD_VER = "caves-field v3 core (2026-09-21, digs #26-#30)";
+export const CAVES_FIELD_VER = "caves-field v4 composition (2026-09-21, the dig #55/#61/#64/#65/#68 byte-order swap)";
 
 // The C48-verified ×5 toucher: [P+0x94] = (w·0.5)/0.1
 export function toucherValue(w) {
@@ -47,10 +56,10 @@ export function toucherValue(w) {
 // The stamp POINT roll lands inside the record's aabb (the aabb_min/max
 // axis spans), negative-scale drawn per the same window.
 export function caveRecordStamp(
-  { field, bytes, w, h }, { aabbMinX, aabbMaxX, aabbMinY, aabbMaxY, countMin, countMax, strengthMin, strengthMax }, prng
+  { field, bytes, w, h }, { aabbMinX, aabbMaxX, aabbMinY, aabbMaxY, countMin, countMax, strengthMin, strengthMax }, prng,
+  rollNeg = (min, max) => max - Math.trunc((max - min + 1) * prng.next())
 ) {
-  const countSpan = (countMax ?? 0) - (countMin ?? 0) + 1;
-  const countNext = (countMax ?? 0) - Math.trunc(prng.next() * countSpan);
+  const countNext = rollNeg(countMin ?? 0, countMax ?? 0);
   for (let s = 0; s < countNext; s++) {
     // the per-stamp point roll (the negative NextU transform, spans = aabb)
     const xSpan = (aabbMaxX ?? w - 1) - (aabbMinX ?? 0) + 1;
@@ -62,8 +71,12 @@ export function caveRecordStamp(
     // the C50 strength interp on the record's own (min,max) pair
     const d = prng.next();
     const vArg = (strengthMin ?? 0) + d * ((strengthMax ?? 0) - (strengthMin ?? 0));
-    // the FLOAT stamp = the smoothstep LERP (0x8EE930, the lowering writer)
-    stampBlendLerp(field, w, h, x, y, Math.max(1, Math.trunc((vArg || 0.5) * 4)), vArg);
+    // the FLOAT stamp = the 0x8EE750 MAX-BLEED raise (flag=1, the (43)(a)
+    // falloff + the ((y−1)/25)⁸ top-row eave) — the raise/eave lane for the
+    // mountain-class records (the C48 bump peak 1.454092 = a 1.45..1.55
+    // strength draw raised by this arm); the record's byte mark = the
+    // 0x8EF950 lane below.
+    carveCircle(field, w, h, x, y, Math.max(1, Math.trunc((vArg || 0.5) * 4)), vArg, 1, "max");
     // the BYTE mark = the 0x8EF950 twin lane
     if (bytes && x >= 0 && y >= 0 && x < w && y < h) bytes[y * w + x] = 1;
   }
@@ -116,48 +129,59 @@ export function stampBlendLerp(grid, gridW, gridH, cx, cy, radius, vArg) {
   }
 }
 
-// The fn A x-wanderer's chain walk (FLAGGED step-offset rolls; the ≤50-step
-// box, the per-step blob stamp, and the max-bleed seek = byte-read):
-// each step = one blob stamp at the current (x, y), then x += the step roll
-// (the fn A [ebp+0x2c] x-step) and y drifts by a per-step draw.
-// The fn A x-wanderer's chain walk (the ≤50-step x-wanderer per the fn A
-// [ebp+0x2c] x-step window; the per-step blob stamp + the byte-read roll):
-// stamp = ONE smoothstep LERP stamp per step (the 0x8EE930 stamp blend =
-// the only lowering writer, dig #58), then x += the step roll.
-// Step-roll byte status: the window d·0.35 / −0.25 roll (0x4eea9d..0x4eeab1)
-// is byte-read; the exact per-step x/y advance offset uses draws — FLAGGED
-// until the fnA step-roll block read completes.
+// The fn A x-wanderer's chain walk (the ≤50-step x-wanderer; the per-step
+// LERP stamp + the byte-read roll chain). Byte-status:
+//   - the ≤50-step box (`cmp $0x32`, dig #66) = BYTE-CITED
+//   - the roll update `roll += d·0.35 − 0.25` (C46) = BYTE-CITED
+//   - the L1 stamp value `clamp01((d2·0.32+0.35)·roll)` (C44/C46) = BYTE-CITED
+//   - the x-step lane (dig #68/#69): `(1.0 + 2.5·draw)·0.2` composed over the
+//     pivot span — the dig #68 "2-draw valve reset" reading was RETRACTED in
+//     dig #69 (the (2 − trunc(0·d)) = 2 is CONSTANT, no draw in that lane).
+//   - the y-drift = FLAGGED (dig #74: the 6-lane band switch = the fnB
+//     band-lane cursor [−0x104], NOT the fnA stamp-walk drift; the fnA
+//     window's own y-drift lane is still unread).
 export function walkChain(grid, gridW, gridH, prng, x0, y0, radius, vArg, dir) {
-  // fnB's byte-declared HEAD (dig 65): the phase's own roll starts with
-  // the walker box — the stamps' x/y cursors roll [obj+0x2c]/[ obj+0x28]
-  // then [obj+0x38]/[obj+0x34] (the send count+ Strength lanes) — the port
-  // passes those in as (x0, y0); the ≤50-step box cmp $0x32 caps it.
-  // The per-iteration body reads [obj+0x3c]/[+0x40] (the strength pair),
-  // the ±0.45/0.96/0.05 band-lane weights, and the four count gates
-  // (0x21 blob cap, 0x0a cave bound, 0x14 worm cap, 0x32 walker box).
   let x = x0, y = y0;
   let rollAcc = 0;
   for (let step = 0; step < 50; step++) {
     const d1 = prng.next(), d2 = prng.next();
-    // the stamp VALUE lane: per-byte the fn A roll update = d1·0.35 − 0.25 + roll
-    rollAcc = d1 * 0.35 - 0.25 + rollAcc; // (byte-read fnB decl loops)
+    // the fn A roll chain (C46): roll += d·0.35 − 0.25 per stamp
+    rollAcc = d1 * 0.35 - 0.25 + rollAcc;
+    // the L1 stamp value (C44/C46): clamp01((d2·0.32+0.35)·roll)
     const v = clamp01((d2 * 0.32 + 0.35) * rollAcc);
-    // the blend sink: per dig #58 the lerp uses the (v_src−v_dst)·t + v_dst
-    // lane; the byte skew (±0.45) applies as the weight block (dig 66)
-    const target = clamp01(v * vArg);
-    stampBlendLerp(grid, gridW, gridH, Math.trunc(x) & (gridW - 1), Math.trunc(y) & (gridH - 1), radius, target);
+    // the fnA walk stamp = the 0x8EE930 smoothstep LERP toward the L1
+    // roll-chain value (dig #58: "air source found at the fn A stamp
+    // window") — the lowering worm (deep carve centers + gradient tails).
+    // The 0x8EE750 max-bleed eave setter is NOT run here: with v0 =
+    // (v−1)·t+1 ≤ 1 it would REFILL the just-carved worm (max-bleed vs the
+    // fresh carve) — the eave raise arm belongs to the record stamps.
+    stampBlendLerp(grid, gridW, gridH, Math.trunc(x) & (gridW - 1), Math.trunc(y) & (gridH - 1), radius, v);
+    // the x-step lane (dig #68 byte-read, dig #69 corrected form):
+    // (1.0 + 2.5·draw)·0.2 per advance, composed over the pivot span.
     const d3 = prng.next();
-    // the fnA step-roll byte lane (dig 68): per step, the x-advance =
-    // (2 − trunc(0·d))·0.2/5.0 (fixed 0.4 base) + (1.0 + 2.5·draw)·pivot
-    // where pivot = (−4.0 mod 5.0)/5.0 = the val range → normalized
-    // the pivot = the walk's (2 − trunc(0·d)) = 2 (the 2-step unit); the
-    // pivot span = the ±/5.0-normalized axis — OR (1.0 + 2.5·d)·0.2 the
-    // byte-lane weight pair, composed over the pivot span.
-    x += 0.2 * (2 - Math.trunc(0.0)) - 1.0 + (1.0 + 2.5 * d3) * 0.2; // ≈ (0.4 − 0.2)/2 = 0.4 the fnA byte step
-    if (prng.next() > 0.5) y += prng.next() * 4 - 2; // the y drift (FLAGGED)
+    x += (1.0 + 2.5 * d3) * 0.2;
+    // the y drift: FLAGGED (dig #74 retraction; the fnA window's own
+    // y-drift lane is the standing unread read — queue item #2).
+    if (prng.next() > 0.5) y += prng.next() * 4 - 2;
   }
 }
 const clamp01 = (v) => v < 0 ? 0 : v > 1 ? 1 : v;
+
+// The scatter engine (true 0x8EF2D0, dig #56 byte-read end-to-end):
+// 1. TWO poro draws through the Random(min,max) closed form → a point rolled
+//    INSIDE the record's own span (the −0.5/0.5 lanes @0x11e058c/0x11dfa94).
+// 2. BOUNDS: rejected when x/y < 0 OR x ≥ w OR y ≥ h (@0x4ee42a..0x4ee43e).
+// 3. THE GATE (@0x4ee456): fires ONLY when cell < 0.5 (the empty-cell
+//    predicate) — then the recursive tail = true 0x8FAFC0 (the B-CHANNEL
+//    recorder, dig #27; the value arg travels WITH the branch).
+export function scatterEmptyGate({ field, bytes, w, h }, span, prng) {
+  const dx = prng.next(), dy = prng.next();
+  const x = Math.trunc(dx * span.w), y = Math.trunc(dy * span.h);
+  if (x < 0 || y < 0 || x >= w || y >= h) return null;
+  if (field[y * w + x] >= 0.5) return null; // the < 0.5 empty-cell gate
+  if (bytes) bytes[y * w + x] = 1; // the 0x8FAFC0 B-recorder lane
+  return { x, y };
+}
 
 // The C34 sampler's gate reads cell > 0.5 ⇒ the carved-down cells < 0.5
 // render AIR (caves), the untouched 1.0 base = SOLID — byte-equivalent
@@ -170,102 +194,139 @@ function isSolidCell(v) {
  * buildCavesField(dataDir, def, seed) — the [uid+0x1d4] BitmapCaves grid.
  * Returns { w, h, field, p94, verify, meta }, null when no BitmapCaves.
  *
- * Stage composition (byte-confirmed core + FLAGGED placement order):
- *   1. the fn C1 base + the ctor chain
- *   2. the MOUNTAIN phase (the +bump ad-blends near y=0; count = the XML
- *      mountain_count span, size = the mountain_size family, the strength
- *      source = the mountain_rock/skull 1.45..1.55 family — byte-form from
- *      the C50's interp; positions FLAGGED)
- *   3. the BLOB-caves phase (count = blob_caves_count; radius =
- *      blob_caves_radius; strength = the C50 interp on the strength span)
- *      with the cave_childs branches (FLAGGED placement)
- *   4. the cave/worm phase (cave_count blobs of the caveStrength span)
+ * Stage composition — the fnB byte-cited PHASE ORDER (the dig #65 head +
+ * the dig #55/#56/#57/#61 block reads; draw budget = the standing FLAG):
+ *   HEAD (dig #65): draw #1 = the walker's x-range count from the
+ *     [obj+0x28]/[obj+0x2c] (min,max) pair via the POSITIVE fraction form
+ *     `min + trunc(draw·(max−min+1))`; draw #2 = the first record's y-cursor
+ *     from the record's OWN [obj+0x34]/[obj+0x38] strength pair.
+ *   1. fn A stamp walk (call #1 @0x4eff03) — the LERP-stamp pass
+ *   2. the blob phase (the C50 interp on [P+0x74]/[P+0x78] → the setter;
+ *      count loop `decl −0x110`; the blob radius cap = 20, dig #54)
+ *   3. the CaveStructure RECORD ARENA walk (dig #61: the 28-byte records;
+ *      count pair [+0x28]/[+0x30]; the NEGATIVE NextU scale roll; the
+ *      strength pair [+0x34]/[+0x38]; writes = the BYTE grid, 0x8EF950)
+ *   4. layer-2 setter @0x4f18d1 = SINGLE-POINT MAX-BLEED raise (dig #55:
+ *      push $0 = the path-(a) lane; point = {trunc(−0x120), trunc(−0x138)};
+ *      value = [−0x128]·(d·0.35+0.65) — can only RAISE)
+ *      + scatter #1 (the < 0.5 empty-cell gate)
+ *   5. layer-3 setter @0x4f226c = the same mask (value = [−0x108]·(d·0.35+
+ *      0.65), [−0x108] = d·0.1+0.1, C44) + scatter #2
+ *   6. the RECURSIVE fn B self-call (the cave_childs/surface recursion)
+ * The AIR/carve = the fn A LERP stamps + the deep-roll chain (NOT L2/L3 —
+ * max-bleed can only raise, the dig #55 semantic verdict).
  */
 export function buildCavesField(dataDir, def, seed) {
   const bc = def.bitmapCaves;
   if (!bc || !bc.sizeX || !bc.sizeY) return null;
   const w = bc.sizeX, h = bc.sizeY;
 
+  // fn C1's ctor chain (C27): diddled-ws poro Random + ONE warm draw.
   const prng = new NollaPrng(seed);
-  prng.next(); // the ONE warm draw (C27)
+  prng.next();
 
   const field = new Float32Array(w * h).fill(1.0); // fn C1's bake
   const bytes = new Uint8Array(w * h); // the 0x8EF950 record lane ([P+0x58])
 
-  const roll = (min, max) => min + Math.trunc((max - min) * prng.next());
+  // The byte-declared roll forms (dig #65): the count/pos pair roll =
+  // `min + trunc(draw·(max−min+1))` (POSITIVE fraction); the stamp-lane
+  // roll (dig #61) = `max − trunc(|draw|·(max−min+1))` (the NEGATIVE
+  // NextU scale) — two distinct twins, both byte-cited.
+  const rollPos = (min, max) => min + Math.trunc((max - min + 1) * prng.next());
+  const rollNeg = (min, max) => max - Math.trunc((max - min + 1) * prng.next());
   const rollF = (min, max) => min + (max - min) * prng.next();
   const clamped = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
 
-  const blobCount = roll(bc.blobCavesCountMin ?? 0, bc.blobCavesCountMax ?? 0);
-  const caveCount = roll(bc.caveCountMin ?? 0, bc.caveCountMax ?? 0);
+  const blobCount = rollPos(bc.blobCavesCountMin ?? 0, bc.blobCavesCountMax ?? 0);
+  const caveCount = rollPos(bc.caveCountMin ?? 0, bc.caveCountMax ?? 0);
   const rMin = bc.blobCavesRadiusMin ?? 1;
   const rMax = bc.blobCavesRadiusMax ?? 10;
   const sMin = bc.blobCavesStrengthMin ?? 1.5;
   const sMax = bc.blobCavesStrengthMax ?? 3;
 
-  // ── the CaveStructure RECORD phase (the byte-cited lane, dig #61):
-  for (const rec of bc.structures ?? []) {
-    caveRecordStamp({ field, bytes, w, h }, rec, prng);
-  }
-
-  // ── the fn B byte-declared PHASE ORDER (dig #56/#57 census; the fn C1 ctor
-  // base is IN this call chain — L1's setter = the fn A stamp window):
-  //   1. fn A stamp pass (0x4eff03 = the FIRST stamp walk = the CaveStructure
-  //      stamps + the cave_childs recursion)
-  //   2. the arena_ctor+byte-blend pair phases (the L2/LOADER pair phases)
-  //   3. layer-2 setter + scatter
-  //   4. layer-3 setter + scatter
-  //   5. the RECURSIVE fn B self-call (= cave_childs/surface recursion)
-  // The draw_mean ORDER consumed per phase = the standing sub-read; the
-  // composition below follows the byte-order given, with exact v_forms.
-
-  // (1) fn A stamp walk × the CaveStructure-records pair × cave_childs:
-  // the stamp VALUE lane = the [−0x128] chain (dig 55/61): L1's value =
-  // clamp01((d2·0.32+0.35)·roll), L2's v_arg = [−0x128] (the L1 output),
-  // L3's v_arg = [−0x108] = d·0.1+0.1 — the chain bases byte-cited in
-  // C44; the phases consume: fnA(0x4eff03) → blob phases → L2+scatter →
-  // L3+scatter → the self-call recursion.
-  const stampCount = blobCount; // the fn A first pass over the pattern set
+  // ── (1) fn A stamp walk — the eave/raise lane: cave_count walks, each = a
+  // ≤50-step x-wanderer of MAX-BLEED stamps (the (43)(a) falloff + eave,
+  // flag=1), cave_childs branches per walk (the dig #26 recursion).
+  // The stamp VALUE = the L1 roll-chain lane (clamp01((d2·0.32+0.35)·roll),
+  // C44/dig #64) — the setter lifts it to ((y−1)/25)⁸·v0 + 1 near the top.
   let rollAcc = 0;
-  let l1 = 0; // the [−0x128] chain base = the LAST L1 output (byte-cited)
-  for (let b = 0; b < stampCount; b++) {
+  let l1 = 0; // the [−0x128] chain base = the LAST L1 output (C44/dig 64)
+  for (let c = 0; c < caveCount; c++) {
     const radius = rollF(rMin, rMax);
-    // L1's chain: the (43)(a) form reads the WORLD state, then the roll chain
     const d1 = prng.next(), d2 = prng.next();
-    const l1 = clamp01((d2 * 0.32 + 0.35) * rollAcc); // the L1 lane (C44)
-    rollAcc = d1 * 0.35 - 0.25 + rollAcc;            // the roll update (byte)
-    walkChain(field, w, h, prng, roll(0, w - 1), roll(0, h - 1), radius, l1, "lerp");
-    const childs = roll(bc.caveChildsMin ?? 0, bc.caveChildsMax ?? 0);
-    for (let c = 0; c < childs; c++) {
-      walkChain(field, w, h, prng, roll(0, w - 1), roll(0, h - 1), rollF(rMin, rMax), l1, "lerp");
+    const stampV = clamp01((d2 * 0.32 + 0.35) * rollAcc); // the L1 value lane
+    rollAcc = d1 * 0.35 - 0.25 + rollAcc;                 // the roll update
+    l1 = stampV; // the [−0x128] chain base = the LAST L1 output (dig 64)
+    walkChain(field, w, h, prng, rollPos(0, w - 1), rollPos(0, h - 1), radius, stampV, "lerp");
+    const childs = rollPos(bc.caveChildsMin ?? 0, bc.caveChildsMax ?? 0);
+    for (let k = 0; k < childs; k++) {
+      walkChain(field, w, h, prng, rollPos(0, w - 1), rollPos(0, h - 1), rollF(rMin, rMax), stampV, "lerp");
     }
   }
 
-  // (2) L2 = the fn B setter with v_arg = [−0x128]·(d·0.35 + 0.65) — where
-  // [−0x128] here = the LAST L1 output (the chain base), byte-cited:
-  const l2Base = l1;
-  for (let b = 0; b < blobCount; b++) {
-    const radius = rollF(rMin, rMax);
-    const d = prng.next();
-    const vArg = l2Base * (d * 0.35 + 0.65);
-    walkChain(field, w, h, prng, roll(0, w - 1), roll(0, h - 1), radius, vArg, "lerp");
+  // ── (2) the blob phases (dig #49 byte-read END-TO-END): per iteration ONE
+  // 0x4ee130 setter call (a decl-loop, NOT a walk); v = the C50 interp
+  // A + d·(B−A) on the cave-grid's [P+0x74]/[P+0x78] pair (@0x4f0931..
+  // 0x4f0958); the blob radius cap = 20 (dig #54, `cmp $0x14`).
+  // CE hills: (+0x74, +0x78) = (1.549988, 0.0) ⇒ the span [0, 1.549988] —
+  // the 0x8EE930 LERP toward v < 0.5 CARVES (the deep centers + gradient
+  // tails), toward v > 1 RAISES (the bump class).
+  //   phase 1 = the cave_count lane, phase 2 = the blob_caves lane (the
+  //   count-pair→phase mapping = the queue #1 FLAG).
+  const strengthA = bc.blobStrengthA ?? 1.549988; // the C50 CE knob [+0x74]
+  const strengthB = bc.blobStrengthB ?? 0.0;      // the C50 CE knob [+0x78]
+  const blobStamp = (countMin, countMax) => {
+    const n = rollPos(countMin, countMax);
+    for (let b = 0; b < n; b++) {
+      const radius = Math.min(20, rollF(rMin, rMax)); // the dig #54 cap
+      const d = prng.next();
+      const vArg = strengthA + d * (strengthB - strengthA); // the C50 interp
+      stampBlendLerp(field, w, h, rollPos(0, w - 1), rollPos(0, h - 1), radius, vArg);
+    }
+    return n;
+  };
+  const blobPhase1 = blobStamp(bc.caveCountMin ?? 0, bc.caveCountMax ?? 0);
+  const blobPhase2 = blobStamp(bc.blobCavesCountMin ?? 0, bc.blobCavesCountMax ?? 0);
+
+  // ── (3) the CaveStructure RECORD ARENA walk (dig #61 byte-cited):
+  // per record: the count pair via the NEGATIVE-scale roll; the strength
+  // pair = the record's own [+0x34]/[+0x38] f32s composed A + d·(B−A);
+  // the writes hit the BYTE grid (0x8EF950) — the overlay lane.
+  for (const rec of bc.structures ?? []) {
+    caveRecordStamp({ field, bytes, w, h }, rec, prng, rollNeg);
   }
-  // (3) L3 = the [−0x108] lane: v_arg = (d·0.1 + 0.1)·(d2·0.35 + 0.65) with
-  // the base chain (the dig 55/61 window forms), the [−0x108] lane read:
-  for (let b = 0; b < caveCount; b++) {
-    const radius = rollF(rMin, rMax);
-    const d = prng.next(), d2 = prng.next();
-    const vArg = (d * 0.1 + 0.1) * (d2 * 0.35 + 0.65);
-    walkChain(field, w, h, prng, roll(0, w - 1), roll(0, h - 1), radius, vArg, "lerp");
-  }
+
+  // ── (4) layer-2 setter (dig #55): SINGLE-POINT MAX-BLEED raise — value =
+  // [−0x128]·(d·0.35+0.65); the point = {trunc(−0x120), trunc(−0x138)}
+  // (the walk cursors' tail). Raises only; NEVER carves.
+  const l2v = l1 * (prng.next() * 0.35 + 0.65);
+  raisePointMax(field, w, h, rollPos(0, w - 1), rollPos(0, h - 1), l2v);
+  let sc = scatterEmptyGate({ field, bytes, w, h }, { w, h }, prng);
+
+  // ── (5) layer-3 setter (dig #55): same mask, value = [−0x108]·(d·0.35+
+  // 0.65) where [−0x108] = d·0.1+0.1 (C44). Raises only.
+  const l3v = (prng.next() * 0.1 + 0.1) * (prng.next() * 0.35 + 0.65);
+  raisePointMax(field, w, h, rollPos(0, w - 1), rollPos(0, h - 1), l3v);
+  sc = scatterEmptyGate({ field, bytes, w, h }, { w, h }, prng);
 
   return {
     w, h, field, bytes,
     p94: toucherValue(w),
     prngState: prng.seed,
     isSolid: isSolidCell,
-    meta: { blobCount, caveCount, def: def.name, structures: (bc.structures ?? []).length },
+    meta: {
+      blobCount, caveCount, blobPhase1, blobPhase2, l1, l2v, l3v, sc,
+      def: def.name, structures: (bc.structures ?? []).length,
+    },
   };
+}
+
+// The layer-2/3 setter lane (dig #55): the single-point MAX-BLEED write
+// (write iff new > existing, the getter/setter 0x5491f0 family).
+function raisePointMax(grid, gridW, gridH, x, y, v) {
+  if (x < 0 || y < 0 || x >= gridW || y >= gridH) return;
+  const idx = y * gridW + x;
+  if (grid[idx] < v) grid[idx] = v;
 }
 
 // The solid-mask view of one field at (x, y): > 0.5 = solid cell (C34)

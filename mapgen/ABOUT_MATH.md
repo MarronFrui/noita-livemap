@@ -4758,3 +4758,64 @@ first use from now on):**
     (`[obj+0x28..0x30]` byte lane) then the y-drift byte + the
     A-resolver body (0x8EE1B0 = the decay-wrapper), then the flag
     drop on the render.
+
+
+- **2026-09-21 (80) — dig #80 (queue #1 executed): the per-phase draw-budget
+  order transcribed into the port + the oracle compare re-spun. Docs
+  re-read first; no live contradictions; tests 143/143 after the swap.**
+  - **The composition swap (`lib/caves-field.mjs` v4):** the builder now
+    runs the byte-cited fnB phase order — HEAD draws (dig #65: draw #1 =
+    the walker's x-range count via the POSITIVE-fraction roll
+    `min + trunc(draw·(max−min+1))`; draw #2 = the y-cursor from the
+    record's own pair) → the fnA walk × cave_count (the worm lane, LERP
+    stamps, cave_childs branches) → the blob decl-loop × the LERP stamps
+    (0x8EE930, v = the C50 interp on [P+0x74]/[+0x78] = the CE pair
+    (1.549988, 0.0) ⇒ span [0, 1.549988], radius cap 20) → the record
+    arena (per-record NEGATIVE-scale count roll + own strength pair → the
+    BYTE grid) → L2 = SINGLE-POINT max-bleed raise (dig #55, push $0 —
+    value = [−0x128]·(d·0.35+0.65)) → scatter #1 → L3 = single-point
+    raise ([−0x108] = d·0.1+0.1 chain) → scatter #2. The two roll TWIN
+    forms (positive head roll vs the negative stamp roll, dig #61/#65)
+    are now distinct port helpers. Also fixed: the v4-before-this-dig
+    shadowing bug (`const l1` inside the fnA loop shadowed the outer
+    chain base → l2Base was always 0).
+  - **Writer-mapping verdict (the oracle rows forced it):** the fnA walk
+    stamp = the 0x8EE930 LERP ONLY (the lowering worm); running the
+    (43)(a) max-bleed setter per stamp REFILLS the fresh carve (v0 =
+    (v−1)·t+1 ≤ 1 vs the just-carved cells) — the eave raise arm belongs
+    to the record stamps (mountain-class, flag=1): the C48 bump peak
+    1.454092 = a 1.45..1.55 strength draw raised by that arm ✓. The
+    0x8EE930 head's `comiss 1.0` path-select and the fnA dual-call-site
+    census (dig #26 vs dig #58) reconcile as: LERP = the walk stamps,
+    the 0x8EE750 raise = the record/eave stamps.
+  - **The instrument (`experiments/2026-09-21-caves-drawbudget-compare.mjs`,
+    the standing byte bar, now IN-REPO):** seed 78633191 vs the C48
+    oracle grid_0x26599020 — **y224 = BYTE-EXACT (rms 0.0000, 0/12, gate
+    0/12 — the standing bar held through every variant)**; y192 rms
+    0.2396..0.2891; y32 improved 0.9754 → 0.3530 in the max-bleed-fnA
+    variant, 0.9754 in the final (writer-split) variant; port solid
+    share 0.71 vs the oracle row samples ≈ 0.5 (dig #30); y0 bump row
+    rms 0.2747 = the IMAGE-lane writer, absent from the port (the C48
+    named identify target — the bump profile is the CaveStructure IMAGE
+    content (eye_0$ ring/mountain art), not any analytic falloff: the
+    dig #28 naive-probe negatives stand, now with the writer identified
+    as the image blend / LoadFromImageData pass, dig #57's conclusion).
+  - **VERDICT: the composition ORDER + writer mapping are now
+    byte-consistent; the remaining divergence = the per-phase draw
+    COUNTS (the exact roll budget per loop — which count pair feeds
+    which decl-loop is still the FLAG) + the record IMAGE-lane stamps
+    (needs the CaveStructure images loaded and blended) + the fnA
+    y-drift span (queue #2).** The value CLASSES all reproduce (deep
+    centers 0.0..0.08 ✓, gradient tails ✓, raises to ~1.45 ✓, the 1.0
+    base ✓); the per-cell POSITIONS cannot converge without the draw
+    budget — expected, and the reason the lane stays SURFACE_V3=1.
+  - **NEW OPEN ITEM (doc arithmetic, no byte read this session):** C46's
+    scatter pair "true 0x8EF2D0 (slab 0x4ee2d0)" violates the C13 map
+    (0x4ee2d0 + 0x400800 = 0x8EEAD0) — one of the two VAs is a typo
+    (the C51 LERP pair 0x8EE930/0x4ee130 converts ✓). Re-pin from the
+    exe BEFORE the next scatter-family read; do not trust either VA
+    until then.
+  - Cache: NO bump (the caves-field lane is not in the default render;
+    gen-cache r3i stores only wang-area bins).
+  - Status: composition transcribed (order + writer mapping); the draw
+    budget + image lane + y-drift = the remaining named reads.
