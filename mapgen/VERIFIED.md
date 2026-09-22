@@ -653,9 +653,10 @@ binary side unread) · ❌ unexplored.
   carry-overs corrected (`call 0x8ed180` 0 hits; `movl $0x132b518,
   0x38(%esi)` nonexistent; "wang-fill @0x8ee5bd" wrong).
   (ABOUT_MATH (86); CONSTANTS C65 + C62 RESOLVED; §8 row 25; ISSUES
-  I19.) Phase 1 stays [ ] pending the user's byte-close vs waiver
-  (residuals: ramp-slot READS + driver extent). No code changes;
-  tests 177/177; y224 0/12 rms 0.0000.
+  I19.) Phase 1 **byte-CLOSED by user decision (2026-09-22)** —
+  residuals recorded as known-open (ramp-slot READS + driver
+  extent), picked up with the next ordered items, not blockers for
+  Phase 2. No code changes; tests 177/177; y224 0/12 rms 0.0000.
 - Cache policy: `out/gen-cache/r3i` holds ONLY wang-area bins
   (seed+area-keyed); the cave-field/opt-in lanes live in non-cached
   in-memory buffers, so no bump was required for the revert; bump
