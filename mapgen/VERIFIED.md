@@ -178,6 +178,8 @@ of these mechanisms, cite the row instead of re-running it.
 | 26 | (90)'s ①f read: the record-parser `call 0x7364f0` @0x9eb1aa sits **inside fn 0x9eb020**, so (89)'s grey-error target is also a record-parser caller = a "role reconciliation" OPEN | CORRECTED dig #91: fn 0x9eb020 ends `ret $0x4` @0x9eb131 + int3 pad 0x9eb134..0x9eb13f ⇒ the synthetic-node builder is the next function, **fn 0x9eb140** (guard `test %ecx,%ecx; je 0x9eb1c1` @0x9eb168; `call 0x7364f0` @0x9eb1aa ∈ 0x9eb140, NOT 0x9eb020; `call 0x9eb140` = exactly 3 e8 sites — 0x745b3f / 0x746263 / 0x746530, all in fn 0x7459d0). fn 0x9eb020 = the grey-error logger **only** (this = global 0x132b624, pushed arg 0x11a0738, call site 0x745999) ⇒ the reconciliation OPEN **dissolves** (two adjacent functions, one role each); (89)'s grey-error label and (90)'s parse-fn byte-facts (guard, second wrapper 0xa70d74) all stand | ✅ ABOUT_MATH §6 (91); CONSTANTS C70 |
 | 27 | The §12 dig-91 claim "**full-realloc 0x978aa0 = 0 call/jmp sites file-wide**" (listed as a mystery / new open for dig #92) | **OVERTURNED dig #92:** 0x978aa0 = the mCellData `vector::reserve` (arg ≤ 0x63e706 × 0x290, magic 0x63e7063f, old-element dtor loop 0x746e20 stride 0x290, begin/cap/end rewired) is reached by **0 calls + exactly 2 tail-jmps — 0x94b373 / 0x94b386** from the capacity-growth wrapper (ends `ret $0x4` @0x94b38f; capacity via signed fixup / ÷2 / max-%esi = a 1.5×-style growth, exact branch predicate OPEN). The "zero sites" missed the tail-jmp form; the growth path is live | ✅ ABOUT_MATH §6 (92); CONSTANTS C71 |
 | 28 | The **"+0x1e0 u16" gloss**: §11's lifecycle map "**names (0xb78e0), [+0x1e0] u16 DECOR write (0x559de0);**" (line 296) + "**dispatcher result → u16 material write (+0x1e0 via 0x559de0)**" (line 411), §12 (86)'s "**C34 +0x1e0 = owner-own decor u16 grid**" (line 653), C65's "**+0x1e0 = owner-own decor u16 grid** (0x90d2c1/0x90d2e9)", and this table's own row 25 aside "**+0x1e0 = owner-own decor u16 grid** (@0x90d2c1/0x90d2e9)" — i.e. the +0x1e0 grid write/content is u16 | **REFUTED dig #93:** the cited accessor 0x559de0 = true **0x95a5e0** — success path returns `base + idx·4` (`mov -0x4(%ebp),%eax; mov (%eax),%eax; lea (%eax,%ebx,4),%eax; ret $0x4` @0x95a6a7..b5; bounds `idx < [this+4]`, OOB assert line **0x4b**, file 0x117a570, expr 0x1179b74) and the planter-path store @**0x90de9c** = `mov %ecx,(%eax)` **dword**; C65's cited sites 0x90d2c1/0x90d2e9 are dword too ⇒ **+0x1e0 = a 4-byte-slot grid, not u16** (C34's own row says only `[+0x1e0] DECOR write` — the u16 label was added later in the §11/§12/C65/row-25 prose). The sampler's u16 read = wrap 0x9fe4e0(this=P+0x20) → `movzwl; dec` @0x90dcd3 (getter 0x94a8f0); the u16 fill container = gen+0x20 (C67/C62). What the dword store holds (slot id vs record pointer) @0x90de9c = **OPEN** | ✅ ABOUT_MATH §6 (93); CONSTANTS C65 amendment + C72 || 29 | The §12 dig-93 gate-order phrase "**assert 0xfe → range `[this+0]≤v≤[this+4]` → assert 0x108 → per component: assert 0x107 → `[+0x04]` record / 0x442610 → assert 0x10f → …**" (line 867) — i.e. the cellFactory assert **0x108 runs once BEFORE the per-component loop**, 0x107 being the per-component one | **REFUTED dig #96:** both asserts are per-iteration — loop head **0x8f5160** (`mov 0x8(%ebx),%ebx; add %esi,%ebx; jne 0x8f5221`; back-jmp `jmp 0x8f5160` @0x8f573b): null-comp **0x107** push @0x8f516b (expr 0x1151e28, skipped by the `jne`) → `mov -0x1c(%ebp),%eax` @0x8f5221 → cellFactory `cmpl $0,0x30(%eax)` @0x8f5224 → `jne 0x8f52e9` → **0x108** push @0x8f522e (expr 0x11732c0) → diag @0x8f52e9 …; loop tail `add $0x84,%esi` @0x8f5713 → count = (end−begin)/0x84 (signed-div magic, imul/sar/shr-add @0x8f571c..0x8f5731) → `jge 0x8f5733` → miss epilogue **0x8f574c** (`pop edi; pop esi; xor eax` @0x8f574e, `ret $8` @0x8f5754) ⇒ **0x107 THEN 0x108 inside every iteration**, both before the diag — the port `classify` mirrors the byte order (asserts at lines 263/264 inside the loop). The rest of the dig-93 chain (diag → limit → polygon → null → v′ → main gate → is_rare → transform → jitter → noise → ramp) agrees with dig #96 and stands | ✅ ABOUT_MATH §6 (96); CONSTANTS C75 |
+| 30 | (82)-era P1 census cells: `noise_type` = SIN_CAPPED_SIMPLEX uniformly; mountain_lake `mGradientStartY` = −1024; `mGradientAddNoise` = "1" everywhere; desert `mMultiplierGradient` = 0.871429; mountain_center + pyramid without a `<Topology>` | **CORRECTED dig #98** (raw-XML + parser pins, the 30-file P1 census): ① `noise_type` ABSENT for **winter, winter_caves, mountain_center, pyramid** ⇒ uidFrom:114 noiseKind −1; ② mountain_lake StartY = **−835**; ③ AddNoise = **"0"** for **hills_flat + mountain_lake** (laboratory outside P1) = the LIVE default-arm (@0x90ab7d) inputs; ④ desert mMultiplierGradient = **0.881426**; ⑤ both DO have `<Topology>` — with none of the 9 noise/mGradient attrs | ✅ ABOUT_MATH §6 (82),(98); tests/mapgen/surface-census.test.mjs |
+| 31 | `mapgen/ABOUT_MATH.md:3588` (the (40)-canon blend tail): "the tail assignments = `r' += (n·r' − r')·((r'−0.85)/0.1)`" for all three cases | **PARTLY REFUTED dig #98 (case 2 only):** cases 1/3 stand — r2 = f(n·r′) via `mulsd` @0x90b075 (case-3 shares it) and the sign r2−r′ = `subss` @0x90b08b ✓ — but **case 2's input = bare f32(n)**: `jmp 0x90b079` skips the mulsd ⇒ its tail = (n − r′)·t, not (n·r′ − r′)·t | ✅ ABOUT_MATH §6 (40),(98); CONSTANTS C77 |
 
 ## 9. Open frontier (ranked)
 
@@ -1031,6 +1033,32 @@ binary side unread) · ❌ unexplored.
   **npm test 218/218**, caves-field **33/33 no skips** (oracle 2,641 B).
   Env-gated; default render untouched. Row **C76**, entry **(97)**; §8 row
   **30** free.
+- **dig #98 — census fixtures + switch/tail truth-fix (Phase 5 step 1):**
+  `tests/mapgen/surface-census.test.mjs` **39** = 30 per-file Topology/
+  MC/mx/mn/band census pins + loadBiomeConfig parser-chain + 8 port-only
+  frame pins, correcting five (82)-era census cells (**§8 row 30**:
+  winter/winter_caves/mountain_center/pyramid `noise_type` ABSENT ⇒
+  uid noiseKind −1; mountain_lake StartY −835; hills_flat/mountain_lake
+  AddNoise "0" = the live default-arm input; desert MultGrad 0.881426;
+  center/pyramid `<Topology>` present without the mGradient block).
+  Full switch re-read (**C77**): gate `comiss` @0x90ab48, dec/je
+  1→0x90afeb/2→0x90aeba/3→0x90ae03, default arm @0x90ab7d **LIVE via
+  the world value 0** → `call 0x8fb570` (UNREAD → **I20** ①) →
+  `0x8fca60` → tail; **three port defects fixed** — the blend-tail
+  **sign flip** in all three arms (`subss` @0x90b08b = r2−r′; port had
+  r′−r2) + unrounded t/add → byte-exact
+  `f(f(f(r2−r′)·f((r′−0.85)/0.1))+r′)`, case-2 **bare f32(n)** (`jmp
+  0x90b079` skips `mulsd` @0x90b075 — **§8 row 31** refutes
+  ABOUT_MATH:3588 for case 2), and case-2's `·(−20)` missing the
+  `mulss` f32-round (@0x90af90/afc3); throw message + 4 comments
+  truth-fixed (switch header, case-1 xmm0 = x-chain, case-2 tail
+  pointer, K2 `0x11dfc68` = f64 0.019999999552965164 not "f32 2.0").
+  Frame pins: origin identity, winter two-sided `kind=-1`,
+  default-arm message regexes, lanes 1/3 old-sign discriminators,
+  lane-2 bare-n sensitivity, cross-lane distinctness, evaluator2 ≡ 0.5
+  (frame: (−7.5, 3.5), gradAt ≡ 10 ⇒ rp ≈ 0.9005438 > 0.85 asserted).
+  **npm test 257/257**, caves-field **33/33 no skips** (oracle 2,641 B).
+  Row **C77**, entry **(98)**, §8 rows **30 + 31**, ISSUES **I20**.
 - Cache policy: `out/gen-cache/r3i` holds ONLY wang-area bins
   (seed+area-keyed); the cave-field/opt-in lanes live in non-cached
   in-memory buffers, so no bump was required for the revert; bump

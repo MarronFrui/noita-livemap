@@ -384,7 +384,7 @@ export const K2 = {
   h001: 0.001,               // f64 0x11dfb58
   f64_001123: 0.01123,       // f64 0x11dfc10
   f64_001313: 0.01313,       // f64 0x11dfc30
-  f64_002: 0.02,             // f64 0x11dfc70 (and f32 2.0 @0x11dfc68)
+  f64_002: 0.02,             // f64 0x11dfc70; 0x11dfc68 = f64 0.019999999552965164 (widened-f32 — NOT "f32 2.0"; C77)
   f64_0021: 0.021,           // f64 0x11dfc78
   f64_05243442: 0.05243442,  // f64 0x11dfcc8 (inside-perlin arg scale)
   f64_006: 0.06,             // f64 0x11dfcd8
@@ -608,7 +608,16 @@ export function surfaceField(uid, x, y, gradAt, valueOfP94, seedInt) {
   //           per  = insidePerlin(...)    (true 0x90b110 → [ebp-0x8])
   //   if r' > 0.85 (0x11dfb84):
   //       switch [uid+0x220]: cases 1/2/3 blend tails operate on r' —
-  //       post-tail xmm2 = rpost; else-lane (≥4) = unread 0x8fb570 (dead).
+  //       post-tail xmm2 = rpost. Gate = `comiss 0x11dfb84` @0x90ab48 →
+  //       `jbe 0x90b0a2`; dec/je 1→0x90afeb 2→0x90aeba 3→0x90ae03
+  //       (@0x90ab74). Default arm (addNoise ∉ {1,2,3}) @0x90ab7d is
+  //       LIVE via the world value 0 (hills_flat/mountain_lake): call
+  //       0x8fb570 @0x90ab9f (UNREAD ≠ 0x8fb350 → I20 ①) → f32 chain →
+  //       simplex2d 0x8fca60 @0x90abee → tail → jmp 0x90b0a2 (port
+  //       THROWS instead until read). Tails: r2 = f(n·r') cases 1/3
+  //       (mulsd @0x90b075), case 2 = f(n) BARE (jmp 0x90b079);
+  //       rpost = f(f(f(r2−r')·f((r'−0.85)/0.1))+r') — subss @0x90b08b
+  //       = r2−r' (C77, entry (98)).
   //   slope arm [uid+0x24c] (0x50a8a2..0x50a8d4):
   //       per := per·(1 + (rpost − 1)·y·0.001)      [0.001 f64 @0x11dfb58;
   //       the multiplier = the Y-arg (the [ebp-0x3c] f64)]
@@ -633,7 +642,7 @@ export function surfaceField(uid, x, y, gradAt, valueOfP94, seedInt) {
       if (uid.addNoise === 1) {
         // CASE-1 lane — slab 0x50a7eb..0x50a89f (dig #11 / (26)), unchanged:
         //   a = whiteLattice2d(x·0.025, y·0.025); g = a·0.05+0.05;
-        //   0x8fc020 args (xmm1 = x-chain, xmm0 = y-chain);
+        //   0x8fc020 args (arg0/xmm0 = x-chain, arg1/xmm1 = y-chain);
         //   tail = r' += (n·r' − r')·((r'−0.85)/0.1)   — the base = r'.
         const xd = +x, yd = +y;
         const a = whiteLattice2d(f(xd * K2.h025), f(yd * K2.h025));
@@ -642,7 +651,7 @@ export function surfaceField(uid, x, y, gradAt, valueOfP94, seedInt) {
         const yArg = f(yd * K.KERNEL) * K2.f64_002 * g;
         const n = simplex2DDeriv(xArg, yArg);                    // = 0x8fc020
         const r2 = f(n * rp);                                    // r·n·field
-        field = f(f(rp - r2) * ((rp - K2.h085) / K.wBias)) + rp;  // rpost
+        field = f(f(f(r2 - rp) * f((rp - K2.h085) / K.wBias)) + rp);  // rpost — byte tail @0x90b072..0x90b09f (C77, dig #98)
       } else if (uid.addNoise === 3) {
         // CASE-3 (lake ×4) — slab 0x50a603..0x50a6b9. AXIS RETRACE
         // (2026-09-21; supersedes the dig #22 #3 note): judged by the
@@ -663,7 +672,7 @@ export function surfaceField(uid, x, y, gradAt, valueOfP94, seedInt) {
         const cCh = Math.acos(xd * K2.one1024) * (1024.0 * 0.5 * 0.06) * g;
         const n = simplex2DDeriv(cCh, sCh);
         const r2 = f(n * rp);
-        field = f(f(rp - r2) * ((rp - K2.h085) / K.wBias)) + rp;
+        field = f(f(f(r2 - rp) * f((rp - K2.h085) / K.wBias)) + rp);  // rpost — byte tail @0x90b072..0x90b09f (C77, dig #98)
       } else if (uid.addNoise === 2) {
         // CASE-2 (hills2) — slab 0x50a6ba..0x50a7e6. AXIS RETRACE
         // (2026-09-21; supersedes the dig #22 #4 note): arg0 = x-side
@@ -675,7 +684,8 @@ export function surfaceField(uid, x, y, gradAt, valueOfP94, seedInt) {
         //   cCh = acos(x/100·0.01313)·aux + fN·(−20)   [0.01313 @0x11dfc30;
         //         0.01123 @0x11dfc10; −20.0 f32 @0x11e068c]
         //   sCh =  sin(y/100·0.01123)·aux + wl·(−20)
-        //   0x8fc020(cCh, sCh) → the same tail.
+        //   0x8fc020(yCh, xCh) → shared tail, BUT jmp 0x90b079 skips the n·r'
+        //   mulsd: case-2 r2 = f(n) BARE (dig #98, C77).
         const xd = +x, yd = +y;
         const wl = whiteLattice2d(f(xd / 100.0 * K2.h025), f(yd / 100.0 * K2.h025));
         const fn = fnvLattice2d(f(xd / 100.0 * K2.h0241), f(yd / 100.0 * K2.h0241));
@@ -683,13 +693,13 @@ export function surfaceField(uid, x, y, gradAt, valueOfP94, seedInt) {
           f(xd / 100.0 * wl * K2.h02789),
           f(fn * (yd / 100.0) * K2.h02789));
         const aux = f(s1 * wl * K2.f64_5 + K.KERNEL);
-        const yCh = Math.acos(xd / 100.0 * K2.f64_001313) * aux + fn * K2.hneg20;
-        const xCh = Math.sin(yd / 100.0 * K2.f64_001123) * aux + wl * K2.hneg20;
+        const yCh = Math.acos(xd / 100.0 * K2.f64_001313) * aux + f(fn * K2.hneg20);   // mulss @0x90af90/afc3
+        const xCh = Math.sin(yd / 100.0 * K2.f64_001123) * aux + f(wl * K2.hneg20);
         const n = simplex2DDeriv(yCh, xCh);
-        const r2 = f(n * rp);
-        field = f(f(rp - r2) * ((rp - K2.h085) / K.wBias)) + rp;
+        const r2 = f(n);          // jmp 0x90b079 SKIPS mulsd @0x90b075 — bare f32(n) (C77)
+        field = f(f(f(r2 - rp) * f((rp - K2.h085) / K.wBias)) + rp);
       } else {
-        throw new Error(`surfaceField: mGradientAddNoise=${uid.addNoise} UNREAD (only lanes 0/1/2/3 exist in live XMLs; the ≥4 default lane = true 0x8fb570 unread, dead in live data)`);
+        throw new Error(`surfaceField: mGradientAddNoise=${uid.addNoise} ∉ {1,2,3} — bytes: comiss gate @0x90ab48 → dec/je 1→0x90afeb 2→0x90aeba 3→0x90ae03 → default arm @0x90ab7d (LIVE via the world value 0): call 0x8fb570 @0x90ab9f UNREAD (≠ whiteLattice 0x8fb350) → f32 chain → simplex2d 0x8fca60 @0x90abee → shared tail; port throws until that body is read — see ISSUES I20`);
       }
     }
   }

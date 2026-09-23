@@ -329,6 +329,22 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   its historical form (append-only — corrected by entry (86)).
   Source: ABOUT_MATH §6 (86).
 
+- [ ] **I20. The default arm's body (true 0x8fb570) is UNREAD — the
+  port throws for the LIVE world value `mGradientAddNoise="0"`**
+  (opened 2026-09-23, dig #98): after the switch's `dec/je` 1/2/3 miss,
+  the default arm @**0x90ab7d** is reached by live XMLs — hills_flat +
+  mountain_lake (P1) and laboratory carry `mGradientAddNoise="0"` — and
+  the binary runs `call 0x8fb570` @**0x90ab9f** → g = a·0.05+0.05 f32
+  chain → `call 0x8fca60` (simplex2d) @**0x90abee** → the shared tail →
+  `jmp 0x90b0a2`. ① **the read item: 0x8fb570's body** (it is NOT
+  whiteLattice2d 0x8fb350 — prelude-shaped only, per the (40)/(22)
+  family reads). Until it is read, `surfaceField` THROWS for
+  addNoise ∉ {1,2,3} (the message byte-pins the switch facts) instead of
+  producing the blend; the default (classify) render is unaffected, and
+  the SURFACE_V2 surfaceField lane cannot render those chunks. ② next:
+  read 0x8fb570, port the arm, re-pin the tail for that lane.
+  Source: ABOUT_MATH §6 (98); CONSTANTS C77.
+
 ## Strategy (agreed)
 
 1. Keep the verified wang core (prediction-solved, oracle-validated).

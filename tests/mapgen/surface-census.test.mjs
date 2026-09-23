@@ -1,0 +1,347 @@
+// tests/mapgen/surface-census.test.mjs — dig #98 (Phase 5 step 1): the
+// Phase-0 census as unit fixtures + the surfaceField switch/tail frame
+// pins (CONSTANTS C77).
+//
+// Layer 1 (data-gated): per-P1-file <Topology> census. The five cells
+// the (82)-era census had wrong are pinned against the extracted XMLs
+// (the engine's own input, per the AGENTS data-source rule):
+//   ① noise_type is NOT uniform — winter + winter_caves (and
+//      mountain_center + pyramid) have NO noise_type ⇒ uidFrom:114
+//      yields noiseKind −1 for those lanes;
+//   ② mountain_lake mGradientStartY = "-835" (not -1024);
+//   ③ mGradientAddNoise = "0" for hills_flat + mountain_lake (the live
+//      default-arm values — laboratory too, outside this 30-file P1 set);
+//   ④ desert mMultiplierGradient = "0.881426" (not 0.871429);
+//   ⑤ mountain_center + pyramid carry a <Topology> WITHOUT the
+//      mGradient/noise block (element present, attrs all null).
+// Plus: MC/mx/mn literals, the band fold (buildMaterialsTable vs an
+// independent f32 extremum fold over the literal mx/mn arrays), a zero
+// is_polygon/celldata tripwire, and loadBiomeConfig parser-chain pins
+// for the def fields uidFrom actually reads (uidFrom itself is not
+// exported — the consequence is pinned two-sided below).
+//
+// Layer 2 (port-only, always runs): frame pins at (xd, yd) = (−7.5, 3.5)
+// with gradAt ≡ 10 ⇒ field0 = 10 (≥ KERNEL 0.5) ⇒ rp = f(s·10) ≈
+// 0.9005438 > 0.85 (the comiss precondition is asserted in-test):
+//   - origin identity: rp = 0 ⇒ every addNoise lane, incl. the live
+//     default arm (0), returns 0 with NO throw (switch never entered);
+//   - winter consequence: census attr null → uidFrom:114 noiseKind −1 →
+//     dispatch throws kind=-1 (two-sided pin);
+//   - default arm (live 0 + stale 4) throws at the open gate with the
+//     byte-fact message (gate/dec-je/@0x90ab7d/0x8fb570/0x8fca60/I20);
+//   - lanes 1/3: byte-tail pins — expected = the byte-exact chain
+//     rpost = f(f(f(r2−rp)·f((rp−0.85)/0.1))+rp), r2 = f(n·rp) — plus
+//     an old-sign discriminator (the pre-fix port computed (rp−r2) with
+//     unrounded t/add; separated by ≳0.1 at this frame);
+//   - lane 2: r2 = f(n) BARE (case-2 jmp 0x90b079 skips the mulsd
+//     @0x90b075) with a sensitivity assert vs the r2 = f(n·rp) variant;
+//   - cross-lane distinctness + evaluator2(·,·,0.5) ≡ 0.5 (arg3 = field).
+//
+// Sources re-read this session: /tmp/opencode/fulltext86.asm (switch
+// @0x90ab48..0x90b0fb), /tmp/opencode/rdata.bin (PE consts), census98b
+// literals; code: noise-proto.mjs surfaceField :596.., evaluator2 :341,
+// FINAL :703; uidFrom (noise-terrain.mjs) :111-132; biomes.mjs :88-132.
+
+import { describe, test, expect } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
+import {
+  K,
+  K2,
+  evaluator2,
+  whiteLattice2d,
+  fnvLattice2d,
+  simplex2d,
+  simplex2DDeriv,
+  noiseDispatch,
+  surfaceField,
+} from "../../mapgen/lib/noise-proto.mjs";
+import {
+  componentFromXml,
+  buildMaterialsTable,
+} from "../../mapgen/lib/surface-level.mjs";
+import { loadBiomeConfig } from "../../mapgen/lib/biomes.mjs";
+import { dataDir, hasNoitaData } from "../helpers/data.mjs";
+
+const f = Math.fround;
+
+// ---------------------------------------------------------------------------
+// Layer 1 — the P1 census (30 files; names = the Phase-0 census list).
+// tuple A = [noise_type, StartY, EndY, HighNoise, LowNoise, NoiseScale,
+//            AddNoise, mMultiplierGradient, bitmap_noise_file]
+// (null = the attr is ABSENT from <Topology>). Values are the exact XML
+// strings (census98b literals, re-extracted this session).
+// ---------------------------------------------------------------------------
+const HILL = ["SIN_CAPPED_SIMPLEX", "-1024", "1024", "234.057", "-292.571", "0.00128571", "1", "0.871429", null];
+const H2 = ["SIN_CAPPED_SIMPLEX", "-1024", "1024", "75.123", "-12.0564", "0.0068571", "2", "0.871429", null];
+const HFLAT = ["SIN_CAPPED_SIMPLEX", "-750", "1024", "234.057", "-292.571", "0.00128571", "0", "0.871429", null];
+const DES = ["SIN_CAPPED_SIMPLEX", "-1024", "1024", "100.123", "-100.123", "0.00128571", "1", "0.881426", null];
+const MTOP = ["SIN_CAPPED_SIMPLEX", "-1024", "1024", "100.123", "-100.123", "0.00128571", "1", "0.871429", null];
+const WIN = [null, "-1024", "1024", "234.057", "-292.571", "0.00128571", "1", "0.871429", null];
+const LAKE = ["SIN_CAPPED_SIMPLEX", "-1024", "1024", "134.057", "-292.571", "0.00128571", "3", "0.871429", "data/biome_impl/topology_lake.png"];
+const MLAKE = ["SIN_CAPPED_SIMPLEX", "-835", "1024", "234.057", "-292.571", "0.00128571", "0", "0.871429", null];
+const NONE = [null, null, null, null, null, null, null, null, null];
+const PYR = ["SIN_CAPPED_SIMPLEX", "-1024", "1024", "100.123", "-100.123", "0.00128571", "1", "0.871429", null];
+const PTOP = ["SIN_CAPPED_SIMPLEX", "-1024", "1024", "234.057", "-292.571", "0.00128571", "1", "0.871429", null];
+
+// mx/mn literal families (material_max / material_min, file order).
+const H6 = [0.55, 0.53, 0.95, 1.2, 1.25, 3.5];
+const H6N = [0.51, 0.45, 0.53, 1.1, 1.05, 0.9];
+const H7 = [0.55, 0.53, 0.95, 1.2, 1.25, 1.2, 3.5];
+const H7N = [0.51, 0.45, 0.53, 1.1, 1.05, 1.05, 0.9];
+const H4 = [0.55, 0.53, 0.95, 3.5];
+const H4N = [0.51, 0.45, 0.53, 0.9];
+const D8 = [0.48, 0.6, 0.73, 0.95, 1.25, 0.95, 3.5, 3.5];
+const D8N = [0.45, 0.48, 0.59, 0.72, 1.05, 0.68, 0.9, 0.9];
+const W7 = [2.55, 0.9, 0.9, 0.95, 1.2, 1.25, 3.5];
+const W7N = [0.5, 0.35, 0.35, 0.53, 1.1, 1.05, 0.9];
+const L5 = [0.5, 0.68, 0.95, 4.95, 5.5];
+const L5N = [-1, 0.5, 0.68, 4.68, 4.9];
+const MCL = [0.55, 0.53, 1.55, 1.2, 1.25, 1.2, 3.5];
+const MCLN = [0.51, 0.45, 0.53, 1.1, 1.05, 1.05, 0.9];
+const P4 = [0.55, 1.2, 1, 3.6];
+const P4N = [0.45, 1.1, 0.6, 0.8];
+const P6 = [0.51, 0.6, 0.73, 0.95, 1.25, 3.5];
+const P6N = [0.45, 0.5, 0.59, 0.72, 1.05, 0.9];
+
+const ATTRS = [
+  "noise_type",
+  "mGradientStartY",
+  "mGradientEndY",
+  "mGradientHighNoise",
+  "mGradientLowNoise",
+  "mGradientNoiseScale",
+  "mGradientAddNoise",
+  "mMultiplierGradient",
+  "bitmap_noise_file",
+];
+
+// name → [A, MC count, mx, mn]
+const FILES = {
+  hills: [HILL, 6, H6, H6N],
+  hills2: [H2, 6, H6, H6N],
+  hills_flat: [HFLAT, 6, H6, H6N],
+  desert: [DES, 8, D8, D8N],
+  winter: [WIN, 7, W7, W7N],
+  winter_caves: [WIN, 7, W7, W7N],
+  lake: [LAKE, 5, L5, L5N],
+  lake_blood: [LAKE, 5, L5, L5N],
+  lake_deep: [LAKE, 1, [10.5], [-1]],
+  lake_statue: [LAKE, 5, L5, L5N],
+  mountain_left: [HILL, 7, H7, H7N],
+  mountain_left_2: [HILL, 7, H7, H7N],
+  mountain_left_3: [HILL, 7, H7, H7N],
+  mountain_left_entrance: [HILL, 4, H4, H4N],
+  mountain_left_stub: [HILL, 7, H7, H7N],
+  mountain_right: [HILL, 7, H7, H7N],
+  mountain_right_2: [HILL, 7, H7, H7N],
+  mountain_right_entrance: [HILL, 7, H7, H7N],
+  mountain_right_entrance_2: [HILL, 7, H7, H7N],
+  mountain_right_stub: [HILL, 6, H6, H6N],
+  mountain_top: [MTOP, 7, H7, H7N],
+  mountain_tree: [HILL, 6, H6, H6N],
+  mountain_lake: [MLAKE, 6, H6, H6N],
+  mountain_center: [NONE, 7, MCL, MCLN],
+  pyramid: [NONE, 4, P4, P4N],
+  pyramid_entrance: [PYR, 6, P6, P6N],
+  pyramid_hallway: [PYR, 4, P4, P4N],
+  pyramid_left: [PYR, 6, P6, P6N],
+  pyramid_right: [PYR, 6, P6, P6N],
+  pyramid_top: [PTOP, 6, P6, P6N],
+};
+
+describe.skipIf(!hasNoitaData())("P1 Topology census (dig #98, data-gated)", () => {
+  test.each(Object.entries(FILES))("%s census + band", (name, [A, mc, mx, mn]) => {
+    const xml = fs.readFileSync(path.join(dataDir, "biome", `${name}.xml`), "utf-8");
+
+    // ⑤ the Topology element itself (bare for mountain_center/pyramid)
+    const m = xml.match(/<Topology\b[^>]*>/);
+    expect(m, `${name}: <Topology> present`).not.toBeNull();
+
+    // ①-④ + bitmap: named-attr pins (null = absent from the element)
+    for (let i = 0; i < ATTRS.length; i++) {
+      const got = m[0].match(new RegExp(`${ATTRS[i]}="([^"]*)"`))?.[1] ?? null;
+      expect(got, `${name}.${ATTRS[i]}`).toBe(A[i]);
+    }
+
+    // MaterialComponents: count + band fold (buildMaterialsTable vs an
+    // independent f32 extremum fold over the literal mx/mn arrays)
+    const blocks = xml.match(/<MaterialComponent\b[^>]*>/g) ?? [];
+    expect(blocks.length, `${name}: MC count`).toBe(mc);
+    const comps = blocks.map((b) => componentFromXml(b));
+    const records = comps.map((c, i) => ({ i, name: c.material_name }));
+    const table = buildMaterialsTable(comps, { min: 0, max: 0 }, records);
+    expect(table.components.length, `${name}: table size`).toBe(mc);
+    expect(table.bandMax, `${name}: bandMax`).toBeCloseTo(
+      mx.reduce((a, v) => Math.max(a, f(v)), 0),
+      7,
+    );
+    expect(table.bandMin, `${name}: bandMin`).toBeCloseTo(
+      mn.reduce((a, v) => Math.min(a, f(v)), 0),
+      7,
+    );
+
+    // zero is_polygon / celldata in the P1 set (the rare/planter attrs
+    // live only on boss_arena/end_wall/lava_90percent/temple_wall)
+    expect(/is_polygon=|celldata/.test(xml), `${name}: no planter attrs`).toBe(false);
+  });
+
+  test("loadBiomeConfig parser-chain pins (the def fields uidFrom reads)", () => {
+    // NOTE: cfg.biomes is COLOR-keyed (first-color-wins), so same-color
+    // files (hills_flat, mountain_center) have no entry here — their
+    // cells stay pinned by the raw-XML census layer above. The d()
+    // helper asserts presence so `?.` can't make a pin vacuous.
+    const cfg = loadBiomeConfig(dataDir);
+    const d = (b) => {
+      const def = [...cfg.biomes.values()].find((x) => x.filename?.endsWith(b));
+      expect(def, `${b} in cfg.biomes`).toBeDefined();
+      return def;
+    };
+    // winter/winter_caves: noise_type absent ⇒ uidFrom:114 noiseKind −1
+    // (the dispatch consequence is pinned two-sided in the frame layer)
+    expect(d("winter.xml").noiseType, "winter.noiseType").toBeUndefined();
+    expect(d("winter.xml").mGradientAddNoise, "winter.AddNoise").toBe("1");
+    expect(d("winter_caves.xml").noiseType, "winter_caves.noiseType").toBeUndefined();
+    // hills + the (82)-fix cells through the real parser
+    expect(d("hills.xml").noiseType).toBe("SIN_CAPPED_SIMPLEX");
+    expect(d("hills.xml").mGradientStartY).toBe("-1024");
+    expect(d("hills.xml").mMultiplierGradient).toBe("0.871429");
+    expect(d("mountain_lake.xml").mGradientStartY, "mountain_lake.StartY").toBe("-835");
+    expect(d("mountain_lake.xml").mGradientAddNoise, "mountain_lake.AddNoise").toBe("0");
+    expect(d("desert.xml").mMultiplierGradient, "desert.MultGrad").toBe("0.881426");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Layer 2 — port-only frame pins (C77). Frame: (−7.5, 3.5), gradAt ≡ 10.
+// uid mirror = uidFrom (noise-terrain.mjs:111-132); gradWCoef 0 is a legal
+// byte state (+0x268 guard skips the insidePerlin lane) and isolates the
+// FINAL to f(P·rpost) so the tail is pinned cleanly.
+// ---------------------------------------------------------------------------
+const XD = -7.5;
+const YD = 3.5;
+const G10 = () => 10; // field0 = 10 ≥ KERNEL ⇒ rp = f(s·10)
+const uidOf = (over = {}) => ({
+  noiseKind: 5,
+  gradient: 0,
+  sx: 1,
+  sy: 1,
+  ox: 0,
+  oy: 0,
+  offsetBySeed: false,
+  fbm: false,
+  noiseTypeInt: 5,
+  squared: false,
+  clamped: false,
+  scaled: false,
+  scaleMin: 0.057143,
+  scaleMax: 2,
+  gradWCoef: 0, // +0x268 lane guarded off (byte ucomiss test)
+  perlinCoef: 0.871429, // hills mMultiplierGradient [+0x264]
+  addValue: 0,
+  addNoise: 1,
+  minX: 0,
+  maxX: 0,
+  ...over,
+});
+const rpAt = (x, y) => f(noiseDispatch(5, x, y) * 10);
+const rpPre = (x, y) => {
+  const rp = rpAt(x, y);
+  expect(rp).toBeGreaterThan(0.85); // comiss 0x11dfb84 @0x90ab48 precondition
+  return rp;
+};
+// byte-exact tail: subss @0x90b08b → divss @0x90b08f → mulss @0x90b097
+// → addss @0x90b09b (C77)
+const tail = (r2, rp) => f(f(f(r2 - rp) * f((rp - K2.h085) / K.wBias)) + rp);
+// FINAL (noise-proto :703) with gradWCoef 0 / addValue 0:
+// out = f(0·gradW·per) + f(P·rpost) + 0
+const expOut = (rpost) => f(0.871429 * rpost);
+// the pre-fix port tail: sign-flipped (rp − r2), unrounded t and add
+const oldTail = (r2, rp) => f(f(rp - r2) * ((rp - K2.h085) / K.wBias)) + rp;
+
+describe("surfaceField switch/tail frame pins (dig #98, port-only)", () => {
+  test("evaluator2(·,·,0.5) ≡ 0.5 (the third arg is the field)", () => {
+    for (const [x, y] of [
+      [0, 0],
+      [XD, YD],
+      [12.25, -3.75],
+    ]) {
+      expect(evaluator2(x, y, 0.5)).toBe(0.5);
+    }
+  });
+
+  test("origin identity: rp = 0 ⇒ lanes 1/2/3 + live default arm all return 0, no throw", () => {
+    expect(noiseDispatch(5, 0, 0)).toBeCloseTo(0, 7);
+    expect(rpAt(0, 0)).toBe(0);
+    for (const an of [0, 1, 2, 3, 4]) {
+      expect(surfaceField(uidOf({ addNoise: an }), 0, 0, G10, 0, 0), `lane ${an}`).toBe(0);
+    }
+  });
+
+  test("winter consequence: census noise_type null ⇒ noiseKind −1 ⇒ kind=-1 throw (two-sided)", () => {
+    expect(() => noiseDispatch(-1, 0, 0)).toThrow(/kind=-1/);
+    expect(() => surfaceField(uidOf({ noiseKind: -1 }), 0, 0, G10, 0, 0)).toThrow(/kind=-1/);
+  });
+
+  test("default arm (live addNoise=0 + stale 4) throws at the open gate with the byte-fact message", () => {
+    rpPre(XD, YD);
+    for (const an of [0, 4]) {
+      expect(() => surfaceField(uidOf({ addNoise: an }), XD, YD, G10, 0, 0), `lane ${an}`).toThrow(
+        /0x90ab48.*0x90ab7d.*0x8fb570.*0x8fca60.*I20/s,
+      );
+    }
+  });
+
+  test("lane 1 byte-tail pin (+ old-sign discriminator)", () => {
+    const rp = rpPre(XD, YD);
+    const a = whiteLattice2d(f(XD * K2.h025), f(YD * K2.h025));
+    const g = f(a * K2.h05 + K2.h05);
+    const n = simplex2DDeriv(
+      f(XD * K.KERNEL) * K2.f64_002 * g,
+      f(YD * K.KERNEL) * K2.f64_002 * g,
+    );
+    const exp = expOut(tail(f(n * rp), rp));
+    expect(Math.abs(exp - expOut(oldTail(f(n * rp), rp)))).toBeGreaterThan(1e-3);
+    expect(surfaceField(uidOf({ addNoise: 1 }), XD, YD, G10, 0, 0)).toBeCloseTo(exp, 7);
+  });
+
+  test("lane 3 byte-tail pin (+ old-sign discriminator)", () => {
+    const rp = rpPre(XD, YD);
+    const a = whiteLattice2d(f(XD * K2.f64_002), f(YD * K2.f64_0021));
+    const g = f(a * K2.h05 + K2.h05);
+    const sCh = Math.sin(YD * K2.one1024) * (1024.0 * 0.5 * 0.06) * g;
+    const cCh = Math.acos(XD * K2.one1024) * (1024.0 * 0.5 * 0.06) * g;
+    const n = simplex2DDeriv(cCh, sCh);
+    const exp = expOut(tail(f(n * rp), rp));
+    expect(Math.abs(exp - expOut(oldTail(f(n * rp), rp)))).toBeGreaterThan(1e-3);
+    expect(surfaceField(uidOf({ addNoise: 3 }), XD, YD, G10, 0, 0)).toBeCloseTo(exp, 7);
+  });
+
+  test("lane 2 byte-tail pin: case-2 r2 = f(n) BARE (sensitivity vs f(n·rp))", () => {
+    const rp = rpPre(XD, YD);
+    const wl = whiteLattice2d(f(XD / 100.0 * K2.h025), f(YD / 100.0 * K2.h025));
+    const fn = fnvLattice2d(f(XD / 100.0 * K2.h0241), f(YD / 100.0 * K2.h0241));
+    const s1 = simplex2d(
+      f(XD / 100.0 * wl * K2.h02789),
+      f(fn * (YD / 100.0) * K2.h02789),
+    );
+    const aux = f(s1 * wl * K2.f64_5 + K.KERNEL);
+    const yCh = Math.acos(XD / 100.0 * K2.f64_001313) * aux + f(fn * K2.hneg20);
+    const xCh = Math.sin(YD / 100.0 * K2.f64_001123) * aux + f(wl * K2.hneg20);
+    const n = simplex2DDeriv(yCh, xCh);
+    const bare = expOut(tail(f(n), rp));
+    const mult = expOut(tail(f(n * rp), rp));
+    expect(Math.abs(bare - mult)).toBeGreaterThan(1e-4); // the factor is pinned
+    expect(surfaceField(uidOf({ addNoise: 2 }), XD, YD, G10, 0, 0)).toBeCloseTo(bare, 7);
+  });
+
+  test("cross-lane distinctness at the probe frame", () => {
+    const outs = [1, 2, 3].map((an) =>
+      surfaceField(uidOf({ addNoise: an }), XD, YD, G10, 0, 0),
+    );
+    for (const o of outs) expect(Number.isFinite(o)).toBe(true);
+    expect(Math.abs(outs[0] - outs[1])).toBeGreaterThan(1e-6);
+    expect(Math.abs(outs[1] - outs[2])).toBeGreaterThan(1e-6);
+    expect(Math.abs(outs[0] - outs[2])).toBeGreaterThan(1e-6);
+  });
+});

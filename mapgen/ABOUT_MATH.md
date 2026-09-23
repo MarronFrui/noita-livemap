@@ -7029,3 +7029,81 @@ first use from now on):**
       overturn), Current_work refresh (Phase 4 step 3 → **DONE**; next
       = Phase 5). ISSUES: none filed (I20 remains next free). Tests
       **218/218**; caves-field gate **33/33, no skips** (oracle 2,641 B).
+  - **2026-09-23 (98) — Phase 5 step 1 (dig #98): census fixtures + the
+    switch/tail re-read (sign flip, case-2 bare n, LIVE default arm):**
+    - **① The census, made executable** (Phase-0 unit fixtures):
+      `tests/mapgen/surface-census.test.mjs` = **39 tests** — 30
+      data-gated per-file censuses + 1 parser-chain + 8 port-only frame
+      pins. The per-file layer pins `<Topology>` presence + the 9 named
+      noise attrs + the MaterialComponent count + the mx/mn literals +
+      the band fold (`buildMaterialsTable` vs an independent f32
+      extremum fold over the literal arrays, seed {0,0}) + a zero
+      `is_polygon`/`celldata` tripwire for every P1 file (the Phase-0
+      30; names re-cut from census98b — no `mountain_right_3`). It
+      **corrects five (82)-era census cells** (VERIFIED §8 row 30):
+      ① `noise_type` is NOT uniform — winter + winter_caves (and
+      mountain_center + pyramid) have NO `noise_type` ⇒ `uidFrom:114`
+      yields `noiseKind −1` for those lanes; ② mountain_lake
+      `mGradientStartY = "-835"`; ③ `mGradientAddNoise = "0"` for
+      hills_flat + mountain_lake (laboratory too, outside P1) = the LIVE
+      default-arm inputs; ④ desert `mMultiplierGradient = "0.881426"`;
+      ⑤ mountain_center + pyramid DO carry `<Topology>` — without the
+      mGradient/noise attrs (all nine null). The parser-chain test runs
+      the same cells through the real `loadBiomeConfig` (its `biomes` is
+      color-keyed ⇒ hills_flat/mountain_center defs are color-absent —
+      asserted and noted in-test; raw XML stays ground truth for those).
+    - **② The switch, full re-read** (CONSTANTS **C77**; source
+      /tmp/opencode/fulltext86.asm + /tmp/opencode/rdata.bin, file = VA −
+      0x400E00, anchor 0xeb14 ↔ VA 0x11df914): gate `comiss 0x11dfb84`
+      @true **0x90ab48** → `jbe 0x90b0a2`; loads @0x90ab55/0x90ab5b;
+      `dec %eax` @0x90ab74 → je 1→**0x90afeb** / 2→**0x90aeba** /
+      3→**0x90ae03**; **the default arm @0x90ab7d is LIVE via the world
+      value 0** (hills_flat + mountain_lake, laboratory outside P1):
+      `call 0x8fb570` @**0x90ab9f** (UNREAD; ≠ whiteLattice2d 0x8fb350
+      — prelude-shaped only → **ISSUES I20** ①) → g = a·0.05+0.05 f32
+      chain → `call 0x8fca60` (simplex2d) @**0x90abee** → shared tail →
+      `jmp 0x90b0a2`; case-1 core `call 0x8fc020` @**0x90b068** (xmm0 =
+      x-chain); case-3 shares it via `jmp 0x90b068`; case-2 core
+      @0x90afdc → `movss` rp @0x90afe1 → `jmp 0x90b079`. **Three port
+      defects found + fixed:** ① the blend tail was **sign-flipped** —
+      `subss %xmm2,%xmm1` @**0x90b08b** = xmm1−xmm2 = **r2 − r′** (the
+      port computed (r′ − r2)); the t and the final add were unrounded
+      (divss @0x90b08f / mulss @0x90b097 / addss @0x90b09b) — all three
+      arms now carry the byte-exact
+      `f(f(f(r2−r′)·f((r′−0.85)/0.1))+r′)`; ② **case 2's blend input =
+      f32(n) BARE** — `jmp 0x90b079` skips `cvtps2sd`+`mulsd n·r′`
+      @0x90b072/75 (port had r2 = f(n·rp)) ⇒ **ABOUT_MATH:3588's
+      `n·r′` is refuted for case 2 only** — cases 1/3 do use f(n·r′)
+      (mulsd @0x90b075, sign ✓) → §8 row 31; ③ case-2's `fn/wl·(−20)`
+      terms were missing the byte `mulss` f32-round (@0x90af90/0x90afc3
+      → cvtps2pd). Comment/message truth-fixes: the switch header block
+      (gate/dec-je addresses + LIVE-0 default + tail formula), case-1's
+      arg order (arg0/xmm0 = x-chain), case-2's tail pointer, the K2
+      `f64_002` parenthetical (**0x11dfc68 = f64
+      0.019999999552965164**, widened-f32 — the old "f32 2.0" gloss
+      WRONG), and the default-arm throw message now carries the byte
+      facts (gate @0x90ab48 / dec-je targets / @0x90ab7d / 0x8fb570
+      UNREAD / 0x8fca60 / "see ISSUES I20").
+    - **③ Frame pins (port-only, always run):** frame (−7.5, 3.5) with
+      gradAt ≡ 10 ⇒ rp = f(s·10) ≈ 0.9005438 > 0.85 (precondition
+      asserted in-test; the gradAt≡1000 scratch frame gave rp = 90.05 —
+      unusable f32 ulp 0.0078125 at 70k): origin identity (rp = 0 ⇒
+      lanes 1/2/3 + the live default arm all return 0, no throw);
+      winter two-sided pin (census attr null + `noiseDispatch(−1)` /
+      `surfaceField(noiseKind −1)` throw `kind=-1`); default-arm
+      throw-message regex pins (byte facts above); lanes 1/3 7-decimal
+      byte-tail pins + old-sign discriminators (threshold 1e-3; the
+      rp=90 probe measured 135663/133054 old-vs-byte separations); lane
+      2 bare-n pin + sensitivity vs the f(n·rp) variant; cross-lane
+      distinctness; `evaluator2(·,·,0.5) ≡ 0.5`. The scratch L2
+      chain-mirror deviation (0.0078125 @rp=90) resolved: the port's
+      missing −20 `mulss` rounds + unrounded addss and the mirror's f64
+      wBias (bytes = K.wBias = f32(0.1) @0x11df974) — with byte-exact
+      chains both sides agree at `toBeCloseTo(…,7)` (39/39). uidFrom is
+      not exported: its census→uid line stays a code-read (:114) with
+      the consequence pinned two-sided (census attrs + kind=-1 throw).
+    - Status: **code + tests + docs landed.** Landed: CONSTANTS **C77**,
+      this entry **(98)**, VERIFIED **§8 rows 30 + 31** + **§12 dig-98
+      bullet**, ISSUES **I20** (default-arm body 0x8fb570 — OPEN),
+      Current_work refresh (Phase 5 step 1 → **DONE**). Tests
+      **257/257**; caves-field gate **33/33, no skips** (oracle 2,641 B).
