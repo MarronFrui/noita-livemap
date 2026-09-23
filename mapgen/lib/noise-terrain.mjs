@@ -1,4 +1,5 @@
 // mapgen/lib/noise-terrain.mjs — F3 noise-terrain integration (2026-09-20)
+import fs from "node:fs";
 import path from "node:path";
 //
 // Binary-derived per ABOUT_MATH 2026-09-19 (12)/(13) + 2026-09-20 (15)/(16):
@@ -26,6 +27,11 @@ import { biomeAt } from "./biomes.mjs";
 import { buildCavesField } from "./caves-field.mjs";
 import { readPng } from "./images.mjs";
 import { findNoitaDataDir } from "./paths.mjs";
+import {
+  componentFromXml,
+  buildMaterialsTable,
+  classify,
+} from "./surface-level.mjs";
 
 // dig #30: the name-keyed caves-field cache (the binary's std::map
 // @0x132aae8 semantics — one cached cave grid per (seed, CaveStructure
@@ -42,6 +48,33 @@ function ensureCavesField(dataDir, def, seed) {
   entry = buildCavesField(dataDir, def, seed);
   cavesFieldCache.set(key, entry);
   return entry;
+}
+
+// dig #97 (C76): the biome <Materials> table feeding the SURFACE_V3
+// classify chain — cached per XML file (classify mutates nothing; the
+// comps are owned by this cache and take their celldata records at build
+// time). No <MaterialComponent> blocks → null = the game's
+// mBiomeMaterials == 0 arm (@0x90dd01 → je @0x90ddb0) → air. The band
+// seed {min:0, max:0} is the documented proxy — the game's seed init is
+// unread (OPEN, C76) and buildMaterialsTable's extend-if-narrower rule
+// makes the real band = the comps' hull ∪ {0,0} = [0, 3.5] for hills.
+const surfaceTableCache = new Map(); // def.filename -> table | null
+function ensureSurfaceTable(dataDir, def) {
+  if (!def.filename) return null;
+  if (surfaceTableCache.has(def.filename)) return surfaceTableCache.get(def.filename);
+  let table = null;
+  const dir = dataDir ?? dataDirRef.dataDir;
+  if (dir) {
+    const xml = fs.readFileSync(path.join(dir, def.filename.replace(/^data\//, "")), "utf-8");
+    const blocks = xml.match(/<MaterialComponent\b[^>]*>/g) ?? [];
+    if (blocks.length > 0) {
+      const comps = blocks.map((b) => componentFromXml(b));
+      const records = comps.map((c, i) => ({ i, name: c.material_name }));
+      table = buildMaterialsTable(comps, { min: 0, max: 0 }, records);
+    }
+  }
+  surfaceTableCache.set(def.filename, table);
+  return table;
 }
 
 const CHUNK = 512; // (matches world-gen CHUNK; local to avoid the ESM cycle)
@@ -205,6 +238,19 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
     }
     return { mask, def, v2: true };
   }
+  // dig #97 (C76) — Phase 4 step 3: the sampler's classify chain wired
+  // into the SURFACE_V3 lane (attach-gated @:235). Chain order mirrors
+  // the bytes: field > 0.5 gate (@0x90dbc3 comiss → jbe @0x90dbd0) →
+  // mBiomeMaterials-null ⇒ air (@0x90dd01 → je @0x90ddb0 = table null) →
+  // evaluator2(x, y, field) (@0x90dd24 — arg order = C76) → floor-fix →
+  // classify (@0x90dd7e) → record null ⇒ no window-write ⇒ air
+  // (@0x90dd8b). kind/intern/planter arms are byte-observed but their
+  // enum semantics are OPEN (C76); any non-null record renders solid.
+  // Fail-loud: a component that throws (unknown attr, polygon, null
+  // celldata) propagates to noiseAt's catch → the chunk falls through
+  // honestly (same contract as the V2 lane's unread-core arm).
+  const surfaceTable = ensureSurfaceTable(dataDirRef.dataDir, def);
+  const bandTopPx = SKY_ROWS * CHUNK; // 24576 — classify y frame origin (C76)
   for (let cy = 0; cy < 52; cy++) {
     for (let cx = 0; cx < 52; cx++) {
       // global wang-cell coords (10 world px per cell, C10/C11)
@@ -213,7 +259,23 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
       // the sampler's own gate: process only when the field > 0.5 —
       // here the field IS the binary evaluator (single-call shape proxy)
       const v = evaluator2(gx + cfg.minX, gy + cfg.maxX, 1.0);
-      mask[52 * cy + cx] = v > 0.5 ? 1 : 0;
+      let solid = 0;
+      if (v > 0.5 && surfaceTable) {
+        // classify x/y = the origin-translated int px of the cell (C76
+        // frame decision): x = canvas px (no limit_x anywhere — an x
+        // shift only phases the field), y = canvas py − 24576 (0 =
+        // surface-band top; pinned by hills.xml's soil/copper limit_y
+        // bands + mGradient (−1024, 1024) + the band living at canvas
+        // ty 48..50). +5 = cell center = this lane's gx+0.5 convention;
+        // integer math keeps the 51.2-cell sums exact (a float-rounded
+        // x/y would walk across limit_y edges). Game classifies per
+        // pixel (counters step 1 px); we sample one px per cell —
+        // deviation tagged in C76.
+        const x = tx * CHUNK + cx * 10 + 5;
+        const y = ty * CHUNK + cy * 10 + 5 - bandTopPx;
+        solid = classify(surfaceTable, x, y, v) ? 1 : 0;
+      }
+      mask[52 * cy + cx] = solid;
     }
   }
   return { mask, def };

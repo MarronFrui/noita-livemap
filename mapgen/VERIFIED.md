@@ -1005,6 +1005,32 @@ binary side unread) · ❌ unexplored.
   **npm test 215/215**, caves-field **33/33 no skips** (oracle 2,641 B).
   Env-gated; render-path untouched. Row **C75**, entry **(96)**,
   **§8 row 29**.
+- **dig #97 — SURFACE_V3 classify wiring + the x/y FRAME (Phase 4 step 3):**
+  noise-terrain's default branch now runs gate (`v > 0.5` = the sampler's own
+  `comiss 0x11dfa94` @0x90dbc3) → table (module-private `ensureSurfaceTable`,
+  cached per `def.filename`; no components ⇒ null = the mBiomeMaterials==0
+  → air arm @0x90dd01) → `classify(table, x, y, v)` (call @0x90dd7e; record
+  null ⇒ no window-write ⇒ air @0x90dd8b), byte-cited; a component throw
+  propagates to noiseAt's catch (chunk falls through honestly). **Frame
+  decided by elimination (C76):** x = canvas px, y = canvas py − 24576
+  (SKY_ROWS·512) — three converging lines (hills.xml limit_y=1 on ONLY soil
+  `[-1024, 424.229]` + copper `[750, 2048]`, other four `limit_y="0"` — the
+  earlier four-band claim **RETRACTED**; mGradient ±1024 shares the frame;
+  surface band = canvas ty 48..50) and two eliminations (world px
+  @OFFSET_Y=14 → surface −7168 rejects soil; raw canvas → 24576 > 424.229
+  rejects soil); no `limit_x` ⇒ x = identity. Loop regs confirmed (outer
+  ESI = y, inner EDI = x ⇒ C54 slab labels stand — **no §8 overturn**, row 30
+  free); evaluator2 arg order = **(x, y, field)** (port arg3 = 1.0 proxy
+  **RESOLVED**); floor-fix push order floor(y) @0x90dd55 / floor(x) @0x90dd72
+  ⇒ [ebp+8] = x, [ebp+0xc] = y; planter 0x7644d0 receives the same x/y sums
+  (arg parity). Measured: band v ∈ **[0.7191, 1.2809]** (rows 48..56,
+  555k+ cells) ⇒ **mask ≡ gate** on current data — reject arms unreachable
+  in-band (unit-pinned in surface-level.test); frame probes (constructed
+  soil-band v at real lane y 405/505 + both eliminated frames) execute the
+  elimination argument. New `tests/mapgen/surface-wiring.test.mjs` **3**;
+  **npm test 218/218**, caves-field **33/33 no skips** (oracle 2,641 B).
+  Env-gated; default render untouched. Row **C76**, entry **(97)**; §8 row
+  **30** free.
 - Cache policy: `out/gen-cache/r3i` holds ONLY wang-area bins
   (seed+area-keyed); the cave-field/opt-in lanes live in non-cached
   in-memory buffers, so no bump was required for the revert; bump

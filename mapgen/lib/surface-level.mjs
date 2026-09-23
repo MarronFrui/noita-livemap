@@ -1,8 +1,10 @@
 // mapgen/lib/surface-level.mjs — biome <Materials> MaterialComponent build +
 // the biome-materials CLASSIFIER, ported from noita_dev.exe
 // (md5 8b611494212a69492dd0a4527d9c92e0). dig #96 (Phase 4 step 2):
-// module-as-library + tests only — NOT imported by any render lane until
-// Phase 5 wires it behind the SURFACE_V3/PROC_FILL env gates.
+// module-as-library + tests; dig #97 (Phase 4 step 3) wires these into
+// noise-terrain.mjs's SURFACE_V3 default branch (attach-gated @:235;
+// chain + classify-frame cites CONSTANTS C76). The PROC_FILL lane
+// (template-render.mjs:661) stays unwired until Phase 5.
 //
 // Every address/byte/constant below was read/verified THIS session from
 // /tmp/opencode/fulltext86.asm or PE reads of the exe (.rdata file = VA −
@@ -11,7 +13,8 @@
 //
 //   classifier  0x8f5030..0x8f574e (ret $8) — call site 0x90dd7e passes the
 //               table in ecx (= [config+0x2a4] = mBiomeMaterials), v as f32
-//               in xmm3, x/y as floor-fixed int cell coords (edi = x [ebp+8],
+//               in xmm3, x/y as floor-fixed int coords — frame pinned in
+//               C76 (x = canvas px, y = canvas py − 24576; edi = x [ebp+8],
 //               esi = y [ebp+0xc] — reloaded @0x8f550c/0x8f53f4)
 //   builder     0x8f8720 — band store 8f8fe4..8f8fff (replace-if-narrower
 //               min/max accumulation), mInitialized := 1 @0x8f9054

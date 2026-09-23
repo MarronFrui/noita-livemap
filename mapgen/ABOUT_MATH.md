@@ -6948,3 +6948,84 @@ first use from now on):**
       wiring increment). ISSUES: none filed (I20 remains next free).
       Tests **215/215**; caves-field gate **33/33, no skips** (oracle
       2,641 B).
+  - **2026-09-23 (97) — Phase 4 step 3 (dig #97): the sampler→classifier
+    call-site chain pinned + the classify x/y FRAME decided, wired into
+    the SURFACE_V3 lane (chain = C76); 3 new data-gated tests, default
+    render untouched.**
+    - **① RE — full chain byte-pinned this session** (all cites = CONSTANTS
+      C76; source `/tmp/opencode/fulltext86.asm`): FUN_0090d860's loop —
+      outer **ESI = y** (init `mov (%ebx),%esi` @0x90d8cf → save
+      `[esp+0x14]`, min-fold head `jge 0x90dddd` @0x90d8ed), inner
+      **EDI = x** (`xor %edi,%edi` @0x90d8f6, bound `*[args+0x10]`, tail
+      `inc %edi` @0x90ddbf → `jl 0x90d904` @0x90ddc6 / `inc %esi`
+      @0x90ddd0 → `jl 0x90d8f3` @0x90ddd7) ⇒ **C54's slab labels
+      0x50d104/0x50d0f3 inner-x/outer-y confirmed — no §8 overturn**
+      (row 30 stays free). Field gate `comiss 0x11dfa94` @0x90dbc3 → save
+      @0x90dbca → `jbe 0x90e02b` (≤0.5 ⇒ skip cell), P =
+      `[config+0x1d4]` null → the same skip @0x90dbe7; origin-adds fold
+      `*[args+0x24]`/`*[args+0x28]` int32 onto the counters
+      @0x90dbf4..fd; **evaluator2 @0x90dd24 = (x, y, field)** — xmm0 =
+      (d)ESI = x, xmm1 = (d)EDI = y, xmm2 = field @0x90dd0e ⇒ the port's
+      arg order stands, and arg3 = 1.0 = the documented single-call
+      proxy is **RESOLVED** (was OPEN); floor-fix pushes floor(y)
+      @0x90dd55 then floor(x) @0x90dd72 with v reloaded from the
+      evaluator slot into xmm3 @0x90dd6c ⇒ **classify @0x90dd7e receives
+      [ebp+8] = x, [ebp+0xc] = y** (C75 + `mov 0xc(%ebp),%esi` @0x8f53f4
+      → limit_y chain re-verified); null-merge `je 0x90ddb0` @0x90dd8b =
+      **air**; kind `[record+0x38]` @0x90dd8d (==3 → `0xa047d0`, bss
+      byte, NO store; else intern cap 0x2000 → value) and **planter
+      0x7644d0 gets the same x/y sums classify got** (@0x90de44/4e →
+      pushes @0x90de48/50) → accessor 0x95a5e0 → dword store @0x90de9c
+      (grid `owner+0x1e0`, stride `[owner+0x1c8]`); abort bounds test
+      the RAW counters @0x90dea1..b7 ⇒ **counters ≥ 0 = window-local
+      px** (origins carry any world offset).
+    - **② The frame decision (the dig's core new fact):** classify's
+      values = origin + counter px — but in WHICH frame? Three
+      converging lines fix y's frame as **world px with 0 =
+      surface-band top = canvas py SKY_ROWS·512 = 24576**: (a)
+      `data/biome/hills.xml` `<Materials>` has **limit_y=1 on only 2 of
+      6 comps** — soil `[-1024, 424.229]`, copper `[750, 2048]`; the
+      other four `limit_y="0"` (the earlier "four-band" claim was
+      chat-only, fabricated ⇒ **RETRACTED** — nothing tracked to move);
+      (b) same file's `mGradientStartY/EndY` = −1024/1024 share the
+      frame; (c) the surface band lives at canvas ty 48..50 = biome
+      rows 0..2 (experiments/2026-09-21-noise-window.mjs:4-6) ⇒ y ≈
+      0..1536 there. **Eliminations:** y = world px @OFFSET_Y=14 puts
+      the surface at −7168 (outside soil's min ⇒ soil rejects the
+      surface ✗); y = raw canvas px puts it at 24576 > 424.229 (✗) ⇒
+      **y = canvas_py − 24576** ✓. x: no `limit_x` anywhere — a
+      constant x shift only phases the evaluator/polka inputs (coverage
+      shift-invariant) ⇒ **x = canvas px (offset 0)**; the −24576 shift
+      belongs to y's sky band, which has no x counterpart. Port mapping
+      (integer math, +5 = cell center = the lane's `gx+0.5`): x =
+      `tx·512 + cx·10 + 5`, y = `ty·512 + cy·10 + 5 − 24576`. Game
+      classifies **per pixel**; the port samples one px per cell —
+      deviation tagged (Phase 5 IoU will measure it).
+    - **③ Wiring + tests:** `noise-terrain.mjs` default branch = `v > 0.5
+      && surfaceTable` → `classify(surfaceTable, x, y, v)` (byte-cited
+      comments; any component throw propagates to noiseAt's catch ⇒ the
+      chunk falls through honestly) + module-private
+      `ensureSurfaceTable` (cache keyed `def.filename`; celldata
+      assigned once at build so the cached table never mutates; no
+      `<MaterialComponent>` blocks ⇒ null = the mBiomeMaterials==0 →
+      air arm; band seed `{0,0}` proxy — seed init unread).
+      `surface-level.mjs` header truth-fixed (it IS imported now;
+      PROC_FILL still unwired). New
+      `tests/mapgen/surface-wiring.test.mjs` = **3 data-gated tests**:
+      round-trip (mask 1 ⇒ gate ∧ classify hit over all 12 band-hills
+      chunks), converse/equivalence (mask 0 ∧ v > 0.5 never occurs —
+      catches any null-classify wiring bug), and frame probes
+      (constructed soil-band v = 0.505 at REAL lane y 405/505 + both
+      eliminated frames ⇒ C76's elimination argument executed against
+      the real classifier). **Measured data fact:** band v ∈
+      **[0.7191, 1.2809]** (rows 48..56, 555k+ cells — no v < 0.53
+      anywhere) ⇒ mask ≡ gate on current data; the classifier's reject
+      arms are unreachable in-band (they stay unit-pinned in
+      surface-level.test) and the frame's empirical validation lands
+      with Phase 5's IoU/visual check.
+    - Status: **code + tests + docs landed** (env-gated lane; default
+      render untouched). Landed: CONSTANTS **C76**, this entry **(97)**,
+      VERIFIED **§12 dig-97 bullet** (§8 row 30 stays free — no
+      overturn), Current_work refresh (Phase 4 step 3 → **DONE**; next
+      = Phase 5). ISSUES: none filed (I20 remains next free). Tests
+      **218/218**; caves-field gate **33/33, no skips** (oracle 2,641 B).
