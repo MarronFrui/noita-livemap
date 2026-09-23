@@ -6840,3 +6840,111 @@ first use from now on):**
       step 1 → **DONE**; next = the port increment dig). ISSUES: none
       filed (I20 remains next free). Tests **177/177**; y224 byte bar
       **0/12 rms 0.0000**.
+  - **2026-09-23 (96) — Phase 4 step 2 (dig #96): the surface-level
+    CLASSIFIER is ported — `mapgen/lib/surface-level.mjs`
+    (`componentFromXml` / `buildMaterialsTable` / `classify` /
+    `rarePolka`, arities 1/3/4/6), byte-cited gate by gate, + 37
+    tests + the api-surface pin; module-as-library only, default
+    render untouched.**
+    - Method: byte RE over `/tmp/opencode/fulltext86.asm` — classifier
+      loop/assert region 1512120..1512205 + loop tail 1512525..1512565
+      + limit/polygon 1512305..1512392, ramp + the 8fbed6..8fbf26 gap
+      1520576..1520668, builder 1516229..1516965, hashes
+      1517031..1517250, call site 1541946..1541995; PE constants
+      re-read (.rdata file = VA−0x400E00, .data VA−0x401A00; exe md5
+      `8b611494212a69492dd0a4527d9c92e0`); hills.xml attrs +
+      `tests/helpers/data.mjs` re-read — all verified this session.
+      The port reuses `simplex2DDeriv` from `noise-proto.mjs`
+      (inherits its FLAGGED skew BSS); every float slot is
+      `Math.fround` at parse time (strtof f32; overflow/NaN → throw).
+    - **① Gate order byte-settled — and (93)'s 0x108 placement is
+      REFUTED (§8 row 29):** loop head **0x8f5160** (`mov 0x8(%ebx),%ebx;
+      add %esi,%ebx; jne 0x8f5221`; back-jmp @0x8f573b) runs
+      **null-comp 0x107 (push @0x8f516b, expr 0x1151e28) THEN
+      cellFactory 0x108 (`cmpl $0,0x30(%eax)` @0x8f5224 → `jne
+      0x8f52e9` → push @0x8f522e, expr 0x11732c0) EVERY iteration**,
+      both ahead of the diag @0x8f52e9 (0x10f / line 271, log
+      0x11732d0, fmt 0x1150f60, FILE 0x1173240) — §12 (93) had 0x108
+      once before the loop. Band CLOSED both ends → null at the shared
+      miss epilogue **0x8f574c** (`xor eax` @0x8f574e, `ret $8`
+      @0x8f5754; loop exit `jge 0x8f5733` lands the same) → diag →
+      membership 0x442610 (predicate UNREAD ⇒ non-null = found,
+      tagged) → limit_y flag +0x39 @0x8f53f0 with slots **+0x3c/+0x40**
+      (`movss 0x3c` @0x8f53f9 / `comiss 0x40` @0x8f540e), closed on
+      f32(y) → polygon +0x74 @0x8f5418 (vector **+0x78/+0x7c**, count
+      = (end−begin)>>3 @0x8f5422..0x8f5428; <3 → 0x118 / line 280;
+      query 0x10096a0 ⇒ throw) → second-null @0x8f5572 → v′
+      @0x8f557c = f32(simplex(f32(x)·[+0x30], f32(y)·[+0x34]) + v)
+      (cvtsd2ss @0x8f55ad, addss @0x8f55b1) → main gate
+      **[[+0x24],[+0x28))** half-open (jb @0x8f55b6 / jbe @0x8f55c5)
+      → is_rare +0x38 → accept @0x8f5740 = `mov 0x4(%ebx),%eax` →
+      transform @0x8f55dc..0x8f560b px/py = fround(fround(f32(x)·
+      [+0x48]) + [+0x54]) → jitter +0x50 @0x8f55d8 (`je 0x8f5678`;
+      call 0x9119d0 @0x8f5612 ⇒ throw) → noise +0x44 @0x8f5678
+      (fbm +0x45 → 0x9fad90 ⇒ throw; plain simplex @0x8f5694;
+      out-gate (min,max] @0x8f56a6..0x8f56b4) → polka @0x8f56b6
+      (off → `je 0x8f5740` accept; call @0x8f56c0..0x8f56e5 maps
+      px, py, [+0x5c], [+0x60], [+0x64]→cl, [+0x68]→stack; out-gate
+      @0x8f56f4..0x8f5702) → tail `add $0x84` @0x8f5713 (stride 132 B,
+      count via signed-div magic 0x3e0f83e1 @0x8f571c..0x8f5731).
+      **Noise→polka = SEQUENTIAL** (both gates must pass; the
+      asymmetric-bounds test refutes an either-leg port).
+    - **② Ramp + hash math closed:** rarePolka **0x8fbe60..0x8fbfc3**
+      = floor-fix cell → fracs to −0x8/−0xc → hash92f0 call **@0x8fbf01**
+      (w0/w1/r2 at −0x28/−0x24/−0x20) → R = low+(high−low)·r2, R ≤ 0
+      → 0 (`jae 0x8fbfbd`, xmm0 zeroed @0x8fbf0b) → k = 2/R (`divss`
+      @0x8fbf38) → p = (k−2)·w1 + (fracY·k − (k−1)), q = (k−2)·w0 +
+      (fracX·k − (k−1)) → boxed p⁴+q⁴ ≤ 1 else 0 / unboxed d =
+      p²+q² clamped at 1 → (1−d)³ as f32 (cvtps2pd widen). Prob gate =
+      **r1 ≥ prob → 0 (jae; equality trips it — pinned by a
+      searched-cell 0-vs-full contrast)**. hash9200 **0x8f9200** /
+      hash92f0 **0x8f92f0** = frac(K·P) with **P = squared product**
+      fround(fround(fy·fy)·fround(fx·fx)), x→base 26 / y→base 161;
+      fold = t − 71·⌊FOLD_Q·t⌋ + base (floor-fix idiom = Math.floor);
+      frac = t − trunc(t). PE constants this session: FOLD_Q 0x11df8f4
+      = 0.014084506779909134, 71/26/161 = 0x11e02b8/0x11e01f8/
+      0x11e031c, K9200 0x11df8ac = 0.00101319863460958, K92F0 →
+      0x13476e4 = 0.0010513747110962868, **K1 imm 0x3acbdc41 →
+      0.0015553311677649617, K2 imm 0x3aa32fcf → 0.0012450161157175899**
+      (struct.unpack verified), 2.0 = 0x11dfe68, 1.0 = 0x11dfbf0.
+      Band = seed∪comps replace-if-narrower (0x8f8fe4..0x8f8fff; seed
+      init unread ⇒ band-as-param); builder min≤max → `jbe 0x8f8fde`
+      else log (strings 0x11735f0.. UNREAD ⇒ port throws);
+      mInitialized := 1 @0x8f9054; celldata assign `mov %ecx,0x4(%eax)`
+      @0x8f3650/0x8f3a04.
+    - **③ Tests + gates:** `tests/mapgen/surface-level.test.mjs` =
+      **37 tests** — ctor defaults + full-attr f32/bool/throw pins
+      (exact `toBe(Math.fround(x))` + `toBeCloseTo(...,7)`; precision
+      4 for 424.229 where the f32 ulp 3.05e-5 makes 7 impossible),
+      band union/narrower-seed + validation, gate order (band-first
+      via a hand-built narrower band — as-built bands are seed∪comps,
+      so they can never reject a comp-matching v), 0x10f/0x118/jitter/
+      fbm/polygon honest throws + diag-before-limit order, half-open
+      main gate + first-match chain, v′ dynamic-gate double pin
+      (add_perlin on/off across both s32 signs), noise & polka
+      (min,max] edge pins, SEQUENTIAL-legs asymmetry probe, rarePolka
+      jae-equality contrast, R ≤ 0, boxed/unboxed + low/high swap
+      searches, f32 grid sweep, and the **data-gated hills.xml walk**
+      (6 comps, band [0, 3.5], v=0.45 → soil closed-lower, v=0.95 →
+      rock (sand upper open), y-window edges on f32(424.229), comp-1
+      rare ramp walk). api-surface pins the 4 exports/arities.
+      Gates this run: **npm test 215/215** (177 baseline + 38) and
+      caves-field **33/33, no skips** (y224 byte bar runs; oracle JSON
+      2,641 B present this session).
+    - **④ OPEN carried (unchanged, non-blockers):** band-seed initial
+      value unread → band is a caller param; membership 0x442610
+      predicate; builder min>max log target/strings; jitter/fbm/
+      polygon bodies (throws); record RESOLVE + lookup 0x741890;
+      `_enabled` never-set; printer al=0 folded into the throw;
+      simplex skew BSS (noise-proto FLAGGED). P1 census stands:
+      jitter/fbm/is_polygon/add_perlin trigger 0 P1 files (entry (95):
+      hills sets none of add_perlin/fbm/is_polygon; hills comps 4/5
+      set rare_use_perlin=1 only).
+    - Status: **code + tests + docs landed** (env-gated library;
+      render untouched). Landed: CONSTANTS **C75**, this entry **(96)**,
+      VERIFIED **§12 dig-96 bullet** + **§8 row 29** ((93)'s "0x108
+      before the loop" refuted; next free row = 30), Current_work
+      Status/Next refresh (Phase 4 step 2 → **DONE**; next = the step-3
+      wiring increment). ISSUES: none filed (I20 remains next free).
+      Tests **215/215**; caves-field gate **33/33, no skips** (oracle
+      2,641 B).

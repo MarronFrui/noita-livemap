@@ -177,7 +177,7 @@ of these mechanisms, cite the row instead of re-running it.
 | 25 | C62's ③ OPEN: instance identity `kind2-esi == P == sampler-owner+0x9c` + C34's +0x1e0 lane fit ("predicted +0xf4"); (85)'s "owner = P − 0x9c" read as instance identity | SPLIT dig #86: `kind2-esi == P` **PROVEN** (Serialize kind2 arm `call 0x8ee440` @0x8f36fe → fn2 ret @0x8ee741 ← [ebp−0x18] ← its `new(0xb8)` gen → `mov %eax,0x1d4(%ecx)` @0x8f3708, byte chain); `P == owner+0x9c` **REFUTED as instances** — owner+0x9c = in-place embed (ctor @0x90ce66 / Load @0x90d1ab / dtor @0x910a6f, embed end owner+0x154), P = `[config+0x1d4]` ← five standalone/static-gen stores (kind2 fn2 gen; `0x8f2ff0`/`0x8ee230` returns; static imm @0x908583-fifth @0x905fb0 + `movl $0x132b518` @0x8f388f) — heap/static ≠ owner interior ⇒ distinct addresses, same class; **+0x1e0 = owner-own decor u16 grid** (@0x90d2c1/0x90d2e9) never a gen lane ⇒ "+0xf4" premise dissolved; sampler **mixes the two gens** (gate reads embed owner+0x9c/+0xb4 @0x90dba5.., wrap reads config-P). "owner = P − 0x9c" survives as LAYOUT equivalence only | ✅ ABOUT_MATH §6 (86); CONSTANTS C65 |
 | 26 | (90)'s ①f read: the record-parser `call 0x7364f0` @0x9eb1aa sits **inside fn 0x9eb020**, so (89)'s grey-error target is also a record-parser caller = a "role reconciliation" OPEN | CORRECTED dig #91: fn 0x9eb020 ends `ret $0x4` @0x9eb131 + int3 pad 0x9eb134..0x9eb13f ⇒ the synthetic-node builder is the next function, **fn 0x9eb140** (guard `test %ecx,%ecx; je 0x9eb1c1` @0x9eb168; `call 0x7364f0` @0x9eb1aa ∈ 0x9eb140, NOT 0x9eb020; `call 0x9eb140` = exactly 3 e8 sites — 0x745b3f / 0x746263 / 0x746530, all in fn 0x7459d0). fn 0x9eb020 = the grey-error logger **only** (this = global 0x132b624, pushed arg 0x11a0738, call site 0x745999) ⇒ the reconciliation OPEN **dissolves** (two adjacent functions, one role each); (89)'s grey-error label and (90)'s parse-fn byte-facts (guard, second wrapper 0xa70d74) all stand | ✅ ABOUT_MATH §6 (91); CONSTANTS C70 |
 | 27 | The §12 dig-91 claim "**full-realloc 0x978aa0 = 0 call/jmp sites file-wide**" (listed as a mystery / new open for dig #92) | **OVERTURNED dig #92:** 0x978aa0 = the mCellData `vector::reserve` (arg ≤ 0x63e706 × 0x290, magic 0x63e7063f, old-element dtor loop 0x746e20 stride 0x290, begin/cap/end rewired) is reached by **0 calls + exactly 2 tail-jmps — 0x94b373 / 0x94b386** from the capacity-growth wrapper (ends `ret $0x4` @0x94b38f; capacity via signed fixup / ÷2 / max-%esi = a 1.5×-style growth, exact branch predicate OPEN). The "zero sites" missed the tail-jmp form; the growth path is live | ✅ ABOUT_MATH §6 (92); CONSTANTS C71 |
-| 28 | The **"+0x1e0 u16" gloss**: §11's lifecycle map "**names (0xb78e0), [+0x1e0] u16 DECOR write (0x559de0);**" (line 296) + "**dispatcher result → u16 material write (+0x1e0 via 0x559de0)**" (line 411), §12 (86)'s "**C34 +0x1e0 = owner-own decor u16 grid**" (line 653), C65's "**+0x1e0 = owner-own decor u16 grid** (0x90d2c1/0x90d2e9)", and this table's own row 25 aside "**+0x1e0 = owner-own decor u16 grid** (@0x90d2c1/0x90d2e9)" — i.e. the +0x1e0 grid write/content is u16 | **REFUTED dig #93:** the cited accessor 0x559de0 = true **0x95a5e0** — success path returns `base + idx·4` (`mov -0x4(%ebp),%eax; mov (%eax),%eax; lea (%eax,%ebx,4),%eax; ret $0x4` @0x95a6a7..b5; bounds `idx < [this+4]`, OOB assert line **0x4b**, file 0x117a570, expr 0x1179b74) and the planter-path store @**0x90de9c** = `mov %ecx,(%eax)` **dword**; C65's cited sites 0x90d2c1/0x90d2e9 are dword too ⇒ **+0x1e0 = a 4-byte-slot grid, not u16** (C34's own row says only `[+0x1e0] DECOR write` — the u16 label was added later in the §11/§12/C65/row-25 prose). The sampler's u16 read = wrap 0x9fe4e0(this=P+0x20) → `movzwl; dec` @0x90dcd3 (getter 0x94a8f0); the u16 fill container = gen+0x20 (C67/C62). What the dword store holds (slot id vs record pointer) @0x90de9c = **OPEN** | ✅ ABOUT_MATH §6 (93); CONSTANTS C65 amendment + C72 |
+| 28 | The **"+0x1e0 u16" gloss**: §11's lifecycle map "**names (0xb78e0), [+0x1e0] u16 DECOR write (0x559de0);**" (line 296) + "**dispatcher result → u16 material write (+0x1e0 via 0x559de0)**" (line 411), §12 (86)'s "**C34 +0x1e0 = owner-own decor u16 grid**" (line 653), C65's "**+0x1e0 = owner-own decor u16 grid** (0x90d2c1/0x90d2e9)", and this table's own row 25 aside "**+0x1e0 = owner-own decor u16 grid** (@0x90d2c1/0x90d2e9)" — i.e. the +0x1e0 grid write/content is u16 | **REFUTED dig #93:** the cited accessor 0x559de0 = true **0x95a5e0** — success path returns `base + idx·4` (`mov -0x4(%ebp),%eax; mov (%eax),%eax; lea (%eax,%ebx,4),%eax; ret $0x4` @0x95a6a7..b5; bounds `idx < [this+4]`, OOB assert line **0x4b**, file 0x117a570, expr 0x1179b74) and the planter-path store @**0x90de9c** = `mov %ecx,(%eax)` **dword**; C65's cited sites 0x90d2c1/0x90d2e9 are dword too ⇒ **+0x1e0 = a 4-byte-slot grid, not u16** (C34's own row says only `[+0x1e0] DECOR write` — the u16 label was added later in the §11/§12/C65/row-25 prose). The sampler's u16 read = wrap 0x9fe4e0(this=P+0x20) → `movzwl; dec` @0x90dcd3 (getter 0x94a8f0); the u16 fill container = gen+0x20 (C67/C62). What the dword store holds (slot id vs record pointer) @0x90de9c = **OPEN** | ✅ ABOUT_MATH §6 (93); CONSTANTS C65 amendment + C72 || 29 | The §12 dig-93 gate-order phrase "**assert 0xfe → range `[this+0]≤v≤[this+4]` → assert 0x108 → per component: assert 0x107 → `[+0x04]` record / 0x442610 → assert 0x10f → …**" (line 867) — i.e. the cellFactory assert **0x108 runs once BEFORE the per-component loop**, 0x107 being the per-component one | **REFUTED dig #96:** both asserts are per-iteration — loop head **0x8f5160** (`mov 0x8(%ebx),%ebx; add %esi,%ebx; jne 0x8f5221`; back-jmp `jmp 0x8f5160` @0x8f573b): null-comp **0x107** push @0x8f516b (expr 0x1151e28, skipped by the `jne`) → `mov -0x1c(%ebp),%eax` @0x8f5221 → cellFactory `cmpl $0,0x30(%eax)` @0x8f5224 → `jne 0x8f52e9` → **0x108** push @0x8f522e (expr 0x11732c0) → diag @0x8f52e9 …; loop tail `add $0x84,%esi` @0x8f5713 → count = (end−begin)/0x84 (signed-div magic, imul/sar/shr-add @0x8f571c..0x8f5731) → `jge 0x8f5733` → miss epilogue **0x8f574c** (`pop edi; pop esi; xor eax` @0x8f574e, `ret $8` @0x8f5754) ⇒ **0x107 THEN 0x108 inside every iteration**, both before the diag — the port `classify` mirrors the byte order (asserts at lines 263/264 inside the loop). The rest of the dig-93 chain (diag → limit → polygon → null → v′ → main gate → is_rare → transform → jitter → noise → ramp) agrees with dig #96 and stands | ✅ ABOUT_MATH §6 (96); CONSTANTS C75 |
 
 ## 9. Open frontier (ranked)
 
@@ -965,6 +965,46 @@ binary side unread) · ❌ unexplored.
   absent from all three passes ⇒ framework-level), allocation site,
   virtual read-vs-write. Row **C74**, entry **(95)**. No code changes;
   tests 177/177; y224 0/12 rms 0.0000.
+- **Dig #96 (Phase 4 step 2) — surface-level CLASSIFIER port:
+  `mapgen/lib/surface-level.mjs` (module-as-library; default render
+  untouched) = `componentFromXml` / `buildMaterialsTable` / `classify`
+  / `rarePolka` (arities 1/3/4/6), byte-cited gate by gate.** Flow:
+  band CLOSED → miss epilogue **0x8f574c** (`xor eax` @0x8f574e,
+  `ret $8` @0x8f5754) → loop head **0x8f5160** runs null-comp **0x107**
+  (push @0x8f516b) then cellFactory **0x108** (`cmpl $0,0x30(%eax)`
+  @0x8f5224 → push @0x8f522e) **per iteration** (**§8 row 29** —
+  dig-93's "0x108 before the loop" refuted) → diag 0x10f line 271
+  @0x8f52e9 (log 0x11732d0; membership **0x442610** predicate UNREAD ⇒
+  non-null = found) → limit_y +0x39 @0x8f53f0, slots **+0x3c/+0x40**
+  closed on f32(y) → polygon +0x74 @0x8f5418 (vector +0x78/+0x7c,
+  count<3 → 0x118 line 280; query 0x10096a0 ⇒ throw) → second-null
+  @0x8f5572 → v′ @0x8f557c = f32(simplex(f32(x)·[+0x30], f32(y)·
+  [+0x34]) + v) → main gate **[[+0x24],[+0x28))** half-open →
+  is_rare +0x38 → accept @0x8f5740 = `[comp+0x04]` → transform
+  px/py = fround(fround(f32(x)·[+0x48]) + [+0x54]) → jitter
+  (0x9119d0), fbm (0x9fad90), polygon → honest throws (P1-dead:
+  0 trigger files) → noise **(min,max]** @0x8f56a6 → polka
+  **(min,max]** @0x8f56f4 — **SEQUENTIAL, both gates must pass**
+  (asymmetric-bounds test refutes an either-leg port). rarePolka
+  **0x8fbe60..0x8fbfc3**: r1 ≥ prob → 0 (jae; equality pinned) →
+  R = low+(high−low)·r2, R ≤ 0 → 0 (`jae 0x8fbfbd`) → k = 2/R
+  (`divss` @0x8fbf38) → p = (k−2)·w1 + (fracY·k − (k−1)), q likewise
+  → boxed p⁴+q⁴ ≤ 1 / unboxed d = min(p²+q², 1) → (1−d)³ f32.
+  hash9200 **0x8f9200** / hash92f0 **0x8f92f0** = frac(K·P), P = **squared
+  product** fround(fy²·fx²), x→base 26 / y→base 161; fold = t − 71·⌊FOLD_Q·t⌋
+  + base; PE constants: FOLD_Q 0x11df8f4 = 0.014084506779909134, K9200
+  0x11df8ac = 0.00101319863460958, K92F0 → 0x13476e4 = 0.0010513747110962868,
+  **K1 imm 0x3acbdc41 = 0.0015553311677649617, K2 imm 0x3aa32fcf =
+  0.0012450161157175899**, bases 26/161/71 = 0x11e01f8/0x11e031c/0x11e02b8.
+  Band = seed∪comps replace-if-narrower (0x8f8fe4..0x8f8fff; seed init
+  unread ⇒ band-as-param); builder min>max → `jbe 0x8f8fde` else unread
+  log (0x11735f0..) ⇒ throw. Tests: `tests/mapgen/surface-level.test.mjs`
+  **37** (incl. data-gated hills walk: 6 comps, band [0, 3.5],
+  v=0.45 → soil closed-lower, v=0.95 → rock (sand upper open),
+  y-window edges on f32(424.229), comp-1 ramp walk) + api-surface pin;
+  **npm test 215/215**, caves-field **33/33 no skips** (oracle 2,641 B).
+  Env-gated; render-path untouched. Row **C75**, entry **(96)**,
+  **§8 row 29**.
 - Cache policy: `out/gen-cache/r3i` holds ONLY wang-area bins
   (seed+area-keyed); the cave-field/opt-in lanes live in non-cached
   in-memory buffers, so no bump was required for the revert; bump

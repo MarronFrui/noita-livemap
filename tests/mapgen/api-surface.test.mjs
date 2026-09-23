@@ -16,6 +16,7 @@ import * as templateRender from "../../mapgen/lib/template-render.mjs";
 import * as mapFormat from "../../mapgen/lib/map-format.mjs";
 import * as spec from "../../mapgen/lib/map-format-spec.mjs";
 import * as cavesField from "../../mapgen/lib/caves-field.mjs";
+import * as surfaceLevel from "../../mapgen/lib/surface-level.mjs";
 
 describe("wang-js.mjs", () => {
   test("exports match the documented surface", () => {
@@ -102,6 +103,18 @@ describe("caves-field.mjs", () => {
     expect(cavesField.walkChain.length).toBe(9);
     expect(cavesField.toucherValue.length).toBe(1);
     expect(typeof cavesField.CAVES_FIELD_VER).toBe("string");
+  });
+});
+
+describe("surface-level.mjs", () => {
+  test("exports match the documented surface", () => {
+    expect(Object.keys(surfaceLevel).sort()).toEqual([
+      "buildMaterialsTable", "classify", "componentFromXml", "rarePolka",
+    ]);
+    expect(surfaceLevel.componentFromXml.length).toBe(1);
+    expect(surfaceLevel.buildMaterialsTable.length).toBe(3);
+    expect(surfaceLevel.classify.length).toBe(4);
+    expect(surfaceLevel.rarePolka.length).toBe(6);
   });
 });
 
