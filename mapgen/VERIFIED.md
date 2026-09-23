@@ -228,7 +228,7 @@ binary side unread) · ❌ unexplored.
 | 6 | Accept/retry + out_map mutations | hasPath port (`lib/has-path.mjs`) — ✅ matched in-binary + **ported 2026-09-19**: driver tail = skip-flag gate → hasPath FUN_00901780 ("ProceduralPathFind", on wang_image, coalmine start mark 0xFF420000/C1, ClearPath warn path) → apply FUN_0090150; fillBlockedRooms = C0FFEE walker FUN_00900560 family (u16 deltas 0x2/0x5, rect-push FUN_00929850, 'checked_places'); CheckForGaps = FUN_00900a50 (start-pos flood w/ "couldn't clear start path" warning); fallback Threaded fill = FUN_008ed860 (0x13276ba flag); blockOutRooms walker FUN_00901580 = 11-color table (C3) + ray-walk room growth FUN_00901510 (C16) + record fill FUN_009013f0 (C18) — **ported binary-exact 2026-09-19, ShadeOfGrey eliminated**; finalize black blit FUN_0090450-family (C17); coalmine-hax = biome-XML `<BitmapCaves>` flags | 🔬 port-side complete; **special-case BIOME SELECTION determined 2026-09-19 (8)** — template-path equality, C19–C21 (name-list flags retired in `lib/biomes.mjs`); remaining in-binary reads: stairs-band→path-start consumption detail + ClearPath exact range + C0FFEE/fillMainPath walk details |
 | 7 | Area cache (once per area) | FUN_0090c1f0 (w,h,seed) | 🔬 |
 | 8 | Spawn-trigger walker + queue | FUN_00904c20 tail → 1 draw/px → FUN_00900c70 → processor FUN_0085d7b0 | 🔬 |
-| 9 | Runtime streaming / chunk loads | **VA-CORRECTED 2026-09-18 (see ledger)**: ProceduralTerrain::Update() = FUN_0090b8a0 (profiler 0x11753ac @0x90b8cf) → DoBufferedPixelScenes() = FUN_00910c20 (profiler 0x11764ac @0x910c59); buffered-scene enqueue w/ dedup + flush = FUN_0090c1f0 (call sites 0x818c6e LoadPixelScene binding, 0x907fc9 Init, 0x90bd1e). Earlier "0x50b0a0/0x510420" were shifted-slab VAs (+0x400800 correction, byte-pinned) | 🔬 (pixel-scene arm fully read: scene executes only when ALL FOUR overlapping 512-chunks present — 4-corner probe of the chunk bit-grid DAT_0x132aed8; STREAMING_CHUNK_TARGET readers found at 0x79e65a/f1/74f = per-frame budget regulator); **chunk-request consumer arm ➜ next read (chunk bit-grid 0x132aed8 imm families + 0x79xxxx frame-tick)** |
+| 9 | Runtime streaming / chunk loads | **VA-CORRECTED 2026-09-18 (see ledger)**: ProceduralTerrain::Update() = FUN_0090b8a0 (profiler 0x11753ac @0x90b8cf) → DoBufferedPixelScenes() = FUN_00910c20 (profiler 0x11764ac @0x910c59); buffered-scene enqueue w/ dedup + flush = FUN_0090c1f0 (call sites 0x818c6e LoadPixelScene binding, 0x907fc9 Init, 0x90bd1e). Earlier "0x50b0a0/0x510420" were shifted-slab VAs (+0x400800 correction, byte-pinned) | 🔬 (pixel-scene arm fully read: scene executes only when ALL FOUR overlapping 512-chunks present — 4-corner probe of the chunk bit-grid DAT_0x132aed8; STREAMING_CHUNK_TARGET readers found at 0x79e65a/f1/74f = per-frame budget regulator); **chunk-request consumer arm ➜ next read (chunk bit-grid 0x132aed8 imm families + 0x79xxxx frame-tick)** · **UPDATE dig #94 (2026-09-23): the per-frame APPLICATION ORDER inside Update 0x90b8a0 byte-pinned — (1) `DoBufferedPixelScenes 0x910c20` FIRST, unconditional (after profiler ctor 65a640) @90b8f0 → (2) gate `cmpb $0,[ebp+8]; je 0x90ba86` @90b8f5 → chunk-view loop @90b930 (stride 0x14, count ÷20 via 0x66666667, entry gates `cmpb $0,0x4(%esi)` @90b94d / `cmpl $0,0xdc(%esi)` @90b953) → view-AABB @90b9a8..9c9 → `call 0x909810` @90b9d9 (returns al; role OPEN) → al → config fetch `0x909da0` @90ba28 (slab 5095a0) → `[config+0x2a4]≠0` @90ba31..39 → `call 0x8f75c0` @90ba48 (5 args; head = biome_materials.cpp assert line 0x2d3 @8f75e3..8f76aa, main path @8f76af — downstream role OPEN) → entry erase-by-swap @90ba4d..ba82. CAVES lane = built in the config-P fill, NOT in Update: fn C1 `0x8f2ff0` called @**0x8f37a4** (`fulltext86.asm` L1510258; gate ecx==0 ∧ `[this+0x1d4]==0` ∧ `[this+0xc0]≠0`, result → `[this+0x1d4]` @0x8f37ae) → fnB @8f323c; Serialize-fn `0x8f3260` also calls fnB direct @8f3770 (arm pre-gate @8f372d..8f3757 OPEN); Serialize's caller a4e67a unread ⇒ **fill timing OPEN**; state machine `0x8e4ec0` = caches/DistanceField only (F1 ✓) |
 | 10 | Pixel scenes (biome-script loaders) | bindings region 0x806000–0x80c000 (partially read); data: `data/biome_impl/*.xml`, `_pixel_scenes.xml`, spliced `.plz` (compressor FUN_004225f0/b50, dispatcher FUN_00422e20) | ⚠️/❓ (plz codec not reproduced; per-scene art rendered via source-PNG blit) |
 | 11 | Template biomes + procedural noise terrain | data `scripts/biomes/*.lua` (⚠️); binary noise terrain = funcs reading generator +0x94 / DECOR float/u16 grids (FUN_0090e840, FUN_008f9ab0, mSeed ctor FUN_00904730) | ❌→🔬→✅ **F3 dig #1 (2026-09-19): core READ** — 2D **simplex** core true FUN_008fca60 (F2/G2, perm 0x114ced0, ×40) + 3D twin + quintic-lattice family (perm 0x114d700, 6/15 quintic); transform FUN_00908cb0 ×0.1/0.13717/1/9/0.45/0.33 etc pinned (C25–C27); sampler FUN_0090d860 flow read (float-field gate >0.5 → eval → u16/RGBA paint). **UPDATE dig #4 (2026-09-20): the former "not closed" list is CLOSED + ported** — clamp arm SETTLED (byte re-read slab 0x50872c..0x508734: LOWER clamp `val < 0.5 ? 0.5 : val`), both axes' warp byte-exact `w(axis) = ((f32)axis + q·15.5)·0.0489275`, gradient table FOUND IN-FILE (C29 correction; see the dig-4 block under §11-Frontier), generator-plant walk pinned (C27/C28) — port `lib/noise-proto.mjs` runnable, no placeholders. Source: ABOUT_MATH 2026-09-19 (13), 2026-09-20 (15)/(16) |</think>C30 clamp addendum landed. Now the last edit — fix my earlier "warp = (axis + q…)" line in C29 result claim only if needed. The C29 row is fine. Next: VERIFIED.md — distill the settled corrections into §11 row 11 / row C lines:<tool_call>edit<arg_key>newString</arg_key><arg_value>| 11 | Template biomes + procedural noise terrain | data `scripts/biomes/*.lua` (⚠️); binary noise terrain = funcs reading generator +0x94 / DECOR float/u16 grids (FUN_0090e840, FUN_008f9ab0, mSeed ctor FUN_00904730) | ✅🔬/✅ **F3 READ-CLOSED + PORTED (2026-09-20, digs #1–#4 + closure)** — 2D simplex core true FUN_008fca60 (C25); quintic **GRADIENT** lattice = true 0x8fc740 with the byte-pinned IN-FILE gradient pair table @.data VA 0x12eec08 (file 0xEED208 via the corrected **.data file rule VA−0x401A00**; the 8 pairs are listed in the dig-4 block below); quintic **VALUE** lattice = true 0x900900; transform FUN_00908cb0 full recipe (C26; ninth = f32-1/9 widened f64, CONSTANTS.md:449); evaluator true 0x908e70 closed (lower clamp 0.5, same-q dual-axis warp); sampler FUN_0090d860 paint arm read (dispatcher → u16 material write +0x1e0, RGBA alpha-gated vtable color dispatch, mark flags); generator plant walk = cell-grid job, ONE seed draw from.WorldSeed (C27/C28). **Runnable fully-binary-derived port: `mapgen/lib/noise-proto.mjs` (no placeholder remains).** Generator update next; capture validation = the I1/I3/I5/I6 pipeline step (gates the r3e→r3f bump only on an observable change) | |
 | 12 | Material/coloring paint | data materials.xml + biome MaterialComponents (`lib/colorize.mjs`) | ⚠️ faithful approximation; exact grey-band noise OPEN (ISSUES I1) |
@@ -544,7 +544,8 @@ binary side unread) · ❌ unexplored.
   remaining divergence = the per-phase draw COUNTS + the record
   IMAGE-lane stamps (the bump/y16-plateau shapes = CaveStructure image
   content — the C48 identify target resolved to the image blend) + the
-  fnA y-drift span (queue #2). The former doc-arithmetic OPEN item
+  fnA y-drift span (queue #2 → **RESOLVED dig #94, entry (94) / C73**).
+  The former doc-arithmetic OPEN item
   (C46's scatter pair violating the C13 map by 0x800) is RESOLVED dig
   #81: true = 0x8EEAD0 (§8 row 20).**
   **UPDATE (dig 81, 2026-09-22): queue #1 CLOSED — both BitmapCaves
@@ -569,7 +570,9 @@ binary side unread) · ❌ unexplored.
   `blobPhase1` now rolls mountainCountMin/Max, pinned by a disjoint-
   span regression test). L2/L3 counts = literal 120+⌊81u⌋ × 2 L2
   passes (READ, not yet ported); loop-B's inner structure stays
-  BLOCKED on the xmm4 base provenance (@4f00e5). Tests 177/177; the
+  BLOCKED on the xmm4 base provenance (@4f00e5) **[RESOLVED dig #94,
+  C53/C73 — xmm4 = u1·(−0x10c) @8f07b5..8f083c → cvttss2si @8f08e5 →
+  −0x118 @8f08f3; the base's value semantics stay OPEN]**. Tests 177/177; the
   y224 byte bar re-run = 0/12, rms 0.0000 BYTE-EXACT.**
 - **UPDATE (dig 83, 2026-09-22): the surface-band CONSUMER CHAIN is now
   byte-traced end-to-end** (surface-level plan Phase 1; full evidence =
@@ -862,6 +865,49 @@ binary side unread) · ❌ unexplored.
   hasPath stamps**. Row **C71**, entry **(92)**. No code changes; tests
   177/177; y224 0/12 rms 0.0000.
 - **Dig #93 (Phase 2 step 3) — the material-ID LADDER closed, Phase 2 byte-CLOSED.** classifier **0x8f5030..0x8f5749** (biome_materials.cpp, file 0x1173240) fully decoded: ecx = `[config+0x2a4]`, v in **xmm3**, returns the record POINTER or 0 (accept `mov 0x4(%ebx),%eax` @0x8f5740 → `ret $8` @0x8f5749 / miss `xor %eax,%eax` @0x8f574e); gate order = assert **0xfe** → range `[this+0]≤v≤[this+4]` → assert **0x108** → per component: assert **0x107** → `[+0x04]` record / `0x442610` → assert **0x10f** → int-range `[+0x39]` → polygon `[+0x74]` (mod-512 query → callee **0x10096a0**) → null-check @0x8f5572 → v′ via `[+0x2c]` → **main gate `[[+0x24],[+0x28))`** @0x8f55b6 → `[+0x38]` (0 → ACCEPT `je 0x8f5740`) → transform → jitter `[+0x50]` (rng **0x9119d0**, scales 0x11dfa70/0x11dfa88) → noise `[+0x44]`/selector `[+0x45]` (**0x9fad90** | **0x8fc020**) → ramp `[+0x46]` (**0x8fbe60**), out-gate **((+0x6c),(+0x70]]**; stride `add $0x84` = **132-B component**. 3 callers: **0x908fb0** + **0x90935b** (fn **0x908f40** procedural_terrain.cpp — zone kind 0 = path A, kind 1 = path B via evaluator2 **0x908e70** + floor IAT 0x114a434/0x1033970, kind other = **0x9091c6** unread) + **0x90dd7e** = the sampler tail (u16 wrap(this=P+0x20) `movzwl;dec` @0x90dcd3 → id1 ≥ 1 → **0x4b80e0** lookup | id1 ≤ 0 ∧ `[owner+0x2a4]==0` → **AIR skip @0x90ddb0** | else evaluator2 → floor → classifier). **MERGE @0x90dd89** → kind dispatch `[record+0x38]`: **3** → writer **0xa047d0** (C54 slab 0x603fd0 ✓, no grid write) | **1** → intern (lock xadd, cap 0x2000) | **other** → value 0; kind 1/other → planter **0x7644d0** → accessor 0x95a5e0(owner+0x1e0, idx = y·[owner+0x1c8]+x) → **dword store** @0x90de9c → bounds → alpha 0x949e80 `testl $0xff000000` → `call *0x1c(%edx)` on-place callback. `<RandomColor>` parser = fn **0x8eb300** (biome.cpp 0x1172ea8: factory 0xa75470 → `[[x+0x28]+0x38]` via 0x10149a0, keys `input_color`/`output_colors` = 0x1172f10/0x1172f1c, parse 0x92edd0→0x92a910; **runtime consumer OPEN**). **C65's "+0x1e0 u16 grid" REFUTED → §8 row 28** (accessor 0x95a5e0 = slab 0x559de0 returns `base+idx·4`, store dword @0x90de9c) — C65 amended in-row; C54 byte-exact; C33 refined (via C72). Row **C72**, entry **(93)**, fixture `mapgen/fixtures/ladder/solid-air.json`. No code changes; tests 177/177; y224 0/12 rms 0.0000.
+- **Dig #94 (Phase 3) — fnA's y-drift SPAN + the cross-lane
+  composition-order diagram, byte-cited per arrow; Phase 3
+  byte-CLOSED.** (a) fnA `8eec70..8ef86c`: all 10 arg slots pinned
+  (C73); start pair = X clamp(…,5,W−5) @8f0265..8f0298, **Y =
+  trunc(rand·0.0) = 0 @8f02b3..8f02b9 ⇒ top row**; y = −0x44 += Δy
+  `[ebp+0x20]` per iteration @8ef37c..8ef393; **Δy = 0.4u+0.1
+  ∈[0.1,0.5) @8f046a..8f0485 (+0.5 if trunc(101u)<33 @8f049e..8f04b3 ⇒
+  [0.6,1.0))**; budget −0x110 = **LERP(0.45H,0.96H,u)** @8f056b..8f058d
+  ÷ Δy @8f0626..8f063f; terminations = back-edge ≤⌊budget⌋
+  @8ef836..8ef857 · box @8ef0d0..8ef0ff · y-cursor @8ef104..8ef10c ·
+  budget<0 @8ef0b1 (xmm3=0 census) ⇒ **span y ∈ [0,
+  LERP(0.45H,0.96H,u))**, box-limited; child P = 2% @8ef774..8ef783,
+  child budget (u2·50−50)+(parent−steps) @8ef7e2..8ef800, u sign-flip
+  @8ef7c2; **xmm4 provenance CLOSED** = u1·(−0x10c) @8f07b5..8f083c →
+  cvttss2si @8f08e5 → −0x118 @8f08f3 (−0x10c = 0.25u+0.75 @8f05c0;
+  value semantics OPEN); L2/L3 = 120+⌊81u⌋ × 2 passes re-confirmed
+  (C53 blocker lifted). (b) **Order:** Init = wang 0x904c20 →
+  LoadFromImageData 0x8f9ab0 (callers 0x905dd7/0x905f1e, flag=1) +
+  SetSize @0x90738f/0x907852 = the base [§11 rows 3/5/6, F-anchor];
+  CAVES = built in the config-P fill, **outside Update**: Serialize fn
+  `0x8f3260` → **fn C1 `0x8f2ff0` @0x8f37a4** (gate ecx==0 ∧
+  `[this+0x1d4]==0` ∧ `[this+0xc0]≠0`; result → `[this+0x1d4]`
+  @0x8f37ae) → fnB @8f323c, plus Serialize→fnB direct @8f3770 (arm
+  pre-gate OPEN; **caller a4e67a unread ⇒ timing OPEN**); chunk
+  materialization = state machine `0x8e4ec0` = caches/DistanceField
+  only (**no terrain writes — F1 ✓**); per-frame Update `0x90b8a0` =
+  **(1) pixel scenes `0x910c20` FIRST @90b8f0 → (2) gate @90b8f5 →
+  view loop @90b930 → `0x909810` @90b9d9 (role OPEN) → config
+  `0x909da0` @90ba28 → `[config+0x2a4]≠0` → `0x8f75c0` @90ba48 (5
+  args, role OPEN) → erase @90ba4d**; the noise lane reaches sampler
+  `0x90d860` only indirectly (zero `call 0x90d860` sites re-greped this
+  session; C54's driver 0x908f40 = zero callers) ⇒ 8f75c0 → 0x908f40
+  linkage OPEN. ⇒ **cell write order: wang/u16 base (Init) → [caves P
+  fill, timing OPEN] → per frame: pixel scenes → chunk material/noise
+  paint.** (73) compose corrections — fixed k=3 (both scale consts
+  0.0 ⇒ ja never taken), multiplicative **−0x104 ← −0x104×(u·w₃+c₃)**
+  (effective 0.4u+0.1), lane-4 ×0.25+0.75, lane-5 ×0.13+1.07, jump
+  table `jmp *0x8f2fd0(,%ecx,4)` @8f02e0 — no §8 row ((73) retracted
+  by (74)); (75)'s scroll-queue item **DISSOLVED** (entry (75) = the
+  fnC1↔fnB hand-off only; [0x1345364]/[0x1345368] = GL-proc pointers,
+  sole writers @ff2d4c/@feccbf). Row **C73** (+ C53 in-row amended),
+  entry **(94)**. No code changes; tests 177/177; y224 0/12 rms
+  0.0000.
 - Cache policy: `out/gen-cache/r3i` holds ONLY wang-area bins
   (seed+area-keyed); the cave-field/opt-in lanes live in non-cached
   in-memory buffers, so no bump was required for the revert; bump

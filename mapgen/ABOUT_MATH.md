@@ -6557,3 +6557,157 @@ first use from now on):**
       Status/Landed/Next refresh (Phase 2 → **byte-CLOSED**). ISSUES:
       none filed (I20 remains next free). Tests **177/177**; y224 byte
       bar **0/12 rms 0.0000**.
+
+  - **2026-09-23 (94) — Phase 3 (dig #94): fnA's y-drift SPAN pinned
+    (queue #2 closed) + the cross-lane composition-order diagram,
+    byte-cited per arrow (Phase 3 byte-CLOSED = the B.1 render-gate
+    "composition order" clause / (82) items 4–6); xmm4 provenance
+    closed, (73)'s compose-formula corrections, (75)'s scroll-queue
+    item dissolved.**
+    - Method: byte RE of `noita_dev.exe` (17,007,104 B, md5
+      `8b611494212a69492dd0a4527d9c92e0`) over the cached true
+      disassembly `/tmp/opencode/fulltext86.asm` (slab→true +0x400800
+      re-confirmed this session: C53's 4f1510/4f1f01/4f2a3c convert
+      EXACTLY to 8F1D10/8F2701/8F323C; dispatchers 4b1410/4abd60
+      already true). Docs-only dig; `lib/` untouched, `vendor/`
+      read-only.
+    - **① Deliverable (a) — fnA `8eec70..8ef86c` y-drift chain, all 10
+      arg slots byte-pinned (CONSTANTS C73):** slots [ebp+8]=dims{w,h}
+      ptr · [ebp+0xc]=&int pair{−0x134 X, −0x130 Y} · [ebp+0x10]=−0x104
+      y-cursor · [ebp+0x14]=−0x10c scale · [ebp+0x18]=−0x110 budget
+      (f32) · [ebp+0x1c]=(−0x100)² u (child **`xorps 0x11e0c50`
+      sign-flip @8ef7c2** ⇒ opposite horizontal drift) ·
+      [ebp+0x20]=−0x120 Δy · [ebp+0x24]=growth(−0x148) ·
+      [ebp+0x28]=&−0x124 child budget (child `decl (%eax)` @8ef79e) ·
+      [ebp+0x2c]=rec+0x24 — identical at both call sites **8f0703**
+      (fnB region) and **8ef823** (child). **Start pair:** X = −0x134 =
+      clamp(jittered base, 5, W−5) @8f0265..8f0298; Y = −0x130 =
+      trunc(rand·[0x11dfef0 = 0.0]) = **0** @8f02b3..8f02b9 ⇒ **the
+      walk STARTS AT ROW 0 (top) and descends.** **y arithmetic:** y =
+      slot −0x44 = (float)pair[1] @8eecac..8eecbc; **−0x44 +=
+      [ebp+0x20] once per walk iteration** after the band call
+      @8ef37c..8ef393; Δy = −0x120 = **0.4·u + 0.1 ∈ [0.1, 0.5)**
+      @8f046a..8f0485, **+0.5** when trunc(101u) < 33 (`cmp $0x21`
+      @8f049e..8f04b3; 0x11dffe8 = 101.0) ⇒ Δy ∈ [0.6, 1.0) in that
+      branch; budget [ebp+0x18] = −0x110 := `divss −0x120`
+      @8f0626..8f063f where **−0x110 = LERP(0.45·H, 0.96·H, u)**
+      final @8f056b..8f058d (0.45 @0x11dfa5c, 0.96 @0x11dfbc8;
+      −0x119 = 1 always @8f03ac ⇒ the refine always runs; the earlier
+      LERP(0.15H, 0.96H) @8f0415..8f043f superseded) ⇒ the budget is
+      exactly ⌈target_y/Δy⌉ iterations. **Terminations (span):** (i)
+      back-edge `inc −0x40; comiss [ebp+0x18],steps; jbe 0x8ef0d0`
+      @8ef836..8ef857 ⇒ ≤ ⌊budget⌋ iterations; (ii) box bounds x∈[0,w),
+      y∈[0,h) @8ef0d0..8ef0ff else epilogue (ret @8ef86c); (iii)
+      y-cursor gate `movss [ebp+0x10],%xmm7; comiss; jae 0x8ef85d`
+      @8ef104..8ef10c; (iv) budget<0 pre-gate @8ef0b1 (xmm1 =
+      [ebp+0x18] loaded @8eefb8 vs xmm3 = 0 @8eefbd, census-clean to
+      8ef188) ⇒ skip. x-side: −0x4c += clamp(step, ±1.0)
+      @8ef5f6..8ef62c (1.0 @0x11dfbf0, −1.0 @0x11e05a8); substep
+      counter −0x48 `cmp $0x32`/jle @8ef631..634, > 50 ⇒ re-jitter
+      `[ebp+0x1c] = u·2 − 1` @8ef6c9..8ef6de (2.0 @0x11dfe68).
+      **⇒ SPAN: y ∈ [0, LERP(0.45H, 0.96H, u))**, box-limited to h —
+      the band descends from the top edge to the target depth and no
+      further.
+    - **①b Child recursion + caller side (closes (82)-item 6):** child
+      gate `rand·100.0 < 2.0` ⇒ **P = 2%** @8ef774..8ef783
+      (0x11e02dc = 100.0); the gate + call @8ef823 sit in the walk
+      body immediately before the back-edge (address layout ⇒
+      attempted per iteration); child budget xmm1 = `(u2·50 − 50) +
+      (parent_budget − steps)` @8ef7e2..8ef800 (50.0 @0x11e0284);
+      child xy from the parent's live int pair `lea −0x38` @8ef7ee.
+      Caller side: X-roll = `5 + ⌊(W−9)·u2⌋` @8f08ad..8f08e9;
+      **xmm4 provenance CLOSED** = `u1 · (−0x10c)` @8f07b5..8f083c
+      (u1 = NextU on state %edi, scale +1/2³¹ @0x11df988) →
+      `cvttss2si` @8f08e5 (slab 4f00e5) → −0x118 @8f08f3; −0x10c
+      last-written @8f05c0 = **0.25·u + 0.75** (0x11df9d0 = 0.25,
+      0x11dfb2c = 0.75; the base value's semantics = OPEN), −0x118
+      later reused as draw budget; **L2/L3 = 120 + ⌊81u⌋**
+      byte-exact re-confirmed (C53: ecx=0x78 @8f1cff/8f26f0, mulsd
+      81.0 @8f1d10/8f2701, stores −0x118 @8f1d42/8f2733, `decl`
+      @8f23bf/8f2d5d, gates @8f256d/8f286e/8f2f0b, L2 = 2 passes
+      `inc −0x10c; cmp $0x2; jl 0x8f1b00` @8f2585..8f2595, band/scatter
+      calls 8ee750 @8f20d1/8f2a6c + 8eead0 @8f255d/8f2efb).
+    - **② Deliverable (b) — the composition-order diagram (every arrow
+      byte-cited):**
+      **(I) Init — the base:** wang fill driver `0x904c20`
+      (wrap-modulo copy) → **`LoadFromImageData 0x8f9ab0`** u16 +
+      material fill (accepted wang out_map fed flag=1, callers
+      **0x905dd7 / 0x905f1e**) + area-grid `SetSize` @**0x90738f /
+      0x907852** ⇒ the per-cell float/u16 grids are Init-built and
+      area-cached [VERIFIED §11 rows 3/5/6 + F-anchor].
+      **(II) Config-P fill — the CAVES lane (built outside Update):**
+      `BiomeHelper::Serialize` = fn **0x8f3260** dispatches: kind-2 →
+      fn2 `0x8ee440` @0x8f36fe (C65); kind-0 gate `test %ecx,%ecx;
+      jne 0x8f389e` @8f377d + `[this+0x1d4]==0` @8f3785 ⇒ P is null,
+      then `[this+0xc0]≠0` (fall-through @8f3791) → **fn C1
+      `0x8f2ff0` called @0x8f37a4** (`fulltext86.asm` L1510258; C56's
+      slab `0x4f27f0` arm ✓, target = true 0x8F2FF0) with
+      `lea 0x8(%eax),%ecx; mov %eax,%edx` → result stored
+      `mov %eax,0x1d4(%ecx)` @0x8f37ae → **fnC1 → fnB `0x8efdd0`
+      @8f323c** (the caves-field walk = entry (75)'s hand-off);
+      `[this+0xc0]==0` → the `[this+0xb8]≠0` arm → fn1 `0x8ee230`
+      @0x8f37d4; both-zero → global default @0x8f37e9 (ctx string
+      0x1173214) — the C56 map. **Serialize ALSO calls fnB directly
+      @8f3770** (this = `[obj+0xc0]`, pushed arg `[obj+0x1d4]`; that
+      arm's pre-gate @8f372d..8f3757 = OPEN). Serialize's single
+      caller **`a4e67a` is unidentified ⇒ Init-vs-frame timing of the
+      P fill = OPEN** (fnB's caller census is closed: fnC1 8f323c +
+      Serialize 8f3770 only — the caves lane never runs inside
+      Update).
+      **(III) Async chunk materialization:** state machine `0x8e4ec0`
+      (single caller 8e6b89): stage cmps $0x24e/$0x247 @8e50aa/bb,
+      four {build-cache `0x939b80`, DistanceField `0x8e4990` gated
+      ret==1} quadrant pairs @8e50f9..8e51c8 + locks — **caches only,
+      zero terrain writes (F1 confirmed).**
+      **(IV) Per-frame `Update 0x90b8a0` application order:**
+      **1)** `DoBufferedPixelScenes 0x910c20` **FIRST, unconditional**
+      (after the profiler ctor 65a640) @**90b8f0** — the ART lane;
+      **2)** gate `cmpb $0,[ebp+8]; je 0x90ba86` @**90b8f5** →
+      chunk-view loop @**90b930** (stride 0x14, count ÷20 via
+      0x66666667, per-entry gates `cmpb $0,0x4(%esi)` @90b94d /
+      `cmpl $0,0xdc(%esi)` @90b953) → view-AABB @**90b9a8..9c9** →
+      **`call 0x909810`** @**90b9d9** (returns al; **role OPEN**) →
+      al → **config fetch `0x909da0`** @**90ba28** (slab 5095a0) →
+      `[config+0x2a4]≠0` @**90ba31..39** → **`call 0x8f75c0`**
+      @**90ba48** (5 args; head read this session = assert gate on
+      `[guard+4]==0` @8f75e3 with file 0x1173240 `biome_materials.cpp`
+      line 0x2d3 / expr 0x11769e4 date-format logger, main path
+      @8f76af reads arg3 `[ebp+0x10]` — **downstream role OPEN**) →
+      entry erase-by-swap @**90ba4d..ba82**.
+      **(V) The NOISE/material lane** reaches the sampler `0x90d860`
+      only via the **indirect job functor** (C54: driver `0x908f40` =
+      the ONLY surfaceField caller, ZERO e8/e9 callers; re-greped this
+      session: **zero `call 0x90d860` sites** — vtable slot+8 thunk
+      0xa9a120 per C65) ⇒ **the 8f75c0 → … → 0x908f40 linkage =
+      OPEN.**
+      **Ordering verdict (the render-gate clause):** at any surface
+      cell the write order is **wang/u16 base (Init) → [caves P fill
+      (II), timing OPEN but outside Update] → per frame: pixel scenes
+      (FIRST) → chunk material/noise paint**; dig #81's caves-field
+      INTERNAL order nests inside (II). Residual OPEN arrows:
+      Serialize timing (a4e67a), 909810's role, 8f75c0's downstream,
+      the fnB-arm pre-gate @8f372d..8f3757 + the 8f377d dispatch entry
+      — all **non-blockers** (recorded under Current_work Next).
+    - **③ (73) corrections (stated here; (73) was already retracted by
+      (74) ⇒ NO §8 row):** the band-lane select is **FIXED k = 3**
+      (both scale consts 0x11dfef0/0x11e05f8 = 0.0 ⇒ ecx = 3 always,
+      `ja` never taken); the compose @8f0396/8f039e = **−0x104 ←
+      −0x104 × (u·w₃ + c₃)** — multiplicative (NOT "v_out +="),
+      effective factor 0.4u + 0.1 ⇒ the cursor SHRINKS; lane-4 = ×
+      **0.25** + **0.75** (0x11df9d0/0x11dfb2c — not 0.2), lane-5 = ×
+      **0.13** + **1.07** (0x11df990/0x11dfc20 — not 0.49); jump table
+      @8f02e0 = `jmp *0x8f2fd0(,%ecx,4)`.
+    - **④ (75)'s scroll-queue item DISSOLVED:** entry (75) records the
+      fnC1↔fnB hand-off only — no scroll_accum/wheel/8e7054 claim
+      exists in ABOUT_MATH/VERIFIED/CONSTANTS/Current_work/
+      SESSION_CONTEXT; `[0x1345364]`/`[0x1345368]` have exactly one
+      writer each (@ff2d4c/@feccbf) inside GL-extension registration
+      (strings 0x11db31c = `'glGenProgramPipelines'`, 0x11d7f34 =
+      `'glColor4bv'`) ⇒ GL proc pointers, **not** scroll.
+    - Status: docs only (no port changes; `lib/` untouched). Landed:
+      CONSTANTS **C73** (+ the **C53** in-row blocker resolution), this
+      entry **(94)**, VERIFIED **§11 stage-9 UPDATE** + **§12 dig-94
+      bullet** + queue markers (§12 :547 / :571), Current_work
+      Status/Landed/Next refresh (Phase 3 → **byte-CLOSED**). ISSUES:
+      none filed (I20 remains next free). Tests **177/177**; y224 byte
+      bar **0/12 rms 0.0000**.
