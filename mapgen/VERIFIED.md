@@ -908,6 +908,63 @@ binary side unread) · ❌ unexplored.
   sole writers @ff2d4c/@feccbf). Row **C73** (+ C53 in-row amended),
   entry **(94)**. No code changes; tests 177/177; y224 0/12 rms
   0.0000.
+- **Dig #95 (Phase 4 step 1) — component-BUILD read: MaterialComponent
+  ctor + the full XML-attr → 132-B slot map; `[config+0x2a4]` =
+  `mBiomeMaterials`; P1 source = inline `<Materials>`.** ctor fn
+  **0x7daeb0** (vtable **0x1191fc0** = [0x7e22a0, 0x7dc850, 0x7de160,
+  0x7dc670]) = default-fill @7daf2a..7dafc6 (C74 table: +0x04=0
+  celldata, name SSO +0x08 with size +0x18=0 / cap +0x1c=0xf,
+  material_index +0x20=10, material_min/max +0x24/+0x28=0.1f,
+  limit_min/max_y +0x3c/+0x40=100f/2048f, rare_use_polka +0x46=1,
+  rare_polka_is_boxed +0x64=1, rare_required +0x6c/+0x70=0.2f/1.0f,
+  is_polygon +0x74=0, polygon vector +0x78 zeroed) + schema
+  registration in the same frame (`"MaterialComponent"` 0x1153bd4 →
+  registry 0x92a5c0, find 0x43e0f0, insert 0x4498f0/0x4499a0, payload
+  node+0x28, once-guard `jne 0x7db6c8` @7db0b2 → push-loop 0x444250:
+  celldata@7db0bd, material_name@7db100 … rare_use_polka@7db44d).
+  Attr→slot map byte-closed by **three agreeing passes** (vtable+4 fn
+  **0x7dc850** name-push+`lea slot(%ebx)` @7dc897..7dd465, vtable+8 fn
+  **0x7de160** push-form @7de26a.. + mov-form @7deda0..):
+  celldata→+0x04 · material_name→+0x08 (size +0x18 = (93)'s
+  empty-name check) · material_index→+0x20 ·
+  **material_min→+0x24 / material_max→+0x28 = the main gate** ·
+  add_perlin→+0x2c · add_perlin_scale_x/y→+0x30/34 · is_rare→+0x38 ·
+  limit_y→+0x39 · limit_min/max_y→+0x3c/40 · rare_use_perlin→+0x44 ·
+  rare_use_fbm_perlin→+0x45 · rare_use_polka→+0x46 ·
+  rare_scale_x/y→+0x48/4c · rare_offset_by_seed→+0x50 ·
+  rare_offset_x/y→+0x54/58 · rare_polka_radius_low/high→+0x5c/60 ·
+  rare_polka_is_boxed→+0x64 · rare_polka_probability→+0x68 ·
+  **rare_required_min/max→+0x6c/+0x70 = the out-gate** ·
+  is_polygon→+0x74 · polygon→+0x78 — i.e. **every C72/C93 gate slot
+  now carries its XML name** (C93/C72 refined in place, not
+  overturned — no §8 row). `[config+0x2a4] = mBiomeMaterials`:
+  guard **0x117a338** → eq 0x4447f0 → getter **0x9c8660** → store
+  @**49de93**, ordinal case same getter @**49e83c**; siblings
+  `coarse_map_cell_count_always_zero`→+0x2a2 @49de31,
+  `coarse_map_inject_light`→+0x2a3 @49de62 (zero-init @496195/4e8a6d).
+  `<Materials>` tag **0x11a06a8** (xrefs 744c4e, 8f38f6/8f393e/8f39d6;
+  tag-eq **0x42c440** @8f3910, biome.cpp 0x1172ea8 line 0x4b8); P1 =
+  **inline** `<Materials>` (hills.xml:184, components from :187) — no
+  `mBiomeMaterials=`/`mBiomeMaterialsFile` in the surface files (File
+  attr only in friend_*/roadblock/secret_entrance/snowcastle_cavern/
+  solid_wall → `data/materials/biome_forest.xml`). Fixture: hills coal
+  **[0.51,0.55)** / soil **[0.45,0.53)**; coal limits 100/2048 +
+  material_index 10 **= ctor defaults** (hills.xml:187/:209). P1 leg
+  activity (greps this session): `rare_use_fbm_perlin` in **0**
+  `data/biome/*.xml` files and `is_polygon=` only in boss_arena/
+  end_wall/lava_90percent/temple_wall ⇒ **fbm-selector + polygon legs
+  never fire from biome XML**; `add_perlin=` = 38 files — among the
+  surface set only **desert (0)** + **mountain_center (1**, scales
+  0.01/0.02 ⇒ v′ transform live there) (hills absent). **`push $0x84`
+  ×4 = assert-log line 132, NOT sizes** (732002/732073 box2d `celldata`,
+  748c9d/748d14 cfirecell `this != temp`; fmt 0x1150f60) ⇒ no literal
+  `new(0x84)` in the exe — component stride = the classifier's
+  `add $0x84` (C72) + `imul $0x84` @5d0eb8/5d0ff5. OPEN: `<Materials>`
+  child→wrapper flow, record RESOLVE (material_name → the +0x04
+  celldata pointer), `_enabled` (XML attr in every P1 component but
+  absent from all three passes ⇒ framework-level), allocation site,
+  virtual read-vs-write. Row **C74**, entry **(95)**. No code changes;
+  tests 177/177; y224 0/12 rms 0.0000.
 - Cache policy: `out/gen-cache/r3i` holds ONLY wang-area bins
   (seed+area-keyed); the cave-field/opt-in lanes live in non-cached
   in-memory buffers, so no bump was required for the revert; bump

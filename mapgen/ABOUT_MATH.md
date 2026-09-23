@@ -6711,3 +6711,132 @@ first use from now on):**
       Status/Landed/Next refresh (Phase 3 → **byte-CLOSED**). ISSUES:
       none filed (I20 remains next free). Tests **177/177**; y224 byte
       bar **0/12 rms 0.0000**.
+  - **2026-09-23 (95) — Phase 4 step 1 (dig #95): the component-BUILD
+    read CLOSED — MaterialComponent ctor `0x7daeb0` (defaults +
+    same-frame schema registration), the complete XML-attr → 132-B slot
+    map from three byte-agreeing passes, `[config+0x2a4]` =
+    `mBiomeMaterials`, the `<Materials>` source pinned (P1 = inline);
+    the (93) BUILD residual is now OPEN only on its RESOLVE half.**
+    - Method: byte RE of `noita_dev.exe` (17,007,104 B, md5
+      `8b611494212a69492dd0a4527d9c92e0`) over the cached true
+      disassembly `/tmp/opencode/fulltext86.asm` (slab→true +0x400800;
+      `.rdata` VA = file + 0x400E00; strings recovered by scanning the
+      exe binary — objdump's ASCII gutter splits literals, so `grep` of
+      the asm never matches them). Docs-only dig; `lib/` untouched,
+      `vendor/` read-only.
+    - **① ctor = fn `0x7daeb0` — defaults + schema registration in one
+      frame (CONSTANTS C74):** thiscall (ecx→ebx, `sub $0x1bc`, SEH
+      unwind 0x10845e4) writes vtable **`0x1191fc0`** @7daef0, then
+      default-fills the entire record @7daf2a..7dafc6: `+0x04`=0
+      (celldata), name SSO string `+0x08..+0x17` (size `+0x18`=0, cap
+      `+0x1c`=0xf — **entry (93)'s `[+0x18]==0` empty-name check IS the
+      string's size field**), `+0x20`=10 (material_index),
+      `+0x24/+0x28`=0.1f (material_min/max), `+0x2c`=0 (add_perlin),
+      `+0x30/34`=1.0f (scales), `+0x38` w=0 {is_rare, limit_y},
+      `+0x3c`=100.0f / `+0x40`=2048.0f (limit_min/max_y), `+0x44` w=0
+      {rare_use_perlin, rare_use_fbm_perlin}, `+0x46`=1
+      (rare_use_polka), `+0x48/4c`=0.05f (rare_scale_x/y), `+0x50`=0,
+      `+0x54/58`=0, `+0x5c`=0.2f / `+0x60`=0.65f (polka radii),
+      `+0x64`=1 (polka_is_boxed), `+0x68`=0.2f (polka_probability),
+      `+0x6c`=0.2f / `+0x70`=1.0f (**out-gate defaults**), `+0x74`=0
+      (is_polygon), polygon vector `+0x78/+0x7c/+0x80` zeroed + inited
+      by 0x92baa0 @7dafe6 — full per-store table in C74; end `+0x84`
+      = 132 B ✓. **Schema registration (same frame):** string
+      `"MaterialComponent"` (len 0x11, **0x1153bd4**) @7db002 →
+      registry getter **0x92a5c0** @7db027 → find **0x43e0f0** @7db035
+      → miss = insert **0x4498f0** + **0x4499a0** @7db06b/7db080 →
+      payload = node+**0x28** @7db08b → once-guard
+      `mov (%esi),%eax; cmp 0x4(%esi); jne 0x7db6c8` @7db0b2
+      (non-empty payload ⇒ already registered) → name push-loop
+      **0x444250**: `celldata` @7db0bd, `material_name` @7db100,
+      `material_index` @7db141, `material_min` @7db182,
+      `material_max` @7db1c3 … `rare_use_polka` @7db44d (cluster
+      continues through the full attr list).
+    - **② The attr→slot map (the byte prerequisite the Phase-4 port
+      waited for):** vtable `0x1191fc0` = [0x7e22a0, **0x7dc850**,
+      **0x7de160**, 0x7dc670]; pass A = vtable+4 fn **0x7dc850**
+      (name-push + `lea slot(%ebx)`, @7dc897..7dd465), pass B =
+      vtable+8 fn **0x7de160** (same pairs on `%esi`, @7de26a..), pass
+      C = mov-form `mov $name,%edx` (@7deda0..) — **all three agree
+      byte for byte**: `celldata`→`+0x04` · `material_name`→`+0x08` ·
+      `material_index`→`+0x20` · `material_min`→`+0x24` ·
+      `material_max`→`+0x28` · `add_perlin`→`+0x2c` ·
+      `add_perlin_scale_x`→`+0x30` · `add_perlin_scale_y`→`+0x34` ·
+      `is_rare`→`+0x38` · `limit_y`→`+0x39` · `limit_min_y`→`+0x3c` ·
+      `limit_max_y`→`+0x40` · `rare_use_perlin`→`+0x44` ·
+      `rare_use_fbm_perlin`→`+0x45` · `rare_use_polka`→`+0x46` ·
+      `rare_scale_x`→`+0x48` · `rare_scale_y`→`+0x4c` ·
+      `rare_offset_by_seed`→`+0x50` · `rare_offset_x`→`+0x54` ·
+      `rare_offset_y`→`+0x58` · `rare_polka_radius_low`→`+0x5c` ·
+      `rare_polka_radius_high`→`+0x60` · `rare_polka_is_boxed`→`+0x64`
+      · `rare_polka_probability`→`+0x68` · `rare_required_min`→`+0x6c`
+      · `rare_required_max`→`+0x70` · `is_polygon`→`+0x74` ·
+      `polygon`→`+0x78`. ⇒ **every C72/C93 gate slot now carries its
+      XML name**: main gate `[[+0x24],[+0x28))` = material_min/max,
+      out-gate `((+0x6c),(+0x70]]` = rare_required_min/max, `[+0x38]`
+      = is_rare, `[+0x39]` = limit_y, `[+0x44]/[+0x45]` =
+      rare_use_perlin/fbm_perlin, `[+0x46]` = rare_use_polka,
+      `[+0x50]` = rare_offset_by_seed, `[+0x2c]` = add_perlin,
+      `[+0x74]` = is_polygon, `[+0x78]` = polygon — C93/C72 refined in
+      place, **no §8 overturn**.
+    - **③ `[config+0x2a4]` = `mBiomeMaterials` (C58 walk, two
+      byte-verified stores):** guard `mov $0x117a338,%edx` (string
+      `'mBiomeMaterials'`) → eq 0x4447f0 → getter **0x9c8660** →
+      `mov %eax,0x2a4(%esi)` @**49de93**; ordinal case
+      `mov %edi,%ecx; call 0x9c8660` → `mov %eax,0x2a4(%esi)`
+      @**49e83c**; zero-inits @496195/4e8a6d; siblings **0x117a2a8**
+      `'coarse_map_cell_count_always_zero'`→`+0x2a2` @49de31 and
+      **0x117a2cc** `'coarse_map_inject_light'`→`+0x2a3` @49de62.
+      Getter 0x9c8660 = holder `[esi+4]` → virtual get (null ⇒ static
+      default 0x12ef63c) → typeid check (static 0x12f20c4 + IAT
+      0x114a36c) → returns `*([esi+4]+4)`. The element string
+      **`'Materials'` = 0x11a06a8** (only standalone copy in .rdata);
+      xrefs **744c4e** (CellFactory region) + **8f38f6/8f393e/8f39d6**
+      inside a biome.cpp (0x1172ea8, assert line 0x4b8) fn — tag-eq
+      **0x42c440** @8f3910. **P1 source = INLINE `<Materials>`**
+      (hills.xml:184, first `<MaterialComponent>` @187): no bare
+      `mBiomeMaterials=` and no `mBiomeMaterialsFile` in the surface
+      files — the File attr exists only in friend_1..6/roadblock/
+      secret_entrance/snowcastle_cavern/solid_wall (e.g.
+      `mBiomeMaterialsFile="data/materials/biome_forest.xml"`,
+      friend_1.xml:7); `coarse_map_inject_light` only in
+      sky_light_injector.xml.
+    - **④ Worked fixture + P1 leg activity + retired red herrings:**
+      hills coal component (hills.xml:187): material_name `"coal"`,
+      material_min/max = **0.51/0.55**, is_rare 1, limit_y 0,
+      limit_min/max_y = **100/2048 (== ctor defaults)**, material_index
+      10 (== default), rare_required 0/10, rare_use_perlin 0,
+      rare_use_polka 1 (== default), rare_polka_is_boxed **0 (≠ default
+      1)**, polka probability 0.160871, radius 0.357143/0.771429; soil
+      (hills.xml:209) = **0.45/0.53**. Leg-activity greps (this
+      session): `rare_use_fbm_perlin` in **0** `data/biome/*.xml`
+      files; `is_polygon=` only in boss_arena/end_wall/
+      lava_90percent/temple_wall (no surface file) ⇒ **the fbm
+      selector + polygon legs never fire from biome XML**; `add_perlin=`
+      = 38 files — among the surface set only **desert (`0`** — scales
+      0.041 given but inert) and **mountain_center (`1`**, scales
+      0.01/0.02 ⇒ the v′ transform is live there); hills sets none of
+      add_perlin/fbm/is_polygon (⇒ ctor defaults govern: v′ off, fbm
+      off, polygon off). **`push $0x84` ×4 = assert-log LINE NUMBERS,
+      not sizes:** @732002/732073 `Assert failed: (celldata) in
+      …box2d_collisions.cpp at line 132` (fmt 0x1150f60, expr
+      0x117d2e4, file 0x119ebb0, `[arg+0x38]==0` guard @731ffa,
+      null-crash `movl $0x1ca9,(%eax)` @731fea) and @748c9d/748d14
+      `(this != temp) in …cfirecell.cpp at line 132` (expr 0x11a095c,
+      file 0x11a0878) ⇒ **no literal `new(0x84)` exists in the exe**;
+      the component stride = the classifier's `add $0x84` (C72) +
+      `imul $0x84` index math @5d0eb8/5d0ff5.
+    - **Residual OPEN of the (93) BUILD residual (recorded, not
+      blockers):** the `<Materials>` child-element → wrapper flow that
+      fills `+0x2a4` beyond the two verified stores, the record RESOLVE
+      site (material_name → the `+0x04` celldata pointer), `_enabled`
+      (in every P1 `<MaterialComponent>` but absent from all three
+      passes ⇒ framework-level), the component allocation/growth site,
+      and which serialization virtual (0x7dc850/0x7de160) is
+      read-vs-write.
+    - Status: docs only (no port changes; `lib/` untouched). Landed:
+      CONSTANTS **C74**, this entry **(95)**, VERIFIED **§12 dig-95
+      bullet**, Current_work Status/Landed/Next refresh (Phase 4
+      step 1 → **DONE**; next = the port increment dig). ISSUES: none
+      filed (I20 remains next free). Tests **177/177**; y224 byte bar
+      **0/12 rms 0.0000**.
