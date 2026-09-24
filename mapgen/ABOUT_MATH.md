@@ -7188,3 +7188,73 @@ first use from now on):**
       — §4 confirmed), no ISSUES (I21 still free), Current_work refresh.
       Tests **258/258** (257 baseline + 1 C78 contract test); caves-field
       gate **33/33** standalone.
+  - **2026-09-24 (100) — Phase 5 step 2b (dig #100): surface-y line IoU
+    on P1 biomes vs capture — the SURFACE_V3 candidate FAILS (bands
+    0.000 everywhere; surface line does not exist yet).**
+    - **① Metric + instrument (CONSTANTS C79 registered first):**
+      `mapgen/experiments/2026-09-24-surface-y-iou.mjs`; env gate =
+      `SURFACE_V3=1` REQUIRED, `SURFACE_V2`/`PROC_FILL` REFUSED (isolates
+      exactly what Phase-5 step 3 would un-gate: attach gate
+      `noise-terrain.mjs:297` off ⇒ the classify chain at
+      `noise-terrain.mjs:241` runs); seed `CAPTURE_SEED` 78633191, cache
+      r3i, ref = noitamap stitch `mapgen/out/ref/<tx>_<bty>.png`, gen =
+      `worldColorAt` with `L3_ANCHOR` (C78) applied at sampling. y_ref =
+      sky-top column (≥6 air of rows [0..7], air = lum<24) + first solid
+      run ≥20 px; y_gen = first solid run ≥20 px from y≥0 (NO sky-top
+      filter — the candidate's flood signature y_gen=0 must stay
+      measurable); tile scored iff y_ref on ≥25% of columns; scan ref-side
+      bty 6..15 × tx 4..58, **HM row 16 excluded** (plan), P1 =
+      first-wins `_biomes_all.xml` filename basename
+      `^(mountain|hills|desert|winter|lake)` (color-keyed `cfg.biomes`
+      cannot name color-absent defs — dig #98 census note).
+    - **② Coverage:** 458 P1 tiles scanned → **56 scorable** (n = 21,892
+      paired columns). The genuine sky→ground transition lives in bty
+      **10..14** (bty ≤9 = sky-only: 0 P1 tiles scorable; the ref-side
+      pre-census's bty-15 hits were CAVE CEILINGS — the sky-top filter
+      takes them 14 → 0, which is why it exists). No seed-text pollution
+      in the scored tiles' skies (overlay inspection: skies clean).
+    - **③ Verdict — band hit-rate ±1/±2/±3 world px = 0.000 on EVERY
+      family and EVERY row.** Overall mean |Δy| = **248.62 px**, bias =
+      **−248.12** (bias ≡ −meanAbs ⇒ y_gen = 0 on essentially all paired
+      columns). Per family: mountain 215.31 / desert 142.13 / winter
+      310.41 / hills 288.05 / lake 161.66 (all bias ≈ −meanAbs);
+      genNoLine = 74 of 21,966 ref-line columns; gen top-air rows[0..7]
+      = 0.004 (non-lake) — i.e. the candidate is SOLID from the tile top.
+    - **④ Root cause (measured, not inferred):** the V3 chain feeds
+      evaluator2 the hard-coded placeholder `a = 1.0`
+      (`noise-terrain.mjs:261` `evaluator2(gx + cfg.minX, gy + cfg.maxX,
+      1.0)`); evaluator2's byte-pinned lower clamp at 0.5
+      (`noise-proto.mjs:350`, `comiss+ja 0x50872c`) plus `s·t + a` with
+      t≈0.318 makes v ≥ ~0.68 **always > 0.5** (measured sky-chunk
+      v ∈ 0.77..1.25) ⇒ gate-1 (`v > 0.5` — the sampler's own sky/air
+      discriminator, C76) can never reject sky, and the measured noise
+      **mask = 1.00 solid** for hills/winter/desert chunks INCLUDING
+      deep-sky rows (bty 6), painted `0x6a5a44`; lake = 0.48 partial
+      (overlay `4_14_lake` shows the mask staircase; gen top-air 0.576).
+      The game's real field source — C44 OPEN, dig #97's
+      `[args+0x24]/[args+0x28]` origin-field contents unread — supplies
+      a < 0.5 above the surface; the port's proxy cannot. **Consequence:
+      this IoU measures the MISSING FIELD, not surface registration —**
+      the C78 scope hedge (template/noise-lane registration via the
+      shared frame) stays UNVALIDATED until the candidate has a real
+      surface line.
+    - **⑤ Evidence:** `mapgen/out/surface-y-2026-09-24.json` (per-tile +
+      overall/family/row aggregates) + 56 overlays
+      `mapgen/out/surface-y-2026-09-24/<tx>_<bty>_<label>.png`
+      (dim-ref base; red = y_ref on the true silhouette, green = y_gen
+      pinned at the top edge, yellow = |Δy|≤3 band — absent everywhere,
+      dark-red = claimed-solid sky gap). Representative:
+      `11_13_winter` (gap ≈ 276 px), `35_13_mountain_left_entrance`
+      (scene silhouette correct, sky behind flooded), `47_14_desert`
+      (shallow real transition ≈ 15 px — still > 3 ⇒ band 0),
+      `4_14_lake` (partial-mask staircase).
+    - Status: **measurement landed; the candidate FAILS the numeric
+      bars ⇒ step 3 (drop `SURFACE_V3`) stays BLOCKED — presented to the
+      user as the final oracle (plan order).** Landed: CONSTANTS **C79**
+      (registered before use), this entry **(100)**, instrument
+      `mapgen/experiments/2026-09-24-surface-y-iou.mjs`, Current_work
+      refresh; no §8 row (nothing overturned — §4/C78 untouched: the fit
+      itself was never re-tested here), no ISSUES (**I21 still free** —
+      the flood is the already-flagged gated-lane state, now quantified,
+      not a new defect). Gates green: **npm test 258/258**, caves-field
+      standalone **33/33**.
