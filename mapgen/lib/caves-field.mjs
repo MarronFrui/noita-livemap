@@ -17,10 +17,28 @@
 //     - the scatter read (true 0x8EEAD0 = slab 0x4ee2d0 + 0x400800, dig
 //       #81 re-pin): roll + bounds + the `< 0.5`
 //       empty-cell gate + the 0x8FAFC0 recursion (dig #56).
-//     - the fnB HEAD draw order (dig #65): draw #1 = the walker's x-range
-//       count (POSITIVE fraction form), draw #2 = the y-cursor from the
-//       record's own strength pair; the count gates 0x21/0x0a/0x14/0x32
-//       (dig #66); the walk step lane (1.0 + 2.5·d)·0.2 (dig #68/#69).
+//     - the fnB HEAD draw order (dig #65, re-scoped by C81): the pre-loop is
+//       warm draw → cave_count → surface_caves_count (both the POSITIVE
+//       fraction form); the count gates 0x21/0x0a/0x14/0x32 (dig #66) are
+//       the WALK-side gates — Δy 33/101, childCounter 10/101 + 20/101,
+//       growth 50/101 ×2 (C81 ④).
+//     - the byte-closed fnA/fnB walk (C81 caller side + C82 walk body):
+//       fnB's path alternation (case A chained ±0.01w / 0.05..0.25h, case B
+//       trunc(lerp(0.07h,0.33h)) + trunc(lerp(5,w−5)), the switch path's
+//       X-law + Y₀ = trunc(6u) + the lane-select 3 − trunc(−3u) cursor
+//       factor), the two-stage budget (LERP(0.15S,0.96S) vs the flag=1
+//       LERP(0.45S,0.96S), ÷Δy), and fnA's prologue/loop draw order (6
+//       prologue draws → envelope → the UNCONDITIONAL roll draw → the D2
+//       arm → the `push $1` stamp → Δy → the two bias draws → the x-law →
+//       the >50 re-jitter → the child gate + the IN-WALK recursion). The
+//       old ≤50-step x-wanderer lane (1.0 + 2.5·d)·0.2 (dig #68/#69) and
+//       the rollAcc/L1 chain are RETRACTED: neither is in fnA/fnB (entry
+//       (102) ⑥⑦), and the box exit is PLAIN (no `& (gridW−1)` wrap).
+//       PORT STATUS (2026-09-24, dig #103 part 1): the Q3a patch per
+//       entry (102) ⑦ is NOT yet applied — the code below still runs the
+//       pre-(102) model (old x-wanderer lane, rollAcc/L1 chain, the
+//       `& (gridW−1)` wrap, the outer `childs` loop); re-read the
+//       function bodies at edit time, not this bullet.
 //     - the dig #64 per-phase strength sources: L1 = clamp01((d2·0.32+0.35)
 //       ·roll); L2's v_arg = the LAST L1 output × (d·0.35+0.65); L3's
 //       v_arg = (d·0.1+0.1)·(d2·0.35+0.65).
