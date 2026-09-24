@@ -275,19 +275,37 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
   const surfaceTable = ensureSurfaceTable(dataDirRef.dataDir, def);
   const uid = uidFrom(def, cfg);
   let gradAt = null;
+  let gradKind = "ramp"; // which source fed gradAt — logged by SURFACE_LOG below
   if (def.bitmapCaves && def.bitmapCaves.sizeX) {
     const caves = ensureCavesField(dataDirRef.dataDir, def, seed);
     const { w: fw, h: fh, field } = caves;
     gradAt = (gx, gy) =>
       field[(((Math.floor(gy) % fh) + fh) % fh) * fw
           + (((Math.floor(gx) % fw) + fw) % fw)];
+    gradKind = "caves";
   } else {
-    gradAt =
-      makeGradAtFromTopology(dataDirRef.dataDir, def) ?? makeGradAt(def);
+    const topo = makeGradAtFromTopology(dataDirRef.dataDir, def);
+    gradAt = topo ?? makeGradAt(def);
+    if (topo) gradKind = "topology";
   }
   const bandTopPx = SKY_ROWS * CHUNK; // 24576 — classify y frame origin (C76)
   const worldX0 = 35 * CHUNK; // 17920 — C80 world x origin (biome px 35)
   const worldY0 = (SKY_ROWS + 14) * CHUNK; // 31744 — C80 world y origin (biome row 14)
+  // L1 value logger (Task 0 of the post-(101)-FAIL plan, SESSION_CONTEXT
+  // Update 2026-09-24 (1)): SURFACE_LOG=<path> ⇒ every evaluated cell is
+  // appended as one JSONL record — lane x/y (C76), world wx/wy (C80),
+  // gradKind (caves|topology|ramp), field value, the >0.5 gate, classify's
+  // v + the solid verdict — so each patch's coordinates can be checked
+  // against what actually flowed. The directory must exist; with no env
+  // var nothing is allocated to disk and the lane runs as before.
+  const logPath = process.env.SURFACE_LOG || null;
+  const logBuf = [];
+  const flushLog = () => {
+    if (logPath && logBuf.length) {
+      fs.appendFileSync(logPath, logBuf.join("\n") + "\n");
+      logBuf.length = 0;
+    }
+  };
   for (let cy = 0; cy < 52; cy++) {
     for (let cx = 0; cx < 52; cx++) {
       // classify/evaluator coords — the C76 lane frame (integer math
@@ -305,9 +323,11 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
       try {
         field = surfaceField(uid, wx, wy, gradAt, 0, DEF_SEED);
       } catch {
+        flushLog();
         return null; // unread-core lane → whole chunk falls through (V2 mirror)
       }
       let solid = 0;
+      let v = null;
       // the sampler's own gate: process only when the FIELD (the
       // surfaceField return) > 0.5 — comiss 0x11dfa94 @0x90dbc3 →
       // jbe @0x90e02b (P/P-table null arm stays the && below, @0x90dd01)
@@ -315,12 +335,19 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
         // evaluator2 @0x90dd24 = (x, y, field): xmm0/xmm1 = the same
         // origin-added counters classify receives after the floor-fix
         // (identity pinned C76) — NOT the wang-cell+config proxy
-        const v = evaluator2(x, y, field);
+        v = evaluator2(x, y, field);
         solid = classify(surfaceTable, x, y, v) ? 1 : 0;
       }
       mask[52 * cy + cx] = solid;
+      if (logPath) {
+        logBuf.push(JSON.stringify({
+          tx, ty, cx, cy, x, y, wx, wy, uid, gradKind,
+          field, above: field > 0.5, hasTable: !!surfaceTable, v, solid,
+        }));
+      }
     }
   }
+  flushLog();
   return { mask, def };
 }
 

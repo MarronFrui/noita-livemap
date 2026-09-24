@@ -7346,3 +7346,123 @@ first use from now on):**
       claim). Next free: entry **(102)**, **C81**, **I22**; VERIFIED §8
       row 32 stays free (no §8 write this dig). Gates green: **npm test
       258/258**, caves-field standalone **33/33**.
+  - **2026-09-24 (102) — dig #102 (part 1): the fnA/fnB walk is
+    byte-CLOSED end to end (C81) — entry (94)'s two "0.0" rdata reads
+    REFUTED as f32 traps (Y₀ = trunc(6u) ∈ 0..5; lane ∈ {3,4,5} @1/3
+    each), the switch-path X-law, the flag alternation and the budget
+    double-LERP byte-pinned; the Q3a port patch DESIGNED but NOT yet
+    applied.**
+    - Method: byte RE of `noita_dev.exe` (17,007,104 B, md5
+      `8b611494212a69492dd0a4527d9c92e0`, per (94)) over the cached true
+      disasm `/tmp/opencode/fulltext86.asm` + direct rdata reads
+      (file = VA − 0x400E00; anchors re-validated in the SAME run:
+      `0x11dffe8` = f64 101.0, `0x11dfa40` = f32 0.4; `0x11dfef0` /
+      `0x11e05f8` raw-byte hexdumped). Docs dig: `lib/` untouched by
+      this entry; Task 0's loggers (`noise-terrain.mjs` L1 SURFACE_LOG,
+      IoU L2 fit extension) land with it.
+    - **① The f32 trap — (94) ①/③ corrected (→ VERIFIED §8 row 32):**
+      - (94) read `[0x11dfef0] = 0.0` ⇒ "Y = trunc(rand·0.0) = 0 ⇒ the
+        walk STARTS AT ROW 0 (top)". Raw bytes `0000000000001840` =
+        **f64 6.0**; the consumer @8f02a5 is `mulsd` (F2 0F 59) +
+        `cvttsd2si` ⇒ **Y₀ = trunc(6·u) ∈ {0,1,2,3,4,5}** →
+        `[−0x108] = [−0x130]` @8f02b3/8f02b9. The walk start row is
+        RANDOM in 0..5, not fixed 0.
+      - (94) ③ read `[0x11e05f8] = 0.0` ⇒ "band-lane select is FIXED
+        k = 3, ja never taken". Bytes `00000000000008c0` = **f64
+        −3.0**; @8f02c4 `mulsd` ⇒ `ecx = 3 − trunc(−3u) ∈ {3,4,5}`
+        **each 1/3** ⇒ jump table @0x8f2fd0 lanes **[3] 0.4u+0.1,
+        [4] 0.25u+0.75, [5] 0.13u+1.07 ALL LIVE** (lanes 0–2
+        unreachable; `ja 0x8f03a6` dead only because ecx ≤ 5 — the
+        "fixed" conclusion was still wrong). The lane multiplies the
+        switch path's cursor `[−0x104]`.
+      - Trap mechanism: both reads took the FIRST 4 bytes (f32 = 0.0)
+        at addresses consumed as f64 by `mulsd`. Rule: operand width
+        comes from the opcode (F2 = sd, F3 = ss), never from an f32
+        dump of the address.
+    - **② The switch-path geometry (was only "clamp(jittered base)" in
+      (94)) — byte law:** ratio = `f32(w)/f32(count)` (divss @8f01cc);
+      endpoints `∓0.45·ratio` → `[−0x108]/[−0x148]`
+      ([0x11e0588]/[0x11dfa5c]) @8f01d3..8f01eb; then
+      `X = clamp(trunc(lerp(low,high,u3)) + trunc(⌊w/count⌋·walkIndex)
+      + trunc(lerp(low,high,u4)), 5, w−5)` — two independent jitter
+      draws (u3 @8f01f3, u4 @8f0225), floor stride via `idiv [−0x160]`
+      @8f0238, `cmovl/cmovg` clamp @8f0280..8f0292 →
+      `[−0x118] = [−0x134]`; finally **Y₀ = trunc(6u)** overwrites the
+      case-B Y_B in `[−0x108]/[−0x130]` @8f02a0..8f02b9 ⇒ the switch
+      walks TILE THE WIDTH at stride `w/surface_caves_count` with
+      ±0.45·stride jitter each (two draws), starting at a random row
+      0..5.
+    - **③ Path alternation + the two-stage budget (resolves the
+      `CONSTANTS:1261-1271` budget-attribution conflict):** flag
+      `[−0x119]` cycles B+switch → A → B+switch … (case A = the chained
+      `±0.01·w` / `0.05..0.25·h` step @8efff1, sets flag:=0; the
+      switch path sets flag:=1 @8f03ac; once `[−0x150] ≥ [−0x160]`
+      every walk is case B-no-switch). Budget: `S = h − Y₀`; FIRST
+      `[−0x110] = LERP(0.15·S, 0.96·S, u)` ([0x11df99c] = 0.15)
+      @8f03f2..8f043f; the flag=1 (switch) walk OVERWRITES with
+      `LERP(0.45·S, 0.96·S, u)` ([0x11dfa5c] = 0.45) @8f054c..8f058d
+      and sets `[−0x15c] = 0.45·S`, then `÷= Δy` @8f0626. ⇒ (94)'s
+      "budget = LERP(0.45H,0.96H,u) ÷ Δy ⇒ span y ∈ [0, LERP(...))"
+      = **the flag=1 arm only**; flag=0 walks span ≈15% of h. flag also
+      picks scale (0.25u+0.75 vs 0.5u+0.5) and the childCounter bonus
+      pair.
+    - **④ growth = u, d₀ = (2u−1)², the two 50/101 gates:**
+      `[−0x148] = cvtsd2ss(u) + [0x11df874 = 0.0f]` @8f04d8 ⇒ the
+      "+0.0" addend is dead (growth = the raw draw); gate1 @8f0645
+      `trunc(101u) < 50` ⇒ growth := 0; gate2 @8f0663 `trunc(101u) < 50`
+      ⇒ growth := growth² else growth; d₀ pushed as the SQUARE
+      (`mulss %xmm2,%xmm2` @8f069f); childCounter =
+      `rollPos(cave_childs) + [10/101: ⌊8u⌋] + flag1·(rollPos(surface_
+      cave_childs) + [20/101: 2 + ⌊5u⌋])`.
+    - **⑤ Caller/push map + config slots:** fnB's pre-loop rolls
+      cave_count → `[−0x12c]`, surface_caves_count → `[−0x160]`;
+      cursor = per-walk `lerp(config[+0x3c],[+0x40])` = C52
+      cave_strength; the 10-arg push map's LAST slot
+      `[ebp+0x2c] = config[+0x24] = spawn_percent` = the in-walk
+      scatter gate (C52) — the scatter block writes the BYTE channel
+      only ⇒ omitted from the float port = **float-neutral**; fnA's
+      epilogue writes back NO pair (8ef85d..8ef86c) ⇒ case A chains
+      from the pre-call slots, no write-back needed in the port.
+    - **⑥ The stamp + fnA structure (port-relevant):** the
+      per-iteration stamp = **`push $1; call 0x8ee750`** @8ef37a..8ef37c
+      (then `y += [ebp+0x20]` Δy @8ef381..8ef38e, then the
+      spawn_percent gate `comiss` 0 vs `[ebp+0x2c]` → `jbe 8ef401`
+      @8ef39b..8ef3a3) — `0x8ee750` = a bounds-checked cell-setter
+      entry (fn start 8ee750; x/y ≥ 0 ∧ < w/h else early-out 8ee91c;
+      cell fetch via accessor 0x9499f0) located directly below C51's
+      0x8ee930 LERP writer; **the pushed-flag → LERP-vs-max branch
+      inside 8ee750 is UNREAD (FLAGGED)** — fnA pushes $1, C51's blob
+      lanes push $0 = max-bleed. Children spawn INSIDE fnA (2% gate
+      @8ef774..8ef783, `decl (%eax)` childCounter @8ef79e, child budget
+      `(u·50 − 50) + (parent − steps)` @8ef7e2..8ef800, d sign-flip
+      `xorps 0x11e0c50` @8ef7c2, child call @8ef823) ⇒ **the port's
+      outer `childs` loop is a false structure**; the pair's box exit is
+      plain bounds, **NO `& (gridW−1)` wrap**.
+    - **⑦ Q3a patch design (NOT applied in this entry):** rewrite
+      `walkChain` (prologue draws → envelope → D1/D2 flag →
+      `carveCircle(..., flag=1, dir="max")` with the trunc pair + box
+      exit → `y += Δy` every iteration → the four terminations → bias
+      draws + x-law → re-jitter growth gate → **child recursion INSIDE**
+      with childCounter by reference); rewrite the two callers to the
+      path-alternation laws (Y₀ = trunc(6u), the X laws of ②, budget
+      `h − Y₀` per ③, Δy, the growth gates, d₀², drop the scale arg,
+      DELETE the outer `childs` loop `caves-field.mjs:269-272`); fix
+      the stale comments `:158-163`/`:169-170`; scatter omitted + commented.
+      Gate order: y224 byte bar → caves-field 33/33 (the y224
+      exactness rows may shift) → `npm test` 258/258 → IoU re-run
+      `SURFACE_V3=1 SURFACE_LOG=… node
+      mapgen/experiments/2026-09-24-surface-y-iou.mjs` scored against
+      `mapgen/out/surface-y-2026-09-24.entry101.json`.
+    - Status: **byte-CLOSED; the patch is pending NEXT SESSION.** Task 0
+      landed: L1 `SURFACE_LOG` JSONL logger + L2 fit extension;
+      baseline FAIL preserved at
+      `mapgen/out/surface-y-2026-09-24.entry101.json`, baseline log
+      `/tmp/opencode/surface-y-log-baseline.jsonl`. The drop path
+      (`SURFACE_V3` const + attach gate + genmap-server r3i→r3j) stays
+      OFF until an IoU PASS. Q1/Q2 remain parked for the user's Ghidra
+      at 0x7930d3.
+    - Landed: CONSTANTS **C81**, this entry **(102)**, VERIFIED **§8
+      row 32** + the §11 dig-94 in-row amendment, Current_work +
+      SESSION_CONTEXT refresh, the Task 0 loggers. Next free: entry
+      **(103)**, **C82**, **I22**; VERIFIED §8 row 33 free. Gates for
+      this commit: **npm test 258/258**, caves-field **33/33**.

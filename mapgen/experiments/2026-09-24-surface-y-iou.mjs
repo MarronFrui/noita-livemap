@@ -12,6 +12,13 @@
 // mapgen/out/surface-y-2026-09-24/<tx>_<bty>_<label>.png
 //   base = dim ref (solid 96 / air 16 gray), red = y_ref, green = y_gen,
 //   yellow fill = |Δy| ≤ 3 px band, dark-red fill = gap > 3 px.
+//
+// Task-0 fit extension (additive; every C79 core field above unchanged):
+// per-tile OLS fits Δy = a·x + b (fitX) and Δy = a·y_ref + b (fitDepth),
+// plus nPairs-weighted aggregates — the offset-vs-scale signature
+// partition (b shared across families ⇒ frame offset; a ≠ 0 ⇒ unit/tilt;
+// family-local b with lake/ramp flat ⇒ shape). The per-cell L1 value log
+// (the sibling instrument) = env SURFACE_LOG=<jsonl> in noise-terrain.mjs.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -132,6 +139,23 @@ const median = (a) => {
   const s = [...a].sort((x, y) => x - y);
   return s[s.length >> 1];
 };
+// OLS y = a·x + b over paired samples; null when the predictor is
+// degenerate (< 2 points or zero variance). Rounded for the JSON only.
+const ols = (xs, ys) => {
+  const n = xs.length;
+  if (n < 2) return null;
+  let mx = 0, my = 0;
+  for (let i = 0; i < n; i++) { mx += xs[i]; my += ys[i]; }
+  mx /= n; my /= n;
+  let sxy = 0, sxx = 0;
+  for (let i = 0; i < n; i++) {
+    const dx = xs[i] - mx;
+    sxy += dx * (ys[i] - my); sxx += dx * dx;
+  }
+  if (sxx < 1e-9) return null;
+  const a = sxy / sxx;
+  return { a: +a.toFixed(5), b: +(my - a * mx).toFixed(3) };
+};
 const stats = [];
 const colGen = new Uint8Array(512);
 const genSolid = new Uint8Array(512 * 512);
@@ -154,6 +178,7 @@ for (const s of scorable) {
   let nPairs = 0, genNoLine = 0, sumAbs = 0, sumD = 0;
   const absList = [];
   const genLines = new Int16Array(512).fill(-1);
+  const fitXs = [], fitDs = [], fitRefs = []; // paired Δy samples for the fits
   for (let x = 0; x < 512; x++) {
     if (refLines[x] < 0) continue;
     for (let y = 0; y < 512; y++) { colGen[y] = genSolid[y * 512 + x]; }
@@ -162,6 +187,7 @@ for (const s of scorable) {
     if (g == null) { genNoLine++; continue; }
     const d = g - refLines[x];
     nPairs++; sumAbs += Math.abs(d); sumD += d; absList.push(Math.abs(d));
+    fitXs.push(x); fitDs.push(d); fitRefs.push(refLines[x]);
   }
   const bandFrac = {};
   for (const b of BANDS) bandFrac[b] = nPairs ? absList.filter((v) => v <= b).length / nPairs : null;
@@ -173,6 +199,8 @@ for (const s of scorable) {
     bias: nPairs ? +(sumD / nPairs).toFixed(2) : null,
     band: Object.fromEntries(BANDS.map((b) => [b, bandFrac[b] != null ? +bandFrac[b].toFixed(3) : null])),
     genTopAir: +topAirFrac.toFixed(3),
+    fitX: ols(fitXs, fitDs),        // Δy = a·x + b  (tilt/unit vs const offset)
+    fitDepth: ols(fitRefs, fitDs),  // Δy = a·y_ref + b (depth/ramp-window shape)
   };
   stats.push(st);
 
@@ -209,6 +237,16 @@ for (const s of scorable) {
 }
 
 // --- aggregates -------------------------------------------------------------
+// nPairs-weighted mean of a per-tile OLS fit (tiles without a fit skip)
+const fitAgg = (list, key) => {
+  const ts = list.filter((s) => s[key] && s.nPairs > 0);
+  const n = ts.reduce((p, s) => p + s.nPairs, 0);
+  if (!n) return null;
+  return {
+    a: +(ts.reduce((p, s) => p + s[key].a * s.nPairs, 0) / n).toFixed(5),
+    b: +(ts.reduce((p, s) => p + s[key].b * s.nPairs, 0) / n).toFixed(3),
+  };
+};
 const agg = (list) => {
   const withPairs = list.filter((s) => s.nPairs > 0);
   const nAll = list.reduce((a, s) => a + s.nPairs, 0);
@@ -223,6 +261,8 @@ const agg = (list) => {
       nAll ? +(list.reduce((a, s) => a + (s.band[b] ?? 0) * s.nPairs, 0) / nAll).toFixed(3) : null,
     ])),
     genTopAir: list.length ? +(list.reduce((a, s) => a + s.genTopAir, 0) / list.length).toFixed(3) : null,
+    fitX: fitAgg(list, "fitX"),
+    fitDepth: fitAgg(list, "fitDepth"),
   };
 };
 const byFamily = {};
@@ -246,8 +286,12 @@ const summary = {
 fs.writeFileSync(path.join(repoRoot, "mapgen/out/surface-y-2026-09-24.json"), JSON.stringify(summary, null, 1));
 
 console.log("\n# aggregates");
+const fitStr = (a) =>
+  a.fitX || a.fitDepth
+    ? ` fitX(a=${a.fitX?.a ?? "-"},b=${a.fitX?.b ?? "-"}) fitDepth(a=${a.fitDepth?.a ?? "-"},b=${a.fitDepth?.b ?? "-"})`
+    : "";
 const show = (name, a) =>
-  console.log(`${name.padEnd(10)} tiles ${String(a.tiles).padStart(3)} (pairs ${String(a.tilesWithPairs).padStart(3)}) n=${String(a.nPairs).padStart(6)} meanAbs=${String(a.meanAbs).padStart(7)} bias=${String(a.bias).padStart(8)} ±1=${String(a.band[1]).padStart(6)} ±2=${String(a.band[2]).padStart(6)} ±3=${String(a.band[3]).padStart(6)} genNoLine=${String(a.genNoLine).padStart(5)} topAir=${a.genTopAir}`);
+  console.log(`${name.padEnd(10)} tiles ${String(a.tiles).padStart(3)} (pairs ${String(a.tilesWithPairs).padStart(3)}) n=${String(a.nPairs).padStart(6)} meanAbs=${String(a.meanAbs).padStart(7)} bias=${String(a.bias).padStart(8)} ±1=${String(a.band[1]).padStart(6)} ±2=${String(a.band[2]).padStart(6)} ±3=${String(a.band[3]).padStart(6)} genNoLine=${String(a.genNoLine).padStart(5)} topAir=${a.genTopAir}${fitStr(a)}`);
 show("overall", summary.overall);
 for (const [k, v] of Object.entries(summary.byFamily)) show(k, v);
 for (const [k, v] of Object.entries(summary.byRow)) show(`bty${k}`, v);
