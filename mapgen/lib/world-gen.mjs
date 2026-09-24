@@ -59,15 +59,26 @@ export function loadWangWorld(dataDir) {
     return { config, areas, grid, errors: new Map() };
 }
 
+// L3 anchor (CONSTANTS C78, dig #99): gen↔capture registration fitted on
+// seed 78633191 (ABOUT_MATH (99)). score(dx,dy) compared ref(x,y) with
+// gen(x+dx,y+dy); the CONSTANT verdict peak (11,12) ⇒ display (wx,wy) reads
+// content at (wx+11, wy+12), shifting every lane (area map, template, noise)
+// together. Bounds are checked on the DISPLAY coordinate first; content past
+// the canvas edge is background (right 11 px / bottom 12 px strips → null).
+// Sampling-only: the gen-cache .bin format is untouched.
+export const L3_ANCHOR = { x: 11, y: 12 };
+
 export function worldColorAt(world, wx, wy) {
   if (wx < 0 || wy < 0 || wx >= WORLD_W || wy >= WORLD_H) return null;
-  const tx = Math.floor(wx / CHUNK), ty = Math.floor(wy / CHUNK);
+  const gx = wx + L3_ANCHOR.x, gy = wy + L3_ANCHOR.y;
+  if (gx >= WORLD_W || gy >= WORLD_H) return null;
+  const tx = Math.floor(gx / CHUNK), ty = Math.floor(gy / CHUNK);
   const idx = world.grid[ty * WORLD_CHUNKS_W + tx];
   if (idx >= 0) {
     const a = world.areas[idx];
     const m = world.maps.get(a.key);
     if (m) {
-      const lx = wx - a.area.x1 * CHUNK, ly = wy - (a.area.y1 + SKY_ROWS) * CHUNK;
+      const lx = gx - a.area.x1 * CHUNK, ly = gy - (a.area.y1 + SKY_ROWS) * CHUNK;
       // area maps are in atlas px: 1 atlas px = 10 world px
       if (lx >= 0 && ly >= 0 && lx < m.w * 10 && ly < m.h * 10) {
         const ax = Math.floor(lx / 10), ay = Math.floor(ly / 10);
@@ -80,7 +91,7 @@ export function worldColorAt(world, wx, wy) {
   const key = `${tx},${ty}`;
   const buf = world.templates?.get(key);
   if (buf) {
-    const o = 3 * ((wy - ty * CHUNK) * CHUNK + (wx - tx * CHUNK));
+    const o = 3 * ((gy - ty * CHUNK) * CHUNK + (gx - tx * CHUNK));
     if (buf[o] !== 9 || buf[o + 1] !== 9 || buf[o + 2] !== 9) {
       return [buf[o], buf[o + 1], buf[o + 2]];
     }
@@ -88,7 +99,7 @@ export function worldColorAt(world, wx, wy) {
   // F3 noise-terrain (2026-09-20, ABOUT_MATH (15)/(16)): procedural biomes
   // get the binary evaluator chain per wang cell (shape-first priority:
   // the >0.5 gate value decides solidity, material naming is config-side).
-  const nz = world.noiseSolidAt?.(wx, wy);
+  const nz = world.noiseSolidAt?.(gx, gy);
   if (nz != null) {
     return noiseColor(world, tx, ty, nz);
   }

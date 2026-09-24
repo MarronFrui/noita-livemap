@@ -86,6 +86,7 @@ describe("world-gen.mjs", () => {
     expect(typeof worldGen.worldColorAt).toBe("function");
     expect(typeof worldGen.ensureWorld).toBe("function");
     expect(typeof worldGen.areaKey).toBe("function");
+    expect(worldGen.L3_ANCHOR).toEqual({ x: 11, y: 12 }); // C78 (dig #99)
   });
   test("areaKey format is '<name>_<x1>_<y1>'", () => {
     expect(worldGen.areaKey({ name: "coalmine" }, { x1: 29, y1: 14 })).toBe("coalmine_29_14");

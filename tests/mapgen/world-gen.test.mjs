@@ -7,7 +7,7 @@ import path from "node:path";
 import { describe, test, expect } from "vitest";
 import {
   CHUNK, WORLD_CHUNKS_W, WORLD_CHUNKS_H, SKY_ROWS, WORLD_W, WORLD_H,
-  loadWangWorld, worldColorAt, ensureWorld, areaKey,
+  loadWangWorld, worldColorAt, ensureWorld, areaKey, L3_ANCHOR,
 } from "../../mapgen/lib/world-gen.mjs";
 import { dataDir, hasNoitaData, CAPTURE_SEED, repoRoot } from "../helpers/data.mjs";
 import { biomeByName } from "../helpers/golden.mjs";
@@ -42,12 +42,20 @@ describe("worldColorAt — injected world (no data needed)", () => {
     return world;
   };
 
-  test("samples the area map with 1 atlas px = 10 world px scale", () => {
+  test("canvas constants (C78): L3_ANCHOR = (+11, +12) world px", () => {
+    expect(L3_ANCHOR).toEqual({ x: 11, y: 12 });
+  });
+
+  test("samples the area map with 1 atlas px = 10 world px scale (anchor applied)", () => {
     const w = mkWorld();
-    // world origin of the area: biome (35,14) -> canvas (35, 62) -> world px (17920, 31744)
-    expect(worldColorAt(w, 35 * CHUNK, 62 * CHUNK)).toEqual([1, 2, 3]);
-    expect(worldColorAt(w, 35 * CHUNK + 15, 62 * CHUNK + 5)).toEqual([4, 5, 6]); // cell x=1
-    expect(worldColorAt(w, 35 * CHUNK + 5, 62 * CHUNK + 15)).toEqual([7, 8, 9]); // cell y=1
+    const { x: AX, y: AY } = L3_ANCHOR;
+    // back-shifted display: display origin − anchor samples content exactly at
+    // the area's world origin: biome (35,14) -> canvas (35, 62) -> world (17920, 31744)
+    expect(worldColorAt(w, 35 * CHUNK - AX, 62 * CHUNK - AY)).toEqual([1, 2, 3]);
+    expect(worldColorAt(w, 35 * CHUNK + 15 - AX, 62 * CHUNK + 5 - AY)).toEqual([4, 5, 6]); // cell x=1
+    expect(worldColorAt(w, 35 * CHUNK + 5 - AX, 62 * CHUNK + 15 - AY)).toEqual([7, 8, 9]); // cell y=1
+    // unshifted display now reads content 11/12 px further = atlas cell (1,1)
+    expect(worldColorAt(w, 35 * CHUNK, 62 * CHUNK)).toEqual([10, 11, 12]);
   });
 
   test("returns null outside the canvas", () => {
@@ -55,18 +63,21 @@ describe("worldColorAt — injected world (no data needed)", () => {
     expect(worldColorAt(w, -1, 0)).toBeNull();
     expect(worldColorAt(w, 0, WORLD_H)).toBeNull();
     expect(worldColorAt(w, WORLD_W, 0)).toBeNull();
+    // display in bounds but the anchor pushes the sample past the canvas:
+    // right 11 px / bottom 12 px strips render as background (C78)
+    expect(worldColorAt(w, WORLD_W - 1, WORLD_H - 1)).toBeNull();
   });
 
   test("outside the loaded area's map -> template overlay (9 = unset) or null", () => {
     const w = mkWorld();
     expect(worldColorAt(w, 0, 0)).toBeNull(); // grid -1, no template
     w.templates.set("0,0", new Uint8Array(CHUNK * CHUNK * 3).fill(9)); // all 9 = unset
-    expect(worldColorAt(w, 40, 100)).toBeNull();
+    expect(worldColorAt(w, 40 - 11, 100 - 12)).toBeNull();
     const buf = new Uint8Array(CHUNK * CHUNK * 3).fill(9);
     const o = 3 * (100 * CHUNK + 40);
     buf[o] = 120; buf[o + 1] = 121; buf[o + 2] = 122;
     w.templates.set("0,0", buf);
-    expect(worldColorAt(w, 40, 100)).toEqual([120, 121, 122]);
+    expect(worldColorAt(w, 40 - 11, 100 - 12)).toEqual([120, 121, 122]);
   });
 });
 

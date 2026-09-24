@@ -7107,3 +7107,84 @@ first use from now on):**
       bullet**, ISSUES **I20** (default-arm body 0x8fb570 — OPEN),
       Current_work refresh (Phase 5 step 1 → **DONE**). Tests
       **257/257**; caves-field gate **33/33, no skips** (oracle 2,641 B).
+  - **2026-09-24 (99) — Phase 5 step 2a (dig #99): L3 anchor fit ⇒
+    CONSTANT (+11, +12) world px, applied at `worldColorAt` (C78):**
+    - **① Instrument** `mapgen/experiments/2026-09-24-l3-anchor-fit.mjs`
+      (refuses SURFACE_V2/V3/PROC_FILL — default render only), seed
+      78633191, n=32 wang chunks (rows 14/15/17/18 × tx 29..38; coalmine
+      10 / excavationsite 16 / liquidcave 2 / fungicave 4; 6/32
+      border-flagged; row 16 = HM excluded per
+      `mapcap/PREDICTABLE_ZONES.md`), scan dx∈[−15..35] dy∈[−5..25] world
+      px step 1 (coarse stride 4 → top-3 peaks ±6 → full-res refine;
+      bound = VERIFIED:1083 x∈[−10..30] y∈[0..20] world px ±5 margin).
+      **Plain solid IoU dropped — it saturates** (capture cave bg
+      ~(13,14,18) ⇒ refSolid ≈ 1.0, no signal). Three structure-sensitive
+      metrics: **air** IoU (lum<24, the `mapgen/pipeline/3-compare.mjs:18`
+      constant), **edge** IoU (|gx|+|gy| ≥ 30), **lum** zero-mean NCC; plus
+      1-D column/row air-profile NCC cross-checks (dx/dy decoupled).
+      Sign: score(dx,dy) compares ref(x,y) with gen(x+dx, y+dy) ⇒ peak
+      (DX,DY) ⇒ output(x) := gen(x+DX).
+    - **② §4 verdict (VERIFIED:208): CONSTANT on both axes.** Best
+      structured competitor (free per-area phase over the 4 areas /
+      tx-linear / bty-linear / lattice-saw 512·coord mod 10) improves
+      RMSE ≤ **4% dx** (const 9.35 → area 8.97 px) and ≤ **2% dy** (6.21
+      → 6.11 px) — far under the 20% bar; per-metric `fitAxis` verdicts
+      all "no coherent rule (scatter ≈ noise)" (per-chunk best-offset
+      RMSE ≈ 6–12 px ⇒ a constant stays valid away from the fit — the §4
+      precondition). Lattice slopes: tx dx −0.84 / dy −0.30, bty dx +0.52
+      / dy −0.73 — no phase law.
+    - **③ Value (11,12).** Per-metric medians air (12,12) / edge (6.5,11)
+      / lum (11,14); per-chunk combo median (11.5,11.5); dy>0 in 29/30/31
+      of 32 per metric (combo 31/32), dx>0 combo 27/32. Pooled paired
+      candidates vs (0,0): Δair **+0.0253** (t=4.82, win 25/32), Δedge
+      **+0.0080** (t=3.35, 19/32), Δlum **+0.0542** (t=5.10, 29/32). dy
+      dominates — (0,12) keeps 81–83% of Δ, (11,0) ≈ 0
+      (+0.0024/−0.0002/+0.0055) — yet the dx increment is significant
+      ((11,12) vs (0,12): t=2.95/2.25/3.50); (11,12) vs the
+      certified-bound center (10,10) indistinguishable (t ≤ 1.80) but ≥
+      on all three (pairwise win-count (11,12) 5/6 vs (10,10) −2/6); sign
+      control (−11,−12) flips negative (Δair −0.0491, Δlum −0.0784,
+      0/32 wins). Means: air 0.3594 → 0.3846, edge 0.0441 → 0.0521, lum
+      0.1402 → 0.1944. All medians INSIDE the certified bound ⇒ no §8
+      overturn; §4 confirmed.
+    - **④ Application: `L3_ANCHOR = {x:11, y:12}`** exported from
+      `mapgen/lib/world-gen.mjs`, applied inside `worldColorAt`
+      (:62 area/template/noise): bounds-check the DISPLAY (wx,wy) first,
+      then sample content at (wx+11, wy+12); all three lanes shift
+      together via the sampled tx/ty; content past the canvas edge → null
+      (right 11 px / bottom 12 px strips = background); sampling-only ⇒
+      gen-cache `.bin` untouched (no cache rev). NOT `coords.mjs
+      CORRECTION` — the fit's gen side is `worldColorAt` (instrument:296),
+      which never routes through `chunkToBigMapRect`; bench CORRECTION
+      stays 0. Tests: world-gen anchor contracts (back-shift cell pins,
+      strip-null) + api-surface pin `L3_ANCHOR` = (11,12).
+    - **⑤ Post-apply regression (C78 clause measured; literal full-window
+      bit-equality refined — see C78).** Evidence split: fit =
+      `mapgen/out/l3-anchor-2026-09-24-preapply.json`, post-apply
+      residual = `…-2026-09-24.json` (instrument always writes the
+      canonical path). **Residual ≈ (0,0):** per-metric best-offset
+      medians air (0, 0.5) / edge (3, 2) / lum (1.5, 2) — all inside the
+      certified bound, all `fitAxis` verdicts still "no coherent rule"
+      (no residual law appeared); candidate ranking flipped — (0,0) is
+      now best on all three (air 0.3829 / edge 0.0528 / lum 0.1880 vs the
+      pre-apply (11,12) 0.3846 / 0.0521 / 0.1944), every other constant —
+      including (11,12) itself (Δ −0.0317/−0.0049/−0.0486) and the sign
+      control (−11,−12) (−0.0240/−0.0082/−0.0474) — now negative ⇒
+      sign-closed. **Layer+sign proof by reconstruction**
+      (`/tmp/opencode/l3-matched-window.mjs`): rebuilding the pre frame
+      from the current code via back-shift `old(q) = new(q−anchor)` and
+      scoring (11,12) is **bit-equal to the recorded pre JSON 32/32 ×
+      air/edge/lum**, post full (0,0) equals the recorded post JSON 32/32
+      × 3, and the edge in-window [2,498]×[2,497] counted-set mismatches
+      = **0** ⇒ `worldColorAt(p) ≡ oldWorldColorAt(p+(11,12))` on every
+      scored pixel set. Full-window post (0,0) vs pre (11,12) deltas (air
+      −0.0017, edge +0.0007, lum −0.0063 mean; max |Δ| 0.0170/0.0038/
+      0.0759) are fully attributed to the scorer's skipped strip (right
+      11 cols / bottom 12 rows) plus, for edge alone, the frame-relative
+      validE/edgeMask band (both domains are frame-relative [1,510]).
+    - Status: **code + tests + docs landed.** Landed: CONSTANTS **C78**
+      (registered before use; expectation clause refined to the measured
+      outcome), this entry **(99)**, no §8 row (fit inside certified bound
+      — §4 confirmed), no ISSUES (I21 still free), Current_work refresh.
+      Tests **258/258** (257 baseline + 1 C78 contract test); caves-field
+      gate **33/33** standalone.
