@@ -345,6 +345,37 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   read 0x8fb570, port the arm, re-pin the tail for that lane.
   Source: ABOUT_MATH §6 (98); CONSTANTS C77.
 
+- [ ] **I21. The C76 classify/evaluate FRAME rests on claim (c); the world
+  frame fits the surface band — frame flip = pending dig** (opened
+  2026-09-24, dig #101): dig #97's frame decision (x = canvas px,
+  y = canvas py − 24576) eliminated the world-frame candidate via claim
+  (c) — "the hills-family noise band lives at CANVAS ty 48..50 = biome
+  rows 0..2" (`mapgen/experiments/2026-09-21-noise-window.mjs:4-6`) —
+  but the capture puts ground at bty 12..14 (`mapcap/PREDICTABLE_ZONES.md:31-32`
+  spawn surface j=12..14; dig #100 census: transitions bty 10..14, none
+  ≤9) ⇒ the noise band cited at canvas ty 48..50 is SKY, so the
+  elimination's premise does not pin the surface. Re-running it with
+  the true surface position (bty 12..14 ⇒ world y = canvas_py − 31744,
+  C80) puts the surface at wy ∈ [−1024, 512], which fits the hills.xml
+  soil `limit_y` window [−1024, 424.229] (hills.xml, re-read this
+  session) AND the mGradient ±1024 ramp — while the adopted −24576
+  puts the surface at y ∈ [6144, 7680], outside every limit_y window
+  (soil/copper gates never see the real surface; only the catch-all
+  [0.53, 3.5) with limit_y=0 fires). The test's line assertion stays
+  TRUE (world @OFFSET_Y=14 ⇒ y − 7168 < −1024 rejects soil —
+  `tests/mapgen/surface-wiring.test.mjs:213-216`); only the
+  interpretation flips: that probe cell sits at canvas ty 48 (sky),
+  not at the surface rows. Dig #101 keeps the two-frame split
+  deliberate (field build = world C80; evaluate/classify = C76 −24576,
+  the evaluator2≡classify identity preserved) — flipping classify to
+  the world frame = a separate later dig, after the field-wiring IoU
+  (entry (101)) isolates whether registration or field shape is the
+  remaining error. The noise-window result JSON was read this session
+  (`mapgen/out/noise-window-2026-09-21.json`: window tx 29..47 ×
+  canvasCy 48..82, 240 v2 chunks, allPixelRms 15.39, refSkyFrac 0.009,
+  refVoidFrac 0.857) — the window OVERLAPS the surface rows 60..62 but
+  claim (c)'s stated band (48..50) does not. Source: ABOUT_MATH §6 (101).
+
 ## Strategy (agreed)
 
 1. Keep the verified wang core (prediction-solved, oracle-validated).

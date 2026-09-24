@@ -7258,3 +7258,91 @@ first use from now on):**
       the flood is the already-flagged gated-lane state, now quantified,
       not a new defect). Gates green: **npm test 258/258**, caves-field
       standalone **33/33**.
+  - **2026-09-24 (101) — dig #101: the V3 field source is WIRED (C80
+    world frame) and the surface-y IoU RE-RUN still FAILS — the sky flood
+    is gone (top-air 0.004 → 0.941) but the line is not right (meanAbs
+    87.87, bands ≤ 0.047) ⇒ per the locked verdict: more Ghidra.**
+    - **① Field wiring (the dig-#100 missing piece):** `gradAt` is now
+      hoisted before the caves/ramp arms WITHOUT the `SURFACE_V3`
+      conjunct (`noise-terrain.mjs:277` — the conjunct would desync the
+      test mirror from the instrument), and the classify chain's field
+      value is `surfaceField(uid, wx, wy, gradAt, 0, DEF_SEED)`'s RETURN
+      computed at WORLD px — the final combine `noise-proto.mjs:713`,
+      exactly what driver 0x908F40's kind-0 arm writes into the f32 grid
+      the gate reads (VERIFIED:593) — replacing the `a = 1.0` placeholder
+      that caused (100)'s flood. Caves-field cache key fixed to
+      `` `${def.filename ?? def.name}|${seed}` ``; fail-loud contract
+      kept (a field-build throw = I20 default arm ⇒ `return null` ⇒ the
+      whole chunk falls through honestly, V2 :237-241 mirror). Lane
+      extent unchanged: every non-template procedural chunk runs
+      `noise-terrain.mjs:247-325`.
+    - **② C80 world frame (field build only) + citations:** `wx = canvas
+      px − 35·512 = canvas px − 17920`, `wy = canvas py − (SKY_ROWS+14)·512
+      = canvas py − 31744` — CONSTANTS **C80** (registered before use;
+      origin semantics `mapcap/PREDICTABLE_ZONES.md:9-10` re-verified on
+      disk this session). Evaluate/classify KEEP the C76 lane frame
+      (evaluator2 ≡ classify via the floor-fix identity) ⇒ the
+      two-frame split is deliberate and **I21** owns the flip. **C44
+      shorthand clarified:** C44 = the BitmapCaves **band-stack family**
+      (`CONSTANTS.md:67` row + `:946` detail section) — NOT the field
+      source; `uid.gradient`'s comment (`noise-terrain.mjs:121`) still
+      points at C44. Stale-cite repairs landed (line-neutral, drop sites
+      untouched): `noise-terrain.mjs` V2-semantics :216-225→:219-231,
+      attach gate :297→:340, V2 mirror :231-235→:237-241;
+      `surface-wiring.test.mjs` biomeCfg :95→:101; ISSUES.md I21's test
+      cite :153-154→:213-216; C80's two noise-terrain cites :232→:238
+      and :137→:143.
+    - **③ gradAt census (live XML, `data/biome/` via `findNoitaDataDir`):**
+      `<BitmapCaves>` = 1 ×8 — hills, hills2, hills_flat, desert, winter,
+      winter_caves, mountain_tree, mountain_right_stub (hills size_x=512
+      size_y=256) ⇒ caves-grid arm; `bitmap_noise_file` =
+      topology_lake.png ×4 — lake, lake_blood, lake_deep, lake_statue ⇒
+      the C39 image lane; ramp-only = mountain_left, left_entrance,
+      right, top, floating_island. **`noise_type` ABSENT ⇒ noiseKind −1 ⇒
+      the default arm throws (I20):** winter, winter_caves,
+      mountain_center + mountain_hall ×5 (mountain_hall, _2, _3, _4,
+      _trailer) — **pyramid_hallway is NOT a thrower (it HAS
+      `noise_type`)**. `mGradientAddNoise=0` = hills_flat +
+      mountain_lake (I20).
+    - **④ IoU re-run (instrument C79 unchanged, `SURFACE_V3=1`) — FAIL:**
+      overall **n = 6,889** paired columns on **37 of 56** tiles, mean
+      |Δy| = **87.87 px** (was 248.62), bias = **+7.92** (was −248.12),
+      bands ±1/±2/±3 = **0.019/0.032/0.047** (were 0.000 on every
+      family/row). The (100) flood signature is GONE: gen top-air
+      rows[0..7] = **0.941** (was 0.004), genNoLine = **15,077/21,966 =
+      68.6%** (was 74) — the candidate now has mostly-AIR skies and a
+      real (wrong) surface line instead of a solid fill. Per family
+      meanAbs (bias), ±3, genNoLine, topAir [n; tiles with pairs/total]:
+      mountain 46.14 (−27.94), .078, 572, 0.815 [3314; 11/11] · hills
+      **318.21** (+240.5), .008, 1957, 0.961 [909; 10/9] · desert 138.83
+      (+35.67), .038, 2002, 0.926 [338; 9/9] · winter 24.31 (−17.93),
+      .079, 8824, 1.000 [498; 19/3] · lake 56.89 (−40.76), .004, 1722,
+      0.972 [1830; 7/5]. By row: bty13 n1824 52.24 (−47.49), ±3 .099,
+      noLine 11045 · bty14 n3526 133.19 (+46.01), ±3 .007, noLine 3865 ·
+      bty10/11/12 n140/919/480 ⇒ meanAbs 41.76/29.44/15.59. Best tile
+      `37_13_mountain_right`: n442, meanAbs **5.35**, med 5, bias +0.13,
+      ±3 **0.299** — diagonal tracking where the ramp frame happens to
+      agree. Worst: `48_13_desert` 385.25 (bias −385.25, n20),
+      `39_14_hills` 355.72 (+354.95), `41_14_hills` 348.71 (+345.02).
+      19 zero-pair tiles = 16 winter (12,13,14,16,17,18,19,20,22,23,24,
+      25,26,27,28,29) + `44_13_hills` + `4_14_lake` + `9_14_lake`.
+    - **⑤ Evidence:** `mapgen/out/surface-y-2026-09-24.json` (same
+      schema as (100), regenerated by the re-run) + the same 56 overlays
+      in `mapgen/out/surface-y-2026-09-24/` (legend per (100) ⑤).
+      Representatives inspected this session: `37_13_mountain_right`
+      (the one success) vs `39_14_hills` (+354.95 bias).
+    - Status: **FAIL ⇒ the numeric bars stay RED and, per the user's
+      locked verdict ("Give it a try that way, if it still fail we might
+      have to make more ghidra"), the next step is MORE GHIDRA — first
+      targets: driver 0x908F40's caller body @0x7930d3, the
+      `[args+0x24]`/`[args+0x28]` origin-field contents, C44 fn A
+      y-drift. Step 3 (drop `SURFACE_V3`) stays BLOCKED and dig #102's
+      drop path (SURFACE_V3 const + attach gate + genmap-server
+      r3i→r3j) is OFF the table this round.** Landed: CONSTANTS
+      **C80**, this entry **(101)**, `noise-terrain.mjs` wiring + cite
+      repairs, `surface-wiring.test.mjs` + C80/ISSUES I21 cite repairs,
+      Current_work refresh; **no §8 row** (nothing overturned — §4/C78
+      untouched), **no new ISSUES** (I21 already carries the frame
+      claim). Next free: entry **(102)**, **C81**, **I22**; VERIFIED §8
+      row 32 stays free (no §8 write this dig). Gates green: **npm test
+      258/258**, caves-field standalone **33/33**.

@@ -33,16 +33,22 @@ import {
   classify,
 } from "./surface-level.mjs";
 
-// dig #30: the name-keyed caves-field cache (the binary's std::map
-// @0x132aae8 semantics — one cached cave grid per (seed, CaveStructure
-// package); here keyed per (biomeName, seed); the bytes are (seed, name)-
-// deterministic per the C49 proof).
+// dig #30: the caves-field cache (the binary's std::map @0x132aae8
+// semantics — one cached cave grid per (seed, CaveStructure package);
+// the bytes are (seed, name)-deterministic per the C49 proof).
+// dig #101 CORRECTION: keyed by the biome FILE, not def.name — Noita's
+// biome name attr is empty for hills/hills2/mountain_tree (census this
+// session: all three def.name = "_EMPTY_"), so the old `${def.name}|${seed}`
+// key collided across biomes sharing that slot (measured: hills chunks
+// served another _EMPTY_ biome's grid ⇒ mask ≠ test mirror). A per-biome
+// config identity matches the binary's per-package keying (game memo
+// keyed &config+0xa8 = the per-config address, VERIFIED:600).
 const cavesFieldCache = new Map(); // key -> buildCavesField result
 const dataDirRef = { dataDir: null };
 function ensureCavesField(dataDir, def, seed) {
   if (dataDir && !dataDirRef.dataDir) dataDirRef.dataDir = dataDir;
   if (!dataDirRef.dataDir) dataDirRef.dataDir = findNoitaDataDir();
-  const key = `${def.name}|${seed}`;
+  const key = `${def.filename ?? def.name}|${seed}`;
   let entry = cavesFieldCache.get(key);
   if (entry) return entry;
   entry = buildCavesField(dataDir, def, seed);
@@ -249,30 +255,67 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
   // Fail-loud: a component that throws (unknown attr, polygon, null
   // celldata) propagates to noiseAt's catch → the chunk falls through
   // honestly (same contract as the V2 lane's unread-core arm).
+  //
+  // dig #101 (entry (101), C80): THE FIELD IS WIRED. The gate value is
+  // no longer the a=1.0 single-call proxy (the dig-#100 flood root
+  // cause) — it is surfaceField's RETURN (the final combine,
+  // noise-proto.mjs:713; the driver 0x908F40 kind-0 arm feeds exactly
+  // that into the f32 grid the gate reads, VERIFIED:593) computed at
+  // WORLD px (C80: wx = canvas px − 17920, wy = canvas py − 31744).
+  // gradAt selection = the V3 model (the V2 lane's :219-231 semantics,
+  // WITHOUT its SURFACE_V3 conjunct: this branch only runs under the
+  // V3 candidate — attach gate :340 — or direct env-free test calls,
+  // and the conjunct would desync the test mirror from the instrument):
+  // caves-field grid for <BitmapCaves> biomes, else the C39 image lane,
+  // else the world-y ramp. Field build throws (I20 default arm,
+  // noiseKind −1 on winter/mountain_center per VERIFIED §8 row 30) ⇒
+  // return null = whole chunk falls through honestly (V2 :237-241
+  // mirror). Evaluate/classify keep the C76 lane frame unchanged this
+  // dig (evaluator2≡classify floor-fix identity; frame flip = I21).
   const surfaceTable = ensureSurfaceTable(dataDirRef.dataDir, def);
+  const uid = uidFrom(def, cfg);
+  let gradAt = null;
+  if (def.bitmapCaves && def.bitmapCaves.sizeX) {
+    const caves = ensureCavesField(dataDirRef.dataDir, def, seed);
+    const { w: fw, h: fh, field } = caves;
+    gradAt = (gx, gy) =>
+      field[(((Math.floor(gy) % fh) + fh) % fh) * fw
+          + (((Math.floor(gx) % fw) + fw) % fw)];
+  } else {
+    gradAt =
+      makeGradAtFromTopology(dataDirRef.dataDir, def) ?? makeGradAt(def);
+  }
   const bandTopPx = SKY_ROWS * CHUNK; // 24576 — classify y frame origin (C76)
+  const worldX0 = 35 * CHUNK; // 17920 — C80 world x origin (biome px 35)
+  const worldY0 = (SKY_ROWS + 14) * CHUNK; // 31744 — C80 world y origin (biome row 14)
   for (let cy = 0; cy < 52; cy++) {
     for (let cx = 0; cx < 52; cx++) {
-      // global wang-cell coords (10 world px per cell, C10/C11)
-      const gx = tx * CELLS_PER_CHUNK + cx + 0.5;
-      const gy = ty * CELLS_PER_CHUNK + cy + 0.5;
-      // the sampler's own gate: process only when the field > 0.5 —
-      // here the field IS the binary evaluator (single-call shape proxy)
-      const v = evaluator2(gx + cfg.minX, gy + cfg.maxX, 1.0);
+      // classify/evaluator coords — the C76 lane frame (integer math
+      // keeps the 51.2-cell sums exact): x = canvas px (an x shift only
+      // phases the field — no limit_x anywhere), y = canvas py − 24576
+      // (0 = surface-band top; +5 = cell center). Game classifies per
+      // pixel (counters step 1 px); we sample one px per cell —
+      // deviation tagged in C76.
+      const x = tx * CHUNK + cx * 10 + 5;
+      const y = ty * CHUNK + cy * 10 + 5 - bandTopPx;
+      // field build — WORLD px per C80 (canvas py = y + 24576)
+      const wx = x - worldX0;
+      const wy = y + bandTopPx - worldY0;
+      let field;
+      try {
+        field = surfaceField(uid, wx, wy, gradAt, 0, DEF_SEED);
+      } catch {
+        return null; // unread-core lane → whole chunk falls through (V2 mirror)
+      }
       let solid = 0;
-      if (v > 0.5 && surfaceTable) {
-        // classify x/y = the origin-translated int px of the cell (C76
-        // frame decision): x = canvas px (no limit_x anywhere — an x
-        // shift only phases the field), y = canvas py − 24576 (0 =
-        // surface-band top; pinned by hills.xml's soil/copper limit_y
-        // bands + mGradient (−1024, 1024) + the band living at canvas
-        // ty 48..50). +5 = cell center = this lane's gx+0.5 convention;
-        // integer math keeps the 51.2-cell sums exact (a float-rounded
-        // x/y would walk across limit_y edges). Game classifies per
-        // pixel (counters step 1 px); we sample one px per cell —
-        // deviation tagged in C76.
-        const x = tx * CHUNK + cx * 10 + 5;
-        const y = ty * CHUNK + cy * 10 + 5 - bandTopPx;
+      // the sampler's own gate: process only when the FIELD (the
+      // surfaceField return) > 0.5 — comiss 0x11dfa94 @0x90dbc3 →
+      // jbe @0x90e02b (P/P-table null arm stays the && below, @0x90dd01)
+      if (field > 0.5 && surfaceTable) {
+        // evaluator2 @0x90dd24 = (x, y, field): xmm0/xmm1 = the same
+        // origin-added counters classify receives after the floor-fix
+        // (identity pinned C76) — NOT the wang-cell+config proxy
+        const v = evaluator2(x, y, field);
         solid = classify(surfaceTable, x, y, v) ? 1 : 0;
       }
       mask[52 * cy + cx] = solid;
