@@ -182,40 +182,35 @@ describe("scatterEmptyGate — the < 0.5 empty-cell gate + the B-recorder", () =
   });
 });
 
-// ── the fnA walk (the LERP worm; the ≤50-step box, dig #66/#68/#69) ─────────
-describe("walkChain — the fnA stamp walk", () => {
+// ── the byte-closed fnA walk (C81/C82: raise-only, plain box, in-walk cc) ────
+describe("walkChain — the byte-closed fnA walk (C82)", () => {
   const w = 512, h = 256;
-  test("lowers only: a walk on the 1.0 base never raises a cell (the dig #80 writer-split regression — the (43)(a) setter per stamp REFILLED the worm)", () => {
+  const mkWalk = () => ({ d0sq: 0.5, dy: 0.3, growth: 0.5, cc: { n: 2 } });
+
+  test("RAISES only: the `push $1` max-bleed stamp never lowers the 1.0 base, and the y<25 eave band proves the stamp ran", () => {
     const field = new Float32Array(w * h).fill(1.0);
-    walkChain(field, w, h, new NollaPrng(SEED), 100, 60, 5, 0, "lerp");
-    let max = 0, min = 1;
-    for (const v of field) { if (v > max) max = v; if (v < min) min = v; }
-    expect(max).toBe(1.0); // LERP toward v ∈ [0,1] cannot raise above the base
-    expect(min).toBeLessThan(0.5); // the deep carve landed (the worm)
+    // start y = 10 → every stamp lands in the ((y−1)/25)⁸ eave arm (y < 25)
+    walkChain(field, w, h, new NollaPrng(SEED), 100, 10, 1, 20, mkWalk());
+    let min = Infinity, max = -Infinity;
+    for (const v of field) { if (v < min) min = v; if (v > max) max = v; }
+    expect(min).toBe(1.0); // raise-only: nothing below the baked base
+    expect(max).toBeGreaterThan(1.0); // the eave lift landed
   });
 
-  test("deterministic for a given prng state (the C48 determinism verdict)", () => {
+  test("deterministic per prng state with FRESH walk objects (the shared cc never leaks across calls)", () => {
     const a = new Float32Array(w * h).fill(1.0);
     const b = new Float32Array(w * h).fill(1.0);
-    walkChain(a, w, h, new NollaPrng(SEED), 7, 7, 5, 0, "lerp");
-    walkChain(b, w, h, new NollaPrng(SEED), 7, 7, 5, 0, "lerp");
+    walkChain(a, w, h, new NollaPrng(SEED), 7, 10, 1, 20, mkWalk());
+    walkChain(b, w, h, new NollaPrng(SEED), 7, 10, 1, 20, mkWalk());
     expect(Array.from(a)).toEqual(Array.from(b));
   });
 
-  test("stays inside the ≤50-step box: the carve span is bounded", () => {
+  test("the box exit is PLAIN (no `& (gridW−1)` wrap): x0 ≥ w never stamps", () => {
     const field = new Float32Array(w * h).fill(1.0);
-    walkChain(field, w, h, new NollaPrng(SEED), 100, 60, 5, 0, "lerp");
-    let minX = w, maxX = -1;
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        if (field[y * w + x] < 1.0) {
-          if (x < minX) minX = x;
-          if (x > maxX) maxX = x;
-        }
-      }
-    }
-    // 50 steps × ≤0.7 px advance + radius 5 ⇒ the x-span is bounded ≪ w/2
-    expect(maxX - minX).toBeLessThanOrEqual(60);
+    walkChain(field, w, h, new NollaPrng(SEED), w + 5, 10, 1, 20, mkWalk());
+    let max = -Infinity;
+    for (const v of field) if (v > max) max = v;
+    expect(max).toBe(1.0); // the prologue draws, then the box exit returns
   });
 });
 

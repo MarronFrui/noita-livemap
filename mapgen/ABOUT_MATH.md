@@ -7466,3 +7466,80 @@ first use from now on):**
       SESSION_CONTEXT refresh, the Task 0 loggers. Next free: entry
       **(103)**, **C82**, **I22**; VERIFIED §8 row 33 free. Gates for
       this commit: **npm test 258/258**, caves-field **33/33**.
+  - **2026-09-26 (103) — dig #103: the Q3a byte-closed walk APPLIED to
+    `caves-field.mjs` (C82 consumed); gates green (y224 rms 0.0000,
+    caves-field 33/33, npm test 258/258); the surface-y IoU vs entry101
+    = FAIL — band ±3 flat (.047 → .046), meanAbs +1.60 (87.87 → 89.47)
+    alongside +205 paired columns; the caves layer flips 1.0% of
+    sampled cells and is NOT the binding constraint of the ~89 px
+    meanAbs ⇒ drop path stays OFF, no §12 distill.**
+    - Method: one patch per the (102) stage-7 design + C81/C82, every
+      byte fact RE-VERIFIED from `CONSTANTS.md:109-110` and the cached
+      dumps this session — `/tmp/opencode/fna-102.asm`: the prologue
+      coin `cmovl %edx,%ecx` with edx=1 ⇒ flag = `[trunc(101u) < 50]`,
+      the d-split `[−0x20] = max(d₀²,0) / [−0x28] = min(d₀²,0)`
+      @8ef53d..8ef565, the child tail `decl` @8ef79e → budget draw
+      @8ef7c6 → `xorps` sign-flip → recursion @8ef823 → `jbe 8ef0d0`;
+      `/tmp/opencode/fnb-102.asm`: the caller pair mirrors @8f0068 /
+      8f00ce / 8f019e / 8f0182 / 8f0298 / 8f02b9 (case A/B/switch all
+      sync `(X,Y)` ⇒ the port passing the chain slots is
+      byte-consistent); knob keys `biomes.mjs:170-183`. No sweeps.
+    - Landed in `mapgen/lib/caves-field.mjs`: `walkChain` arity 9
+      (prologue 6 draws → PLAIN box exit → cursor gate → the
+      t/lane/radius envelope → the unconditional roll + coin-gated D2
+      arm → clamp01 → `carveCircle(..., flag=1, dir="max")` RAISES only
+      → `y += Δy` → spawn omitted (spawn_percent = 0 ⇒ byte-identical
+      skip) → bias draws → d-split x-law → substeps/growth/re-jitter
+      (substeps := 0 fire-gated) → the child gate + IN-WALK recursion
+      with `cc` shared by ref → `steps++` ⇒ continue iff
+      `steps ≤ budget`); the caller = path alternation (case A chained
+      / case B + the switch X-law + Y₀ = trunc(6u) + the lane factor)
+      + the two-arm budget (scale0/scale1 consumed-but-unused, `l1 = 0`
+      with the l2v draw kept); the outer `childs` loop DELETED; the
+      blobCount roll moved to after the walk loop (@8f072a); header +
+      docstring re-scoped. The 3 walkChain tests rewritten in place
+      (raises-only `min === 1.0` with start y in [10,25); determinism
+      with fresh `cc:{n:2}` walk objects; box/no-wrap `x0 = w+5`),
+      total stays **33**.
+    - Gates: y224 rms **0.0000** (the byte bar holds — the record
+      stamps' aabb y ≤ 35 keep row 224 untouched); caves-field
+      **33/33**; npm test **258/258**; builder meta `l1:0, l2v:0` =
+      the baseline values (the l1-constant decision is
+      behavior-neutral by construction).
+    - IoU vs entry101 (both JSONs read this session,
+      `mapgen/out/surface-y-2026-09-24{.entry101,}.json`; the
+      ref-present column total 21,966 is identical in both):
+      nPairs 6889 → **7094** (+205); genNoLine 15077 → **14872**
+      (−205); meanAbs 87.87 → **89.47** (+1.60 WORSE); bias +7.92 →
+      **+2.11** (−5.81 better); band ±1 .019 → .019, ±2 .032 → .031,
+      ±3 .047 → .046 (all FLAT); genTopAir .941 → **.933** (−.008).
+      By family: **hills improves** — meanAbs 318.21 → 293.18,
+      bias 240.5 → 175.53, nPairs +135; desert meanAbs 138.83 →
+      142.22 (bias 35.67 → 29.72), nPairs +50; mountain 46.14 →
+      47.17, nPairs +20; winter + lake byte-identical (0 flips).
+      The headline meanAbs +1.60 = the +205 newly-paired columns
+      entering the pool with their own errors.
+    - L1 diff (`/tmp/opencode/surface-y-log-{baseline,q3a}.jsonl`,
+      199,542 lockstep samples, 0 coord mismatches): **2,029 solid
+      flips, ALL `gradKind:caves`** — 1,942 AIR→SOLID vs 87
+      SOLID→AIR (net +1,855 sample cells solid); field delta
+      mean +0.0034, max|Δ| 4.62. The mechanism is exactly the byte
+      law: the walk can no longer carve (raise-only), so former worm
+      cells stand solid unless a stream-shifted blob carves them —
+      which is why genNoLine fell and bias improved while the ±3
+      band stayed flat.
+    - Status: **FAIL** ⇒ the drop path (`SURFACE_V3` const + attach
+      gate + `noise-terrain.mjs:97/:340` + `genmap-server.mjs:34`)
+      stays OFF; **no VERIFIED §12 distill**. The ~89 px meanAbs
+      residual is dominated by layers OUTSIDE the caves field (the
+      still-unread noise-band gate); Q1/Q2 (0x7930d3) remain parked
+      for the user's Ghidra. Standing FLAG unchanged: the pushed-$1
+      LERP-vs-max arm inside 0x8ee750 stays UNREAD (the port's
+      flag=1/`dir="max"` stands regardless).
+    - Landed: the Q3a patch (`caves-field.mjs` + the 3 tests), this
+      entry **(103)** (C82's source pointer now resolves). No
+      CONSTANTS row (no new byte law — C81/C82 already cover the
+      patch), no §8 row, no new ISSUES. Next free: entry **(104)**,
+      **C83**, **I22**; VERIFIED §8 row 33 free. Gates for this
+      commit: y224 **0.0000**, caves-field **33/33**, npm test
+      **258/258**.

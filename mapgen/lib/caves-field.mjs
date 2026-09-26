@@ -34,14 +34,16 @@
 //       old ≤50-step x-wanderer lane (1.0 + 2.5·d)·0.2 (dig #68/#69) and
 //       the rollAcc/L1 chain are RETRACTED: neither is in fnA/fnB (entry
 //       (102) ⑥⑦), and the box exit is PLAIN (no `& (gridW−1)` wrap).
-//       PORT STATUS (2026-09-24, dig #103 part 1): the Q3a patch per
-//       entry (102) ⑦ is NOT yet applied — the code below still runs the
-//       pre-(102) model (old x-wanderer lane, rollAcc/L1 chain, the
-//       `& (gridW−1)` wrap, the outer `childs` loop); re-read the
-//       function bodies at edit time, not this bullet.
-//     - the dig #64 per-phase strength sources: L1 = clamp01((d2·0.32+0.35)
-//       ·roll); L2's v_arg = the LAST L1 output × (d·0.35+0.65); L3's
-//       v_arg = (d·0.1+0.1)·(d2·0.35+0.65).
+//       PORT STATUS (2026-09-26, dig #103): APPLIED — the Q3a patch per
+//       entry (102) ⑦ is in; the bodies below run the byte-closed walk
+//       (the old x-wanderer lane, rollAcc/L1 chain, the `& (gridW−1)`
+//       wrap, and the outer `childs` loop are gone).
+//     - the per-phase strength sources: L1 = 0 — the walk writes NO
+//       [−0x128] chain base (entry (102) ⑥: the caller rollF/d1/d2/
+//       rollAcc/stampV draws are not in fnB walk loop); L2 v_arg =
+//       0·(d·0.35+0.65) = 0 with the draw KEPT (baseline meta l1:0,
+//       l2v:0 ⇒ no behavior change); L3 v_arg = (d·0.1+0.1)·(d2·0.35+
+//       0.65) unchanged.
 //     - L2/L3 = SINGLE-POINT MAX-BLEED raises (dig #55: push $0 = the
 //       path-(a) lane — they can only RAISE, never carve).
 //     - the CaveStructure record roll = max − trunc(|draw|·(max−min+1))
@@ -153,40 +155,83 @@ export function stampBlendLerp(grid, gridW, gridH, cx, cy, radius, vArg) {
   }
 }
 
-// The fn A x-wanderer's chain walk (the ≤50-step x-wanderer; the per-step
-// LERP stamp + the byte-read roll chain). Byte-status:
-//   - the ≤50-step box (`cmp $0x32`, dig #66) = BYTE-CITED
-//   - the roll update `roll += d·0.35 − 0.25` (C46) = BYTE-CITED
-//   - the L1 stamp value `clamp01((d2·0.32+0.35)·roll)` (C44/C46) = BYTE-CITED
-//   - the x-step lane (dig #68/#69): `(1.0 + 2.5·draw)·0.2` composed over the
-//     pivot span — the dig #68 "2-draw valve reset" reading was RETRACTED in
-//     dig #69 (the (2 − trunc(0·d)) = 2 is CONSTANT, no draw in that lane).
-//   - the y-drift = FLAGGED (dig #74: the 6-lane band switch = the fnB
-//     band-lane cursor [−0x104], NOT the fnA stamp-walk drift; the fnA
-//     window's own y-drift lane is still unread).
-export function walkChain(grid, gridW, gridH, prng, x0, y0, radius, vArg, dir) {
+// The byte-closed fnA walk (C82: the 6 prologue draws + the per-iteration
+// draw order; C81's caller supplies cursor/budget/d0sq/dy/growth/childCounter
+// — the entry (102) frozen design). Per iteration: the trunc pair → the
+// PLAIN box exit (no `& (gridW−1)` wrap) → the cursor gate → the 3-segment
+// lane/radius envelope → the UNCONDITIONAL roll draw → the coin-gated D2
+// arm (one draw) → clamp01 → the `push $1` stamp (flag=1, dir="max" — the
+// walk can only RAISE; the pushed-$1 LERP-vs-max arm inside 0x8ee750 stays
+// FLAGGED) → y += Δy → the spawn gate (spawn_percent is not parsed ⇒ 0 ⇒
+// the byte-identical skip, no draw) → the two bias draws → the d-split
+// x-law draw (clamp(lerp(min,max,u) + bias, −1, 1)) → substeps > 50's
+// growth-gate draw (fire ⇒ substeps := 0 + the LINEAR 2u−1 re-jitter that
+// CLOBBERS the pushed square) → the child gate (cc ≤ 0 ⇒ NO draw; else the
+// 2% gate draw, cc−− BEFORE the budget draw, the childBudget draw
+// (u·50−50) + (budget−steps), the IN-WALK recursion with the CURRENT
+// trunc pair, the same cursor, d0sq = −parent's, and the SHARED cc) →
+// steps++ → continue iff steps ≤ budget.
+export function walkChain(grid, gridW, gridH, prng, x0, y0, cursor, budget, walk) {
+  // C82's 6 prologue draws (the gates between them draw nothing):
+  const flagD2 = Math.trunc(prng.next() * 101) < 50 ? 1 : 0; // the D2 coin
+  const s = (2 - Math.trunc(-4 * prng.next())) / 5; // the s span ∈ {0.4..1.0}
+  const rA = 0.2 * prng.next() * s; // the envelope anchors A..D
+  const rB = (1 + 2.5 * prng.next()) * s;
+  const rC = (1 + 2.5 * prng.next()) * s;
+  const rD = 0.2 * prng.next() * s;
+  if (budget < 0) return; // the pre-loop budget gate (0 > budget ⇒ epilogue)
   let x = x0, y = y0;
-  let rollAcc = 0;
-  for (let step = 0; step < 50; step++) {
-    const d1 = prng.next(), d2 = prng.next();
-    // the fn A roll chain (C46): roll += d·0.35 − 0.25 per stamp
-    rollAcc = d1 * 0.35 - 0.25 + rollAcc;
-    // the L1 stamp value (C44/C46): clamp01((d2·0.32+0.35)·roll)
-    const v = clamp01((d2 * 0.32 + 0.35) * rollAcc);
-    // the fnA walk stamp = the 0x8EE930 smoothstep LERP toward the L1
-    // roll-chain value (dig #58: "air source found at the fn A stamp
-    // window") — the lowering worm (deep carve centers + gradient tails).
-    // The 0x8EE750 max-bleed eave setter is NOT run here: with v0 =
-    // (v−1)·t+1 ≤ 1 it would REFILL the just-carved worm (max-bleed vs the
-    // fresh carve) — the eave raise arm belongs to the record stamps.
-    stampBlendLerp(grid, gridW, gridH, Math.trunc(x) & (gridW - 1), Math.trunc(y) & (gridH - 1), radius, v);
-    // the x-step lane (dig #68 byte-read, dig #69 corrected form):
-    // (1.0 + 2.5·draw)·0.2 per advance, composed over the pivot span.
-    const d3 = prng.next();
-    x += (1.0 + 2.5 * d3) * 0.2;
-    // the y drift: FLAGGED (dig #74 retraction; the fnA window's own
-    // y-drift lane is the standing unread read — queue item #2).
-    if (prng.next() > 0.5) y += prng.next() * 4 - 2;
+  let steps = 0, substeps = 0;
+  let d0 = walk.d0sq; // [ebp+0x1c]: the re-jitter CLOBBERS this copy
+  const { dy, growth } = walk;
+  const cc = walk.cc; // SHARED with the in-walk recursion (decl per spawn)
+  for (;;) {
+    const tx = Math.trunc(x), ty = Math.trunc(y);
+    if (tx < 0 || ty < 0 || tx >= gridW || ty >= gridH) return; // the plain box exit
+    if (cursor <= 0) return; // the cursor gate
+    const t = steps / budget;
+    // the 3-segment lane (t<0.2 | 0.2..0.6 | >0.6)
+    let lane;
+    if (t < 0.2) lane = cursor * (t / 0.2);
+    else if (t <= 0.6) lane = cursor + (0.7 - cursor) * ((t - 0.2) / 0.4);
+    else lane = 0.7 - 0.7 * ((t - 0.6) / 0.6);
+    let slot = 1 - lane; // [−0x28] = 1 − lane, reset every iteration
+    // the 3-segment radius envelope (t<0.3 | 0.3..0.6 | >0.6)
+    let radius;
+    if (t < 0.3) radius = rA + (rB - rA) * (t / 0.3);
+    else if (t <= 0.6) radius = rB + (rC - rB) * ((t - 0.3) / 0.3);
+    else radius = rC + (rD - rC) * ((t - 0.6) / 0.6);
+    slot += prng.next() * 0.35 - 0.25; // the UNCONDITIONAL roll draw
+    if (flagD2 !== 0) slot = (prng.next() * 0.32 + 0.35) * slot; // the D2 arm
+    const v = clamp01(slot);
+    carveCircle(grid, gridW, gridH, tx, ty, radius, v, 1, "max"); // `push $1`
+    y += dy;
+    // the spawn gate omitted (spawn_percent = 0 port-side ⇒ byte-identical skip)
+    let bias = 0;
+    if (Math.trunc(prng.next() * 101) < 25) bias = -1;
+    if (Math.trunc(prng.next() * 101) < 25) bias += 1;
+    const hi = d0 > 0 ? d0 : 0, lo = d0 > 0 ? 0 : d0; // the d-split
+    const step = lo + (hi - lo) * prng.next() + bias; // the x-law draw
+    x += step < -1 ? -1 : step > 1 ? 1 : step; // clamp(·, −1, 1)
+    substeps++;
+    if (substeps > 50) {
+      const u = prng.next(); // the growth-gate draw
+      if (growth > u) {
+        substeps = 0;
+        d0 = 2 * prng.next() - 1; // the LINEAR re-jitter (clobbers the square)
+      }
+    }
+    if (cc.n > 0) {
+      const u = prng.next(); // the 2% child gate draw
+      if (u * 100 < 2) {
+        cc.n--; // decl BEFORE the budget draw
+        const childBudget = (prng.next() * 50 - 50) + (budget - steps);
+        walkChain(grid, gridW, gridH, prng, tx, ty, cursor, childBudget,
+          { d0sq: -d0, dy, growth, cc });
+      }
+    }
+    steps++;
+    if (steps > budget) return; // continue iff f32(steps) ≤ budget
   }
 }
 const clamp01 = (v) => v < 0 ? 0 : v > 1 ? 1 : v;
@@ -219,13 +264,19 @@ function isSolidCell(v) {
  * buildCavesField(dataDir, def, seed) — the [uid+0x1d4] BitmapCaves grid.
  * Returns { w, h, field, p94, verify, meta }, null when no BitmapCaves.
  *
- * Stage composition — the fnB byte-cited PHASE ORDER (the dig #65 head +
- * the dig #55/#56/#57/#61 block reads; draw budget = the standing FLAG):
- *   HEAD (dig #65): draw #1 = the walker's x-range count from the
- *     [obj+0x28]/[obj+0x2c] (min,max) pair via the POSITIVE fraction form
- *     `min + trunc(draw·(max−min+1))`; draw #2 = the first record's y-cursor
- *     from the record's OWN [obj+0x34]/[obj+0x38] strength pair.
- *   1. fn A stamp walk (call #1 @0x4eff03) — the LERP-stamp pass
+ * Stage composition — the fnB byte-cited PHASE ORDER (C81 caller side +
+ * C82 walk body; the dig #55/#56/#57/#61 block reads; draw budget = the
+ * standing FLAG for the composed phases):
+ *   HEAD (C81): draw #1 = cave_count = rollPos(config[+0x28],[+0x2c]) via
+ *     the POSITIVE fraction form `min + trunc(draw·(max−min+1))`; draw #2
+ *     = surface_caves_count = rollPos(config[+0x34],[+0x38]) (the switch
+ *     budget). The blob phase-1 count rolls AFTER the walk loop.
+ *   1. the byte-closed walk (C81 caller + C82 body): cave_count walks —
+ *      the per-walk cursor (the C52 cave_strength lerp), the path
+ *      alternation (case A chained / case B + the surface switch), the
+ *      two-arm budget, and walkChain's raise-only `push $1` stamps
+ *      (flag=1, dir="max"); the IN-WALK recursion replaces the old outer
+ *      `childs` loop
  *   2. the blob phase (the C50 interp on [P+0x74]/[P+0x78] → the setter;
  *      count loop `decl −0x110`; the blob radius cap = 20, dig #54)
  *   3. the CaveStructure RECORD ARENA walk (dig #61/#81: the 60-byte
@@ -238,9 +289,12 @@ function isSolidCell(v) {
  *      + scatter #1 (the < 0.5 empty-cell gate)
  *   5. layer-3 setter @0x4f226c = the same mask (value = [−0x108]·(d·0.35+
  *      0.65), [−0x108] = d·0.1+0.1, C44) + scatter #2
- *   6. the RECURSIVE fn B self-call (the cave_childs/surface recursion)
- * The AIR/carve = the fn A LERP stamps + the deep-roll chain (NOT L2/L3 —
- * max-bleed can only raise, the dig #55 semantic verdict).
+ *   6. the IN-WALK child recursion lives INSIDE walkChain (C82: the 2%
+ *      gate, the shared childCounter) — the old outer fnB `childs` self-call
+ *      loop is a RETRACTED false structure (C81)
+ * The AIR/carve = the two blob-phase LERP stamps (stampBlendLerp is the
+ * ONLY lowering writer): the fnA walk, L2/L3, and the record float stamps
+ * are raise-only (`push $1` max-bleed; dig #55 semantic verdict).
  */
 export function buildCavesField(dataDir, def, seed) {
   const bc = def.bitmapCaves;
@@ -263,31 +317,87 @@ export function buildCavesField(dataDir, def, seed) {
   const rollF = (min, max) => min + (max - min) * prng.next();
   const clamped = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
 
-  const blobCount = rollPos(bc.blobCavesCountMin ?? 0, bc.blobCavesCountMax ?? 0);
   const caveCount = rollPos(bc.caveCountMin ?? 0, bc.caveCountMax ?? 0);
+  const surfaceCount = rollPos(bc.surfaceCavesCountMin ?? 0, bc.surfaceCavesCountMax ?? 0);
   const rMin = bc.blobCavesRadiusMin ?? 1;
   const rMax = bc.blobCavesRadiusMax ?? 10;
   const sMin = bc.blobCavesStrengthMin ?? 1.5;
   const sMax = bc.blobCavesStrengthMax ?? 3;
 
-  // ── (1) fn A stamp walk — the eave/raise lane: cave_count walks, each = a
-  // ≤50-step x-wanderer of MAX-BLEED stamps (the (43)(a) falloff + eave,
-  // flag=1), cave_childs branches per walk (the dig #26 recursion).
-  // The stamp VALUE = the L1 roll-chain lane (clamp01((d2·0.32+0.35)·roll),
-  // C44/dig #64) — the setter lifts it to ((y−1)/25)⁸·v0 + 1 near the top.
-  let rollAcc = 0;
-  let l1 = 0; // the [−0x128] chain base = the LAST L1 output (C44/dig 64)
-  for (let c = 0; c < caveCount; c++) {
-    const radius = rollF(rMin, rMax);
-    const d1 = prng.next(), d2 = prng.next();
-    const stampV = clamp01((d2 * 0.32 + 0.35) * rollAcc); // the L1 value lane
-    rollAcc = d1 * 0.35 - 0.25 + rollAcc;                 // the roll update
-    l1 = stampV; // the [−0x128] chain base = the LAST L1 output (dig 64)
-    walkChain(field, w, h, prng, rollPos(0, w - 1), rollPos(0, h - 1), radius, stampV, "lerp");
-    const childs = rollPos(bc.caveChildsMin ?? 0, bc.caveChildsMax ?? 0);
-    for (let k = 0; k < childs; k++) {
-      walkChain(field, w, h, prng, rollPos(0, w - 1), rollPos(0, h - 1), rollF(rMin, rMax), stampV, "lerp");
+  // ── (1) the byte-closed walk (C81 caller side + C82 walk body; entry
+  // (102) stage 7): cave_count walks, each = the per-walk cursor draw (lerp
+  // of the C52 cave_strength pair) → path alternation (case A chained
+  // ±0.01w / 0.05..0.25h with flag:=0; case B Y = trunc(lerp(0.07h,0.33h)),
+  // X = trunc(5 + u(w−10)), and while switchCnt < surface_count the switch
+  // path's jitter X-law + stride + clamp, Y₀ = trunc(6u), the lane-select
+  // cursor factor, switchCnt++, flag:=1) → the budget section (scale0 draw
+  // [consumed, unused], S = h−Y, the LERP(0.15S,0.96S) budget [flag=1
+  // overwrites LERP(0.45S,0.96S)], d0, Δy, the 33/101 Δy gate, growth,
+  // cc = rollPos(cave_childs) + the 10/101 bonus [+ flag=1:
+  // rollPos(surface_cave_childs) + the 20/101 bonus], ÷Δy, the two 50/101
+  // growth gates) → walkChain (RAISES only: the `push $1` stamp).
+  const lerp = (a, b, u) => a + (b - a) * u;
+  const l1 = 0; // the [−0x128] chain base = 0 (entry (102) stage 6: no caller
+  //   roll chain in fnB's walk; baseline meta l1:0/l2v:0 ⇒ no change)
+  let X = 0, Y = 0; // Y is overwritten by case B before its first use
+  let flag = 0, switchCnt = 0;
+  for (let walkIndex = 0; walkIndex < caveCount; walkIndex++) {
+    // the fresh per-walk cursor: lerp(cave_strength min,max, draw)
+    let cursor = lerp(bc.caveStrengthMin ?? 0.2, bc.caveStrengthMax ?? 1, prng.next());
+    if (flag !== 0) {
+      // case A (chained from the pre-call slots; sets flag := 0 first)
+      flag = 0;
+      X += Math.trunc(lerp(-0.01 * w, 0.01 * w, prng.next()));
+      Y += Math.trunc(lerp(0.05 * h, 0.25 * h, prng.next()));
+    } else {
+      // case B: both draws land BEFORE the switch check
+      Y = Math.trunc(lerp(0.07 * h, 0.33 * h, prng.next()));
+      X = Math.trunc(5 + prng.next() * (w - 10));
+      if (switchCnt < surfaceCount) {
+        // the switch path: u3, u4 (the two jitter draws), the floor stride,
+        // the sum + clamp → [X] = [pair.x]; the ratio endpoints draw no bytes
+        const ratio = w / surfaceCount;
+        const loE = -0.45 * ratio, hiE = 0.45 * ratio;
+        const stride = Math.floor(w / surfaceCount); // the idiv form
+        X = clamped(
+          Math.trunc(lerp(loE, hiE, prng.next())) +
+            Math.trunc(stride * walkIndex) +
+            Math.trunc(lerp(loE, hiE, prng.next())),
+          5, w - 5,
+        );
+        Y = Math.trunc(6 * prng.next()); // Y₀ ∈ {0..5}, overwrites Y_B
+        // the lane select (own draw) → the jump-table cursor factor
+        const lane = 3 - Math.trunc(-3 * prng.next()); // ∈ {3,4,5}
+        const factor = lane === 3 ? 0.4 * prng.next() + 0.1
+          : lane === 4 ? 0.25 * prng.next() + 0.75
+          : 0.13 * prng.next() + 1.07;
+        cursor *= factor;
+        switchCnt++;
+        flag = 1;
+      }
     }
+    // the budget section (byte order @8f03b3..8f0703)
+    prng.next(); // scale0 = 0.5u+0.5 — consumed, unused (dropped scale arg)
+    const S = h - Y;
+    let budget = lerp(0.15 * S, 0.96 * S, prng.next());
+    const d0 = 2 * prng.next() - 1; // pushed as (2u−1)²
+    let dy = 0.4 * prng.next() + 0.1;
+    if (Math.trunc(101 * prng.next()) < 33) dy += 0.5;
+    let growth = prng.next(); // the dead +0.0 addend dropped
+    let cc = rollPos(bc.caveChildsMin ?? 0, bc.caveChildsMax ?? 0);
+    if (Math.trunc(101 * prng.next()) < 10) cc += Math.trunc(8 * prng.next());
+    if (flag !== 0) {
+      budget = lerp(0.45 * S, 0.96 * S, prng.next()); // the flag=1 overwrite
+      prng.next(); // scale1 = 0.25u+0.75 — consumed, unused
+      cc += rollPos(bc.surfaceCaveChildsMin ?? 0, bc.surfaceCaveChildsMax ?? 0);
+      if (Math.trunc(101 * prng.next()) < 20) cc += 2 - Math.trunc(-5 * prng.next());
+    }
+    budget /= dy; // the ÷Δy (no draw)
+    if (Math.trunc(101 * prng.next()) < 50) growth = 0;
+    if (Math.trunc(101 * prng.next()) < 50) growth *= growth;
+    walkChain(field, w, h, prng, X, Y, cursor, budget, {
+      d0sq: d0 * d0, dy, growth, cc: { n: cc },
+    });
   }
 
   // ── (2) the blob phases (dig #49 byte-read END-TO-END): per iteration ONE
@@ -305,8 +415,7 @@ export function buildCavesField(dataDir, def, seed) {
   //   stays FLAGGED until xmm4's provenance is pinned.
   const strengthA = bc.blobStrengthA ?? 1.549988; // the C50 CE knob [+0x74]
   const strengthB = bc.blobStrengthB ?? 0.0;      // the C50 CE knob [+0x78]
-  const blobStamp = (countMin, countMax) => {
-    const n = rollPos(countMin, countMax);
+  const blobStamp = (n) => {
     for (let b = 0; b < n; b++) {
       const radius = Math.min(20, rollF(rMin, rMax)); // the dig #54 cap
       const d = prng.next();
@@ -315,8 +424,12 @@ export function buildCavesField(dataDir, def, seed) {
     }
     return n;
   };
-  const blobPhase1 = blobStamp(bc.mountainCountMin ?? 0, bc.mountainCountMax ?? 0); // dig #81: loop B = mountain_count
-  const blobPhase2 = blobStamp(bc.blobCavesCountMin ?? 0, bc.blobCavesCountMax ?? 0);
+  // The count rolls land AFTER the walk loop (@8f072a: the C81 pre-loop list
+  // carries only cave_count + surface_caves_count); phase 1's roll → stamps,
+  // then blobCount → phase 2 (the dig #49 phase order, unchanged).
+  const blobPhase1 = blobStamp(rollPos(bc.mountainCountMin ?? 0, bc.mountainCountMax ?? 0)); // dig #81: loop B = mountain_count
+  const blobCount = rollPos(bc.blobCavesCountMin ?? 0, bc.blobCavesCountMax ?? 0);
+  const blobPhase2 = blobStamp(blobCount);
 
   // ── (3) the CaveStructure RECORD ARENA walk (dig #61 byte-cited):
   // per record: the count pair via the NEGATIVE-scale roll; the strength
