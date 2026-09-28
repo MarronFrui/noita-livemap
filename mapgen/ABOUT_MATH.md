@@ -7966,3 +7966,165 @@ first use from now on):**
     - Landed: CONSTANTS **C86**, this entry **(107)**. No §8 row, no
       §12, no patch — drop path OFF. Gates green at commit. Next
       free: entry **(108)**, **C87**, **I22**; §8 row 33 free.
+  - **2026-09-28 (108) — census P2 read #5: the tree handler
+    0x7412c0's call contract and the band body semantics decoded;
+    frame map settled ([esp+0x38] = driver, [esp+0x5c] = cell
+    byte-offset, [esp+0x64] = region object, [esp+0x80] = handler
+    this). Closes (107)'s [esp+0x38] identity open and the
+    tree-handler continuation open; corrects (106)'s post-call
+    quote. No patch, no port, no IoU — judge parked.**
+    - Method: `/tmp/opencode/fulltext86.asm` windows only (driver ∈
+      lower .text); every address below re-read on disk this session;
+      floats + assert strings byte-read from `noita_dev.exe` (rdata
+      file = VA − 0x400E00).
+    - **Frame map settled** (closes (107)'s [esp+0x38] open):
+      **[esp+0x38] = the driver object** — `mov %ecx,%ebx` @0x7925c0
+      (thiscall this) → `mov %ebx,0x38(%esp)` @0x7925c2, reloaded
+      → ebx @0x793761 ⇒ the edge guard `0 < x <
+      [esp+0x38]-obj[+0x28]−1` = **x < driver.width − 1**; the
+      assert-report restores are correct esp-wise too (1 push
+      pending: `mov 0x3c(%esp),%ebx` @0x793883/0x793a2f reads
+      frame[+0x38] = driver; after `add $0x4`, `mov 0x3c(%esp),%edi`
+      @0x79388a/0x793a36 reads frame[+0x3c] = grass index / handler
+      return).
+      **[esp+0x2c]/[esp+0x30] = the 0-based y/x counters** (stores
+      @0x792f83/0x792fa6, increments @0x79332a/0x793314, bounds vs
+      driver[+0x28] = width / driver[+0x2c] = height @0x793319/
+      0x79332f) ⇒ absolutes are computed inline at each use:
+      originY+(y−1) @0x793950, originX+x (frame[+0x30], 2 pushes
+      pending) @0x79395d.
+      **[esp+0x5c] = byte offset of cell(x, y−1)** — the ≠3-chain
+      above-gate computes `mov 0x40(%esp),%ecx; or %edi,%ecx;
+      shl $0x2,%ecx; mov %ecx,0x5c(%esp)` @0x793709-0x793714 and
+      reads `cmpl $0,(%eax,%ecx,1)` @0x793718 — the byte-offset
+      spelling of the NULL path's raw-index `(,%ecx,4)` @0x7930fb
+      (same address ⇒ (107)'s both-gates-read-the-cell-above law
+      ✓ with the addressing forms now distinguished); the band body
+      reuses the slot for absY @0x793bbb.
+      **[esp+0x64] = the region object** — setup `call 0x909da0`
+      @0x792d69 (double args via the cvtdq2pd chain @0x792d31-0x792d65;
+      the reference position itself unread) → `mov %eax,0x64(%esp)`
+      @0x792d6e (null → re-store @0x792d76), then `[eax+0x2a4]`
+      read @0x792d7c = mBiomeMaterials (C74) ⇒ the return is the
+      biome-capable world object; the band body re-runs
+      `A->0x909da0(absX, absY)` and requires eax == frame[+0x64]
+      (`cmp 0x64(%esp),%eax` @0x793bdd, else next cell) ⇒ **band
+      placement is gated on region-object identity with the setup
+      reference**.
+      **[esp+0x68]/[esp+0x78]** = band A/B scan indices (inits
+      @0x792fa2/0x792f9e; `incl 0x68(%esp)` @0x793308 on the
+      NULL-path accept). **[esp+0x80]** = the tree handler's **this**
+      (`mov 0x84(%esp),%ecx` @0x793952 with 1 push pending; ecx then
+      untouched through the pushes ⇒ thiscall setup). Loop exit
+      @0x793338 loads originY + `lea 0x98(%ebx)` = &driver[+0x98]
+      (0x909370's out-Rect).
+    - **Record lookup + NULL-path head** (confirms (106), adds the
+      float-arg detail): `ecx := driver[+0x70]` (A) @0x7930b9;
+      absY = originY+y → cvtdq2pd → xmm2 @0x7930be, absX = originX+x
+      → xmm1 @0x7930cf (xmm0 left holding absX's raw int bit pattern
+      — register convention open); `call 0x908f40` @0x7930d3 →
+      record → [esp+0x54] @0x7930d8; ≠0 → chain 0x7935f4, ==0 →
+      NULL path: `y ≤ 0 → 0x793314` @0x7930ea (row 0 never reads the
+      −512 index) → above-gate `cmpl $0; je 0x793314` @0x7930fb-0ff
+      ⇒ **the NULL path requires cell-above OCCUPIED** (occupied →
+      fall into the band scan 0x793105) — **opposite polarity to the
+      ≠3 chain** (@0x79371c `jne 0x793314`: empty → proceed to band
+      scan/grass — the tree target must be empty) ⇒ the two gates
+      are duals, both byte-verified, both with y ≤ 0 guards
+      (@0x7930e4-0ea / @0x7936fa-700) so neither ever dereferences
+      (x, −1).
+    - **≠3-chain extras**: cell write edx = (y<<9)|x (`or %edi,%edx`
+      @0x7936d0) → `mov %eax,(%ecx,%edx,4)` @0x7936d4 (raw-index ×4
+      = the same address as the byte-offset form); `vtable[1]`
+      (`call *0x4(%eax)`) @0x7936dd → **==2 ⇒ skip vfunc[15]**
+      (`je 0x7936fa` @0x7936e3) else `vtable[15](obj, frame[+0x7c],
+      10000)` @0x7936e5-0x7936f7 (frame[+0x7c] read as
+      `push 0x80(%esp)` with 1 push pending @0x7936ee) → row-0
+      guard → above-gate.
+    - **The tree handler, byte-exact 0x793938-0x79396f**: entry id
+      gate re-verified ((106) ✓): `test; je 0x793924` @0x793903-05
+      (earlier gate fail → next item), id = grass[i][+0xd8] @0x793911,
+      `js 0x793938` (id < 0 → place) @0x793919, `cmp record[+0x30]
+      (frame[+0x54]); je 0x793938` (id == record id → place)
+      @0x79391f-22, else next item. Call setup: `push grass[i][+0xd4]`
+      (tree material) @0x793947; `dec %ecx` @0x793943 is **live** —
+      `add %ecx,%eax` @0x793950 makes originY+(y−1) → push @0x793959;
+      originX+x (2 pushes pending ⇒ frame[+0x30]) → push @0x793961;
+      `push driver[+0x74]` @0x793962; **no esp fixup after the call ⇒
+      callee-cleaned (ret 0x10)** ⇒
+      **`0x7412c0(this = frame[+0x80], driver[+0x74], absX,
+      originY+(y−1), grass[i][+0xd4])** — placement at (x, y−1),
+      body unread. Return → edi → **frame[+0x3c]** @0x79396a-6c
+      (**corrects (106)**'s `mov %eax,0x5c(%esp)` quote: the actual
+      bytes are `mov %eax,%edi; mov %edi,0x3c(%esp)`; the slot is the
+      grass-index backup, but the placement path exits the grass loop
+      anyway). Tail: `test %edi; jne 0x793a46` @0x793970-72 → assert
+      line **1109** (0x455; file 0x11a46b0, expr **0x1190a78**,
+      format 0x1150f60, crash `movl $0x1ca9,(%eax)` @0x793a40) when
+      the placement returned NULL → `vfunc[15](this = return,
+      frame[+0x7c], 10000)` @0x793a46-0x793a56 — same signature as
+      the cell object's ⇒ shared base class → **cell(x, y−1) :=
+      return** @0x793a59-0x793a62 (`*(driver[+0x30])` buffer +
+      frame[+0x5c] byte offset: `mov %edi,(%ecx,%eax,1)`) → falls
+      into the band phase @0x793a65. ⇒ **one placement per cell max**:
+      the placement path never hits the grass back-edge 0x793924;
+      only skipped items do.
+    - **Band body semantics (0x793a80-0x793c65)**: key =
+      `band.f0 == absX` exact world column (else 0x793c61 → next
+      cell) ∧ `absY < [band+0xc8]`; then, if `[band+0x20]` byte ≠ 0,
+      the dice — inline MSVC LCG in esi (`imul $0x343fd; add
+      $0x269ec3; sar $0x10; and $0x7fff` @0x793abb-0x793ac9) →
+      `/32767.0 + 0.0` → `comiss 0.33 → jbe reject` — floats
+      byte-verified: **0x11dfa10 = 0.33f (c3f5a83e)**, **0x11e04bc =
+      32767.0f**, **0x11df874 = 0.0f**; LCG = the MSVC-rand family
+      (canon). **The NULL path dices identically** @0x793182-0x7931ba
+      — same constants, same three rdata addresses @0x793188/0x7931a7/
+      0x7931af — after its own key (`bandA.f0 == absX` @0x793163,
+      `f1 ≠ 0` @0x793177); on accept `mov 0x90(%ebx),%ecx` +
+      `mov $0x2aaaaaab,%eax` @0x7931c0-c6 (÷6 magic ⇒ a stride-6
+      container count — unread). Then vtable[0x64] (index 25) on the
+      cell object [esp+0x44] → `test al; je 0x79330c`; id gate
+      `[band+0xd8] ≥ 0` → must equal `frame[+0x54]→[+0x30]`; flag
+      byte frame[+0x37] := 1; vertical scan @0x793b50 while i <
+      `[band+0xc4]` over rows y−1, y−3, … (rowBase frame[+0x54] −=
+      0x400, i −= 2, ecx += 2): x < 0 → advance, `0x93d710(x, row)`
+      false → advance, true → require cell(x,row) == 0 else
+      frame[+0x37] := 0; join @0x793ba6: flag == 0 → 0x793c61 (next
+      cell), else `A->0x909da0(absX, absY)` must equal frame[+0x64]
+      (else next cell) → push {absX, absY, band} into
+      **driver[+0x80]** via `call 0x93edb0`; then `[band+0x20] ≠ 0` →
+      keep (next cell), `== 0` → **erase band[idx] from frame[+0x9c]**
+      (shift-left @0x793c40-0x793c50, end −= 8) ⇒ one-shot; exits
+      0x793c61 → `jmp 0x793314` @0x793c65.
+    - **RNG state (esi)**: normal-path source = `call 0x9d89d0`
+      @0x7926c4 (this = &frame[+0x120], arg = `&driver[+0x24]` =
+      &originY @0x7926ba-0x7926bd), gated by a type check vs global
+      0x132aed8 → `je 0x7927c2` (that skip path's esi source open);
+      assert-report blocks clobber esi only on failure (0x792615/
+      0x7929ad/0x792b50 are report-only) ⇒ state survives intact to
+      both LCG sites (0x793182, 0x793abb). The post-loop region
+      writes `esi := −1` @0x793442 and reuses frame[+0x2c] for esi
+      @0x793455 (unread phase, slot reuse).
+    - **NULL-path accept** @0x793300-0x793308: `mov %edi,0x4(%eax,
+      %ecx,4); mov %edx,0x8(%eax,%ecx,4); incl 0x68(%esp)` — a band
+      pair-array write (element shape = f1[k]/f0[k+1] — semantics
+      open) + band-A index++ → continue.
+    - [OPEN] (next units): the post-loop region 0x793360..0x7935f0
+      (x-marking loop 0x7935b2..0x7935eb → `jmp 0x793cb2`, zero-init
+      @0x793445, [esp+0x40] rewrite @0x7933ca, esi := −1 @0x793442);
+      NULL-path body 0x793105..0x793300 (scan detail, the @0x793300
+      pair-write, the driver[+0x90] ÷6 container); band body tail
+      0x793c6a..0x793cf0 (frame[+0x64] slot-reuse writer @0x793cf1);
+      bodies of 0x740f80 (cell object factory), 0x7412c0 (tree
+      placement), 0x909370 (A rect call), 0x909da0 (region query),
+      0x93d710 (scan predicate), 0x93edb0 (placement-list push),
+      0x949e80/0x94a9d0 (container ops), 0x9d89d0 (esi source),
+      0x93e550 (type lookup); band pair-array fill sites
+      (frame[+0xe8] / frame[+0x9c] provenance); band obj fields
+      +0x20/+0xc4/+0xc8/+0xd8 provenance; vfunc[1]==2 semantics;
+      frame[+0x80] provenance; driver[+0x78] flag provenance; the
+      je-0x7927c2 esi source; 0x908f40's stale-xmm0 question; the
+      setup reference position for 0x909da0 @0x792d69.
+    - Landed: CONSTANTS **C87**, this entry **(108)**. No §8 row, no
+      §12, no patch — drop path OFF. Gates green at commit. Next
+      free: entry **(109)**, **C88**, **I22**; §8 row 33 free.
