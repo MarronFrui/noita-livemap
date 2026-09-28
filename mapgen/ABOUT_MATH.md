@@ -8251,3 +8251,145 @@ first use from now on):**
     - Landed: CONSTANTS **C88**, this entry **(109)**. No §8 row, no
       §12, no patch — drop path OFF. Gates green at commit. Next
       free: entry **(110)**, **C89**, **I22**; §8 row 33 free.
+  - **2026-09-28 (110) — census P2 read #7: the post-loop margin
+    region decoded — the (8,8)-margin scan, the 3×3 type-neighborhood
+    comparator, and the type-item placement loop; function range
+    0x792580..0x793e5e + the complete dtor chain + `driver[+0x18]` =
+    elapsed time; `frame[+0x48]` writer found; CORRECTION of (109)'s
+    "third vector". Closes (107)'s post-loop opens and (109)'s two
+    tags. No patch, no port, no IoU — judge parked.**
+    - Method: `/tmp/opencode/fulltext86.asm` windows; strings
+      byte-read (`0x11a4814`, `0x117a518`); every address below
+      re-read on disk this session.
+    - **Function range byte-defined**: `FUN_00792580` =
+      0x792580..0x793e5e (`ret` @0x793e4e after the /GS cookie;
+      int3 padding 0x793e5a-0x793e5f; the next function starts
+      @0x793e60).
+    - **Loop-exit block 0x793338-0x793358** (byte-exact, confirms
+      (106)): `A->0x909370(originX, originY, originX + width − 1,
+      originY + height − 1, &driver[+0x98])` (ecx := driver[+0x70] =
+      A; y1/x1 built via `dec`+`add` from the origins). Then the
+      **singleton callback**: `ecx := &0x1344b90; eax := *0x1344b90;
+      eax := [eax+0x6c]; call *eax` @0x79335d-0x79336a — x87 double
+      return, spilled → frame[+0xcc] @0x793377 (2 pushes pending);
+      **called at both ends of the work** (bookend again @0x793d81-
+      0x793d8e) → elapsed below. `driver[+0x70]` (A) == 0 →
+      `je 0x793338` @0x792f77 skips the whole cell loop into this
+      block (0x909370's null-receiver behavior open).
+    - **Two (3,3) stack objects** (the margin workspace): obj1 at
+      frame[+0x100], obj2 at frame[+0x120], ctor `0x92e980(&obj, 3,
+      3)` @0x793370-0x793396; unwind states 8 → 0xa → 0xb @0x792f61/
+      0x79338e/0x7933a0; per-cell reset `0x92ea40(&obj, &false)` @
+      0x793427/0x79343d. Layout (byte-proven): `[+0]` = stride/width
+      (frame[+0x100]/frame[+0x120] in the index math @0x7935b6/
+      0x7935cc/0x793c82), `[+4]` = ctor arg 2 (`&obj[+4]` passed to
+      0x770aa0), `[+0x18]` = **grid HEAP pointer** (frame[+0x118]/
+      frame[+0x138]: freed @0x793dd2-0x793dd9 / @0x793da5-0x793daf
+      via IAT 0x114a358, then zeroed @0x793dbc/0x793dc7).
+    - **The margin scan** (x ∈ [8, width−8), y ∈ [8, height−8)):
+      y = 8 → frame[+0x48] @0x7933ad (guard `height−8 ≤ 8 →
+      0x793d81` @0x7933b3); x = 8 → frame[+0x40] @0x7933ca (guard
+      `width−8 ≤ 8 → 0x793d6e` @0x7933d0); row base `y<<9` →
+      frame[+0x7c] @0x7933db; cell read `cell[(y<<9)|x]` →
+      frame[+0x3c] @0x7933e0-0x7933ea (null → 0x793d4f);
+      **`vfunc[12]` (`call *0x30(%eax)`) on the center** @0x7933fa →
+      **`0x742940(frame[+0x80], type)`** @0x793405 → frame[+0x4c] =
+      **a std::vector<T> of 32-byte T** (byte-proof: begin/end at
+      `[eax]`/`[eax+4]`, size `(end−begin)>>5`, checked subscript
+      @0x793cf7 aborts with `"invalid vector<T> subscript"` byte-read
+      @0x117a518); null → 0x793d4f; x++ @0x793d56 (`x < width−8 →
+      0x7933e0`, row base reloaded @0x793d60), y++ @0x793d71 (`y <
+      height−8 → 0x7933c0`).
+    - **The 3×3 neighborhood comparator** (per margin cell):
+      dy = esi with home frame[+0x2c] (init −1 @0x793442-0x793455),
+      dx = ebx (init −1 @0x793464), equal-count → frame[+0x54] (zero
+      @0x793445), mark-count → frame[+0x30] (zero @0x79344d);
+      neighbor = `((y+dy)<<9) | (x+dx)` (row base frame[+0x5c] per dy
+      @0x793472; x+dx @0x793480-0x793484; scale-4 read @0x793565-
+      0x79357a).
+      - **assert line 0x4b6 = 1206**, expr byte-read @0x11a4814 =
+        **`data->array2d->IsValid( x + x0, y + y0 )`**; entry =
+        `x+dx > 511` (`ja 0x79349a` @0x793486-8c) ∧ `y+dy > 511`
+        (fall through `jbe 0x793565` @0x79348e-94) → the standard
+        4-arg report (line `0x4b6`, expr `0x11a4814`, file
+        `0x11a46b0`, func `0x1150f60`) @0x79349a-0x79355f; report
+        restore esi := frame[+0x2c] @0x793552 (1 push pending ✓).
+      - null neighbor → 0x793cae (`eax := frame[+0x30]`, no mark).
+      - **equal `vfunc[12]`** (center @0x79358b, neighbor @0x793594)
+        → **grid1[(dy+1)·stride + 1 + dx] := 1** via
+        `0x94a9d0(&frame[+0x118], idx)` + `movb $1,(%eax)` @0x7935a3-
+        0x7935c9 (esi := frame[+0x2c] @0x79359f, `inc` @0x7935b1,
+        stride = frame[+0x100] @0x7935b6), frame[+0x54]++ @0x7935b2,
+        frame[+0x30]++ @0x7935e6.
+      - **unequal** → `0x7706c0(center(this), neighbor(edx))` @0x793c6a-
+        0x793c72 → true → **grid2[same index]** via
+        `0x94a9d0(&frame[+0x138], (dy+1)·frame[+0x120] + 1 + dx)` @
+        0x793c7f-0x793c9a, frame[+0x30]++ @0x793c9d; false → no mark
+        @0x793ca8 (`0x7706c0` body open).
+      - control: `inc %ebx; cmp $1; jle 0x793480` @0x793cba-be;
+        `inc %esi; frame[+0x2c] := esi; cmp $1; jle 0x793460` @
+        0x793cc4-0x793ccc; then `cmpl $8, frame[+0x54]` @0x793cd2 →
+        **`≥ 8 → 0x793d4f`** (all 8 neighbors share the center's type
+        → skip placement); **`ebx := frame[+0x38]` (driver) restore
+        @0x793cd7** (the dx-loop had clobbered it).
+    - **The placement item loop** (0x793cdd-0x793d4d): count =
+      `(end − begin)>>5` of the factory vector @0x793cdd-0x793cea
+      (`== 0 → 0x793d4f`); frame[+0x64] := 0 (byte offset) @0x793cf1;
+      head 0x793cf5: `count ≤ idx → 0x793e4f` = the checked-subscript
+      **abort** (`push $0x117a518` = "invalid vector<T> subscript",
+      `call *0x114a1c8`, `int3` — defensive path); item = `begin +
+      frame[+0x64]` @0x793cfd →
+      **`0x770aa0(array2d = driver[+0x30] (ecx), x, y, center cell,
+      originX, originY, &obj1[+4], frame[+0x54] = equal-count,
+      &obj2[+4], eax = frame[+0x30] = mark-count)`** @0x793d01-0x793d28
+      (9 pushes = `add $0x24` ✓; frame[+0x54] read with 2 pending →
+      `0x5c−8` ✓; first push = eax = frame[+0x30], which all four
+      predecessor paths load — the 0x793cae path reads `0x30(%esp)`,
+      correcting an earlier 0x40 misread) → `esi++` @0x793d31,
+      **`frame[+0x64] += 0x20`** @0x793d32, size recheck (`[eax]`/
+      `[eax+4]`, `>>5`) with `eax := frame[+0x30]` @0x793d44 →
+      `jb 0x793cf5` @0x793d4d / fall → 0x793d4f.
+    - **Function end**: the callback bookend @0x793d81-0x793d8e →
+      `fsubl frame[+0xcc]` (now − start time) → **`fstpl 0x18(%ebx)` =
+      `driver[+0x18]` = this function's elapsed time** @0x793dac →
+      state 0xa → free obj2 grid @0x793daf → state 8 @0x793db4 →
+      zero frame[+0x138]/[+0x13c] @0x793dbc/0x793dc7 → free obj1
+      grid @0x793dd9 → `0x7924c0(ecx)` @0x793de0 (body open) →
+      **`driver[+0xc8] := 1`** (`lea 0xc8(%ebx)`; `mov $1,%ecx`;
+      `xchg %ecx,(%eax)`) @0x793de5-0x793df0 → `ebx := IAT free
+      0x114a348` @0x793df9 → **free frame[+0xe8] (ceiling) @0x793e04
+      → frame[+0xb4] (grass) @0x793e15 → frame[+0x9c] (band B) @
+      0x793e26** → SEH restore @0x793e2b → pops → cookie → `ret` @
+      0x793e4e. Exactly three stack vectors (consistent with the
+      correction below).
+    - **CORRECTION of (109)** ("a third stack vector at
+      frame[+0xf0]/[+0xf4]"): **wrong — esp-pending-push slip.** The
+      reads @0x792f23/0x792f2c happen with **2 pushes pending** (the
+      first `0xa735a0`'s args) ⇒ they are `frame[+0xec]`/`frame[+0xe8]`
+      = the **ceiling vector's {end, begin}**; the second
+      `0xa735a0(ecx = ceiling.begin, count = size>>3, false)` @
+      0x792f46 operates on the CEILING vector (size @0x792f2a-
+      0x792f3e), bool slot = frame[+0x4c] (@0x792f11 0 pending /
+      @0x792f35 2 pending). Only three stack vectors exist:
+      frame[+0xe8] / frame[+0x9c] / frame[+0xb4] — all freed in the
+      dtor chain ✓. Also the store @0x792f42 (`mov %eax,0x58(%esp)`)
+      has **4 pushes pending** ⇒ it writes frame[+0x48], not
+      frame[+0x58].
+    - **frame[+0x48] writer FOUND** @0x792f42: `frame[+0x48] := the
+      ceiling count` (`(end−begin)>>3` of frame[+0xe8]) — closes
+      (109)'s tag; then `0x93ee40(&driver[+0x8c] = ceiling vector,
+      frame[+0x48] = count)` @0x792f52-0x792f5c (a resize/finalize —
+      body open).
+    - [OPEN] (next units): bodies 0x7706c0 / 0x770aa0 / 0x742940 /
+      0x92e980 / 0x92ea40 / 0x94a9d0 / 0x7924c0 / 0x93ee40 / 0xa735a0
+      / 0x93ef50 / 0x9ef4e0 / 0x9ef570; obj[+4] field; frame[+0x80]
+      provenance; driver[+0xc8] semantics; driver[+0x18] cross-ref
+      (104)②; the margin constant 8's meaning; the 32-byte item's
+      structure; 0x909370 null-receiver; the setup/fill-source region
+      0x7926xx..0x792e7x (the {double, ptr} source builder);
+      0x908f40's stale xmm0; the 0x909da0 setup reference position;
+      the cell-loop bodies of 0x740f80 / 0x7412c0 / 0x909370 /
+      0x909da0 / 0x93d710 / 0x93edb0 / 0x949e80 / 0x9d89d0 / 0x93e550.
+    - Landed: CONSTANTS **C89**, this entry **(110)**. No §8 row, no
+      §12, no patch — drop path OFF. Gates green at commit. Next
+      free: entry **(111)**, **C90**, **I22**; §8 row 33 free.
