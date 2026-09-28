@@ -8128,3 +8128,126 @@ first use from now on):**
     - Landed: CONSTANTS **C87**, this entry **(108)**. No §8 row, no
       §12, no patch — drop path OFF. Gates green at commit. Next
       free: entry **(109)**, **C88**, **I22**; §8 row 33 free.
+  - **2026-09-28 (109) — census P2 read #6: the NULL path decoded =
+    **ceiling-plant insertion** (`data->ceiling_plants_to_insert`,
+    assert line 1028 expr byte-read); both band scans + the fill
+    dispatch + the guard/band-phase entry states byte-exact. Closes
+    (107)'s NULL-body open, (108)'s @0x793300 pair-write and
+    pair-array-provenance opens, and pins `driver[+0x28] = width` /
+    `driver[+0x8c] = ceiling_plants_to_insert`. No patch, no port,
+    no IoU — judge parked.**
+    - Method: `/tmp/opencode/fulltext86.asm` windows only; every
+      address below re-read on disk this session; assert strings
+      byte-read from `noita_dev.exe` (rdata file = VA − 0x400E00).
+    - **The NULL path inserts ceiling plants** (0x793105..0x793314):
+      - scan idx = **`ceiling_plants_i`** = frame[+0x68], count =
+        frame[+0x48]; loop @0x793120: **continue while `absX > f0 ∧
+        f1 ≠ 0`** (`cmp (%edi,%ecx,8),%eax` → flags = absX − f0;
+        `jle` stop, `f1 == 0` stop) — stopping idx saved → frame[+0x68]
+        @0x79313b (x/y reloaded @0x793133-37);
+      - **`y ≥ driver[+0x2c]−2` → next cell** @0x79313f-0x793147
+        (height = driver[+0x2c] ✓);
+      - idx ≥ count → next cell @0x79314d-51; exact key **`f0 ==
+        absX`** @0x793163 (else next cell) ∧ **`f1 ≠ 0`** @0x793170-77;
+      - dice if the entry is dice-gated (identical MSVC LCG + the
+        same three rdata floats, 0x793182-0x7931ba) → reject = next
+        cell;
+      - **assert line 1028 (0x404)** @0x7931cb-0x7931e5: count =
+        `(driver[+0x90] − driver[+0x8c]) / 12` (`0x2aaaaaab` + `sar
+        $1` = ÷12 — checked: n=12 → 1) vs frame[+0x68] → report
+        (fail-only; restore ebx := frame[+0x38] with 1 push pending
+        @0x79329e = driver ✓). Expr byte-read: **`ceiling_plants_i <
+        (int)data->ceiling_plants_to_insert.size()`** @0x11a47b4 ⇒
+        **driver[+0x8c]/[+0x90] = `data->ceiling_plants_to_insert`
+        begin/end (vector, stride 12)**;
+      - region gate: `A->0x909da0(absX, absY)` (absY stashed →
+        frame[+0x4c] @0x7932c2 — slot reuse of the ≠3 band count)
+        must equal **frame[+0x64]** @0x7932db (same identity gate as
+        the band body) — mismatch → `incl frame[+0x68]` + next cell
+        (write skipped);
+      - **accept write @0x7932f3-0x793304**: base = driver[+0x8c],
+        `ceiling_plants_to_insert[ceiling_plants_i] := {absX, absY,
+        bandA[idx].f1}` at stride 12 (`lea (%eax,%eax,2)` → ×3 →
+        `(%eax,%ecx,4)` = 12·idx; edx = f1 loaded @0x7932ec; absY
+        from frame[+0x4c] @0x7932fc) → `incl frame[+0x68]` @0x793308
+        → next cell. ⇒ **(108)'s pair-write open CLOSED**: {absX,
+        absY, f1} = {x, y, plant-def}, and frame[+0xe8] = the
+        ceiling-plant candidate array {f0 = exact world column, f1 =
+        def pointer} (closes (107)'s label "band A" — it is the
+        ceiling-plant list).
+    - **Both band scans byte-identical rule** (≠3 re-verified
+      0x793722-0x793765): count = `(frame[+0xa0] − frame[+0x9c]) >>
+      3` → frame[+0x4c] @0x793722-37; idx ≥ count → 0x793769;
+      scan @0x793750 continues while **`absX > f0 ∧ f1 ≠ 0`** — same
+      AT&T operand order, same stop condition as the NULL path ⇒
+      **(107)'s scan prose confirmed correct** (ascending f0, stop at
+      first f0 ≥ absX; the exact-key checks then demand ==);
+      **`ebx := frame[+0x38]` (driver) restore @0x793761** (the scan
+      had clobbered ebx with the array base) → idx → frame[+0x78]
+      @0x793765.
+    - **Guards + grass init byte-exact (0x793769-0x7937ae)**: empty
+      grass (begin == end) → 0x793a71; `x ≤ 0` → 0x793a71; `x ≥
+      driver[+0x28] − 1` (`mov 0x28(%ebx),%eax; dec; cmp x; jge`)
+      → 0x793a71 ⇒ **`driver[+0x28] = width` definitive** ⇒ the edge
+      guard = `0 < x < width−1` ✓ (107). Grass init: i := 0 (edi),
+      frame[+0x3c] := 0, count = `(end − begin) >> 2` → frame[+0x6c]
+      (pointer elements ✓), count == 0 → 0x793a6d.
+    - **Band-phase entry = three states, all compensated** (0x793a65-
+      0x793a8a): `0x793a65` (grass-loop exit) reloads idx [esp+0x78]
+      + count [esp+0x4c]; `0x793a6d` (grass count == 0) reloads only
+      x [esp+0x30] — because the init zeroed edi; `0x793a71` (guard
+      failures) compares directly — edx/ecx are still the scan's
+      idx/count. Then `idx ≥ count → 0x793310`; base = frame[+0x9c],
+      `frame[+0x3c] := bandB[idx].f1` @0x793a84 (slot: grass idx →
+      current band), `f1 == 0 → 0x79330c` @0x793a8a.
+    - **The fill loop 0x792e80-0x792eda** (closes (106)/(107)'s
+      pair-array fill-site opens): source = 16-byte `{double x,
+      Object*}` (edi at the ptr field; the double read at `−8(%edi)`);
+      3-way dispatch by the OBJECT's bytes: **`[obj+7] ≠ 0` → ceiling
+      candidates** (frame[+0xe8]: int = `cvttsd2si x` → frame[+0x6c],
+      ptr → frame[+0x70], `0x93ef50(&frame[+0xe8], &frame[+0x6c])`);
+      **`[obj+6] ≠ 0` (and +7 == 0) → grass** (`0x9ef4e0(&frame[+0xb4],
+      elem)` — the grass vector of pointers ✓ (107)'s [esp+0xb4/b8]);
+      **else → band B** (frame[+0x9c]: int → frame[+0x4c], ptr →
+      frame[+0x50], `0x93ef50(&frame[+0x9c], &frame[+0x4c])`). Pair
+      element = `{int key @0, void* obj @4}` (8 B — the push_back
+      reads slot/slot+4 ✓ both branches store exactly those) ⇒
+      **`0x93ef50` = vector<pair>::push_back(this, &pair)** (body
+      open). Loop stride `add $0x10`, count in ebx.
+    - **Post-fill**: `0x9ef570(&frame[+0x9c], xmm1 = f64 from
+      frame[+0x5c], edi = frame[+0xcc])` @0x792ef0 (sort/validate?
+      body open) → then `0xa735a0(vec.begin, count>>3, false)` for
+      band B @0x792f1e AND for a **third stack vector at
+      frame[+0xf0]/[+0xf4]** (8-byte elements) @0x792f46 (bodies
+      open; count>>3 ⇒ 8-byte elements); heap temp frame[+0xcc]
+      freed @0x792f6d.
+    - **`frame[+0x48] = the driver at setup** (load @0x792f4b →
+      `lea 0x8c(%ebx),%ecx` = `&driver[+0x8c]` @0x792f56 →
+      `0x93ee40(&ceiling_plants_to_insert, driver)` @0x792f5c — body
+      open) — the slot is later reused as the ceiling count in the
+      cell loop (its writer still open, tag `0x48(%esp)`).
+      **`driver[+0x70]` (A) == 0 → `je 0x793338` @0x792f77-7b skips
+      the ENTIRE cell loop** (A-null guard; the 0x793338 exit block's
+      own A-guard unread).
+    - **Stack-vector confirmation**: frame[+0xe8] init `movl $0`
+      @0x792a7d, destroyed at the epilogue (read @0x793df2); frame
+      [+0x9c]/[+0xa0] init @0x792a30/0x792a3b, destroyed @0x793e1a
+      ⇒ both are stack std::vectors (the early byte stores
+      @0x79284f/0x7928d5 = slot reuse before init).
+    - **Line-1109 expr byte-read = `cell`** @0x1190a78 ⇒ 0x7412c0
+      returns a *cell* object (consistent with the write-back
+      @0x793a59).
+    - [OPEN] (next units): the fill-source builder + setup region
+      0x7926xx..0x792e7x (where {double, ptr} list comes from;
+      frame[+0x70]/[+0x50]/[+0x48] setup writers; frame[+0xf0]
+      fill); post-loop region 0x793360..0x7935f0 (+ the 0x793338
+      A-guard); band tail 0x793c6a..0x793cf0; bodies 0x740f80 /
+      0x7412c0 / 0x909370 / 0x909da0 / 0x93d710 / 0x93edb0 /
+      0x93ee40 / 0x93ef50 / 0x9ef4e0 / 0x9ef570 / 0xa735a0 /
+      0x949e80 / 0x94a9d0 / 0x9d89d0 / 0x93e550; band field
+      provenance (+0x20/+0xc4/+0xc8/+0xd8); vfunc[1]==2;
+      frame[+0x80]; driver[+0x78]; 0x908f40's stale xmm0; the
+      0x909da0 setup reference position.
+    - Landed: CONSTANTS **C88**, this entry **(109)**. No §8 row, no
+      §12, no patch — drop path OFF. Gates green at commit. Next
+      free: entry **(110)**, **C89**, **I22**; §8 row 33 free.
