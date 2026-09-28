@@ -7745,3 +7745,93 @@ first use from now on):**
       caves-field 33/33, npm test 258/258); the set also holds the
       uncommitted `mapgen/experiments/2026-09-28-surface-census.mjs`.
       Next free: entry **(106)**, **C85**, **I22**; §8 row 33 free.
+  - **2026-09-28 (106) — census P2 read #3: the kind-0 WIRE closed
+    (surfaceField → v → classify), A's provenance = [driver+0x70],
+    and the driver identified as GridWorld world-creation
+    (`gridworld_world_creation.cpp`) with its three 0x908f40 sites
+    decoded (center classify + grass/tree probes + tree placement).
+    Resolves (105) [OPEN (a)]; C75's `v` input now sourced
+    byte-level on both ends of the port contract. No patch, no port,
+    no IoU — judge parked.**
+    - Method: `/tmp/opencode/fulltext86.asm` (cached whole-exe AT&T
+      disasm, true VAs — C57 scope note: 0x7930d3 ∈ lower .text, NOT
+      text.bin) for all driver windows + text.bin (`f[0x400c00:
+      0xdd0000]`, adjust-vma 0x801800) for 0x908f96..0x908fe0; rdata
+      byte-reads this session (file = VA − 0x400E00): the three
+      assert strings below.
+    - [SETTLED-ASM] **The v wire:** `call 0x90a860` (surfaceField)
+      @0x908f96 → **`movaps xmm3, xmm0` @0x908fa6** → `call 0x8f5030`
+      (classify) @0x908fb0 — **classify's v (C75's xmm3) = the
+      surfaceField f32 return.** Ghidra's dump renders the call as a
+      valueless statement (undeclared register arg dropped) — the
+      asm recovers it. classify's other inputs byte-exact: this =
+      ecx = **[B+0x2a4] = mBiomeMaterials** (C74's slot ✓ = the
+      port's `table`), x = `cvttsd2si [ebp−0x28]` pushed @0x908faf,
+      y = `cvttsd2si [ebp−0x20]` pushed @0x908fa9 — the UNSAVED
+      entry locals (pre-+0.5) ⇒ classify sees cell INTS while
+      surfaceField saw the centers; `ret $8` (callee cleans) ⇒
+      0x908f40 returns the record to the driver.
+      ⇒ **C75's `classify(table, x, y, v)` contract is now sourced
+      on BOTH ends: table = [B+0x2a4], v = surfaceField(...).**
+    - [SETTLED] **A's provenance = [driver-obj + 0x70]**: `mov
+      0x70(%ebx), %ecx` immediately before ALL THREE 0x908f40 sites
+      (@0x7930b9, @0x7938c2, @0x7938ef), ecx untouched through each
+      coordinate setup → `call 0x908f40` — resolves **(105)(a)**: A
+      is a member of the driver's object handed to the dispatcher
+      unchanged; the driver's own CLASS remains Q1 (the body).
+    - [SETTLED] **Driver identity + assert provenance** (rdata byte-
+      reads): file = `d:\...\source\grid\gridworld_world_creation.
+      cpp` (0x11a46b0) ⇒ **FUN_00792580 = GridWorld world
+      creation**; expr **`data->array2d->IsValid( x, y )`**
+      (0x11a4794, line 1001 = 0x3e9, assert block 0x793001..0x79308e
+      ahead of site 1) and expr **`grass[i]->tree_material_id > 0`**
+      (0x11a47f4, line 1089 = 0x441, grass-loop head @0x7937be);
+      format 0x1150f60 = `Assert failed: (%s) in %s at line %d\n`;
+      crash idiom `xor %eax; movl $0x1ca9,(%eax)` @0x793094/@0x793894.
+    - [SETTLED] **The three sites** (all inside FUN_00792580,
+      0x792580..0x793e41):
+      1. **0x7930d3 — center classify** (cell loop): assert block →
+         `cmpb $0, 0x78(%ebx); jne 0x7930b6` (**+0x78 ≠ 0 ⇒ skip the
+         cell check**) → array2d gate `cmpl $0,(%eax,%ecx,4)` with
+         **ecx = (y<<9)|x** — **[ebx+0x30] = `data->array2d`, dword
+         grid, 512 stride** (≠0 → 0x793df2, target unread; the
+         classify path runs when the dword == 0) → coords =
+         (origin+edi, origin+edx) as f64 via cvtdq2pd from the int
+         origins **[ebx+0x20]/[ebx+0x24]** → record stored
+         **[esp+0x54] @0x7930d8**; **non-null → 0x7935f4**:
+         `cmpl $0x3, 0x38(%eax)` (≠3 → 0x79369a); ==3 ∧ [ebx+0x50]==0
+         → write **[ebx+0x34]:=0x200, [ebx+0x38]:=0x200,
+         [ebx+0x3c]:=0x40000** (=512·512; the last only if ≠)
+         @0x79360b..0x79361b. NULL → fall to 0x7930e4.
+      2. **0x7938d1 — grass probe (x−1, y)** and 3. **0x7938fe — grass
+         probe (x+1, y)**, inside the grass loop (header 0x7937b4:
+         arr = **[esp+0xb4]**, index edi, count [esp+0x6c]; back-edge
+         `inc %edi; cmp; jb 0x7937b4` @0x793924, exit `jmp 0x793a65`;
+         head = line-1089 assert (`cmpl $0,0xd4(%eax); jg 0x79389a` —
+         **obj[+0xd4] = tree_material_id**) then the **obj[+0xa8] byte
+         gate @0x7938a4, 0 → skip probes**): y = originY+[esp+0x2c]
+         both, x = originX+[esp+0x30]∓1 (`dec` @0x7938b8 / `inc`
+         @0x7938e5) — **either classify NULL → next item
+         (je 0x793924)**; both non-null → 0x793907: `test obj[+0xd8];
+         js 0x793938` (negative → handler) else `cmp obj[+0xd8] vs
+         [esp+0x54]→[+0x30]; je 0x793938` → **handler 0x793938** =
+         `push obj[+0xd4]; push originY+yterm−1 (dec @0x793943);
+         push originX+xterm ([esp+0x38] = orig 0x30 after 2 pushes);
+         push [ebx+0x74]; call 0x7412c0` ⇒ **tree placement at
+         (x, y−1)** (return → [esp+0x3c]); 0x7412c0 body unread.
+    - [OPEN] Slot reuse / flow (untraced): **[esp+0x54]** = site-1's
+      record @0x7930d8 (direct `jne` ⇒ intact at 0x7935f4/0x79368b),
+      **zeroed @0x793445** (with [esp+0x30]:=0, [esp+0x2c]:=−1 after
+      a container clear @0x79343d), **incl'd as a counter @0x7935b2**
+      — which value reaches the grass id-check @0x79391b = untraced;
+      **[esp+0x2c]/[esp+0x30]** = the saved y/x terms (writes
+      @0x792f83/0x792fa6 ahead of site 1; also 0x793315/0x79332b/
+      0x793455/0x7935eb; init @0x7925c8/0x7925d2). Also open: the
+      grass loop's nesting vs the cell loop (0x79369a, the 0x7935f4
+      tail past 0x79361b, 0x793df2 unread); 0x7412c0 (tree
+      placement?) body; classify's return record type (C75's
+      predicate 0x442610 tag still stands); obj[+0xa8]/obj[+0xd8]
+      semantics.
+    - Landed: CONSTANTS **C85**, this entry **(106)**. No §8 row, no
+      §12, no patch — drop path OFF. Gates green at commit. Next
+      free: entry **(107)**, **C86**, **I22**; §8 row 33 free.
