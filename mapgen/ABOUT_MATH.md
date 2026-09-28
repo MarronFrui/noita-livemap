@@ -7835,3 +7835,134 @@ first use from now on):**
     - Landed: CONSTANTS **C85**, this entry **(106)**. No §8 row, no
       §12, no patch — drop path OFF. Gates green at commit. Next
       free: entry **(107)**, **C86**, **I22**; §8 row 33 free.
+  - **2026-09-28 (107) — census P2 read #4: FUN_00792580's cell-loop
+    skeleton decoded — the (y−1) row-offset law, both record branches,
+    the empty-grid bail, the post-loop A::0x909370 bounds call, and
+    the per-cell grass→band phase order. Closes all four flow/slot
+    opens of (106) ([esp+0x2c]/[esp+0x30]/[esp+0x40] write-flow,
+    [esp+0x54] at the id-check, 0x793df2's target, grass nesting).
+    No patch, no port, no IoU — judge parked.**
+    - Method: `/tmp/opencode/fulltext86.asm` windows only (driver ∈
+      lower .text; text.bin not needed this round); every window
+      grepped on disk this session (incl. the 0x79369a..0x7936f5
+      factory window re-read after an early grep truncation).
+    - [SETTLED] **The cell loop** (double loop, exit 0x793338):
+      prologue y:=0 → **[esp+0x2c]** (`xor %edx; mov %edx,0x2c(%esp)`
+      @0x792f81-83); height ≤ 0 → exit @0x792f8a; **[esp+0x40] :=
+      0xfffffe00 (−512) @0x792f90**; y-head 0x792f98: band indices
+      **[esp+0x78]:=[esp+0x68]:=0**, x:=0 → **[esp+0x30]** @0x792f9e-
+      0x792fa6; width ≤ 0 → row-end @0x792faa. Bounds: `x <
+      [ebx+0x28]` → jl 0x792fb3 @0x793319-0x79331c; `y < [ebx+0x2c]`
+      → jl 0x792f98 @0x79332f-0x793332 ⇒ **[ebx+0x20..0x2c] = {originX,
+      originY, width, height}** (the rect completes). Row-end:
+      **[esp+0x40] += 512 @0x793322** between y++ and the back-edge
+      ⇒ **during row y, [esp+0x40] = (y−1)·512**. Continue labels:
+      0x79330c reload x, 0x793310 reload y, 0x793314 x++ → [esp+0x30]
+      — the reloads exist because the phase loops clobber edi/edx.
+    - [SETTLED] **The (y−1) law** (resolves (106)'s read-after-write
+      paradox): every "rowOffset" cell gate reads **cell(x, y−1) —
+      the cell ABOVE** (y grows down): NULL-path gate `mov (%eax),%eax;
+      cmpl $0,(%eax,%ecx,4); je 0x793314` @0x7930f0-0x7930ff (empty →
+      next cell); post-create gate @0x793706-0x79371c (occupied →
+      next cell). The **y ≤ 0 guards precede both reads**
+      (`mov 0x2c(%esp),%edx; test; jle 0x793314` @0x7930e4-0x7930ea;
+      same @0x7936fa-0x793700), so row 0 never reads cell(x,−1) ✓.
+      ⇒ the post-create gate = "**the tree target cell must be
+      empty**" — the same cell the handler writes (y−1) ✓.
+    - [SETTLED] **The 512 guard = the line-1001 assert's trigger**:
+      `cmp $0x1ff,%edi; ja 0x792fc7` (x > 511) then `cmp $0x1ff,%edx;
+      jbe 0x79309a` (y ≤ 511 → bypass) ⇒ out-of-512 coords → assert
+      machinery @0x792fc7 (pushes 0x3e9, 0x11a46b0, 0x11a4794 =
+      `data->array2d->IsValid( x, y )`, 0x1150f60 → check → 0x79309a
+      or the crash idiom @0x793094); in-range cells skip it whole.
+    - [SETTLED] **Empty-grid bail = the function epilogue**: site 1's
+      gate (only when the [ebx+0x78] byte == 0) `cmpl $0,
+      cell[(y<<9)|x]; jne 0x793df2` — **0x793df2 = the cleanup tail**
+      (free frame[+0xe8] band-pair array, frame[+0xb4] grass
+      pointer-vector, frame[+0x9c] band-pair array via free-ptr
+      [0x114a348]; SEH restore; pops; ret — window 0x793df2..0x793e41)
+      ⇒ a pre-occupied cell makes world creation **return early**;
+      the loop's own writes are safe (monotonic x/y ⇒ each cell
+      visited once) ⇒ the guard is a pre-filled-grid precondition.
+    - [SETTLED] **≠3 branch (0x79369a):** `call 0x740f80` pushed
+      ($0, record, originY+y, originX+x, [ebx+0x74]) with
+      **ecx = frame[+0x80]** (y addend `add 0x34(%esp)` with 2 pushes
+      pending = frame[+0x2c] ✓; arg-vs-ecx split unread) → NULL →
+      next cell (`je 0x793310`); else **cell[(y<<9)|x] := obj
+      @0x7936d4** (base = `mov (%ecx),%ecx` from [ebx+0x30] ⇒
+      array2d cells = object pointers, 0 = empty) → `vtable[1]`
+      (`call *0x4(%eax)` @0x7936dd): == 2 → skip; else
+      `vtable[15]` (`call *0x3c(%eax)` @0x7936f7) with stack args
+      **(frame[+0x7c], 10000 = 0x2710)** → y ≤ 0 guard → cell(x,y−1)
+      gate → band scan → guards → **grass phase → band phase → next
+      cell**.
+    - [SETTLED] **==3 branch (0x7935f4):** entry ONLY from site 1's
+      `jne` (the preceding region ends `jmp 0x793cb2` @0x7935ef — no
+      fall-through) ⇒ eax = record on every entry. If [ebx+0x50] == 0
+      (no buffer): **[ebx+0x34]:=0x200, [ebx+0x38]:=0x200** (dims),
+      **[ebx+0x3c]:=0x40000** (cells, only if ≠ @0x79361b), free old
+      [ebx+0x4c] if cap ≠ 0x40000 (@0x79362b via [0x114a358]), malloc
+      **0x100000 = 0x40000 × 4 B** (@0x79364a via [0x114a35c];
+      [ebx+0x4c]:=buf, [ebx+0x50]:=0x40000 cap/exists), memset(buf,
+      0, 0x100000) @0x793665 → join. Join (all paths): **edi :=
+      record[+0x30]** — on the realloc path `mov 0x60(%esp),%eax`
+      @0x79366a sees THREE pushes pending ⇒ that slot = frame
+      **[+0x54] = the record** (esp arithmetic; NOT the early
+      [esp+0x60] param slot @0x792607/0x79299f) → `mov 0x30(%eax),
+      %edi` @0x793671 = record[+0x30] on every path ✓. Then
+      `0x949e80(&ebx[+0x4c], [ebx+0x34]·y + x)` (thiscall, 1 stack
+      arg) → ptr → **idGrid[w·y+x] := record[+0x30]** @0x793689,
+      **driver[+0x54] := record[+0x30]** @0x79368b-0x793692 →
+      `jmp 0x79330c` (next cell). ⇒ the driver holds TWO 512² grids:
+      data->array2d (pointer cells, ≠3 writes) and its own 1 MB id
+      grid (+0x4c/+0x50, ==3 writes).
+    - [SETTLED] **Loop exit → A::0x909370:** 0x793338: pushes
+      (&ebx[+0x98], originY+h−1, originX+w−1, originY, originX),
+      **ecx := [ebx+0x70] (= A)** → `call 0x909370` ⇒
+      **A->0x909370(this=A, x0, y0, x1, y1, out=&driver[+0x98])** —
+      one rect call over the whole world bounds after the cell loop;
+      then the global vtable call (`mov 0x1344b90; mov 0x6c(%eax);
+      call *%eax` @0x79335d-0x79336a) and the (unread) post-loop
+      region 0x793360..0x7935f0.
+    - [SETTLED] **Per-cell phase order (≠3 path):** create+write →
+      vfunc checks → above-cell gate → **band scan** (frame[+0x9c],
+      {f0,f1} 8-byte pairs; scan `while absX > f0 && f1 ≠ 0`; index
+      [esp+0x78] stored @0x793765, count = (frame[+0xa0]−
+      frame[+0x9c])>>3 → [esp+0x4c]) → guards (empty grass vector /
+      0 < x < [esp+0x38]-obj[+0x28]−1 → 0x793a71) → **grass loop
+      0x7937b4** (back-edge 0x793924, exit `jmp 0x793a65`) → **band
+      phase 0x793a65**: reload idx [esp+0x78] / count [esp+0x4c] /
+      x [esp+0x30]; **idx ≥ count → 0x793310** (next cell); else
+      band[idx].f1 == 0 → `je 0x79330c`; else band body 0x793a8e+
+      (observed exit: `jmp 0x793314` @0x793c65). **No write to
+      [esp+0x78] between the store and the reload** (only 0x792f9e/
+      0x793765 write it — verified) ⇒ the band phase resumes the
+      found band ✓. ⇒ **the grass loop nests per-cell inside the ≠3
+      chain** (closes (106)'s nesting open), the band phase follows,
+      both rejoin the cell loop at 0x79330c/0x793310/0x793314.
+    - [SETTLED] **[esp+0x54] at the grass id-check = the classify
+      record** (closes (106)'s slot-reuse open): the ≠3 chain runs
+      0x7930d8 (store) → jne 0x7935f4 → 0x79369a → 0x793742 → grass →
+      0x79391b with **no intervening write** (the zero @0x793445 and
+      incl @0x7935b2 live in the post-loop region, which the chain
+      jumps over; the next writes @0x793b4c/0x793b93 are after the
+      check) ⇒ `grass[i][+0xd8] vs record[+0x30]` is a live compare
+      against this cell's classify id ✓.
+    - [OPEN] (next units): the post-loop region 0x793360..0x7935f0
+      (incl. the x-marking loop 0x7935b2..0x7935eb → `jmp 0x793cb2`,
+      the zero-init @0x793445, the [esp+0x40] rewrite @0x7933ca, and
+      the fate of A::0x909370's out [&ebx[+0x98]]); the NULL-path
+      body 0x793105..0x793310 (second band scan over frame[+0xe8],
+      index [esp+0x68], count [esp+0x48]; `y ≥ h−2` guard @0x79313f/
+      0x793147); the band body 0x793a8e..0x793cf0 ([esp+0x54]
+      rewritten @0x793b4c/0x793b93; [esp+0x78] read @0x793c21); the
+      tree-handler continuation 0x79396c..0x793a64; bodies of 0x740f80
+      (cell object factory), 0x7412c0 (tree placement), 0x909370 (A
+      rect call), 0x949e80/0x94a9d0 (container ops); band pair-array
+      semantics ({f0,f1} scan rule, where frame[+0xe8]/frame[+0x9c]
+      get filled); vfunc[1]==2 / vfunc[15](…,10000) meaning; the
+      [esp+0x38] object (+0x28 bound) identity; the 0x740f80 arg-vs-
+      ecx param split.
+    - Landed: CONSTANTS **C86**, this entry **(107)**. No §8 row, no
+      §12, no patch — drop path OFF. Gates green at commit. Next
+      free: entry **(108)**, **C87**, **I22**; §8 row 33 free.
