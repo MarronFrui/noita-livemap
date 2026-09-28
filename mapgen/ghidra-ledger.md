@@ -371,13 +371,18 @@ SCAN ORDER (in-binary, exact): fill attempt accepted →
 
 ## Method notes (do not relearn)
 
-- **text.bin freshness (2026-09-18 trap):** a stale `~/tools`-era `text.bin`
+- **text.bin freshness (2026-09-18 trap) + the WORKING FORM
+  (2026-09-28, entries (104)/(105)):** a stale `~/tools`-era `text.bin`
   (extracted as `f[0x400:]` — the alternative convention) produced shifted
   objdump VAs (off by 0x400800) and nonsense decodes that LOOK plausible.
-  Always regenerate: `f[0x400c00:0xdd0000]` + `--adjust-vma=0x401000`
-  (then objdump VA = file+0x400 ✓), and assert `objdump section label
-  = .data+0x...` understanding: the printed VAs are authoritative only if the
-  slab starts exactly at file 0x400c00.
+  Always regenerate: `f[0x400c00:0xdd0000]` + `--adjust-vma=0x801800`
+  ⇒ **printed = true VA directly** (general rule C57: adjust-vma =
+  slice start + 0x400C00). The old recipe on this slice
+  (`--adjust-vma=0x401000`) prints SLAB VAs — true = slab + 0x400800
+  (C13) — and is the "shifted-slab trap": every cite must be converted
+  or it silently reads +0x400800 off. Re-pin the VA map before reading
+  (C77 digest facts: `comiss [0x11dfb84]` @0x90ab48, `[ebx+0x220]`
+  @0x90ab55, je rel → 0x90ae03).
 
 
 - Byte-scan fingerprints for 4-byte constants are noisy at binary scale
@@ -778,10 +783,14 @@ f32-bit encodings) within 400 orbit steps of any S.
 - Ghidra OSGi bundle cache CORRUPTED after a failed compile (50b worked,
   everything after failed with "Failed to get OSGi bundle"; clearing
   `~/.config/ghidra/ghidra_12.1.3_PUBLIC/osgi` did NOT fix it). Workaround:
-  raw disassembly via objdump — extract .text to a file
-  (`python: data[0x400:0xdd0000]` → /tmp/opencode/text.bin), then
-  `objdump -D -b binary -m i386 --adjust-vma=0x401000 --start-address=VA
-  --stop-address=VA /tmp/opencode/text.bin`.
+  raw disassembly via objdump — extract to a file
+  (`python: data[0x400c00:0xdd0000]` → /tmp/opencode/text.bin), then
+  `objdump -D -b binary -m i386 -M intel --adjust-vma=0x801800
+  --start-address=<true VA> --stop-address=<true VA> /tmp/opencode/text.bin`
+  (working form since 2026-09-28, entries (104)/(105): printed = TRUE
+  VA; pairings matter — `data[0x400:]` + 0x401000 also yields true
+  VAs, but a 0x400c00 slice with 0x401000 prints slab VAs, see the
+  Method note above).
 - JDK must be in PATH for headless runs: `export JAVA_HOME=~/tools/jdk
   PATH=~/tools/jdk/bin:$PATH`.
 - Ghidra script API: iterate instructions via

@@ -7543,3 +7543,205 @@ first use from now on):**
       **C83**, **I22**; VERIFIED §8 row 33 free. Gates for this
       commit: y224 **0.0000**, caves-field **33/33**, npm test
       **258/258**.
+  - **2026-09-28 (104) — census P2 reads #1/#2: the surfaceField
+    dependency cluster walked decompile → asm; **I20① CLOSED** —
+    true 0x8fb570 (the addNoise-default core, LIVE for
+    hills_flat/mountain_lake) decoded to formulas: whiteLattice's
+    sin-hash lattice with PARITY-alternating smoothstep/linear blend
+    weights; the band gate r = true 0x90b280's per-tile internals
+    opened (tile params, the 42-px edge blend, new helpers 0x94c700 /
+    0x909c70); surfaceField's y-chain + 3 new rdata pins byte-read.
+    Register-first: no patch, no port, no IoU run (the judge stays
+    parked until a register-backed patch exists); no sweep, no
+    parameter touched.**
+    - Method: local Ghidra dumps for the region (P1) + one 4-fn
+      P1DumpList headless run (0x909c70 / 0x94c700 / 0x8fd920 /
+      0x8fdad0 — 4/4 OK, javac-pre-verified first). Asm lane =
+      /tmp/opencode/text.bin (exe f[0x400c00:0xdd0000], objdump
+      `--adjust-vma=0x801800` ⇒ printed = true VA; file = VA −
+      0x400C00), with the VA map re-pinned on C77's digest facts
+      BEFORE reading: `comiss xmm2,[0x11dfb84]` @0x90ab48 (jbe rel →
+      0x90b0a2 ✓), `[ebx+0x220]` disp32 @0x90ab55 ✓, `je` rel →
+      0x90ae03 ✓; rdata = file VA − 0x400E00, anchors 0.85 / 0.1 /
+      C1 re-matched. (The old ledger "adjust-vma 0x401000" recipe is
+      the shifted-slab trap — superseded by this working form; ledger
+      method-notes update still pending an in-repo commit window.)
+    - [SETTLED-ASM] **I20① — 0x8fb570 formula** (full byte law =
+      **C83**): the lattice is IDENTICAL to whiteLattice2d — c0 =
+      57·round(y) + round(x), fx/fy floor fracs, corners h(k) =
+      frac(sin(c0+k)·43758.546875), k ∈ {0,1,57,58}, sin =
+      libm_sse2_sin_precise, round = fld/fistp (all C40-shared) —
+      the difference is the WEIGHTS: `W = lerp(w0, w1, frac)` where
+      (w0,w1) = (smoothstep, linear) or (linear, smoothstep) by
+      round-cell PARITY, then plain bilinear out =
+      lerp(lerp(h0,h1,Wx), lerp(h57,h58,Wx), Wy). ⇒ I20's
+      "≠ 0x8fb350" now has a mechanism, not just a shape.
+    - [SETTLED] **surfaceField y-chain** (both kind arms): gy =
+      (period·[0x11dfa08] + y·0.49162514)·0.1 with period = f32
+      [BitmapNoise+0x94] — **resolves C38's "(f64 6.86e-07 @0x11dfa08,
+      mulsd — semantics open)": its consumer = this term**,
+      effectively ≈0 beside the x-chain's full `+ period` (the
+      asymmetry is byte-real — mulsd @0x90a904 in the explicit
+      movsd/mulsd sequence — not a decompiler artifact); the
+      coefficient's PURPOSE stays open.
+    - [SETTLED] **r = 0x90b280 internals** (C37's "r" label, now with
+      a mechanism): 512-px tile index from [config+0x38]/[+0x40]
+      world offsets, dev asserts with true source provenance
+      (procedural_terrain.cpp lines 3782/3783), per-tile parameter
+      object via 0x90b680 (const / linear / core-noise / fbm modes,
+      per-lane amps), the **42-px left-edge neighbour blend**
+      (f = 1 − ox/41.0 across the tile seam; neighbor id =
+      0x909c70's x-wrap/y-clamp fetch → CSafeArray::GetAt 0x94c700),
+      and the y-gate cascade under the f64 380.0 early-out.
+      New pins: 58.0@0x11e0298, 41.0@0x11e0274, 380.0@0x11e0050.
+    - [CORROBORATION — the census re-derived these BEFORE consulting
+      the register, then checked]: C36's dispatcher case table (this
+      pass's decompile case→true-VA = C36's slab +0x400800 on all
+      9 ✓); C37's uid offset map — which also decodes 0x90b110 = the
+      inside-noise run (plain dispatcher vs fbm wrapper 0x8fdad0 per
+      mInsideNoiseFBM; OffsetBySeed's rng ×2; Scaled's return) — the
+      0.51/0.85 gates, C40's sin-hash family, C38's pins (re-read
+      this session: all match). **Correction:** the (3)
+      SESSION_CONTEXT claims that +0x228/+0x242/+0x24d were
+      "unregistered" were WRONG — they are mInsideNoiseFBM / Scaled /
+      OffsetBySeed in C37's map; corrected in Update (4).
+    - [OPEN] ① r's XMM0 return expression (every path renders as a
+      bare `return` — the value formula needs the asm window; it is
+      THE next binding read, since r·field feeds the 0.51 gate);
+      ② the 6.86e-07 coefficient's role; ③ 0x90b680's lane0/lane1 =
+      which band bound; ④ side-by-side 0x8fb570 vs 0x8fb350 weights
+      (C40's rowA phrasing h58→h57 vs this read's lerp(h57,h58,Wx) —
+      check against the ported whiteLattice2d).
+    - Landed: CONSTANTS **C83** (index row, byte proofs inline),
+      ISSUES **I20 ① struck** (② = the port, still open), this entry
+      **(104)**. No §8 row (nothing overturned), no §12 distill, no
+      code patch — drop path stays OFF. **Gates NOT yet run for this
+      change-set** (owed before commit: y224 0.0000, caves-field
+      33/33, npm test 258/258); the set also holds the uncommitted
+      `mapgen/experiments/2026-09-28-surface-census.mjs` (P0/P1
+      tooling). Next free: entry **(105)**, **C84**, **I22**; §8 row
+      33 free.
+  - **2026-09-28 (105) — census P2 read #2: r = true 0x90b280's
+    return expression ASM-CLOSED (band-membership ramp) — resolves
+    (104) [OPEN ① + ③]; the driver chain 0x792580 → 0x908f40 →
+    0x90a860 pinned with A/B object identities; the caller-side
+    combine slots byte-confirmed. Register-first maintained: no
+    patch, no port, no IoU run, no parameter touched — the judge
+    stays parked.**
+    - Method: text.bin lane (exe f[0x400c00:0xdd0000], objdump
+      `--adjust-vma=0x801800` ⇒ printed = true VA) re-run in four
+      windows ON DISK THIS SESSION (0x90b280..0x90b2f5,
+      0x90b505..0x90b679, 0x90aac0..0x90ab50, 0x908f40..0x908f9b);
+      rdata byte-reads (file = VA − 0x400E00): **0x11dfaac f32 =
+      0.5099999904632568 (the 0.51 gate — f32 0.51, widened)**,
+      0x11dfb84 f32 = 0.85 ✓, 0x11e0274 f32 = 41.0 ✓, **0x11df878
+      f64 = 0.0**, **0x11dfdd8 f64 = 0.5**; re-matched 380.0
+      (0x11e0050) / 1.0 (0x11dfbf0) / 0.5 (0x11dfa94) / 2.0
+      (0x11dfe68). Call edges from ~/work/ghidra-logs/p0_calls.csv.
+    - [SETTLED-ASM] **r's return expr** (full byte law = **C84**) —
+      contract `0x90b280(ecx = A, stackarg ret 4 = params B, xmm2 =
+      X, xmm3 = Y) → f32`; prologue saves X → [ebp−0x34], Y →
+      [ebp−0x1c], ebx := A:
+      (1) `Y > 380.0` (jbe @0x90b2a1 falls past) → out =
+          0x90b680(A, B, X) (out → [ebp−0x3c]/[ebp−0x34]; above-grid
+          ⇒ the uid's own params);
+      (2) `Y ≤ 380.0 ∧ A[+0x6c] == 0` (cmp/je @0x90b2ef → 0x90b60f)
+          → same direct call (out → [ebp−0x4c]/[ebp−0x44]);
+      (3) else the 512-tile path: ox =
+          trunc(A[+0x38]+X) & 511 (→[ebp−0x14]), col =
+          (that>>9) mod A[+0x50] (negative += cols, →[ebp+0x8]),
+          row = clamp(trunc(A[+0x40]+Y)>>9, 0, A[+0x54]−1)
+          (negative → 0, →[ebp−0xc]), tile = A[+0x68].GetAt(col +
+          A[+0x50]·row) via 0x94c700 (this = A: `mov ecx, ebx`
+          @0x90b51d), out = 0x90b680(A, tile, X) (out →
+          [ebp−0x2c]/[ebp−0x24]); ox/oy ∈ [0,512) asserts log-only
+          (procedural_terrain.cpp 3782/3783); **left-seam blend iff
+          ox ≤ 41** (`cmp esi,0x29; jg 0x90b5f1`): nb =
+          0x909c70(&A[+0x50], col−1, row) — issued twice (equality
+          cmp vs own [ebp−0x8] @0x90b544, je → no blend; then the
+          value) — **f = f32(1 − f32(ox)/41.0)** (movss 1.0@0x11dfbf0,
+          divss [0x11e0274]) → [ebp+0x8], n = 0x90b680(A, nb, X)
+          (n → [ebp−0x4c]/[ebp−0x44]), **out := own + (n − own)·
+          (f64)f per lane** (subsd @0x90b599/0x90b5a3, mulsd, addsd
+          @0x90b5b2/0x90b5c4 — f32-weight, f64 math).
+      **Returns:** `Y ≤ out0` → **0.0f** (xorps @0x90b2c3, direct
+      ret — BYPASSES the epilogue); `Y ≥ out1` → **1.0f**
+      (@0x90b2de / @0x90b5d3, same); equal-bounds guard → 1.0
+      THROUGH the epilogue (ucomisd + lahf `test ah,0x44` — jp →
+      division @0x90b645, jnp → guard @0x90b5e1; reachable only
+      unordered); else **t = (Y − out0)/(out1 − out0)** (f64
+      subsd/divsd @0x90b651..59; the blend path jmps into the
+      cvtpd2ps @0x90b65d); **shared epilogue @0x90b661: cvtps2pd →
+      `addsd [0x11df878]` = + f64 0.0 (BYTE-READ ⇒ NO-OP, so the
+      0/1 epilogue asymmetry is moot) → cvtpd2ps → f32.**
+      ⇒ **r = band membership in Y: 0 below [out0, out1], 1 above,
+      normalized Y-position in between ⇒ out0 = LOWER bound, out1 =
+      UPPER bound — this resolves (104) ③**; and the bounds are
+      functions of **X** — 0x90b680's free coordinate is X at every
+      call site (`movapd xmm3, xmm2` @0x90b2a9/0x90b615, `movsd
+      xmm3, [ebp−0x34]` @0x90b514/0x90b57c; its phase = [A+0x48] +
+      X) ⇒ the band edges undulate along x and r answers "where is
+      this y inside the band at this x".
+    - [SETTLED] **Driver chain + object identities.** p0_calls.csv:
+      `792580 → 908f40` ×3, `908f40 → 90a860` ×1 — the old row-22
+      `e8 @0x7930d3 → 0x908F40` pin now lives in the P0 export.
+      **A = surfaceField's ecx = 0x908f40's incoming ecx**
+      (`mov esi, ecx` @0x908f51 → `mov ecx, esi` @0x908f77, no
+      other def in between) **= FUN_00792580's ecx** — the Q1
+      driver hands its own object straight through. A's field map
+      (all read inside 0x90b280/0x90b680): +0x38/+0x40 f64 world
+      offsets, +0x48 params phase, +0x50 cols, +0x54 rows, +0x68
+      CSafeArray, +0x6c tiling flag. **B = params object = the
+      `0x909da0()` fetch** (pushed @0x908f8e): [B+4] = kind
+      dispatches in 0x908f40 — 0 → surfaceField, 1 →
+      `biome->bitmap_data` cell color ([B+0x1b0], asserts cpp
+      0xa6e/0xa7a), 2 → the threshold-eval pair 0x908cb0/0x8fa9b0
+      ([+0x238]/[+0x23c] select 0x8facd0/0x8faae0), else → 0; in
+      surfaceField the same gate `[ebx+4]` @0x90a899 (B null →
+      return 0.0f). B carries the uid fields +0x1d4/+0x220/+0x268
+      (C37's map) ⇒ **B = the biome/uid instance; 0x909da0 = its
+      fetch.** ⇒ the 0x90b680 param layout {+0x270/+0x274 bases,
+      +0x278/+0x280 linear, +0x288 mode, +0x290 freq, +0x298/+0x29c
+      amps} exists TWICE: as uid defaults (paths 1–2) and as
+      per-tile overrides (path 3).
+    - [SETTLED] **0x908f40 passes (x + 0.5, y + 0.5)**: `addsd
+      [0x11dfdd8]` ×2 @0x908f7e/0x908f86 then the register swap
+      (xmm1 → surfaceField's xmm2, xmm2 → xmm3) — 0x11dfdd8 = f64
+      **0.5** byte-read ⇒ **cell centers**, while the classifier
+      0x8f5030 afterwards receives `(int)` of the UNSAVED originals
+      (local_2c/local_24). 0x11dfdd8 is also C40's first factor in
+      the case-1 blend chain.
+    - [CORROBORATION — the caller-side combine slots, all byte-read
+      this window]: call args ecx = [ebp−0x30] (A), xmm2 =
+      [ebp−0x44] (X), xmm3 = [ebp−0x3c] (Y), push ebx (B) → r;
+      **r′ = r·[ebp+0x8]** (mulss @0x90aae8) **stored back into the
+      same slot @0x90aafe = slab 0x50a2fe ✓ C37's "field slot :=
+      r′"**; `comiss r′, [0x11dfaac]=0.51; jbe 0x90ab48` @0x90aaf7
+      ✓; `[B+0x268] == 0 → skip` (ucomiss/lahf/test-ah,0x44/jnp
+      @0x90ab05..14) ✓; **gradW = (r′ − 0.5)·2.0** (subss
+      [0x11dfa94] + mulss [0x11dfe68]) → [ebp−0x18] @0x90ab1e..34 ✓
+      C37; `call 0x90b110`; **per → [ebp−0x8]** @0x90ab43 ✓ C37;
+      `comiss r′, [0x11dfb84]=0.85; jbe 0x90b0a2` @0x90ab48 ✓ C77.
+      surfaceField prologue: ebx := B (null → 0.0f),
+      [ebp+0x8] := 1.0f accumulator init @0x90a8ac, [ebp−0x8] :=
+      0.0f.
+    - [OPEN] Carried from (104): ② the 6.86e-07 coefficient's
+      purpose; ④ side-by-side 0x8fb570 vs the ported
+      whiteLattice2d. New: (a) **A's class** — A = FUN_00792580's
+      ecx (what the driver actually passes = Q1 body territory);
+      (b) field0's write into [ebp+0x8] (the bilinear result, before
+      r multiplies) not re-pinned this session — C37 says the slot
+      holds the field, the prologue says 1.0f init; (c) 0x909c70's
+      return vs the deref'd GetAt element (id vs pointer) — the
+      compare @0x90b544 treats them as one type.
+    - Landed: CONSTANTS **C84** (index row, byte proofs inline),
+      this entry **(105)**, and the owed **ghidra-ledger.md method-
+      notes update** from (104) (both "do not relearn" notes now
+      carry the working form `adjust-vma = slice_start + 0x400C00`
+      ⇒ printed = true VA; the 0x401000-on-0x400c00 combo marked as
+      the slab trap). No §8 row (nothing overturned), no §12
+      distill, no code patch — drop path stays OFF. **Gates NOT yet
+      run for this change-set** (owed before commit: y224 0.0000,
+      caves-field 33/33, npm test 258/258); the set also holds the
+      uncommitted `mapgen/experiments/2026-09-28-surface-census.mjs`.
+      Next free: entry **(106)**, **C85**, **I22**; §8 row 33 free.
