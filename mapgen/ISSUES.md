@@ -382,6 +382,42 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   refVoidFrac 0.857) — the window OVERLAPS the surface rows 60..62 but
   claim (c)'s stated band (48..50) does not. Source: ABOUT_MATH §6 (101).
 
+- [ ] **I22. The ported `whiteLattice2d` (true 0x8fb350) inverts all
+  three blend endpoints — every live surface lane renders the
+  cell-mirrored lattice** (opened 2026-10-02, dig #112): the (104)④
+  side-by-side byte-read the function's whole body
+  (`/tmp/opencode/fulltext86.asm` + the port's own evidence file
+  `/tmp/opencode/case1core.asm`, byte-identical) — every blend in the
+  binary is the idiom **`(A−B)·t + B` ⇒ t=0 selects B**: y+1 row
+  `(h58−h57)·wx + h57` @0x8fb4b7..4c9, y row `(h1−h0)·wx + h0`
+  @0x8fb548..55a, out `(rowY1−rowY0)·wy + rowY0` @0x8fb55e..567
+  ⇒ the binary = standard orientation
+  `lerp(lerp(h0,h1,wx), lerp(h57,h58,wx), wy)` — structurally
+  identical to 0x8fb570's C83 law (the parity weight mix is the only
+  difference; the tails are byte-identical: 0x8fb546..567 ≡
+  0x8fb818..839). `mapgen/lib/noise-proto.mjs:183-186` instead defines
+  `lerp(a,b,t) = (b−a)·t + a` (t=0 ⇒ the FIRST arg) and calls it
+  (h58,h57) / (h1,h0) / (rowY1,rowY0) ⇒ **port(wx,wy) =
+  binary(1−wx, 1−wy) on the same c0** — the per-cell mirrored lattice
+  keeping the near-corner c0, which is NOT any evaluation of the
+  binary (a true mirror would flip round(x)/round(y) ⇒ c0 shifts by
+  57·Δy+Δx). Numeric (`/tmp/opencode/sidebyside-112.mjs`, 5 points):
+  port ≡ weight-complemented parse ≤1e-6 everywhere; port − byte-
+  literal = 0.34..0.97 — (12.5,−3.25): port **0.833995283** (= (26)'s
+  smoke pin 0.834, ABOUT_MATH:2940) vs byte-literal **0.493832439**;
+  integer (3,5): port 0.907893717 = h58 vs binary 0.371890724 = h0.
+  Impact — `call 0x8fb350` @0x90b00d (addNoise=1), @0x90aef9
+  (addNoise=2), @0x90ae25 (addNoise=3), @0x8fd93e (NOISE_TYPE
+  dispatch): ALL THREE live surface lanes + the dispatch lane hit the
+  flipped port; VERIFIED's CASE-1 LANE CLOSED row keeps its literal
+  claims (computes + real texture) — the in-row fidelity caveat is
+  the pointer. Fix = swap the three endpoint pairs, register-backed
+  with a byte-pinned test pin (candidate: `whiteLattice2d(12.5,−3.25)`
+  → 0.493832439), IoU after — NOT yet applied. Dispatch twin (0x8fb950
+  = (26)'s mislabeled 0x8fc550) is NOT in any surface lane → out of
+  scope. Source: ABOUT_MATH §6 (112); CONSTANTS C91; §6 (26)/(104),
+  C40/C83.
+
 ## Strategy (agreed)
 
 1. Keep the verified wang core (prediction-solved, oracle-validated).

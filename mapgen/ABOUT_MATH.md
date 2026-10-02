@@ -8700,3 +8700,113 @@ first use from now on):**
     - Landed: CONSTANTS **C90**, this entry **(111)**. No §8 row, no
       §12, no patch — drop path OFF. Gates green at commit. Next free:
       entry **(112)**, **C91**, **I22**; §8 row 33 free.
+  - **2026-10-02 (112) — (104)④ side-by-side: true 0x8fb570/0x8fb350
+    vs the ported whiteLattice2d ⇒ DEFECT: THE PORT INVERTS ALL THREE
+    BLEND ENDPOINTS — port(wx,wy) = binary(1−wx, 1−wy) on the same c0,
+    i.e. the per-cell mirrored lattice that equals NO evaluation of the
+    binary; all three live surface lanes (addNoise 1/2/3) + the
+    NOISE_TYPE dispatch lane call the flipped port. I22 filed; (26)'s
+    smoke pin 0.834 = the INVERTED value (true 0.494). Also: (26)'s
+    twin/FNV labels 0x8fc550/0x8fc940 don't exist in fulltext86 →
+    true 0x8fb950/0x8fbb40. No patch, no IoU — judge parked.**
+    - Method: cached whole-file disasm `/tmp/opencode/fulltext86.asm`
+      (true VAs) windows 0x8fb350..0x8fb567 (whole fn: prologue,
+      weights, corner chain, blends) + the twin tail 0x8fb789..0x8fb841;
+      the port's own evidence file `/tmp/opencode/case1core.asm`
+      (slab = true − 0x400800) re-read — byte-identical at every
+      cited site; rdata from `noita_dev.exe` at file = VA − 0x400E00,
+      byte-read this session: **0x11dfbf0 = f32 1.0** (corner arg
+      `addss` @0x8fb4d3 = c0+1), **0x11df874 = f32 0.0** (@0x8fb50c =
+      c0+0), re-matched C40/C83 anchors 57.0@0x11e028c,
+      58.0@0x11e0298, 43758.546875@0x11e04c8, 2.0@0x11dfe68,
+      3.0@0x11dff70. Numeric demo `/tmp/opencode/sidebyside-112.mjs`.
+    - **0x8fb350 byte law (whole body re-read):** fx = x − floor(x),
+      fy = y − floor(y) (cvttss2si + comiss + jbe/dec floor-fix,
+      @0x8fb38f..3cb); **wx = (3.0 − 2·fx)·fx² → slot(-0xc)**
+      (@0x8fb410 / @0x8fb41c / store @0x8fb420); **wy = (3.0 − 2·fy)·fy²
+      → slot(-0x1c)** (@0x8fb435 / @0x8fb444 / store @0x8fb448);
+      **c0 = 57.0·round(y) + round(x) → slot(-0x4)** (@0x8fb3e9 /
+      @0x8fb3fc / store @0x8fb417; round = 0x44d0b0 fld/fistp, C40).
+      Corners = fract(sin(c0+k)): **h58 → slot(-0x8)** (arg +58.0
+      @0x8fb43c, sin 0x44d110 @0x8fb44d, store @0x8fb486), **h57 →
+      xmm2** (arg +57.0 @0x8fb47e, sin @0x8fb48b), **h1 → slot(-0x14)**
+      (arg +1.0 @0x8fb4d3, sin @0x8fb4db, store @0x8fb514), **h0 →
+      xmm2** (arg +0.0 @0x8fb507..50c, sin @0x8fb519; floor-fix
+      completes @0x8fb548).
+    - **The lerp idiom — the crux:** every blend = `subss` → `mulss t`
+      → `addss` = **`(A − B)·t + B` ⇒ t=0 selects B (the second
+      operand).** Three blends, byte reads: **y+1 row** @0x8fb4b7..4c9
+      = slot(-0x8) − h57; ·wx; + h57 → store slot(-0x8) = (h58 − h57)·wx
+      + h57 ⇒ wx=0 ⇒ **h57**; **y row** @0x8fb548..55a (h1 loaded
+      @0x8fb53a) = h1 − h0; ·wx; + h0 ⇒ wx=0 ⇒ **h0** (xmm1); **out**
+      @0x8fb55e..567 = (y+1row − yrow)·wy + yrow ⇒ wy=0 ⇒ **the y row**
+      (xmm0). ⇒ **0x8fb350 = standard orientation: out =
+      lerp(lerp(h0,h1,wx), lerp(h57,h58,wx), wy)**, wx = wy =
+      smoothstep(frac) — structurally IDENTICAL to C83's 0x8fb570 law
+      (the parity weight mix = the only difference). Function =
+      0x8fb350..0x8fb56f (ret @0x8fb56e) = 543 B.
+    - **0x8fb570's tail is BYTE-IDENTICAL to 0x8fb350's** (same
+      opcodes, same ebp slots −0x8/−0xc/−0x1c): @0x8fb546..567 ≡
+      @0x8fb818..839 (22 bytes: the interleaved `pop %edi/%esi`, the
+      floor-fix `subss`, the slot(-0x8) row load, and all six blend
+      instructions) and @0x8fb4b7..4c9 ≡ @0x8fb789..79b (the y+1-row
+      blend); body 0x8fb570..0x8fb841 (ret @0x8fb840) = **721 B** ✓
+      C83 — C83's `out = lerp(lerp(h0,h1,Wx), lerp(h57,h58,Wx), Wy)`
+      byte-reconfirmed.
+    - **[DEFECT] verdict — the port is endpoint-inverted:**
+      `mapgen/lib/noise-proto.mjs:183` defines `lerp(a,b,t) = (b−a)·t
+      + a` (**t=0 selects a = the FIRST arg**) and is called rowA =
+      lerp(h58,h57,wx), rowB = lerp(h1,h0,wx), out = lerp(rowA,rowB,wy)
+      ⇒ at t=0 the port returns h58 / h1 / rowA — the OPPOSITE
+      endpoint of all three asm blends (h57 / h0 / y-row). Algebra:
+      each inner lerp's t and the final lerp's t are complemented ⇒
+      **port(wx, wy) = binary(1−wx, 1−wy) on the same c0.** Numeric
+      (`sidebyside-112.mjs`, 5 points, f32 lanes): port ≡
+      weight-complemented parse ≤ 1e-6 at every point; port −
+      byte-literal = **0.34..0.97** — (12.5, −3.25): port
+      **0.833995283** (= (26)'s smoke pin "0.834", ABOUT_MATH:2940) vs
+      byte-literal **0.493832439**; (0.25,0.25): 0.668501258 vs
+      0.211786672; integer (3,5): 0.907893717 = h(c0+58) vs
+      0.371890724 = h(c0); (−7.6,12.1): 0.293845415 vs 0.650447428;
+      (100.999,−0.001): 0.991591871 vs 0.018220901. NOT a coordinate
+      mirror either: mirroring flips round(x)/round(y) ⇒ c0 shifts by
+      57·Δy+Δx ⇒ **the port's output equals NO evaluation of the
+      binary** — the mirrored lattice keeps the near-corner c0.
+    - **Impact — caller census this dig:** `call 0x8fb350` @**0x90b00d**
+      (addNoise=1), @**0x90aef9** (addNoise=2), @**0x90ae25**
+      (addNoise=3), @**0x8fd93e** (the NOISE_TYPE dispatch, 0x8fd920
+      switch @table 0x8fdaa4, C36). Gate re-read: `comiss [0x11dfb84]`
+      @0x90ab48 (the 0.51 gate), eax = [ebx+0x220] = addNoise, dec/je
+      1→0x90afeb 2→0x90aeba 3→0x90ae03, default @0x90ab7d = I20's
+      throw arm (case-1 slab 0x50a7eb + 0x400800 = 0x90afeb ✓ C13);
+      case-2's second lattice = `call 0x8fbb40` @0x90af1d = the
+      port's fnvLattice2d source. ⇒ every live surface lane renders
+      the mirrored lattice.
+    - **Correction of entry (26)'s fn labels (fulltext86-verified):**
+      "true 0x8fc550" (whiteLattice2d twin) and "true 0x8fc940"
+      (FNV24 lattice) = **0 hits** in fulltext86 (the 0x8fc4xx/5xx
+      region IS covered — 136 instruction labels — so neither is an
+      instruction boundary). slab+0x400800 (C13): twin slab 0x4fb150 →
+      **0x8fb950** (signature matches (26): 2× round 0x44d0b0
+      @0x8fb973/982, 57.0 mul @0x8fb9e1, smoothstep 2.0 mul
+      @0x8fb9f0; ONLY caller = @0x8fd966 = the dispatch lane);
+      FNV slab 0x4fb340 → **0x8fbb40** (callers @0x8fd974 dispatch +
+      @0x90af1d addNoise=2 ✓ = fnvLattice2d). The twin is NOT in any
+      surface lane ⇒ I22's scope = 0x8fb350's port only.
+    - [OPEN] (next units): the I22 fix (swap the three endpoint pairs;
+      register-backed + a byte-pinned test pin — candidate
+      `whiteLattice2d(12.5,−3.25) = 0.493832439` — + IoU after);
+      I20② default-arm port (C83 byte-closed); twin 0x8fb950's
+      constant-diff (relabel from (26)'s 0x8fc550); carried: the
+      (111) OPEN list unchanged (93e550/0x132aed8, 9d89d0,
+      443390/4433e0/444a10, fe81b0 + 0x1344b90 +0x24, 797d10/7924c0,
+      8f5760/8f5d20 fill semantics + 0x1033781, 93ef50/9ef4e0 +
+      9ef570 3rd arg, a735a0/93ee40, driver[+0x58]/[+0xbc], state 7,
+      env-y-width, margin 8, A[+0x30], 909370/909da0, (109)@8243's
+      0x793338 A-guard, carried 0x740f80/0x7412c0/0x93d710/0x93edb0/
+      0x949e80/0x94a9d0/band-field provenance/vfunc[1]==2/driver[+0x78]
+      provenance/0x908f40 stale xmm0).
+    - Landed: CONSTANTS **C91**, ISSUES **I22**, this entry **(112)**,
+      VERIFIED CASE-1 LANE CLOSED fidelity caveat. No §8 row, no §12,
+      no patch — drop path OFF. Gates green at commit. Next free:
+      entry **(113)**, **C92**, **I23**; §8 row 33 free.

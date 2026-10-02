@@ -319,6 +319,11 @@ binary side unread) · ❌ unexplored.
    core (sin-hash value noise, IAT-named libm sin) + the case-1 blend
    ported → the 47-biome lane computes; V2 full-map smoke = 2194
    chunks with real texture (winter/desert/pyramid ~48–51% density).
+   **FIDELITY CAVEAT (2026-10-02 (112), C91, I22):** the port's three
+   blend endpoints are inverted — the lane computes and the texture is
+   real, but its values are the cell-mirrored lattice (port =
+   binary(1−wx,1−wy) on the same c0; smoke 0.834 = the INVERTED
+   value, byte-literal 0.493832439). Fix pending I22.
    **钩 dispatcher cores READ (2026-09-20 (27), C41):** case 1 = the
    FastBlock LCG-hash (214013/2531011-pinned, ÷16384), case 3 = the
    FNV24 + the 12-dir .data pairs @0x12eb950 (all pinned; the
