@@ -8393,3 +8393,310 @@ first use from now on):**
     - Landed: CONSTANTS **C89**, this entry **(110)**. No §8 row, no
       §12, no patch — drop path OFF. Gates green at commit. Next
       free: entry **(111)**, **C90**, **I22**; §8 row 33 free.
+  - **2026-10-02 (111) — census P2 read #8: the setup/fill-source
+    region 0x792580..0x792f76 decoded — prologue + frame convention,
+    skip gate + the 6-string key `??SAV/world/world_<ox>_<oy>.png_petri`,
+    the seed formula, both `0x909da0` env samples (byte-IDENTICAL),
+    `0x8f5760` = the fill-source builder, dispatch → shuffle → sort →
+    resize, and `frame[+0x48]`'s full lifecycle; CONFIRMS (110)'s two
+    corrections of (109) with the pending counts. Closes (108)'s /
+    (109)'s / (110)'s setup-region, env-sample, frame[+0x70]/[+0x50]/
+    [+0x48]/[+0x80]/[+0x7c] and "frame[+0xf0] fill" tags. No patch, no
+    port, no IoU — judge parked.**
+    - Method: `/tmp/opencode/fulltext86.asm` (true VAs) for every
+      0x793xxx site + window `/tmp/opencode/dig111-setup.asm`
+      (0x792503..0x792eff) + `/tmp/opencode/dig111-biome.asm` (the two
+      builder bodies); Ghidra decompiles at
+      `~/work/ghidra-logs/surface-region/` as reading aids; strings and
+      f64 byte-read from `noita_dev.exe` (rdata file = VA − 0x400E00);
+      every address below re-read on disk this session.
+    - **Prologue + frame convention (byte-exact 0x792580-0x7925de)**:
+      `push %ebp; mov %esp,%ebp; and $-64,%esp` @0x792580-0x792583 →
+      SEH chain `push $-1` @0x792586, handler `push $0x107dfb8` @
+      0x792589, `push %fs:0` @0x792593 → `sub $0x168,%esp` @0x792594 =
+      **S** → /GS cookie (`mov 0x12eb000,%eax; xor %esp,%eax;
+      mov %eax,0x130(%esp)`) @0x79259a-0x7925a1 with esp = S → `push
+      %ebx/%esi/%edi` @0x7925a8-0x7925aa → cookie `xor; push %eax` @
+      0x7925ab-0x7925b2 ⇒ **E = S − 16 = A − 0x184** (A = esp on entry,
+      S = A − 0x174) → fs registration `lea 0x178(%esp),%eax;
+      mov %eax,%fs:0` @0x7925b3-0x7925ba ⇒ **fs EXCEPTION_REGISTRATION =
+      frame[+0x178] = A−12, and the `push $-1` slot = A−4 = frame
+      [+0x180] = the unwind-state dword**; the /GS cookie lands at
+      frame[+0x140]. **frame[+0xNN] = E+0xNN**; only transient stack
+      ops subtract (pushes and `sub $N`), 4 bytes per slot. Set-up:
+      this (ecx) → ebx @0x7925c0, **frame[+0x38] := driver** @0x7925c2,
+      `xor %ecx,%ecx` → frame[+0x30] := 0 @0x7925c8, printf-IAT → edi @
+      0x7925cc, frame[+0x2c] := 0 @0x7925d2; `test %ebx,%ebx; jne
+      0x79269e` @0x7925d6-0x7925d8 ⇒ null-this falls into assert **line
+      0x38f = 911**, expr 0x1168a04 = `data` (`push $0x38f` @0x7925de;
+      report tail `call 0x10078c0` + `movl $0x1ca9,(%eax)` crash — the
+      same idiom at @0x792692-0x792698, @0x792bd1, @0x793092-0x793094).
+    - **Skip gate (byte-exact)**: `lea 0x58(%ebx)` (&driver[+0x58]) @
+      0x79269e → push @0x7926a1; `lea 0x60(%esp)` (1 pending → &frame
+      [+0x5c]) @0x7926a2 → push @0x7926a6; `call 0x93e550` @0x7926a7
+      (**ret 8** → pending 0, proven by the next `lea 0x120(%esp)` @
+      0x7926bd); `mov (%eax),%eax; cmp 0x132aed8,%eax; je 0x7927c2` @
+      0x7926ac-0x7926b4 — **global-sentinel match → skip the whole key
+      build → flag byte frame[+0x37] := 0 @0x7927c2**; else @0x7926ba
+      `lea 0x24(%ebx),%edx` (&driver[+0x24]) + @0x7926bd `lea 0x120(%esp),%ecx`
+      (&frame[+0x120], 0 pending). 0x93e550's semantics + the sentinel's
+      polarity stay OPEN.
+    - **The 6-string key build (byte-exact 0x7926c4-0x7927b9)** — every
+      slot write carries its pending count: `0x9d89d0(&frame[+0x120],
+      &driver[+0x24])` @0x7926c4 → eax → esi @0x7926c9; **state := 0**
+      @0x7926cb (0 pending → frame[+0x180]); `lea 0x20(%ebx),%edx` +
+      `lea 0xcc(%esp),%ecx` (&frame[+0xcc]) + **build mask frame[+0x30]
+      := 1** @0x7926e0; `0x9d89d0(&frame[+0xcc], &driver[+0x20])` @
+      0x7926e8 → **state := 1** @0x7926ed; `lea frame[+0x9c]` @0x7926f8 →
+      `push %eax` @0x7926ff (1 pending) + edx := 0x11a4744 + **frame
+      [+0x30] := 3** @0x792705 (1 pending → `0x34(%esp)`) → `0x443390` @
+      0x79270d (`add $4` → 0 pending) → **state := 2** @0x792715; `lea
+      frame[+0xb4]` + `push $0x11885fc` + **frame[+0x30] := 7** @
+      0x79272e → `0x4433e0` @0x792736 → **state := 3** @0x79273e; `lea
+      frame[+0xe8]` + `push %esi` + **frame[+0x30] := 0xf** @0x792753 →
+      `0x444a10` @0x79275b → **state := 4** @0x792763; `lea frame
+      [+0x100]` + `push $0x11a4738` + **frame[+0x30] := 0x1f** @0x79277c →
+      `0x4433e0` @0x792784 → **state := 5** @0x79278c ⇒ **key = `??SAV/
+      world/world_<driver[+0x20]>_<driver[+0x24]>.png_petri`** (with
+      +0x20 = originX, +0x24 = originY per C86/C87; string order:
+      prefix + str(+0x20) + `_` + str(+0x24) + suffix). Then ecx := 0x3f
+      @0x792797, `push %eax` (string5) @0x79279c, **dtor mask frame
+      [+0x2c] := 0x3f** @0x7927a2 (1 pending → `0x30(%esp)`) AND frame
+      [+0x30] := 0x3f @0x7927a6 → query `call *0x24(%eax)` @0x7927af
+      (ecx = the `0x1344b90` singleton, vtable +0x24, target `0xfe81b0`)
+      → **frame[+0x37] := 1 @0x7927b9** / **:= 0 @0x7927c2** (flag meaning
+      OPEN). Note the gate's out-slot frame[+0x5c] is clobbered by the
+      raw seed below (slot reuse).
+    - **Dtor cascade = the 6 KEY-BUILD strings, reverse order**
+      (0x7927c7-0x792944): reads the dtor mask frame[+0x2c] (store-back
+      `mov %eax,0x2c(%esp)` 0 pending @0x7927e0/0x792866/0x7928a9/
+      0x7928ec; reload `mov 0x30(%esp)` 1 pending @0x7927ef/0x792875/
+      0x7928b8/0x7928fb — both spellings resolve to frame[+0x2c]);
+      **bit → slot: 0x20 → frame[+0x100]** (`_Myres` @+0x114, push @
+      0x7927e6), **0x10 → frame[+0xe8]** (+0xfc), **0x08 → frame[+0xb4]**
+      (+0xc8, push @0x79286c, SSO resets @0x79287c/0x792887/0x792892),
+      **0x04 → frame[+0x9c]** (+0xb0, push @0x7928af, resets @0x7928bf/
+      0x7928ca/0x7928d5), **0x02 → frame[+0xcc]** (+0xe0, push @0x7928f2),
+      **0x01 → frame[+0x120]** (+0x134, push @0x792939); each step:
+      and-clear bit → store-back → `cmpl $0x10, _Myres; jb skip` →
+      `push buffer; call *%esi` (free via `[0x114a348]`) → reload → SSO
+      reset (`_Myres := 0xf, _Mysize := 0, byte0 := 0`). MSVC std::string
+      = `{_Bx 16 B @0, _Mysize @+0x10, _Myres @+0x14}`, heap iff
+      `_Myres ≥ 0x10`. **state dword := −1 (`movl $0xffffffff,0x180(%esp)`)
+      @0x792920** before the last bit; destruction runs in REVERSE build
+      order (bit 0x20 = string5 first … bit 0x01 = string0 last) ⇒
+      correct C++ unwind order, and **the same six slots are then
+      reused** as V0 (+0xcc) / V1 (+0x9c) / V2 (+0xb4) / V3 (+0xe8) /
+      obj1 (+0x100) / obj2 (+0x120).
+    - **Early exit** @0x792945-0x792967: `cmpb $0,0x37(%esp)` (0
+      pending); flag ≠ 0 → `ecx := ebx; call 0x797d10` @0x79294e,
+      `call 0x7924c0` @0x792955, **`driver[+0xc8] := 1`** (`mov $1,%ecx;
+      lea 0xc8(%ebx),%eax; xchg %ecx,(%eax)`) @0x79295a-0x792965 → `jmp
+      0x793e2b` (epilogue) ⇒ a "done" answer skips the whole build + cell
+      loop. flag == 0 → `cmpl $0,0x74(%ebx)` @0x79296c (grid_world gate;
+      assert **line 0x39c = 924**, expr 0x11a4758 = `data->grid_world`).
+    - **V inits + the state byte's full store list**: V1 := 0 at frame
+      [+0x9c/a0/a4] + **state 6** @0x792a30-0x792a51; V2 := 0 at
+      [+0xb4/b8/bc] @0x792a5c-0x792a79 (**NO state store — state 7 is
+      never written anywhere in the function**); V3 := 0 at [+0xe8/ec/f0]
+      + **state 8** @0x792a7d-0x792a9e; V0 := 0 at [+0xcc/d0/d4] +
+      frame[+0x44] := 0 + **state 9** @0x792ce2-0x792d05 (ebx cross-check
+      `mov 0x38(%esp),%eax` @0x792d01 ⇒ frame[+0x38] = driver ✓). Full
+      byte-grep of `0x180(%esp)` stores (**15 total**): 0/1/2/3/4/5 @
+      0x7926cb-0x79278c, −1 @0x792920, 6 @0x792a51, 8 @0x792a9e, 9 @
+      0x792d05, 8 @0x792f61, 0xa @0x79338e (2 pending → E+0x180), 0xb @
+      0x7933a0, 0xa @0x793d97, 8 @0x793db4 — **state 7 absent (V2's
+      turn — genuine gap, OPEN)**. Also grid_world vcalls `[*vtable+0x58]`
+      → **frame[+0x80]** @0x792ab1 and `[*vtable+0x10]` → **frame[+0x7c]**
+      @0x792ac0 ⇒ both slot-provenance tags now SOURCED.
+    - **Seed formula (byte-exact 0x792abd-0x792c13)**: edx := driver
+      [+0x24] @0x792abd, eax := driver[+0x20] @0x792ac4, `lea 0x2(%edx),%ecx`
+      @0x792ac7 → xmm1 := (double)(oy+2) @0x792aca-0x792acf → × ox @
+      0x792ad2-0x792add (pre-`add $-3`) → × (ox−3) @0x792ae1-0x792ae9 →
+      × oy @0x792aed-0x792af5 → `addsd [0x11dfe30] = 1.0` @0x792af9 →
+      `comisd [0x11df878] = 0.0` @0x792b01, spill **frame[+0x5c] := raw
+      seed** @0x792b09 (0 pending), `ja 0x792bd9` @0x792b0f (seed > 0
+      skips the assert: **line 0x3ab = 939**, expr 0x11a476c = `seed > 0`,
+      time64 → frame[+0x6c] @0x792b3a / **frame[+0x70] @0x792b42**, crash
+      @0x792bd1). Scale loop @0x792bd9-0x792c13: bound `[0x11e0220] =
+      2147483647.0`, multiplier `[0x11dfdd8] = 0.5` (frame[+0x54] := 0.5
+      @0x792bef), **max 10000 halvings (`cmp $0x2710,%eax; jge`)**, store
+      frame[+0x5c] := scaled @0x792c09, `esi := cvttsd2si` @0x792c0f,
+      **`xor $0xc,%esi`** @0x792c13 ⇒ **esi = trunc(scaled seed) ^ 0xc**.
+      Then the procedural gate `cmpl $0,0x70(%ebx); jne 0x792ce2` @
+      0x792c16 (assert **line 0x3b8 = 952**, expr 0x11a4778 = `data->
+      procedural_terrain`; ebx clobbered @0x792c73, restored from frame
+      [+0x38] @0x792ccf).
+    - **Both `0x909da0` env samples are byte-IDENTICAL** — corrects an
+      interim same-session reading (sample 2 first read as `(ox, oy)`;
+      no tracked doc carried that claim — (108)@8127 records "the
+      reference position itself unread", (110)@8390 lists it OPEN):
+      - sample 1 @0x792d0d-0x792d69: eax := frame[+0x38] (driver) @
+        0x792d01; ebx := driver[+0x28] (width) @0x792d0d → `add
+        0x20(%eax),%ebx` = right edge @0x792d10; edi := driver[+0x20]
+        (ox) @0x792d13; ecx := A @0x792d16; **frame[+0x4c] := A** @
+        0x792d19; xmm3 := (double)(ox+w) @0x792d1d-0x792d21; xmm0 := [0x11dfd88]
+        = 0.25 @0x792d25 → **frame[+0x84] := 0.25** @0x792d35; xmm2 :=
+        (double)ox; xmm3 = width @0x792d3e; xmm3 = width × frame[+0x54]
+        (= 0.5) @0x792d46; xmm1 = width × 0.25 @0x792d4c; xmm0 := (double)
+        driver[+0x24] (oy) @0x792d50; **xmm3 = ox + 0.5·width, xmm1 =
+        oy + 0.25·width** @0x792d59-0x792d5d → register swap @0x792d61/
+        0x792d65 → `call 0x909da0` @0x792d69 (ecx = A; **NO stack args**)
+        → **frame[+0x64] := region** @0x792d6e (null → re-store @0x792d76
+        + `jmp 0x792dbf` = skip 0x8f5760).
+      - sample 2 @0x792dd6-0x792e27: `mov 0x20(%ecx),%edi` (ox) @0x792dd6,
+        `mov 0x28(%ecx),%ebx` (width) @0x792dd9 → `add %edi` (right edge)
+        @0x792ddc, `mov 0x70(%ecx),%eax` (A) @0x792dde → **frame[+0x3c]
+        := A** @0x792de1; xmm2 := (double)ox @0x792de5-0x792de9; xmm3 :=
+        (double)(ox+w) @0x792ded-0x792df1; xmm0 := (int)oy @0x792df5;
+        ecx := A @0x792dfa; **xmm3 = (ox+w) − ox = width** @0x792dfc;
+        xmm0 := (double)oy @0x792e00; `movapd` @0x792e04; `mulsd 0x54(%esp)`
+        (0 pending → frame[+0x54] = 0.5) @0x792e08; `mulsd 0x84(%esp)`
+        (0 pending → frame[+0x84] = 0.25) @0x792e0e; **xmm3 = ox +
+        0.5·width, xmm1 = oy + 0.25·width** @0x792e17-0x792e1b → swap @
+        0x792e1f/0x792e23 → `call 0x909da0` @0x792e27; the return is read
+        **only** for `[eax+0x2a4] = mBiomeMaterials` @0x792e30 (not
+        stored; null → `je 0x792e64` = dispatch).
+      ⇒ **both samples = (driver[+0x20] + 0.5·driver[+0x28], driver[+0x24]
+      + 0.25·driver[+0x28])** = (originX + width/2, originY + width/4)
+      under C86's {ox, oy, width} map — **both offsets derive from +0x28
+      = width (NOT height), and the two calls are not distinguishable**.
+      Closes (108)@8127 / (109)@8250 / (110)@8390's "setup reference
+      position" tags; why the y offset uses width stays OPEN.
+    - **The two builder calls (byte-exact)**:
+      - **`0x8f5760` = the fill-source builder** @0x792d7c-0x792dbf:
+        ecx := `[eax+0x2a4]` (mBiomeMaterials) @0x792d7c + null gate
+        `je 0x792dbf` @0x792d84; `lea 0xcc(%esp),%eax` (&V0, 0 pending) @
+        0x792d8a; `sub $8,%esp` @0x792d95 + right-edge f64 → `(%esp)` @
+        0x792d98; `push %eax` (&V0) @0x792da1 (2 stack slots now); `mov
+        0x58(%esp),%eax` @0x792da2 (12 pending → E+0x4c = A) → xmm2 :=
+        A[+0x30] @0x792daa; xmm3 := (double)ox @0x792d9d/0x792da6;
+        `call 0x8f5760` @0x792daf (**ret $0xc** = the 8+4 bytes ⇒ pending
+        0) → `mov 0xd0(%esp),%eax` (V0.end) @0x792db4 → **frame[+0x44] :=
+        V0.end** @0x792dbb. Signature: `0x8f5760(mBiomeMaterials, &V0,
+        right-edge f64, A[+0x30], ox)`; V0 = the 16-byte `{double @−8,
+        Object* @0}` list ⇒ **closes (109)@8240-8241 / (110)@8388-8389's
+        "where the {double, ptr} list comes from"**.
+      - clear + restash: ecx := frame[+0x38] (driver) @0x792dbf →
+        **driver[+0xc0] := driver[+0xbc]** @0x792dc9-0x792dcf (clear) →
+        **frame[+0x4c] := &driver[+0xbc]** @0x792dd2 (slot was A).
+      - **`0x8f5d20`** @0x792e30-0x792e5f: ecx := mBiomeMaterials @
+        0x792e30 + null gate @0x792e38; eax := frame[+0x3c] (A) @0x792e3a;
+        `sub $8` @0x792e3e; xmm3 := (double)right-edge @0x792e41-0x792e45;
+        xmm2 := A[+0x30] @0x792e49; f64 → `(%esp)` @0x792e4e; `push
+        0x54(%esp)` @0x792e53 (8 pending → E+0x4c = **&driver[+0xbc]**);
+        xmm3 := (double)ox @0x792e57-0x792e5b; `call 0x8f5d20` @0x792e5f
+        (**ret $0xc** @0x8f5ea5; own assert line 0x19e = 414) ⇒ `0x8f5d20(mBiomeMaterials,
+        &driver[+0xbc], right-edge f64, A[+0x30], ox)`.
+    - **Dispatch → shuffle → sort → resize (byte-exact 0x792e64-0x792f74)**:
+      count = `(frame[+0x44] − frame[+0xcc])>>4` @0x792e64-0x792e71, edi
+      := V0.begin + 8 @0x792e78, stride `add $0x10` @0x792ed6, ebx = the
+      countdown, 0 pending throughout; **`[obj+7] ≠ 0` → ceiling** @
+      0x792e82: `cvttsd2si −8(%edi)` → frame[+0x6c], cfg → **frame[+0x70]**
+      @0x792e8d, `lea frame[+0xe8]` + `lea frame[+0x6c]` → `0x93ef50`
+      (8-byte `{int @0, ptr @4}` pairs per (109)@8213-8216); **`[obj+6]
+      ≠ 0` → grass** @0x792ea2: edx := elem+8 @0x792ea8, `lea frame
+      [+0xb4]` → `0x9ef4e0` (0 stack args); **else → band B** @0x792eb8:
+      cfg → **frame[+0x50]** @0x792ebd, cvttsd2si → frame[+0x4c], `lea
+      frame[+0x9c]` + `lea frame[+0x4c]` → `0x93ef50` ⇒ **closes
+      (109)@8241-8242's frame[+0x70]/[+0x50] setup-writer tag**. Then edi
+      := frame[+0xcc] @0x792edc (0 pending — the pointer freed below) and
+      **shuffle** `0x9ef570(ecx = &frame[+0x9c], xmm1 = f64 frame[+0x5c]
+      = the scaled seed)` @0x792ef0 (any 3rd arg = edi, OPEN). **Sort 1**:
+      edx := frame[+0xa0] (V1.end) @0x792f03, ecx := frame[+0x9c] (V1
+      begin) @0x792f0a, frame[+0x4c] := 0 (pred) @0x792f11 (0 pending) →
+      `push 0x4c(%esp)` @0x792f16 + `sar $3,%eax` + `push %eax` → **`0xa735a0`
+      @0x792f1e with its 2 pushes left uncleaned** (cdecl; the caller
+      defers cleanup to the single `add $0x10` @0x792f4f). **Sort 2**:
+      edx := `0xf4(%esp)` (2 pending → **frame[+0xec] = V3.end**) @
+      0x792f23; ecx := `0xf0(%esp)` (**frame[+0xe8] = V3.begin**) @
+      0x792f2c; `eax = edx − ecx` @0x792f33; frame[+0x4c] := 0 @0x792f35
+      (2 pending → E+0x4c); `push 0x54(%esp)` + `sar $3` + `push %eax`
+      (4 pending) → **`mov %eax,0x58(%esp)` @0x792f42 (4 pending →
+      E+0x48) = THE frame[+0x48] writer: frame[+0x48] := eax = V3.count** →
+      `0xa735a0` @0x792f46 → **`mov 0x48(%esp),%ebx` @0x792f4b (4 pending
+      → E+0x38 = driver)** → `add $0x10` @0x792f4f (→ 0 pending) → `push
+      0x48(%esp)` @0x792f52 (0 pending → frame[+0x48] = V3.count) + `lea
+      0x8c(%ebx)` @0x792f56 → **`0x93ee40(&driver[+0x8c], V3.count)`** @
+      0x792f5c (**ret 4**) → **state 8** @0x792f61 → free V0 `test %edi;
+      push %edi; call *[0x114a348]; add $4` @0x792f69-0x792f74 → `cmpl
+      $0,0x70(%ebx); je 0x793338` @0x792f77-0x792f7b (A-null ⇒ skip the
+      whole cell loop, (109)@8229-8231 ✓), frame[+0x2c] := 0 (y counter)
+      @0x792f81-0x792f83 (0 pending), `driver[+0x2c] ≤ 0 → 0x793338` @
+      0x792f87-0x792f8a.
+    - **CONFIRMS (110)'s two corrections of (109)** — quoting (109)@8220-8223
+      ("on a **third stack vector at frame[+0xf0]/[+0xf4]** (8-byte
+      elements) @0x792f46 … freed @0x792f6d") and (109)@8224-8228 ("**the
+      driver at setup** (load @0x792f4b → `lea 0x8c(%ebx),%ecx` =
+      `&driver[+0x8c]` @0x792f56 → `0x93ee40(&ceiling_plants_to_insert,
+      driver)` @0x792f5c — body open) — the slot is later reused as the
+      ceiling count (its writer still open)"). Both byte-refuted this
+      session: @0x792f23/0x792f2c run with **2 pushes pending** ⇒ frame
+      [+0xec]/frame[+0xe8] = the ceiling vector's {end, begin} (only
+      three stack vectors exist — there is no frame[+0xf0] vector), and
+      @0x792f4b with **4 pending** ⇒ frame[+0x38] = driver, while the
+      writer @0x792f42 (4 pending) writes frame[+0x48] and @0x792f52
+      (0 pending) re-pushes frame[+0x48] ⇒ `0x93ee40(&driver[+0x8c],
+      V3.count)`, **not** driver. The pending chain that makes both
+      corrections work = sort1's 2 uncleaned pushes + sort2's 2.
+    - **`frame[+0x48]` full lifecycle (closes (109)@8228 / (110)'s writer
+      tag)**: `:= (V3.end − V3.begin)>>3 = V3.count` @0x792f42 → pushed
+      as 0x93ee40's arg @0x792f52 → ceiling-scan bound `cmp 0x48(%esp),%ecx`
+      @0x793109 (head) / @0x79312d (inner) / @0x79314d (exit) — 0 pending
+      (no push between 0x793090 and 0x793109) → **reused as the margin y**:
+      `:= 8` @0x7933ad (`mov $8,%edx` @0x79339b) guarded by `driver[+0x2c]
+      − 8 ≤ 8 → 0x793d81` @0x7933a8-0x7933b3 ∧ `driver[+0x28] − 8 ≤ 8 →
+      0x793d6e` @0x7933c0-0x7933d0 → read @0x793460 → `inc %edx; mov
+      %edx,0x48(%esp)` @0x793d71/0x793d75 with the row back-edge `jl
+      0x7933c0` @0x793d7b (the (8,8)-margin y home). Siblings: frame
+      [+0x40] := 8 @0x7933ca (x) with back-edge `jl 0x7933e0` @0x793d64,
+      frame[+0x7c] := y<<9 @0x7933db (4096 at y = 8). The write/guard
+      chain is now fully pinned; **the semantic reason for the constant
+      8 stays OPEN**.
+    - **Slot-reuse map (this region)**: frame[+0x5c] = 93e550's out →
+      raw seed → scaled seed (→ shuffle arg); frame[+0x2c] = dtor mask
+      (0x3f) → cell y (:= 0 @0x792f83) → margin dy (:= −1, C89); frame
+      [+0x30] = build mask (1…0x3f) → x counter (:= 0 @0x792fa6); frame
+      [+0x4c] = A (@0x792d19) → &driver[+0xbc] (@0x792dd2) → sort1/sort2
+      pred byte; frame[+0xcc] = build string1 → V0 → start/end-time
+      double (C89's frame[+0xcc] = x87 spill @0x793377 re-verified: 2
+      pending after the `push $3` pair @0x79336c-0x79336e); frame
+      [+0x6c]/[+0x70] = time64 edx:eax (assert paths @0x792b3a/@0x792b42)
+      → V3 staging (int/cfg @0x792e98/@0x792e8d); frame[+0x7c]/[+0x80] =
+      grid_world vfunc results (@0x792ac0/@0x792ab1) → y<<9; frame
+      [+0x100]/[+0x120] = build strings5/0 → obj1/obj2 (`lea 0x108(%esp)`
+      2 pending @0x793370 ⇒ E+0x100, `lea 0x128(%esp)` 2 pending @
+      0x793387 ⇒ E+0x120; ctor `0x92e980(&obj, 3, 3)` @0x79337e/0x793396).
+    - **Call-cleanup conventions observed this dig** (drives every
+      pending count above): `0x93e550` ret 8, `0x93ee40` ret 4,
+      `0x8f5760`/`0x8f5d20` ret $0xc (callee cleans, no `add` follows);
+      `0x443390`/`0x4433e0`/`0x444a10`/`0x10078c0`-style + `0xa735a0`
+      cdecl (caller's `add $4` follows — except a735a0, whose pushes
+      survive until `add $0x10` @0x792f4f); `0x9d89d0`/`0x9ef4e0`/
+      `0x9ef570` take only registers (0 stack args).
+    - **Asserts pinned (all five in/near the region)**: null-this **0x38f
+      = 911** expr `data` @0x1168a04; grid_world **0x39c = 924** expr
+      `data->grid_world` @0x11a4758; seed **0x3ab = 939** expr `seed > 0`
+      @0x11a476c; procedural **0x3b8 = 952** expr `data->procedural_terrain`
+      @0x11a4778; IsValid **0x3e9 = 1001** expr `data->array2d->IsValid(
+      x, y )` @0x11a4794 (C85 ✓) with the report @0x793047-0x793083 (ebx
+      reload from frame[+0x38] @0x79307f, `add $0x14` + `add $0x4` → 0
+      pending) and the `driver[+0x78]` byte gate @0x79309a (C85 ✓).
+    - [OPEN] (next units): `0x93e550` + the `0x132aed8` sentinel's
+      polarity (string-key semantics); `0x9d89d0` (int→string step);
+      `0x443390/0x4433e0/0x444a10` (concat helpers); `0xfe81b0` + the
+      `0x1344b90` object's +0x24 vcall meaning (flag frame[+0x37]); the
+      early-exit pair `0x797d10`/`0x7924c0`; `0x8f5760`/`0x8f5d20` fill
+      semantics (incl. the `0x11dfb90`/`0x11e0068` quantization feeding
+      `0x1033781`, which has no ghidra file); `0x93ef50`/`0x9ef4e0`
+      (pair-push bodies), `0x9ef570`'s 3rd arg, `0xa735a0`/`0x93ee40`
+      (semantics — conventions known); driver[+0x58] (the cache key) and
+      driver[+0xbc] (config-pointer vector) consumers; state 7; why the
+      env y-offset uses WIDTH; the margin constant 8's meaning; A[+0x30]
+      identity; `0x909370` / `0x909da0` bodies; (109)@8243's `0x793338`
+      A-guard re-check; carried: 0x740f80 / 0x7412c0 / 0x93d710 / 0x93edb0
+      / 0x949e80 / 0x94a9d0 / band-field provenance / vfunc[1]==2 /
+      driver[+0x78] provenance / 0x908f40 stale xmm0.
+    - Landed: CONSTANTS **C90**, this entry **(111)**. No §8 row, no
+      §12, no patch — drop path OFF. Gates green at commit. Next free:
+      entry **(112)**, **C91**, **I22**; §8 row 33 free.
