@@ -27,8 +27,12 @@
 //     default arm (0), returns 0 with NO throw (switch never entered);
 //   - winter consequence: census attr null → uidFrom:114 noiseKind −1 →
 //     dispatch throws kind=-1 (two-sided pin);
-//   - default arm (live 0 + stale 4) throws at the open gate with the
-//     byte-fact message (gate/dec-je/@0x90ab7d/0x8fb570/0x8fca60/I20);
+//   - default arm byte-tail pin (I20②, dig #113): live addNoise 0 +
+//     stale 4 both COMPUTE the byte chain a = parityLattice2d(x·0.025,
+//     y·0.025), g = a·0.05+0.05, n = simplex2d(x·0.5·0.02·g, y·0.5·0.02·g)
+//     [the f32 slot K2.h02 @0x11df908, NOT case-1's f64_002], r2 =
+//     f(n·rp), C77 tail — no throw anymore — plus a whiteLattice-
+//     substituted sensitivity (C83 vs C40: the parity weight mix);
 //   - lanes 1/3: byte-tail pins — expected = the byte-exact chain
 //     rpost = f(f(f(r2−rp)·f((rp−0.85)/0.1))+rp), r2 = f(n·rp) — plus
 //     an old-sign discriminator (the pre-fix port computed (rp−r2) with
@@ -50,6 +54,7 @@ import {
   K2,
   evaluator2,
   whiteLattice2d,
+  parityLattice2d,
   fnvLattice2d,
   simplex2d,
   simplex2DDeriv,
@@ -283,13 +288,28 @@ describe("surfaceField switch/tail frame pins (dig #98, port-only)", () => {
     expect(() => surfaceField(uidOf({ noiseKind: -1 }), 0, 0, G10, 0, 0)).toThrow(/kind=-1/);
   });
 
-  test("default arm (live addNoise=0 + stale 4) throws at the open gate with the byte-fact message", () => {
-    rpPre(XD, YD);
+  test("default arm byte-tail pin (I20②): live 0 + stale 4 compute, no throw", () => {
+    const rp = rpPre(XD, YD);
+    const a = parityLattice2d(f(XD * K2.h025), f(YD * K2.h025));
+    const g = f(a * K2.h05 + K2.h05);
+    const n = simplex2d(f(XD * K.KERNEL) * K2.h02 * g, f(YD * K.KERNEL) * K2.h02 * g);
+    const exp = expOut(tail(f(n * rp), rp));
     for (const an of [0, 4]) {
-      expect(() => surfaceField(uidOf({ addNoise: an }), XD, YD, G10, 0, 0), `lane ${an}`).toThrow(
-        /0x90ab48.*0x90ab7d.*0x8fb570.*0x8fca60.*I20/s,
+      expect(surfaceField(uidOf({ addNoise: an }), XD, YD, G10, 0, 0), `lane ${an}`).toBeCloseTo(
+        exp,
+        7,
       );
     }
+    // sensitivity: the arm's lattice is parityLattice2d (C83), NOT the
+    // plain-smoothstep whiteLattice2d (C40). The substitution moves the
+    // LATTICE input by ≈1.28e-2 at this frame and the pinned output by
+    // ≈9.2e-5 (the g → simplex → tail chain compresses it), so both
+    // asserts are stated at their own measured scale.
+    const aPlain = whiteLattice2d(f(XD * K2.h025), f(YD * K2.h025));
+    expect(Math.abs(a - aPlain)).toBeGreaterThan(1e-3);
+    const gPlain = f(aPlain * K2.h05 + K2.h05);
+    const nPlain = simplex2d(f(XD * K.KERNEL) * K2.h02 * gPlain, f(YD * K.KERNEL) * K2.h02 * gPlain);
+    expect(Math.abs(exp - expOut(tail(f(nPlain * rp), rp)))).toBeGreaterThan(1e-5);
   });
 
   test("lane 1 byte-tail pin (+ old-sign discriminator)", () => {
@@ -343,5 +363,48 @@ describe("surfaceField switch/tail frame pins (dig #98, port-only)", () => {
     expect(Math.abs(outs[0] - outs[1])).toBeGreaterThan(1e-6);
     expect(Math.abs(outs[1] - outs[2])).toBeGreaterThan(1e-6);
     expect(Math.abs(outs[0] - outs[2])).toBeGreaterThan(1e-6);
+  });
+});
+
+describe("lattice byte pins (I22 fix + I20② parity core, dig #113)", () => {
+  test("whiteLattice2d endpoint pin: (12.5,−3.25) = floor-cell byte-literal; round-cell + endpoint-flip excluded", () => {
+    // Byte law re-derived dig #113 with the CORRECT lattice cell: the
+    // helper 0x44d0b0 = the CRT `floor` wrapper — thunk 0x1033a52 =
+    // `ff 25 [0x114a534]`, IAT 0x114a534 name record = "floor" hint
+    // 1646 (PE import dir read this session), NOT C40's "fld/fistp
+    // round" gloss. At this point floor ≠ round ⇒
+    //   c0 = 57·floor(−3.25) + floor(12.5) = −216   (round: −158)
+    //   floor + standard (C91 blend idiom)  = 0.898207068  ← the binary
+    //   round + standard                    = 0.493832439  (entry (112)'s
+    //                                          literal — STALE, round-derived)
+    //   floor + endpoint-inverted           = 0.723673105
+    //   round + endpoint-inverted           = 0.833995283 = the pre-fix
+    //                                          port = (26)'s smoke "0.834"
+    expect(whiteLattice2d(12.5, -3.25)).toBeCloseTo(0.898207068, 6);
+    expect(Math.abs(whiteLattice2d(12.5, -3.25) - 0.493832439)).toBeGreaterThan(0.3);
+    expect(Math.abs(whiteLattice2d(12.5, -3.25) - 0.723673105)).toBeGreaterThan(0.1);
+  });
+
+  test("integer cell (3,5): wx = wy = 0 ⇒ out = h0 = 0.371890724 for BOTH lattices", () => {
+    // C91: the binary's value at (3,5) = 0.371890724 = h0; the pre-fix
+    // port collapsed to h58 = 0.907893717. parityLattice2d shares the
+    // lattice: its parity weights also hit 0 at fx = fy = 0.
+    expect(whiteLattice2d(3, 5)).toBeCloseTo(0.371890724, 6);
+    expect(parityLattice2d(3, 5)).toBeCloseTo(0.371890724, 6);
+  });
+
+  test("parity branches both diverge from the plain-smoothstep lattice", () => {
+    // floor(2.25) = 2 even / floor(1.25) = 1 odd ⇒ (w0,w1) = (sf,lin)
+    // vs (lin,sf) per C83 (`and 0x80000001` @0x8fb613); whiteLattice2d
+    // uses plain sf — both parities must differ (measured ≈1.1e-3 /
+    // ≈3.1e-3 at this frame).
+    for (const [x, y] of [
+      [2.25, 0.25],
+      [1.25, 0.25],
+    ]) {
+      expect(Math.abs(parityLattice2d(x, y) - whiteLattice2d(x, y)), `(${x},${y})`).toBeGreaterThan(
+        1e-4,
+      );
+    }
   });
 });

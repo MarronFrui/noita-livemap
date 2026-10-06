@@ -2235,7 +2235,10 @@ first use from now on):**
     verification: the floor helper (slab print `0x4c8b0`) = true
     **0x44d0b0** = exe file 0x4c4b0 = a real SSE fp-round helper
     (`55 8b ec 83 e4 c0 83 ec 40 … cvtss2sd … fld/fistp`) matching the
-    call-site contract; canon C20's `call 0x4cff0`?? — the row's
+    call-site contract; **[(113): the body has NO fistp — 0x44d0b0 =
+    the CRT floor wrapper (MSVCR120.dll!floor via IAT 0x114a534,
+    hint 1646); the fldl/fstpl = f64 arg marshalling. C92]**
+    canon C20's `call 0x4cff0`?? — the row's
     `0x43ff0` = true **0x4447f0** (correction recorded in C20/C13).
     ⇒ C13's `true = slab + 0x400800` is UNIVERSAL for these targets.
     Prototype skeleton: `mapgen/lib/noise-proto.mjs` (constants +
@@ -2906,7 +2909,13 @@ first use from now on):**
     VALUE-NOISE, formulas transcribed** (`out/d_2026-09-20-surface-evaluator.asm`
     + case1core.asm):
     - 2 helper calls at head = **true 0x44d0b0** (slab 0x4c8b0 — the
-      C13-verified CRT fld/fistp ROUND-to-nearest wrapper); identity of
+      C13-verified CRT fld/fistp ROUND-to-nearest wrapper) **[SUPERSEDED
+      (113): 0x44d0b0 = the CRT FLOOR wrapper — cvtss2sd → fldl →
+      fstpl → MSVCR120.dll!floor (IAT 0x114a534, hint 1646) → fstpl →
+      cvtpd2ps, NO fistp anywhere in the 55-B body; byte-read
+      (`/tmp/opencode/verify-floor-113.mjs`). So every "round" gloss
+      below and every round-derived number in this entry = wrong]**;
+      identity of
       the second = **true 0x44d110 (slab 0x4c910) = SIN — resolved via
       the MSVCR120.dll import-name table**: the jmp-thunk run at
       VA 0x1033a22..0x1033a5e hits IAT slots 0x114a514..0x114a53c whose
@@ -2917,8 +2926,27 @@ first use from now on):**
       0x114a530 = floor… (the whole math-thunk family named this session;
       the IAT slot chain = cores C38's constants land in .rdata tail name
       records, hint bytes verified).
+      **[SUPERSEDED (113): the slot→name chain read here was off by one
+      from 0x114a514 on and mis-labelled 3 slots; re-read from the PE
+      import directory (name-records resolved, not assumed,
+      `/tmp/opencode/resolve-wrappers-113.mjs`): 0x114a510 =
+      _libm_sse2_acos_precise · 0x114a514 = _libm_sse2_cos_precise ·
+      518 = _libm_sse2_log10_precise · 51c = _libm_sse2_pow_precise ·
+      520 = _libm_sse2_sin_precise · 524 = _libm_sse2_sqrt_precise ·
+      528 = _libm_sse2_tan_precise · 52c =
+      _setjmp3 · 530 = ceil · 534 = floor · 538 = memcpy ·
+      53c = memset (thunks 0x1033a1c..0x1033a5e, one per slot, in
+      that order). Only the sin pin used downstream (0x114a520,
+      0x44d110) survives intact]**
     - the seed hash: **c0 = 57.0·round-f(y) + round-f(x)** (57.0 =
       f32 @0x11e028c, pinned) — round via the fld/fistp tt;
+      **[SUPERSEDED (113): c0 = 57.0·floor(y) + floor(x) — the
+      head calls are the FLOOR wrapper (above), and the c0 blend does
+      `mulss 0x11e028c` (57.0) then `addss −0x8(%ebp)` (the floor(x)
+      slot) BEFORE the −0x4 store @0x8fb417; the corner parities are
+      computed on the floor values (`and 0x80000001` @0x8fb613,
+      `lea 0x1(%ecx)` @0x8fb64f). Port re-based to floor = entry (113);
+      asm-literal at the 5 side-by-side points]**
     - fracs fx/fy from the RAW x/y (inline floors);
     - four corner hashes n = frac(sin(c0 + k)·43758.546875
       (@0x11e04c8)) at **k = {58, 57, 1, 0}** = the ±1-in-x/±57-in-y
@@ -2936,8 +2964,11 @@ first use from now on):**
   - **PORT: `whiteLattice2d` + the case-1 lane REPLACED THE THROW in
     `surfaceField`.** The R2-correction "0x44d110 = sin, 0x44d0b0 = the
     round" identities are COMPUTE/SYNTAX-verified (IAT name table parse),
-    NOT capture-validated.
-  - Smoke: `whiteLattice2d(12.5,−3.25) = 0.834`; the case-1/hills
+    NOT capture-validated. **[SUPERSEDED (113): 0x44d0b0 = FLOOR (see
+    above); the sin half stands]**.
+  - Smoke: `whiteLattice2d(12.5,−3.25) = 0.834` **[SUPERSEDED (113):
+    0.833995283 was the round-based port; floor port =
+    0.898207068 = the asm-literal]**; the case-1/hills
     surfaceField row varies (0.697..1.155); the FULL-MAP V2 run now
     computes 2194 chunks: winter 253, desert 265, pyramid 4,
     snowcastle 2… at ~48–51% solid density with REAL texture (the
@@ -3504,7 +3535,15 @@ first use from now on):**
   1. **Trig helpers = IAT thunks (CLOSED):** `0xc33222 → *0x114a514 =
      acos` · `0xc33234 → *0x114a520 = sin` (the C40 slot names); no
      hand-written trig existed — the "(27) 0xc33xxx cos/sin helpers" item
-     resolves as thunks.
+     resolves as thunks. **[CORRECTED (113): the 0xc33xxx are SLAB VAs —
+     true = +0x400800 (C31's "memset 0xc3325e" = true 0x1033a5e checks
+     out), so 0xc33222 → true 0x1033a22 → slot 0x114a514 = **cos**
+     (not acos; acos = 0x114a510 via thunk 0x1033a1c) and 0xc33234 →
+     true 0x1033a34 → slot 0x114a520 = sin ✓ (the sin pin holds).
+     Both 0xc33222/0xc33234 land mid-instruction in fulltext86 (`lea`
+     @0xc3321f, `je` @0xc33233) and 0x1033a1c..0x1033a5e are not
+     decoded labels there — the thunk bytes were read straight from
+     the exe; `/tmp/opencode/resolve-wrappers-113.mjs`]**
   2. **The switch has FOUR branches:** slab 0x50a355: `dec`×ε cascade —
      addNoise 1→0x50a7eb (ported dig #11), 2→**0x50a6ba**, 3→**0x50a603**,
      else→0x50a37d..0x50a41b (calls **true 0x8FB570 = UNREAD**; dead in
@@ -7570,7 +7609,9 @@ first use from now on):**
       **C83**): the lattice is IDENTICAL to whiteLattice2d — c0 =
       57·round(y) + round(x), fx/fy floor fracs, corners h(k) =
       frac(sin(c0+k)·43758.546875), k ∈ {0,1,57,58}, sin =
-      libm_sse2_sin_precise, round = fld/fistp (all C40-shared) —
+      libm_sse2_sin_precise, round = fld/fistp (all C40-shared) **[(113)
+      SUPERSEDED: c0 = 57·floor(y) + floor(x); 0x44d0b0 = the FLOOR
+      wrapper — C92]** —
       the difference is the WEIGHTS: `W = lerp(w0, w1, frac)` where
       (w0,w1) = (smoothstep, linear) or (linear, smoothstep) by
       round-cell PARITY, then plain bilinear out =
@@ -8709,6 +8750,9 @@ first use from now on):**
     smoke pin 0.834 = the INVERTED value (true 0.494). Also: (26)'s
     twin/FNV labels 0x8fc550/0x8fc940 don't exist in fulltext86 →
     true 0x8fb950/0x8fbb40. No patch, no IoU — judge parked.**
+    **[UPDATED (113): I22 closed (endpoints swapped); and the cell =
+    FLOOR, not round — so "true 0.494" = round-derived = STALE, the
+    true byte-literal = 0.898207068 (C92).]**
     - Method: cached whole-file disasm `/tmp/opencode/fulltext86.asm`
       (true VAs) windows 0x8fb350..0x8fb567 (whole fn: prologue,
       weights, corner chain, blends) + the twin tail 0x8fb789..0x8fb841;
@@ -8727,6 +8771,9 @@ first use from now on):**
       → slot(-0x1c)** (@0x8fb435 / @0x8fb444 / store @0x8fb448);
       **c0 = 57.0·round(y) + round(x) → slot(-0x4)** (@0x8fb3e9 /
       @0x8fb3fc / store @0x8fb417; round = 0x44d0b0 fld/fistp, C40).
+      **[SUPERSEDED (113): c0 = 57.0·floor(y) + floor(x); 0x44d0b0 =
+      the CRT floor wrapper — C92; the rest of this byte law
+      (weights/corners/blend idiom) unchanged]**
       Corners = fract(sin(c0+k)): **h58 → slot(-0x8)** (arg +58.0
       @0x8fb43c, sin 0x44d110 @0x8fb44d, store @0x8fb486), **h57 →
       xmm2** (arg +57.0 @0x8fb47e, sin @0x8fb48b), **h1 → slot(-0x14)**
@@ -8810,3 +8857,97 @@ first use from now on):**
       VERIFIED CASE-1 LANE CLOSED fidelity caveat. No §8 row, no §12,
       no patch — drop path OFF. Gates green at commit. Next free:
       entry **(113)**, **C92**, **I23**; §8 row 33 free.
+
+- **2026-10-06 (113) — dig #113: 0x44d0b0 = CRT FLOOR not round (C40's
+  gloss overturned) ⇒ I22 FIXED (blend endpoints) + I20② PORTED (default
+  arm = parity lattice); the three-file working diff verified independently
+  and gates green.** Diagnosed the previous session's uncommitted work,
+  re-derived every byte claim from the exe this session, corrected the
+  docs' round-derived glosses, and closed the two issues.
+  - **THE OVERTURN: `0x44d0b0` = the CRT `floor` wrapper, not fld/fistp
+    round.** Byte-walk of the PE import directory (`/tmp/opencode/
+    verify-floor-113.mjs`, 656 entries, no hardcoded offsets): body
+    55 B @0x44d0b0 (ret @0x44d0e6) = `cvtss2sd @0x44d0b9 → fldl @0x44d0c6
+    → fstpl @0x44d0ca → call 0x1033a52 @0x44d0cd → fstpl @0x44d0d2 →
+    cvtpd2ps @0x44d0df` — **no `fistp` anywhere**; thunk 0x1033a52 =
+    `ff 25 → jmp [0x114a534]`, and IAT slot 0x114a534's name record =
+    **MSVCR120.dll `floor`, hint 1646**. (fldl/fstpl = arg marshalling
+    only.) C40's "CRT fld/fistp ROUND-to-nearest wrapper" = wrong ⇒
+    every round-derived gloss superseded inline at (26)/(40) and in
+    CONSTANTS (C40/C83/C91 + the two "fp-round helper" texts); the
+    CORRECT row = **C92**.
+  - **IAT chain re-read whole** (`/tmp/opencode/resolve-wrappers-113.mjs`,
+    names resolved from the import dir, one thunk per slot in order):
+    0x114a510 `_libm_sse2_acos_precise` · 0x114a514
+    `_libm_sse2_cos_precise` · 518 `_libm_sse2_log10_precise` · 51c
+    `_libm_sse2_pow_precise` · 520 `_libm_sse2_sin_precise` · 524
+    `_libm_sse2_sqrt_precise` · 528 `_libm_sse2_tan_precise` · 52c
+    `_setjmp3` · 530 `ceil` · 534 `floor` · 538 `memcpy` · 53c
+    `memset` · 0x114a540
+    `?terminate` (thunks 0x1033a1c..0x1033a5e); 0x114a500 `_CIfmod`,
+    504 `_CxxThrowException`, 508 `__CxxFrameHandler3`, 50c
+    `__RTDynamicCast`. (26)'s list was off-by-one from 0x114a514 and
+    mis-labelled 3 slots; **the only pin the code uses, 0x114a520 =
+    sin for 0x44d110, survives** — as does (40)'s 0xc33234 → sin; that
+    item's other half, 0xc33222 → 0x114a514, = **cos** not acos.
+    The 0xc33xxx are slab VAs (true = +0x400800, C31's memset check).
+  - **Floor confirmed at BOTH c0 sites (byte-read
+    `/tmp/opencode/fulltext86.asm`, windows re-read this session):**
+    0x8fb350 calls @0x8fb373/382 → `mulss 0x11e028c` (57.0) @0x8fb3e9 +
+    `addss −0x8(%ebp)` (floor(x) slot) @0x8fb3fc → store c0 −0x4
+    @0x8fb417; 0x8fb570 calls @0x8fb593/5a2, c0 @0x8fb6f2..6fe, and the
+    corner parities run ON the floor values (`and 0x80000001` @0x8fb613,
+    `lea 0x1(%ecx)` @0x8fb64f), sf triple @0x8fb637..646, Wx
+    @0x8fb67e..690→−0xc, Wy→−0x1c @0x8fb71a, corners +58/+57/+1/+0
+    @0x8fb70e/750/7a5/7de, h58→−0x8 @0x8fb758, y+1 row blend
+    @0x8fb789..79b, h1→−0x14 @0x8fb7e6.
+  - **The three-file diff = correct on independent read:**
+    1. **I22 FIXED** in `whiteLattice2d` (`noise-proto.mjs`): the three
+       endpoint pairs re-oriented to the C91 idiom — `rowY1 =
+       lerp(h57,h58,wx)`, `rowY0 = lerp(h0,h1,wx)`, `out = lerp(rowY0,
+       rowY1,wy)` (each lerp's FIRST arg = its t=0 endpoint); comment
+       block re-derived (floor c0, byte addresses of the three blends).
+    2. **round → floor** in the same function's c0
+       (`Math.floor` both slots) + the header gloss.
+    3. **I20② PORTED**: new `parityLattice2d` = 0x8fb570's body (rx/ry
+       = floor; Wx = lerp with (w0,w1) = (sf(fx),fx) iff floor(x) EVEN
+       else flipped, `and 0x80000001` parity; Wy identical; c0 = 57·ry+rx;
+       same corner/lerp chain) + the `surfaceField` else-arm replacing
+       the I20 throw: `a = parityLattice2d(x·0.025,y·0.025)` @0x90ab7d..9f
+       → `g = f(a·0.05+0.05)` @0x90abae..bb → `n = simplex2d(x·0.5·0.02·g,
+       y·0.5·0.02·g)` @0x90abb6..abee **using the f32 slot [0x11df908] =
+       K2.h02, NOT case-1's f64_002 [0x11dfc70]** → `r2 = f(n·rp)` @0x90abfb
+       → C77 tail @0x90ac07..17 → `jmp 0x90b0a2` @0x90ac1b. Live for
+       addNoise 0 (hills_flat/mountain_lake/laboratory) + stale 4.
+    4. `noise-terrain.mjs` comment: the I20 default arm no longer throws
+       (only the noiseKind −1 winter/mountain_center path does).
+  - **Numeric re-derivation** (`/tmp/opencode/sidebyside-112.mjs`, floor
+    cell re-run): **port ≡ asm-literal at all 5 points, |Δ| ≤ 1.19e-7**;
+    the asm-complement (pre-(112) orientation) now mismatches everywhere
+    (0.17..0.54). Literals — (12.5,−3.25) **0.898207068** / compl
+    0.723673105; (0.25,0.25) 0.211786672 / 0.668501258; (3,5)
+    0.371890724 / 0.907893717; (−7.6,12.1) 0.650447309 (Δ 1.19e-7 vs
+    0.650447428) / 0.293845415; (100.999,−0.001) 0.991593361 (vs
+    0.991593242) / 0.745933115. **Round-derived values (entry (112)'s
+    0.493832439/0.018220901) = STALE**; pre-fix port = round+inverted =
+    0.833995283 = (26)'s smoke "0.834".
+  - **Tests** (`tests/mapgen/surface-census.test.mjs`, 42/42): endpoint
+    pin → `toBeCloseTo(0.898207068, 6)` + discriminators excluding the
+    round cell (>0.3) and the endpoint-flip (>0.1); the default-arm
+    throw-pins → byte-tail COMPUTE pins (exp = the same chain, both
+    lanes 0 and 4, `toBeCloseTo 7`) + a whiteLattice-substituted
+    sensitivity re-based to its measured scale (>1e-3 lattice, >1e-5
+    output — the g→simplex→tail chain compresses ≈1.28e-2 to ≈9.2e-5);
+    new "lattice byte pins" describe = the floor/round/inverted
+    4-way discriminator at (12.5,−3.25), the integer-cell h0 pin for
+    BOTH lattices (3,5) = 0.371890724, and both parity branches
+    diverging from the plain-smoothstep lattice (comment fixed
+    round(2.25) → floor(2.25)).
+  - **Gates: `npm test` = 261/261, exit 0, 51 s** (log
+    `/tmp/opencode/fulltest-113.log`).
+  - Landed: CONSTANTS **C92** (+ supersessions at C40/C83/C91 and the
+    two "fp-round helper" texts), ISSUES **I20** + **I22** closed,
+    VERIFIED CASE-1 fidelity caveat updated to "fixed" (0.898207068) +
+    **§8 row 33** (round→floor overturned — do not re-test), inline
+    supersessions at (26)/(40), this entry **(113)**. Next free:
+    entry **(114)**, **C93**, **I23**; §8 row 34 free.

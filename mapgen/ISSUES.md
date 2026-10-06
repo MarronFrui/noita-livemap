@@ -329,9 +329,9 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   its historical form (append-only — corrected by entry (86)).
   Source: ABOUT_MATH §6 (86).
 
-- [ ] **I20. The default arm's body (true 0x8fb570) — READ (104); the
+- [x] **I20. The default arm's body (true 0x8fb570) — READ (104); the
   port still throws for the LIVE world value `mGradientAddNoise="0"`**
-  (opened 2026-09-23, dig #98): after the switch's `dec/je` 1/2/3 miss,
+  (opened 2026-09-23, dig #98; **CLOSED 2026-10-06, dig #113**): after the switch's `dec/je` 1/2/3 miss,
   the default arm @**0x90ab7d** is reached by live XMLs — hills_flat +
   mountain_lake (P1) and laboratory carry `mGradientAddNoise="0"` — and
   the binary runs `call 0x8fb570` @**0x90ab9f** → g = a·0.05+0.05 f32
@@ -340,16 +340,30 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   byte-closed 2026-09-28 (104) — CONSTANTS C83:** the lattice IS
   whiteLattice2d's (c0 = 57·round(y)+round(x), floor fracs, corners
   h(k)=frac(sin(c0+k)·43758.546875) k∈{0,1,57,58}, the same
-  sin/round helpers); the differentiator = **PARITY-alternating blend
+  sin/round helpers) **[(113): c0 = 57·floor(y)+floor(x) — 0x44d0b0 =
+  the FLOOR wrapper, C92; the helpers = floor + libm sin]**; the
+  differentiator = **PARITY-alternating blend
   weights** W = lerp(w0,w1,frac) with (w0,w1) = (smoothstep,linear)
-  vs (linear,smoothstep) by round-cell parity, then plain bilinear
+  vs (linear,smoothstep) by round-cell parity **[(113): floor-cell
+  parity]**, then plain bilinear
   out = lerp(lerp(h0,h1,Wx), lerp(h57,h58,Wx), Wy). Until ② lands,
   OUR surfaceField port THROWS for
   addNoise ∉ {1,2,3} (the message byte-pins the switch facts) instead of
   producing the blend; the default (classify) render is unaffected, and
   the SURFACE_V2 surfaceField lane cannot render those chunks. ② next:
   **port the arm** (the read is done), re-pin the tail for that lane.
-  Source: ABOUT_MATH §6 (98); CONSTANTS C77; §6 (104), C83.
+  **② ✅ PORTED 2026-10-06 (113):** `parityLattice2d` = 0x8fb570's
+  body (rx/ry = floor, the `and 0x80000001` parity on the floor
+  values, Wx/Wy + the shared corner/lerp chain) + the `surfaceField`
+  else-arm replacing the throw: `a = parityLattice2d(x·0.025,y·0.025)`
+  @0x90ab7d..9f → `g = f(a·0.05+0.05)` @0x90abae..bb → `n =
+  simplex2d(x·0.5·0.02·g, y·0.5·0.02·g)` @0x90abb6..abee **using the
+  f32 slot [0x11df908] = K2.h02, NOT case-1's f64_002 [0x11dfc70]** →
+  `r2 = f(n·rp)` @0x90abfb → C77 tail @0x90ac07..17 → `jmp 0x90b0a2`
+  @0x90ac1b; live addNoise 0 + stale 4 both compute (test pin
+  `toBeCloseTo 7` + a whiteLattice-substituted sensitivity
+  >1e-3 lattice / >1e-5 output). Source: ABOUT_MATH §6 (98); CONSTANTS
+  C77; §6 (104), C83; §6 (113), C92.
 
 - [ ] **I21. The C76 classify/evaluate FRAME rests on claim (c); the world
   frame fits the surface band — frame flip = pending dig** (opened
@@ -382,9 +396,11 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   refVoidFrac 0.857) — the window OVERLAPS the surface rows 60..62 but
   claim (c)'s stated band (48..50) does not. Source: ABOUT_MATH §6 (101).
 
-- [ ] **I22. The ported `whiteLattice2d` (true 0x8fb350) inverts all
+- [x] **I22. The ported `whiteLattice2d` (true 0x8fb350) inverts all
   three blend endpoints — every live surface lane renders the
-  cell-mirrored lattice** (opened 2026-10-02, dig #112): the (104)④
+  cell-mirrored lattice** (opened 2026-10-02, dig #112; **CLOSED
+  2026-10-06, dig #113 — the three endpoint pairs swapped, byte-pinned
+  test added; also fixed the round→floor cell, C92**): the (104)④
   side-by-side byte-read the function's whole body
   (`/tmp/opencode/fulltext86.asm` + the port's own evidence file
   `/tmp/opencode/case1core.asm`, byte-identical) — every blend in the
@@ -401,11 +417,15 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   binary(1−wx, 1−wy) on the same c0** — the per-cell mirrored lattice
   keeping the near-corner c0, which is NOT any evaluation of the
   binary (a true mirror would flip round(x)/round(y) ⇒ c0 shifts by
-  57·Δy+Δx). Numeric (`/tmp/opencode/sidebyside-112.mjs`, 5 points):
+  57·Δy+Δx; **(113): floor(x)/floor(y) — same argument**). Numeric (`/tmp/opencode/sidebyside-112.mjs`, 5 points):
   port ≡ weight-complemented parse ≤1e-6 everywhere; port − byte-
   literal = 0.34..0.97 — (12.5,−3.25): port **0.833995283** (= (26)'s
   smoke pin 0.834, ABOUT_MATH:2940) vs byte-literal **0.493832439**;
   integer (3,5): port 0.907893717 = h58 vs binary 0.371890724 = h0.
+  **[(113): the byte-literal 0.493832439 = the ROUND cell — stale;
+  with 0x44d0b0 = floor (C92) the true byte-literal = 0.898207068;
+  floor+endpoint-inverted = 0.723673105; the pre-fix port 0.833995283
+  = round+inverted ✓]**
   Impact — `call 0x8fb350` @0x90b00d (addNoise=1), @0x90aef9
   (addNoise=2), @0x90ae25 (addNoise=3), @0x8fd93e (NOISE_TYPE
   dispatch): ALL THREE live surface lanes + the dispatch lane hit the
@@ -413,7 +433,17 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   claims (computes + real texture) — the in-row fidelity caveat is
   the pointer. Fix = swap the three endpoint pairs, register-backed
   with a byte-pinned test pin (candidate: `whiteLattice2d(12.5,−3.25)`
-  → 0.493832439), IoU after — NOT yet applied. Dispatch twin (0x8fb950
+  → 0.493832439), IoU after — NOT yet applied. **[(113) FIX APPLIED:
+  the pairs swapped in `whiteLattice2d` (`rowY1 = lerp(h57,h58,wx)`,
+  `rowY0 = lerp(h0,h1,wx)`, `out = lerp(rowY0,rowY1,wy)`), the cell
+  corrected to floor at the same time (C92), and the pin landed
+  re-based to the floor literal → `toBeCloseTo(0.898207068, 6)` with
+  discriminators excluding the round cell (>0.3) and the endpoint flip
+  (>0.1), plus the integer-cell h0 pin 0.371890724 for BOTH lattices —
+  `tests/mapgen/surface-census.test.mjs`, the new "lattice byte pins"
+  describe; port ≡ asm-literal ≤1.19e-7 at all 5 side-by-side points
+  (`/tmp/opencode/sidebyside-112.mjs` re-run). IoU still pending
+  (unchanged gate).]** Dispatch twin (0x8fb950
   = (26)'s mislabeled 0x8fc550) is NOT in any surface lane → out of
   scope. Source: ABOUT_MATH §6 (112); CONSTANTS C91; §6 (26)/(104),
   C40/C83.

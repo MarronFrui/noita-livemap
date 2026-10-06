@@ -146,9 +146,12 @@ const f = Math.fround;
 
 // ============================================================================
 // case-1 lane core — true 0x8fb350 = slab 0x4fab50 (READ 2026-09-20 (26)) ===
-// Value-noise on the (rounded) lattice with the GLSL-sin hash:
-//   c0    = 57·round(y) + round(x)                (0x4fab73..0x4fabfc; helper
-//          0x44d0b0 = CRT fld/fistp round-to-nearest, C13-verified)
+// Value-noise on the (floored) lattice with the GLSL-sin hash:
+//   c0    = 57·floor(y) + floor(x)   (helper calls @0x8fb373/382 → 0x44d0b0
+//          = f32 floor wrapper: cvtss2sd → call 0x1033a52 → ff 25 [0x114a534]
+//          = import "floor" hint 1646, IAT byte-read dig #113. CORRECTS the
+//          C40 "round" label: the body has fldl/fstpl arg-passing only — no
+//          fistp — and c0's cell must agree with the floor-based fracs below)
 //   fx    = x − floor(x); fy = y − floor(y)   (inline cvttss2si+comiss+dec)
 //   n(ix,iy)   = frac(sin(c0    )·43758.546875)   (0x4fac4d→jmp*[0x114a520]
 //                                                = _libm_sse2_sin_precise,
@@ -158,8 +161,13 @@ const f = Math.fround;
 //   n(ix,iy+1)   = frac(sin(c0 + 57)·43758.546875)
 //   n(ix+1,iy+1) = frac(sin(c0 + 58)·43758.546875)
 //   weights wx = (3−2fx)·fx²; wy = (3−2fy)·fy²   (0x11dff70/0x11dfe68/0x11dfa94)
-//   out = wy·( (1−wx)·n(ix,iy) + wx·n(ix+1,iy) )  … the four-call chain of
-//         row lerps at slab 0x4fac4d..0x4fad67 (evidence case1core.asm).
+//   blend idiom (A−B)·t + B ⇒ t=0 selects B; standard orientation (C91):
+//         out = lerp(lerp(h0,h1,wx), lerp(h57,h58,wx), wy)
+//         = true 0x8fb4b7..0x8fb567 (y+1 row @0x8fb4b7..4c9, y row
+//         @0x8fb548..55a, out @0x8fb55e..567; evidence case1core.asm).
+//   Pre-(112) parse inverted all three endpoint pairs (I22) — fixed
+//   dig #113; byte pins in surface-census.test.mjs (floor-based, see
+//   the lattice byte-pin describe there).
 // FRACT = cvttss2si + comiss + dec (truncation-style floor) then subss.
 const K57 = 57.0;      // f32 0x11e028c
 const K58 = 58.0;      // f32 0x11e0298
@@ -167,23 +175,63 @@ const K_HASH = 43758.546875;   // f32 0x11e04c8
 
 function _fract(v) { return v - Math.floor(v); }
 
+// The binary lerp idiom `(A−B)·t + B` (f32 at each op): t=0 → the FIRST
+// argument. Shared by whiteLattice2d / parityLattice2d (C83/C91).
+const lerp = (a, b, t) => f(f((b - a) * t) + a);
+
 export function whiteLattice2d(xin, yin) {
   const x = f(xin), y = f(yin);
-  const c0 = f(K57 * f(Math.round(y)) + Math.round(x));
+  const c0 = f(K57 * f(Math.floor(y)) + Math.floor(x));
   const fx = x - Math.floor(x);
   const fy = y - Math.floor(y);
   const wx = f((3.0 - 2 * fx) * fx * fx);
   const wy = f((3 - 2 * fy) * fy * fy);
   // sinf via _libm_sse2_sin_precise (IAT slot 0x114a520 — resolved above):
   const s = (k) => _fract(Math.sin(k) * K_HASH);
-  // row lerp A: h(c0+58) → h(c0+57), weight wx (slab 0x4facb7..0x4facc9)
-  // row lerp B: h(c0+1)  → h(c0+0),  weight wx (slab 0x4fad3a..0x4fad5e)
-  // final:      rowA → rowB, weight wy (slab 0x4fad62..0x4fad67)
+  // byte order (C91, dig #112): y+1 row (h57→h58) @0x8fb4b7..4c9, y row
+  // (h0→h1) @0x8fb548..55a, out (rowY0→rowY1) @0x8fb55e..567 — each
+  // lerp's FIRST argument is its t=0 endpoint (I22 fix, dig #113).
   const h58 = s(c0 + 58), h57 = s(c0 + 57), h1 = s(c0 + 1), h0 = s(c0);
-  const lerp = (a, b, t) => f(f((b - a) * t) + a);
-  const rowA = lerp(h58, h57, wx);
-  const rowB = lerp(h1, h0, wx);
-  return lerp(rowA, rowB, wy);
+  const rowY1 = lerp(h57, h58, wx);
+  const rowY0 = lerp(h0, h1, wx);
+  return lerp(rowY0, rowY1, wy);
+}
+
+// ============================================================================
+// addNoise-default core — true 0x8fb570 (721 B): whiteLattice2d's lattice
+// with PARITY-ALTERNATING blend weights (I20 ① byte-closed = CONSTANTS C83;
+// whole body + caller chain re-read byte-exact 2026-10-02, entry (113)).
+// LIVE for hills_flat / mountain_lake / laboratory (`mGradientAddNoise=
+// "0"`) — the switch's fall-through arm @0x90ab7d (addNoise ∉ {1,2,3}).
+//   rx = floor(x), ry = floor(y)  (0x44d0b0 = f32 floor wrapper, IAT "floor"
+//        @0x8fb593/5a2 — the C40 "round" label corrected dig #113)
+//   Wx = lerp(w0,w1,fx) with (w0,w1) = (sf(fx), fx) iff floor(x) EVEN
+//        else (fx, sf(fx)) — true signed-parity idiom `and 0x80000001`
+//        @0x8fb613 (w0's check, cvttss2si of the helper result @0x8fb5fe;
+//        w1's flips it via `lea 0x1(%ecx)` @0x8fb64f), Wx = (w1−w0)·fx + w0
+//        @0x8fb67e..690 → slot(−0xc); Wy identical on fy / floor(y)
+//        @0x8fb695/6c6 → slot(−0x1c) @0x8fb71a.
+//   c0 = 57.0·ry + rx @0x8fb6f2..6fe; corners h(k)=frac(sin(c0+k)·K_HASH)
+//        k ∈ {58,57,1,0} @0x8fb70e..815 (hash chain = whiteLattice2d's).
+//   out = lerp(lerp(h0,h1,Wx), lerp(h57,h58,Wx), Wy) — row tails byte-
+//        identical to 0x8fb350's (0x8fb789..79b ≡ 0x8fb4b7..4c9, C91).
+export function parityLattice2d(xin, yin) {
+  const x = f(xin), y = f(yin);
+  const rx = Math.floor(x), ry = Math.floor(y);
+  const fx = x - Math.floor(x);
+  const fy = y - Math.floor(y);
+  const c0 = f(K57 * ry + rx);
+  const s = (k) => _fract(Math.sin(k) * K_HASH);
+  // sf(t) = (3−2f)·f² — mulss triple @0x8fb637..646 (2.0@0x11dfe68,
+  // 3.0@0x11dff70); single-f form per the whiteLattice2d convention (C40).
+  const sf = (t) => f((3.0 - 2 * t) * t * t);
+  const even = (c) => ((c % 2) + 2) % 2 === 0;   // `and 0x80000001`+fix-up
+  const wx = even(rx) ? lerp(sf(fx), fx, fx) : lerp(fx, sf(fx), fx);
+  const wy = even(ry) ? lerp(sf(fy), fy, fy) : lerp(fy, sf(fy), fy);
+  const h58 = s(c0 + 58), h57 = s(c0 + 57), h1 = s(c0 + 1), h0 = s(c0);
+  const rowY1 = lerp(h57, h58, wx);
+  const rowY0 = lerp(h0, h1, wx);
+  return lerp(rowY0, rowY1, wy);
 }
 
 // floorf (slab 0x4fbf4c..: cvttss2si + dec when (float)i > value):
@@ -612,9 +660,9 @@ export function surfaceField(uid, x, y, gradAt, valueOfP94, seedInt) {
   //       `jbe 0x90b0a2`; dec/je 1→0x90afeb 2→0x90aeba 3→0x90ae03
   //       (@0x90ab74). Default arm (addNoise ∉ {1,2,3}) @0x90ab7d is
   //       LIVE via the world value 0 (hills_flat/mountain_lake): call
-  //       0x8fb570 @0x90ab9f (UNREAD ≠ 0x8fb350 → I20 ①) → f32 chain →
-  //       simplex2d 0x8fca60 @0x90abee → tail → jmp 0x90b0a2 (port
-  //       THROWS instead until read). Tails: r2 = f(n·r') cases 1/3
+  //       0x8fb570 @0x90ab9f (parity lattice = C83 — I20 ① READ) →
+  //       g = a·0.05+0.05 → simplex2d 0x8fca60 @0x90abee → C77 tail →
+  //       jmp 0x90b0a2 — ported as the else-arm (I20②, dig #113). Tails: r2 = f(n·r') cases 1/3
   //       (mulsd @0x90b075), case 2 = f(n) BARE (jmp 0x90b079);
   //       rpost = f(f(f(r2−r')·f((r'−0.85)/0.1))+r') — subss @0x90b08b
   //       = r2−r' (C77, entry (98)).
@@ -699,7 +747,27 @@ export function surfaceField(uid, x, y, gradAt, valueOfP94, seedInt) {
         const r2 = f(n);          // jmp 0x90b079 SKIPS mulsd @0x90b075 — bare f32(n) (C77)
         field = f(f(f(r2 - rp) * f((rp - K2.h085) / K.wBias)) + rp);
       } else {
-        throw new Error(`surfaceField: mGradientAddNoise=${uid.addNoise} ∉ {1,2,3} — bytes: comiss gate @0x90ab48 → dec/je 1→0x90afeb 2→0x90aeba 3→0x90ae03 → default arm @0x90ab7d (LIVE via the world value 0): call 0x8fb570 @0x90ab9f UNREAD (≠ whiteLattice 0x8fb350) → f32 chain → simplex2d 0x8fca60 @0x90abee → shared tail; port throws until that body is read — see ISSUES I20`);
+        // DEFAULT ARM (I20②, dig #113) — addNoise ∉ {1,2,3}: the LIVE
+        // world value 0 (hills_flat/mountain_lake/laboratory); stale 4
+        // falls through the dec/je chain too (@0x90ab68..77). Bytes
+        // re-read this session:
+        //   a = 0x8fb570(x·0.025, y·0.025)  @0x90ab7d..9f (cvtpd2ps +
+        //       mulss [0x11df914]=K2.h025; parity lattice = C83);
+        //   g = f(a·0.05 + 0.05)            @0x90abae..bb (mulss/addss
+        //       [0x11df948]=K2.h05 — same chain as the cases);
+        //   n = 0x8fca60 simplex2d(x·0.5·0.02·g, y·0.5·0.02·g)
+        //       @0x90abb6..abee — the 0.02 is the f32 slot [0x11df908]
+        //       = K2.h02, NOT case-1's f64_002 [0x11dfc70];
+        //   r2 = f(n·r')                    @0x90abfb (mulss);
+        //   tail (C77 shape) @0x90ac07..17 → jmp 0x90b0a2 @0x90ac1b.
+        const xd = +x, yd = +y;
+        const a = parityLattice2d(f(xd * K2.h025), f(yd * K2.h025));
+        const g = f(a * K2.h05 + K2.h05);
+        const xArg = f(xd * K.KERNEL) * K2.h02 * g;   // x·0.5·0.02·g (f32 slot)
+        const yArg = f(yd * K.KERNEL) * K2.h02 * g;
+        const n = simplex2d(xArg, yArg);              // = 0x8fca60 (C25)
+        const r2 = f(n * rp);
+        field = f(f(f(r2 - rp) * f((rp - K2.h085) / K.wBias)) + rp);
       }
     }
   }

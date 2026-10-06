@@ -181,6 +181,7 @@ of these mechanisms, cite the row instead of re-running it.
 | 30 | (82)-era P1 census cells: `noise_type` = SIN_CAPPED_SIMPLEX uniformly; mountain_lake `mGradientStartY` = −1024; `mGradientAddNoise` = "1" everywhere; desert `mMultiplierGradient` = 0.871429; mountain_center + pyramid without a `<Topology>` | **CORRECTED dig #98** (raw-XML + parser pins, the 30-file P1 census): ① `noise_type` ABSENT for **winter, winter_caves, mountain_center, pyramid** ⇒ uidFrom:114 noiseKind −1; ② mountain_lake StartY = **−835**; ③ AddNoise = **"0"** for **hills_flat + mountain_lake** (laboratory outside P1) = the LIVE default-arm (@0x90ab7d) inputs; ④ desert mMultiplierGradient = **0.881426**; ⑤ both DO have `<Topology>` — with none of the 9 noise/mGradient attrs | ✅ ABOUT_MATH §6 (82),(98); tests/mapgen/surface-census.test.mjs |
 | 31 | `mapgen/ABOUT_MATH.md:3588` (the (40)-canon blend tail): "the tail assignments = `r' += (n·r' − r')·((r'−0.85)/0.1)`" for all three cases | **PARTLY REFUTED dig #98 (case 2 only):** cases 1/3 stand — r2 = f(n·r′) via `mulsd` @0x90b075 (case-3 shares it) and the sign r2−r′ = `subss` @0x90b08b ✓ — but **case 2's input = bare f32(n)**: `jmp 0x90b079` skips the mulsd ⇒ its tail = (n − r′)·t, not (n·r′ − r′)·t | ✅ ABOUT_MATH §6 (40),(98); CONSTANTS C77 |
 | 32 | entry (94)'s two rdata reads: "**Y = trunc(rand·[0x11dfef0 = 0.0]) = 0 ⇒ the walk STARTS AT ROW 0 (top)**" (§6 line 6585-6586, §11 dig-94 bullet line 874-875) and "(94) ③'s **the band-lane select is FIXED k = 3 (both scale consts 0x11dfef0/0x11e05f8 = 0.0 ⇒ ecx = 3 always, ja never taken)**" | **OVERTURNED dig #102 — f32 trap:** both addresses hold f64 consumed by `mulsd` (F2 0F 59). Raw bytes: `0x11dfef0` = `0000000000001840` = **f64 6.0**, `0x11e05f8` = `00000000000008c0` = **f64 −3.0** (same-run anchors `0x11dffe8` = 101.0, `0x11dfa40` = 0.4 validate file = VA − 0x400E00). ⇒ **Y₀ = trunc(6u) ∈ {0..5}** @8f02a5..8f02b9 (start row random, not fixed 0) and **`ecx = 3 − trunc(−3u) ∈ {3,4,5}` @1/3 each** @8f02c4..8f02e0 (lanes [4] 0.25u+0.75 / [5] 0.13u+1.07 LIVE; `ja 0x8f03a6` dead only because ecx ≤ 5). Reading the first 4 bytes as f32 at an f64-operand address = the trap — operand width comes from the opcode | ✅ ABOUT_MATH §6 (102); CONSTANTS C81 |
+| 33 | The long-carried gloss **"`0x44d0b0` (slab 0x4c8b0) = the C13-verified CRT fld/fistp ROUND-to-nearest wrapper"** (C13/C26/C40/C83/C91 era) and everything derived from it — the lattice-cell law **`c0 = 57·round(y) + round(x)`**, the round-derived literals (byte-literal 0.493832439, smoke 0.834, (112)'s "round cell" discriminator) | **REFUTED dig #113 — it is the CRT FLOOR wrapper:** body 55 B @0x44d0b0 = `cvtss2sd → fldl → fstpl → call 0x1033a52 → fstpl → cvtpd2ps`, **no `fistp`**; thunk 0x1033a52 = `jmp [0x114a534]` = MSVCR120.dll **`floor`**, hint 1646 (PE import-dir walk `/tmp/opencode/verify-floor-113.mjs`, 656 entries; thunk run named by `/tmp/opencode/resolve-wrappers-113.mjs`). So **`c0 = 57·floor(y) + floor(x)`** at both sites (0x8fb350 @0x8fb3e9/3fc; 0x8fb570 @0x8fb6f2..6fe, parities on the floor values) and the true byte-literal at (12.5,−3.25) = **0.898207068**. The fldl/fstpl pairs are f64 arg marshalling, not rounding. Do not re-test round; the IAT slot labels are in C92 | ✅ ABOUT_MATH §6 (113); CONSTANTS C92; ISSUES I20/I22 closed |
 
 ## 9. Open frontier (ranked)
 
@@ -324,6 +325,14 @@ binary side unread) · ❌ unexplored.
    real, but its values are the cell-mirrored lattice (port =
    binary(1−wx,1−wy) on the same c0; smoke 0.834 = the INVERTED
    value, byte-literal 0.493832439). Fix pending I22.
+   **~~FIDELITY CAVEAT~~ FIXED (2026-10-06 (113), C92, I22 closed):**
+   the three endpoint pairs were swapped AND the lattice cell corrected
+   round→floor (0x44d0b0 = the CRT floor wrapper, C92) — the port
+   now equals the asm-literal at all 5 side-by-side points (|Δ| ≤
+   1.19e-7), byte-pinned in `tests/mapgen/surface-census.test.mjs`
+   (`whiteLattice2d(12.5,−3.25)` → **0.898207068**; the old 0.493832439
+   literal and the smoke 0.834 were round-derived = stale). The lane's
+   "computes + real texture" claims stand unchanged.
    **钩 dispatcher cores READ (2026-09-20 (27), C41):** case 1 = the
    FastBlock LCG-hash (214013/2531011-pinned, ÷16384), case 3 = the
    FNV24 + the 12-dir .data pairs @0x12eb950 (all pinned; the

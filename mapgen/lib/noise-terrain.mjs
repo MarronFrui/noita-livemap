@@ -267,10 +267,10 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
   // V3 candidate — attach gate :340 — or direct env-free test calls,
   // and the conjunct would desync the test mirror from the instrument):
   // caves-field grid for <BitmapCaves> biomes, else the C39 image lane,
-  // else the world-y ramp. Field build throws (I20 default arm,
-  // noiseKind −1 on winter/mountain_center per VERIFIED §8 row 30) ⇒
-  // return null = whole chunk falls through honestly (V2 :237-241
-  // mirror). Evaluate/classify keep the C76 lane frame unchanged this
+  // else the world-y ramp. Field build throws (noiseKind −1 on
+  // winter/mountain_center per VERIFIED §8 row 30; the I20 default arm
+  // no longer throws — ported dig #113) ⇒ return null = whole chunk
+  // falls through honestly (V2 :237-241 mirror). Evaluate/classify keep the C76 lane frame unchanged this
   // dig (evaluator2≡classify floor-fix identity; frame flip = I21).
   const surfaceTable = ensureSurfaceTable(dataDirRef.dataDir, def);
   const uid = uidFrom(def, cfg);
