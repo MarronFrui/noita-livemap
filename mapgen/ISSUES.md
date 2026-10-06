@@ -503,9 +503,32 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   and built on **world-y** units (makeGradAt ramp StartY→EndY,
   `noise-terrain.mjs:143`; bitmapCaves field lookup indexes raw gx/gy
   `:225-227`). One of the two lanes is sampling the ramp/field with a
-  10× coordinate mismatch. **Read the 0x90a860 call-site frame in
-  `fulltext86.asm` before touching any code** — the byte answer decides
-  which lane is wrong; no port change without it. **③ instrument gap.**
+  10× coordinate mismatch. **[② SETTLED dig #116 — the frame read is
+  done; action = the port fix below.]** Call-site frame (entry (116),
+  C95): `0x90a860` is called from `FUN_00908f40` (3 sites in
+  `FUN_00792580` — 0x7930d3 main, 0x7938d1 x−1, 0x7938fe x+1) with
+  **pixel** coords `xmm1 = driver[+0x20]+x`, `xmm2 = driver[+0x24]+y`
+  (counters step 1, bounded by `driver[+0x28]/[+0x2c]`) **+0.5 each**,
+  `ecx = driver[+0x70]`, stack = the `0x909da0` region — and the
+  sibling `0x909da0` applies `>>9` / `&0x1ff` (= **512-px chunk index +
+  intra-chunk offset**) to the same values, adding `this[+0x38]/[+0x40]`
+  only inside itself. ⇒ **V3's world-px frame IS the callee's argument
+  frame; V2's ÷10 cell frame is not.** BUT the callee's *grid*
+  coordinate is `f32(0.49162514·(x+0.5) + P[+0x94]) × 0.1`
+  (`mulss 0x11df974` = f32 0.1, floors to 4× `0x9fe620` wrap-mod corner
+  reads → smoothstep `(3−2t)·t²`; `0x11e015c = 10.0` / `divss 0.1`
+  undo it in the add-noise arms), while its r-eval `0x90b280` gets the
+  **un-divided** pixels — and `noise-proto.mjs:676` implements
+  `gradAt(f(x·0.49162514)+valueOfP94, …)` with **no ×0.1**. So neither
+  lane is wrong on its own: **V2's pre-÷10 makes the grid term exact
+  but starves the r-eval 10×; V3 matches the argument frame but runs
+  the grid 10×.** ⇒ **the defect is a one-step port omission inside
+  `surfaceField`, not a lane-frame question.** Action (still NO port
+  change until it is written as one dig): add the ×0.1 and the
+  `0.1·P[+0x94]` bias inside `surfaceField`, feed **pixels** in both
+  lanes (drop V2's ÷10 pre-scale), decide the ramp-placeholder units
+  (C39) in the same change, and validate against C79's surface-y IoU +
+  ③'s gate. **③ instrument gap.**
   The shape gate (`2026-09-21-surface-shape.mjs`) probes only wang/
   template bands (this session: `/tmp/opencode/probe-v2window-114.mjs`
   = **procedural 0, v2masks 0** in tx29..47 × ty11..19) and the V2 lane
@@ -533,13 +556,14 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   map walk as biome evidence.
   ③ **Second record string** `this+0x1c` (24 B) identity — nothing proves it
   is not the biomenames file.
-  ④ **Sync-arm wrapper kind (I23②'s frame question).** Queue arm reads only
+  ④ **Sync-arm wrapper kind.** Queue arm reads only
   node+0x10 → wrapper+0/+4 (both kinds safe); **sync** arm reads
   `wrapper+0x10` = `&self`, present only on the stack wrapper (heap clone =
   0xc B). Ctor sets `mgr+0x24/25` ⇒ `0x25==0` ⇒ Init takes the queue arm, but
   the `[mgr+0x25]` setter and `0x92b300` attach semantics are unidentified
-  ⇒ which callers run sync is OPEN (still needs the `0x90a860` call-site
-  frame — shared with I23②).
+  ⇒ which callers run sync is OPEN (needs the **`0x8cef30` dispatch's own
+  call-site frames** — which callers pass which wrapper kind; NOT the
+  `0x90a860` frame, which dig #116 settled for I23② and is unrelated).
   ⑤ What `0x8ee1b0` (CellFactory color→idx thunk) does at `this+0x140`
   (`0x905acd`), and what the 80 register-form `mov %reg,0xb0(%reg)` stores
   install (statically unresolvable).

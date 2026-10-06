@@ -9235,7 +9235,9 @@ first use from now on):**
   - **⑨ Standing warnings (traps hit this dig):**
     - `fulltext86.asm` **stops at 0x1000d6f (truncated)** — any body ≥
       0x1000000 must be objdump'd from `noita_dev.exe`; `p0_functions.csv`
-      size column is **hex**.
+      size column is **DECIMAL** (as written; *corrected dig #116* — the
+      hex gloss here was wrong: `FUN_00908f40` 1072 = 0x430 → next fn
+      0x909370 ✓, `FUN_0090a860` 2217 = 0x8a9 → 0x90b109/0x90b110 ✓).
     - **.rdata byte-delta ≠ .text byte-delta:** `.rdata` file = VA −
       **0x400E00** (text = −0x400C00) — the old byte string for
       `0x1199d40` was read with the text delta and was **wrong** (correct
@@ -9265,3 +9267,144 @@ first use from now on):**
     (`mapgen/server/genmap-server.mjs:34`); no byte-derived code change
     until the I23② `0x90a860` / surfaceField call-site frame is read.
     Next free: entry **(116)**, **C95**, **I25**; §8 row **36** free.
+
+- **2026-10-06 (116) — dig #116 (docs-only): the I23② blocker is READ —
+  `0x90a860` (surfaceField) is called with PIXEL coords +0.5, its grid
+  coordinate is `f32(0.49162514·x + P[+0x94]) × 0.1`, and the port's
+  `surfaceField` omits that ×0.1 — so V2/V3 are each right for exactly
+  one of the callee's two consumers (neither lane is simply "the wrong
+  frame").**
+  Docs-only: no code, no cache bump. Every fact below was re-read from
+  `noita_dev.exe` on disk **this session** (fresh objdump windows
+  0x908f40..0x909380, 0x90a860..0x90b140 → `/tmp/opencode/dig116-90a860.asm`,
+  0x909da0..0x909e60; call sites from `/tmp/opencode/fulltext86.asm`;
+  floats byte-read in `.rdata` = VA − 0x400E00). Landed: CONSTANTS
+  **C95**, ISSUES **I23② settled + action** and an I24④ cross-reference
+  fix, VERIFIED **§8 row 36**, this entry **(116)**.
+  - **① The call sites of `FUN_00908f40` (0x908f40, size 1072 = 0x430
+    → 0x909370) — exactly 3, all inside `FUN_00792580`:** **0x7930d3**
+    (main cell), **0x7938d1** (probe x−1), **0x7938fe** (probe x+1). All
+    three do the same shape: `xmm1 = (double)(driver[+0x20] + x)`,
+    `xmm2 = (double)(driver[+0x24] + y)` (`movd`+`cvtdq2pd`, the int
+    addends from `[esp+0x30]` = x / `[esp+0x2c]` = y, the −1/+1 probes
+    via `dec`/`inc %ecx`), `ecx = driver[+0x70]` = `this`. Loop bounds
+    re-read in the same window: `cmp %edx,0x2c(%ebx) ; jle` @0x792f87
+    (y vs height) and `cmp %eax,0x28(%ebx)` @0x792faa (x vs width) with
+    the counters stepping 1 ⇒ **originX+x / originY+y are pixels**
+    (C87/C88's absX/absY, C89's `0x909370(originX, originY, originX+w−1,
+    originY+h−1, …)` rect).
+  - **② `FUN_00908f40` body = "what material is at pixel (x,y)":**
+    saves `xmm2 → −0x20` (y) and `xmm0(= xmm1) → −0x28` (x), `call
+    0x909da0` (ecx = this) → `ebx` = region; `test %ebx/%ebx; je
+    0x909367`. **`[R+4]==0` arm** @0x908f72..0x908fbb: reload both,
+    `addsd 0x11dfdd8` (= **0.5**) to each, `push %ebx` (the one stack
+    arg), `movapd xmm2→xmm3`, `movaps xmm1→xmm2`, **`call 0x90a860`
+    @0x908f96** → `cvttsd2si −0x20(%ebp)` (y) and `−0x28(%ebp)` (x) to
+    ints, `ecx = 0x2a4(%ebx)` = **mBiomeMaterials** (C87), `movaps
+    xmm0→xmm3` (the returned field) → **`call 0x8f5030`** (the
+    cellFactory classifier, §8 row 29) @0x908fb0 → its eax is the
+    return. **`[R+4]==1` arm** @0x908fbc: `cmpl $0,0x1b0(%ebx); je` →
+    assert **`biome->bitmap_data`** (expr **`0x1175088`**, line **0xa6e
+    = 2670**, file `0x1173a10` = procedural_terrain.cpp, format
+    `0x1150f60`); else → 0x909090; `[R+4] > 1` → 0x9091c6.
+  - **③ The pixels proof = `0x909da0` (region-at) itself:** `movsd
+    0x38(%edi),%xmm1 ; addsd %xmm0` and `movsd 0x40(%edi),%xmm0 ; addsd
+    %xmm2` → `cvttsd2si` → **`and $0x1ff` + `sar $0x9`** (y additionally
+    `idiv [edi+0x50]` with the negative fix-up `add %ecx,%edx`) =
+    **512-px chunk index + intra-chunk offset applied to the very values
+    `0x908f40` passed** ⇒ the units are **pixel** and the chunk is 512 px
+    (C11/C76). Crucially `this[+0x38]/[+0x40]` (the world offset) is
+    added **only inside `0x909da0`** — `0x90a860` never sees it.
+  - **④ The callee `0x90a860` (size 2217 = 0x8a9 → 0x90b109, next fn
+    0x90b110; `ret $0x4` @0x90b106 = exactly one stack arg = the
+    region):** entry bindings `[ebp+8]→ebx = R`, `xmm2 → −0x44` (x+0.5),
+    `xmm3 → −0x3c` (y+0.5), `ecx → −0x30` (this); `R[+4]` selects two
+    **byte-identical** grid copies (0x90a8c1.. / 0x90ac28..), `P :=
+    R[+0x1d4]` (null ⇒ skip grid → 0x90aad1 ⇒ field0 = 0 ⇒ r′ = 0 ⇒
+    return 0). **Grid law (both copies):**
+    `u = f32( 0.49162514·(x+0.5) + f32(P[+0x94]) ) × f32 0.1`
+    — `mulsd 0x11dfdc8` = **0.49162514**, `movss 0x94(%eax)`,
+    **`mulss 0x11df974` = f32 0.1**; `v` = the same shape with the
+    `P[+0x94]` bias scaled by **`0x11dfa08` = 6.86035959282328e-07**
+    (meaning OPEN) → `cvttsd2si` + `comisd`/`dec` **floor fix-up** →
+    frac → smoothstep weight **(3−2t)·t²** (`0x11dff70` = f32 3.0,
+    `0x11dfe68` = f32 2.0, `0x11dfbf0` = f32 1.0) → **4× `call 0x9fe620`**
+    (the wrap-mod getter, C45) over `P`'s grid → 2 bilinear lerps →
+    field0. The ×0.1 is a genuine **grid↔pixel conversion**: `0x11e015c`
+    = **f32 10.0** multiplies u/v back up before `call 0x908cb0` in the
+    add-noise arm (@0x90aa66/6e), and `divss 0x11df974` (= ÷0.1) appears
+    @0x90ac0b. Gates re-pinned: `comiss 0x11dfaac` = **0.51** @**0x90aaf7**,
+    `0x11dfb84` = **0.85** @**0x90ab48** → slab↔true pairs 0x50a2f7 /
+    0x50a348 ⇒ **`0x90a860` = the port's `surfaceField` identity
+    re-confirmed** (C37's chain). The r-eval is **`call 0x90b280`**
+    @0x90aadd (slab 0x50aa80) with ecx = this, **xmm2 = x+0.5 / xmm3 =
+    y+0.5 — the same PIXEL args, NOT ÷10**, `push R`, then `mulss field`
+    ⇒ r′. **Observed FP slots (record, don't infer a signature):** this
+    call family does not use the plain xmm0-first layout — `0x909da0`
+    reads xmm1/xmm2, `0x90a860` reads xmm2/xmm3 (xmm1 = a duplicate of
+    x), and the classify call stages its FP arg in xmm3.
+  - **⑤ The I23② verdict (the byte answer that was blocking code):**
+    - **The callee's argument frame = pixels +0.5 ⇒ V3's world-px frame
+      (`wx = x − worldX0`, C80) IS the game's frame; V2's `px/10` cell
+      frame is NOT.**
+    - **But the callee has two consumers with two different frames:** the
+      **grid/gradAt** term wants `0.049162514·px + 0.1·P[+0x94]` (the
+      ×0.1 is inside the binary), while the **r-eval** wants raw pixels.
+    - The port's `mapgen/lib/noise-proto.mjs:676` =
+      `gradAt(f(x·0.49162514)+valueOfP94, …)` — **no ×0.1** ⇒ with V3's
+      pixel args the grid index runs **10×** the game's
+      (0.49162514·px vs 0.049162514·px), whereas V2's pre-÷10 makes the
+      grid term **exact** (0.49162514·(px/10) = 0.049162514·px) but
+      feeds the r-eval 1/10 of the pixels the game gives it.
+    - ⇒ **"which lane is wrong" was the wrong dichotomy: each lane is
+      right for one of the two consumers, and the defect is a one-step
+      omission inside `surfaceField`, not a lane-frame choice.**
+      **Action for the next (code) dig — still NO port change this
+      dig:** add the ×0.1 and the `0.1·P[+0x94]` bias inside
+      `surfaceField`, feed **pixels** in BOTH lanes (drop V2's ÷10
+      pre-scale), decide the ramp-placeholder units in the same change
+      (**C80's ramp arithmetic — "field0 crosses 0.5 at wy ≈ +235 px"
+      — was computed on the pre-×0.1 scale and moves ~10× once the
+      ×0.1 lands, so `makeGradAt`'s StartY/EndY reading must be
+      re-derived or the real grid substituted**), and validate against
+      C79's surface-y IoU A/B plus I23③'s still-missing shape gate.
+  - **⑥ Constants byte-read this session (f32 in `.rdata`):**
+    `0x11df974` = **0.1**, `0x11e015c` = **10.0**, `0x11dfbf0` = 1.0,
+    `0x11dfe68` = 2.0, `0x11dff70` = 3.0, `0x11dfaac` = 0.51,
+    `0x11dfb84` = 0.85, `0x11dfd2c` = 1.5, `0x11dfa94` = 0.5,
+    `0x11dfbac` = 0.95, `0x11e00b4` = 5.35, `0x11df944` = 0.0489275008,
+    `0x11e01b0` = 15.5; f64: `0x11dfdc8` = **0.49162514**,
+    `0x11dfa08` = **6.86035959282328e-07**, `0x11dfdd8` = 0.5,
+    `0x11dfe30` = 1.0, `0x11dfb58` = 0.001, `0x11dfd08` = 0.1 (the
+    port's `scale01`, a different constant than the f32 0.1 above),
+    `0x11dfce8` = 0.07, `0x11dfc98` = 0.035; string: `0x1175088` =
+    `biome->bitmap_data`.
+  - **⑦ Corrections landed with this entry:**
+    - **(115)'s pitfall "p0_functions.csv size column is hex" is WRONG —
+      it is DECIMAL** (`FUN_00908f40` 1072 = 0x430 → next fn 0x909370 ✓;
+      `FUN_0090a860` 2217 = 0x8a9 → 0x90b109/next 0x90b110 ✓; the hex
+      reading would overlap later functions). Fixed in place in (115).
+    - **I24④'s cross-reference was wrong:** it claimed the sync-arm
+      wrapper-kind question "still needs the `0x90a860` call-site frame
+      — shared with I23②". `0x90a860` has nothing to do with the wrapper
+      dispatch; the real need is the **`0x8cef30` dispatch's own
+      call-site frames** (which callers pass which wrapper kind).
+      Rewritten in ISSUES I24④.
+  - **⑧ Residuals / still OPEN:**
+    - `[R+4]` identity (it gates both the caller arm and which grid copy
+      runs) and `P = [R+0x1d4]`'s own identity; the
+      `P[+0x94] × 6.86035959282328e-07` **y-bias meaning**.
+    - Whether `driver[+0x20]/[+0x24]` (originX/originY) are world px or
+      driver-local px — `0x909da0` adds `this[+0x38]/[+0x40]` while the
+      field does not, so a **constant registration offset between the
+      callee's grid and the port's `wx/wy`** may persist (feeds I21's
+      family-local question, not its eliminated global form).
+    - The FP-argument slot pattern (④) is recorded as observed usage,
+      **not** as an ABI claim.
+    - The port patch itself + the ramp-unit decision = the next dig
+      (I23②'s action, gated on I23③'s instrument).
+  - **Landed:** CONSTANTS **C95**, ISSUES **I23② settled + action** +
+    **I24④ cross-reference fix**, VERIFIED **§8 row 36**, this entry
+    **(116)**, Current_work registry refresh. Docs-only ⇒ **no code
+    change, no cache bump** (`mapgen/server/genmap-server.mjs:34`).
+    Next free: entry **(117)**, **C96**, **I25**; §8 row **37** free.
