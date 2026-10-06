@@ -100,6 +100,17 @@
   user's "possible liquid but wasn't loaded" hypothesis = the
   unresolved piece is the per-biome RESOLVER TABLE ([+0xb0] bodies, the
   config "RandomMaterials" side), ONE remaining read family.**
+  **[UPDATE dig #115]** that family's RUNTIME side is now read end-to-end
+  (ABOUT_MATH (115), C94, VERIFIED §8 row 35): `ProceduralTerrain::Init`
+  → stack wrapper → dispatch `0x8cef30` (queue arm) → slot2 `0xa99ea0` →
+  the `<RandomColor>` consumer `0x904c20` (record layout, the
+  `wang_template_filename.empty()` guard line 1808, the A/`[A+0x1f4]` gate,
+  the seed → warm-up `N = (W mod 11) + (seed mod 12)` + Park–Miller pick
+  law, the flood-fill asserts) and data.wak carries **3
+  `<RandomMaterials>` blocks / 6 `<RandomColor>` rules**. Still open =
+  *which* per-biome resolver bodies exist: a `+0xb0` census (77 literal
+  sites) shows only `0x8ee1b0` ever installed there ⇒ **I24 ⑤ is the
+  remaining read**, plus the record/string/RTTI residuals I24 ①–④.
 - P4: the level-inpainting rock edges = seed-independent — likely the
   "always same every seed" ⇒ a NON-RNG deterministic painter (bounded
   ray-walks like the finalize family or the 0xe6d50 erosion painter).
@@ -501,6 +512,38 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   is OPT-IN (`SURFACE_V2`), refused by the IoU gate (C79) ⇒ nothing
   currently measures this lane's rendered shape. Source: ABOUT_MATH
   §6 (114).
+
+- [ ] **I24. RandomColor consumer — residual OPEN after the reachability
+  chain closed** (opened 2026-10-06, dig #115). Landed by (115): the full
+  chain `ProceduralTerrain::Init` `0x905fb0` → stack wrapper → dispatch
+  `0x8cef30` (queue arm) → deferred `0x8cf1f0` → slot2 `0xa99ea0`
+  (`mov 0x4(%ecx),%ecx; jmp 0x904c20`) → consumer `0x904c20`, plus the record
+  layout, the `wang_template_filename.empty()` guard (line 1808), the
+  A/`[A+0x1f4]` gate, the pick-sign correction, the seed + warm-up closed
+  form, the flood-fill asserts, and the `+0xb0` census (§8 row 35; C94).
+  Residual — none block the P1 read:
+  ① **RTTI class name UNPROVEN** — `.?AVIngestionComponent@@` (`0x12f9f78`)
+  sits 8 bytes after the pTD stored in the COL record (`0x11eb884` →
+  `0x12f9f68`), no rdata dword equals `0x1199d40` or pVFTable `0x12f9f70`,
+  same pTD-shape mismatch as the resolved packs (`0x11e1f94`/`0x11e1f8c`)
+  ⇒ **do not name the wrapper class**.
+  ② **What is A?** `this+0` → A, then `[A+0x1f4]` → `[x+4]==0` gate
+  (`0x905b50..0x905b72`); `0x1f4` unverified and A is read, not stored ⇒ an
+  out-parameter (probably `world_state`-class) — identify before citing the
+  map walk as biome evidence.
+  ③ **Second record string** `this+0x1c` (24 B) identity — nothing proves it
+  is not the biomenames file.
+  ④ **Sync-arm wrapper kind (I23②'s frame question).** Queue arm reads only
+  node+0x10 → wrapper+0/+4 (both kinds safe); **sync** arm reads
+  `wrapper+0x10` = `&self`, present only on the stack wrapper (heap clone =
+  0xc B). Ctor sets `mgr+0x24/25` ⇒ `0x25==0` ⇒ Init takes the queue arm, but
+  the `[mgr+0x25]` setter and `0x92b300` attach semantics are unidentified
+  ⇒ which callers run sync is OPEN (still needs the `0x90a860` call-site
+  frame — shared with I23②).
+  ⑤ What `0x8ee1b0` (CellFactory color→idx thunk) does at `this+0x140`
+  (`0x905acd`), and what the 80 register-form `mov %reg,0xb0(%reg)` stores
+  install (statically unresolvable).
+  Source: ABOUT_MATH §6 (115).
 
 ## Strategy (agreed)
 

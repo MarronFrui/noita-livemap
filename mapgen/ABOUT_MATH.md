@@ -9105,3 +9105,163 @@ first use from now on):**
     `mapgen/experiments/2026-10-06-v2-chunk-census.mjs`. No code patch,
     no cache bump. Next free: entry **(115)**, **C94**, **I24**; §8 row
     **35** free.
+
+- **2026-10-06 (115) — dig #115 (docs-only): the `<RandomColor>` /
+  `<RandomMaterials>` RUNTIME CONSUMER CHAIN is closed end-to-end —
+  `ProceduralTerrain::Init` → stack wrapper → queue dispatch → vtable
+  slot2 tail-jump → consumer `0x904c20`; record layout, the line-1808
+  guard, the seed / warm-up / pick law, and the data.wak side are all
+  byte-settled (incl. a pick-sign correction).**
+  Docs-only: no code, no cache bump. Every fact below was re-read from
+  `noita_dev.exe` on disk **this session** (objdump windows; `.text` file
+  = VA − 0x400C00, **`.rdata` file = VA − 0x400E00**). Landed: CONSTANTS
+  **C94**, ISSUES **I24** + P1 cross-link update, VERIFIED **§8 row 35**
+  + §9.5 pointer, Current_work 171 / ~611.
+  - **① Reachability (the P1 gap) — every link byte-read:**
+    - `ProceduralTerrain::Init` = **0x905fb0**, exactly **5 `call`
+      xrefs**: 0x642f43, 0x72251f, 0x729ae4, 0x80c593, 0x80d4ec.
+    - Loop **0x907ab0..0x907b16** over vector `[ebp−0x284 begin,
+      ebp−0x280 end]` stride 4 builds a **stack wrapper**: `vec[i]` →
+      `−0xb4` @0x907ab3, vptr **`0x1199d40`** → `−0xb8` @0x907abf, and
+      `mov %eax,−0xa8(%ebp)` @0x907ac9 = **wrapper+0x10 = &wrapper
+      (self)**. Global `mov 0x13289b4,%eax` @0x907a79 → saved `−0x244`
+      → ecx param; manager = `call 0x8cf000` @0x907a86 → edi;
+      `push &wrapper; push %edi; call 0x8cef30` @0x907adb; dtor path
+      reloads `−0xa8(%ebp)` → `setne` flag → `call *0x10(%edx)`
+      @0x907aff.
+    - Dispatch **`0x8cef30`** (ret $8): `mov 0x8(%ebp),%edi` = arg1 =
+      manager; `cmpb $0x0,0x25(%edi)` @0x8cef41 → `je 0x8cef67`
+      **QUEUE**, else **SYNC**: `mov 0xc(%ebp),%eax` = arg2 = &wrapper →
+      `mov 0x10(%eax),%ecx` (self) → null check → `mov (%ecx),%edx;
+      call *0x8(%edx)` @0x8cef59 = **slot2** → `mov %edi,%eax; ret $8`.
+      Manager ctor sets `movw $0x1,0x24(%edi)` @0x8cf05a ⇒ byte[+0x25]
+      = 0 ⇒ **Init takes the QUEUE arm**; also `mov %edi,0x10(%edi)`
+      @0x8cf044 (manager self at +0x10), vtable `0x11888fc`, refcount
+      at +0x1c.
+    - **Queue arm:** lock xadd on mgr+0x1c → `call 0x8cf0e0` (node
+      alloc) → `push 0xc(%ebp); mov %ebx,%ecx; call 0x92b300` (attach —
+      semantics OPEN) → `mov %edi,0x18(%ebx)` (node+0x18 = manager) →
+      `movw $0x0,0x24(%ebx)` / `mov %ecx,0x20(%ebx)` → **`movl
+      $0x8cf1f0,−0x8(%ebp)` @0x8cefa8** → `call 0x9fa830` @0x8cefb2
+      (enqueue). `call 0x8cf1f0` = **0 direct sites** (function-pointer
+      installed).
+    - **Deferred runner `0x8cf1f0`:** `mov 0x10(%esi),%ecx` (node+0x10
+      = wrapper) → `mov (%ecx),%eax; call *0x8(%eax)` @0x8cf204-06 =
+      slot2.
+    - **slot2 `0xa99ea0` = the linchpin: raw `8b 49 04` = `mov
+      0x4(%ecx),%ecx`; `e9 78 ad e6 ff` = `jmp 0x904c20`** ⇒ tail-jump
+      into the consumer with **ecx = wrapper+4 = vec[i]** (the record
+      pointer). `call 0x904c20` = 0 sites and no e8/e9 to `0xa99ea0` ⇒
+      the consumer is reachable **only** via this vtable slot.
+    - **Vtable `0x1199d40` dwords = `[0xa99e20, 0xa99e60, 0xa99ea0,
+      0xa99eb0, 0xa99ed0, 0xa9b3d0, 0xa99ec0]`.** slot0/slot1
+      (`0xa99e20`/`0xa99e60`) = test arg → `push $0xc` new → `movl
+      $0x1199d40,(%eax)` + copy payload = the **0xc-byte heap clone**
+      {vptr, payload}; slot3 `0xa99eb0` = `mov $0x12f9014,%eax; ret`
+      (6 B, int3 from 0xa99eb6; pTD 4 B before TD `0x12f9018` =
+      `.?AUVec2ArrayInline@@` — meaning OPEN); slot4 `0xa99ed0` →
+      `call *0x14(%eax)` (slot5) → flag → `call *0x114a348` (delete);
+      slot5 `0xa9b3d0` = `movl $0x1179670,(%esi)` (base vtable) +
+      conditional delete; slot6 `0xa99ec0` = `lea 0x4(%ecx),%eax; ret`.
+    - **Stack vs heap:** stack wrapper = **0x14 B** {vptr, payload, pad,
+      self=&wrapper}; heap clone = **0xc B**. The queue arm reads only
+      node+0x10 → wrapper+0/+4 (both kinds safe); the **sync** arm reads
+      wrapper+0x10 = `&self` (stack instance only) ⇒ which callers run
+      sync is OPEN (I24④).
+  - **② Record layout + guard (this = vec[i]):** **+0x00** dword → **A**
+    (read back @0x905b50 → null gates); **+0x04 std::string (24 B) =
+    `wang_template_filename`** (copied to the stack string at F0+0x94
+    via `call 0x41d770` @0x904c92); **+0x1c std::string** (copy
+    @0x904ca4/0x904caa — identity OPEN, I24③); **+0x34 width, +0x38
+    height** (both clamped [1,0x400], defaults 0x400 @0x904d26-0x904d2f);
+    **+0x3c..0x4b** `movdqu` 16 B; **+0x4c seed** dword; **+0x54 / +0x80**
+    addresses taken (`lea` @0x904d59/0x904d60 → [esp+0x34]/[esp+0x40]).
+    Guard: `cmpl $0x0,0xb0(%esp)` @0x904d33 = **F0+0xa4** (the stack
+    copy's `_Mysize`; consumer baseline = 3 pushes = 12 B) → hoists seed,
+    xmm0, IAT `0x114a374`/`0x114a378`, record fields → `jne 0x904e40`
+    @0x904d76 → else `push $0x710` (**line 1808**), `push 0x1173a10`
+    (`…\source\procedural_utils\procedural_terrain.cpp`), `push
+    0x1174198` = **`wang_template_filename.empty() == false`**, `push
+    0x1150f60`, `call *%ecx` @0x904d90.
+  - **③ A / map-walk / the two LoadFromImageData arms:** A is read back
+    @0x905b50 (null-gated) → `mov 0x1f4(%eax),%eax` @0x905b5c → `cmpl
+    $0x0,0x4(%eax)` @0x905b6e; map-walk head = `0x905be0..0x905c04`.
+    `BitmapNoise::LoadFromImageData 0x8f9ab0` = **3 sites: 0x8fa99b,
+    0x905dd7, 0x905f1e** — the latter two are **inside the consumer**
+    (two arms). Consumer epilogue `ret` @0x905faa.
+  - **④ data.wak side (re-extracted this session):** **3
+    `<RandomMaterials>` blocks / 6 `<RandomColor>` rules** — offsets
+    **1272832** coalmine (`FF00BBEE`, `FF12BBEE`), **1514362**
+    liquidcave/lava (`FF01CFEE` → 5 colors incl `FF0BFFE5`, `FF12BBEE`),
+    **1951247** town_under/forest (`FF01CFEE` → 4 colors, `FF12BBEE`);
+    comments verbatim: "changes the color to random material",
+    "randomizes blocking and non blocking paths", "can be used to
+    randomize scripts as well" (`/tmp/opencode/rc-blocks.txt`).
+  - **⑤ Pick-sign CORRECTION:** `mulsd 0x11e0578` = f64 **−4.656612875e-10
+    = −1/(2³¹−1)** (byte-read) — **NOT −2⁻³¹** (the old gloss was a
+    rounding read; magnitude is byte-identical to `0x11df988` =
+    +4.656612875e-10). So `idx = cvttsd2si(state·count·−(2³¹−1)⁻¹) ≤ 0`
+    and addr = `[esi+0x14] − 4·idx` ∈ [first, last−4] for state <
+    2³¹−1 (pick idiom `0x905ca8..0x905ce4`). Conclusion stands and
+    tightens.
+  - **⑥ Seed → state + warm-up closed form:** seed dword → `cvtdq2pd` →
+    `addsd 0x11e0ba0(,%eax,8)` (0.0 / 2³² sign bias) → `comisd
+    0x11e0220` (f64 2147483647.0) → `jb` skip → `mulsd 0x11dfdd8` (0.5)
+    → `[esp+0x24]` → `call 0x10098c0` = **assert `seed != 0.0`**
+    (`ucomisd 0x11df878`, expr `0x1192220` = `seed`, line **0x66 = 102**,
+    file `0x11dda78` = `…poro\source\utils\random\random.cpp`) + Schrage
+    Park–Miller `16807x mod (2³¹−1)` (`imul $0x41a7`, divisor magic
+    `0x834e0b5f`, `imul $0x7fffffff`), new f64 state stored, returns
+    `state × 0x11df988 = state/(2³¹−1)`. **Warm-up count, exact decode
+    (0x905273..0x905344): `N = (W mod 11) + (seed mod 12)`, N ∈ [0,21]**
+    — `imul $0xaaaaaaab`+`shr $3` = ÷12 on seed; `imull 0x2c(%esp)`
+    (magic `0xd1745d17`) + `imul $0xb` + sub = W mod 11; V = [esp+0x2c]
+    = clamped width re-stored @0x905228-c; `jle 0x905344` skips when
+    N ≤ 0; loop body = the inlined Schrage step.
+  - **⑦ Flood-fill asserts:** lines **530 / 533 / 534 / 548** (8 sites),
+    expr `0x1173c1c` = `pixels.IsValid( ipos.x, ipos.y )`.
+  - **⑧ `+0xb0` census → §8 row 35:** pattern (opcode 0xc7 ∧ mod=2 ∧
+    disp32=0xb0) over file 0x400..0xd49200 = **77 hits; the ONLY
+    code-pointer immediate is `0x8ee1b0`** (2 sites: 0x8ee3a7, 0x8ee643
+    = `movl $0x8ee1b0,0xb0(%edi)`); every other immediate is numeric
+    noise (0×50, 2×6, 0xf×4, 1×2, 0x86c60000, 0x81c70000, 8, 0x34e3 /
+    0x34f9 / 0x3569 / 0x35a5 / 0x35a9 / 0x365b / 0x36af, 0x2d0,
+    0x3f99999a, 0x14). All **4** `movl $0x8ee1b0` installs read: the two
+    above (`0xb0(%edi)`), **0x905acd = `movl $0x8ee1b0,0x140(%eax)`**
+    (eax = this @0x905ac7; then `push $0x10` + `call *0x114a34c`), and
+    0x64c7a4 = `0x108(%esp)` ⇒ **no per-biome resolver *body* is ever
+    literally installed at +0xb0**; caveat: 80 register-form
+    `mov %reg,0xb0(%reg)` stores are statically unresolvable (I24⑤).
+  - **⑨ Standing warnings (traps hit this dig):**
+    - `fulltext86.asm` **stops at 0x1000d6f (truncated)** — any body ≥
+      0x1000000 must be objdump'd from `noita_dev.exe`; `p0_functions.csv`
+      size column is **hex**.
+    - **.rdata byte-delta ≠ .text byte-delta:** `.rdata` file = VA −
+      **0x400E00** (text = −0x400C00) — the old byte string for
+      `0x1199d40` was read with the text delta and was **wrong** (correct
+      dwords are in C94).
+    - objdump: `--stop-address` **excludes straddling instructions**;
+      non-boundary start addresses misdecode; the raw-byte column wraps
+      after 7 bytes; `tail -N` cuts instruction heads.
+    - x86 esp-relative slots correspond only when push-pending counts
+      match (consumer baseline = **3 pushes / 12 B** ⇒ F0−12 conversions;
+      e.g. `[esp+0xb0]` @0x904d33 ⇒ F0+0xa4).
+    - **RTTI: do NOT name the wrapper class.** `.?AVIngestionComponent@@`
+      (`0x12f9f78`) sits 8 bytes after the pTD stored in the COL record
+      (`0x11eb884` → `0x12f9f68`); no rdata dword equals `0x1199d40` or
+      pVFTable `0x12f9f70`; the 4-byte-at-`0x12f9014` / 5-byte-at-
+      `0x12f9f6c` pTD mismatches mirror the resolved packs
+      (`0x11e1f94` = 5, `0x11e1f8c` = 4) ⇒ association unproven (I24①).
+    - `fillRandomMaterials` is **our own label**, not a game string.
+  - **⑩ Residual OPEN → ISSUES I24:** ① RTTI class name; ② A's identity /
+    `0x1f4`; ③ record +0x1c string; ④ sync-arm wrapper kind + the
+    `[mgr+0x25]` setter and `0x92b300` attach semantics; ⑤ resolver
+    bodies at +0xb0. The P1 cross-link's "ONE remaining read family" is
+    updated: the **runtime side is now read**; the resolver table is the
+    residue.
+  - **Landed:** CONSTANTS **C94**, ISSUES **I24** + P1 cross-link rewrite,
+    VERIFIED **§8 row 35** + §9.5 pointer, Current_work 171 / ~611.
+    Docs-only ⇒ **no code change, no cache bump**
+    (`mapgen/server/genmap-server.mjs:34`); no byte-derived code change
+    until the I23② `0x90a860` / surfaceField call-site frame is read.
+    Next free: entry **(116)**, **C95**, **I25**; §8 row **36** free.
