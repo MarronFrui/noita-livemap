@@ -367,7 +367,9 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
 
 - [ ] **I21. The C76 classify/evaluate FRAME rests on claim (c); the world
   frame fits the surface band — frame flip = pending dig** (opened
-  2026-09-24, dig #101): dig #97's frame decision (x = canvas px,
+  2026-09-24, dig #101; **PARKED 2026-10-06, dig #114 — the IoU verdict
+  below shows field shape, not registration, dominates; see the Verdict
+  block at the end of this entry**): dig #97's frame decision (x = canvas px,
   y = canvas py − 24576) eliminated the world-frame candidate via claim
   (c) — "the hills-family noise band lives at CANVAS ty 48..50 = biome
   rows 0..2" (`mapgen/experiments/2026-09-21-noise-window.mjs:4-6`) —
@@ -395,6 +397,24 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   canvasCy 48..82, 240 v2 chunks, allPixelRms 15.39, refSkyFrac 0.009,
   refVoidFrac 0.857) — the window OVERLAPS the surface rows 60..62 but
   claim (c)'s stated band (48..50) does not. Source: ABOUT_MATH §6 (101).
+
+  **Verdict (ABOUT_MATH §6 (114), runs 2026-10-06).** Re-ran the instrument
+  with the #113 byte fix (C93): `mapgen/out/surface-y-iou-2026-10-06.md`
+  (n=7065). **FIELD SHAPE dominates; registration does NOT** ⇒ this box is
+  PARKED (not the next dig) and §8 row 34 records the elimination of a
+  global registration/frame offset as the dominant remaining error. Proof
+  from the run: (i) overall `meanAbs` did NOT improve — 88.76 → **89.58**
+  (bias 1.62 → 2.88); (ii) family biases are mixed-sign post-run —
+  mountain −28.89 / winter −17.93 / lake −40.76 / desert **+36.79** /
+  hills **+179.37** — while a global offset would shift them together;
+  (iii) within-family flips — hills 33_13 −205.69 vs 39_14 **+340.83**
+  (desert 45_14 −546.15 vs 46_14 +321.57); (iv) the band's depth tilt
+  *strengthened*: `fitDepth` a −0.347 → **−0.56164**, b 99.172 — a
+  registration change cannot add a slope. Only 11/56 tiles moved, all on
+  the whiteLattice2d lanes (6 hills + 5 desert), so the frame fix reached
+  only the lanes that consume bytes. Note the gate metric did not improve
+  (meanAbs 88.76 → 89.58): byte fidelity ≠ shape fidelity.
+  Source: ABOUT_MATH §6 (114).
 
 - [x] **I22. The ported `whiteLattice2d` (true 0x8fb350) inverts all
   three blend endpoints — every live surface lane renders the
@@ -442,11 +462,45 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   (>0.1), plus the integer-cell h0 pin 0.371890724 for BOTH lattices —
   `tests/mapgen/surface-census.test.mjs`, the new "lattice byte pins"
   describe; port ≡ asm-literal ≤1.19e-7 at all 5 side-by-side points
-  (`/tmp/opencode/sidebyside-112.mjs` re-run). IoU still pending
-  (unchanged gate).]** Dispatch twin (0x8fb950
+  (`/tmp/opencode/sidebyside-112.mjs` re-run). IoU EXECUTED
+  2026-10-06 (dig #114): meanAbs 88.76 → 89.58 — the frame/pairing fix
+  did NOT move the gate metric (byte fidelity ≠ shape fidelity); the
+  verdict lands in I21's Verdict block + §8 row 34, not here.]** Dispatch twin (0x8fb950
   = (26)'s mislabeled 0x8fc550) is NOT in any surface lane → out of
   scope. Source: ABOUT_MATH §6 (112); CONSTANTS C91; §6 (26)/(104),
   C40/C83.
+
+- [ ] **I23. The V2 chunk lane (the game's real cell loop) runs at ~1.8%
+  compute density on a DIFFERENT coordinate frame than V3, and no
+  instrument judges its shape** (opened 2026-10-06, dig #114):
+  **① density.** New census `mapgen/experiments/2026-10-06-v2-chunk-census.mjs`
+  (post-#113): 2288 procedural · 663 COMPUTES · 1625 falls · density
+  **0.0183** · all-air 17 · textured 646 · all-solid 0; pre-#113 A/B:
+  658 · 1630 · 0.0185 — i.e. **#113 changed only 5 cells
+  (mountain_lake.xml `5 fall (surfaceField default arm …)` → `5 compute`)
+  plus speckle; the ~1.8% vs entry-(26)'s recorded `2194 @ ~48-51%`
+  gap is NOT #113's doing** (that baseline is also ad-hoc:
+  pre-kind-5-rebinding/C77-fix/#101-gate-change — do not diff raw
+  numbers, but the A/B pins the delta). All falls post = `noiseDispatch
+  kind -1`, 0 UNKNOWN. **② frame divergence.** The V2 lane builds its
+  field in CELL space: `gx = tx·CELLS_PER_CHUNK + cx + 0.5`,
+  `gy = ty·CELLS_PER_CHUNK + cy + 0.5` with `CELLS_PER_CHUNK = CHUNK/10 =
+  51.2` (`noise-terrain.mjs:87,234-235`) — a world-px coordinate ÷ 10 —
+  while the V3 lane feeds `surfaceField` WORLD px
+  (`wx = x − worldX0`, `wy = y + bandTopPx − worldY0`,
+  `noise-terrain.mjs:319-324`, frame C80), yet `gradAt` is documented
+  and built on **world-y** units (makeGradAt ramp StartY→EndY,
+  `noise-terrain.mjs:143`; bitmapCaves field lookup indexes raw gx/gy
+  `:225-227`). One of the two lanes is sampling the ramp/field with a
+  10× coordinate mismatch. **Read the 0x90a860 call-site frame in
+  `fulltext86.asm` before touching any code** — the byte answer decides
+  which lane is wrong; no port change without it. **③ instrument gap.**
+  The shape gate (`2026-09-21-surface-shape.mjs`) probes only wang/
+  template bands (this session: `/tmp/opencode/probe-v2window-114.mjs`
+  = **procedural 0, v2masks 0** in tx29..47 × ty11..19) and the V2 lane
+  is OPT-IN (`SURFACE_V2`), refused by the IoU gate (C79) ⇒ nothing
+  currently measures this lane's rendered shape. Source: ABOUT_MATH
+  §6 (114).
 
 ## Strategy (agreed)
 

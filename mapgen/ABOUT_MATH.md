@@ -8951,3 +8951,157 @@ first use from now on):**
     **§8 row 33** (round→floor overturned — do not re-test), inline
     supersessions at (26)/(40), this entry **(113)**. Next free:
     entry **(114)**, **C93**, **I23**; §8 row 34 free.
+
+- **2026-10-06 (114) — dig #114 (housekeeping + gates): the field-wiring IoU
+  verdict = FIELD SHAPE dominates, registration does NOT ⇒ I21 parked; the
+  reproducible V2 chunk census instrument landed (+ a handover correction);
+  `npm run bench` = NO observable default-lane change ⇒ cache r3i STANDS.**
+  All numbers re-derived on disk this session (logs in `/tmp/opencode`).
+  - **① IoU re-run — the gate I21 was waiting on** (`SURFACE_V3=1 node
+    mapgen/experiments/2026-09-24-surface-y-iou.mjs`, C79 spec; this run
+    `/tmp/opencode/iou-114.log` vs the pre-#113 Oct-2 run
+    `/tmp/opencode/iou-113.log`):
+    - **overall: n 7064→7065, meanAbs 88.76 → 89.58, bias 1.62 → 2.88,
+      ±3 0.046 → 0.045, genNoLine 14902 → 14901, fitX(a) 0.11583 → 0.09831,
+      fitDepth(a) −0.347 → −0.562** (b 86.65 → 99.172).
+    - **VERDICT: the residual error is FIELD SHAPE, not registration.**
+      Four independent reads of the same logs: (a) **bias 2.88 px vs
+      meanAbs 89.58 px** — a global frame shift would put those two on the
+      same scale (bias/meanAbs = 3.2%); (b) **family biases MIXED SIGN**
+      — mountain −28.89 · winter −17.93 · lake −40.76 · desert +36.79 ·
+      hills +179.37 — one frame shift cannot sign-flip across families;
+      (c) **the same family flips sign between neighbouring tiles** —
+      hills 33_13 bias −205.69 vs hills 39_14 +340.83 (and 44_14 +258.75);
+      (d) **`fitDepth(a=−0.56164, b=99.172)`** — the error tracks DEPTH
+      (a scale/shape term crossing zero near depth 177), whereas a
+      constant misregistration is `a = 0`. Only 4.5% of paired columns
+      agree within ±3 px. ⇒ **I21 (the classify/evaluate frame flip,
+      ISSUES:368) is NOT the indicated next dig — parked**, filed as an
+      elimination at VERIFIED §8 row 34; a family-local misregistration
+      is NOT excluded (scope note in the row).
+    - **The delta IS dig #113's, and it is confined to the lanes #113
+      changed:** 11 of the 56 per-tile rows differ (scripted diff) —
+      **6 hills** (38_13, 41_13, 43_13, 41_14, 42_14, 44_14) + **5
+      desert** (52_10, 49_13, 45_14, 46_14, 47_14) = the addNoise 1/2/3 +
+      dispatch `whiteLattice2d` lanes (I22/C92); mountain, winter, lake,
+      bty11, bty12 rows are **byte-identical**, and mountain_lake 40_14
+      too (its new default-arm mask is 0.06% solid ⇒ no line change).
+    - **Honest reading of I22's "IoU after" gate: EXECUTED, and the metric
+      did NOT improve** (meanAbs +0.82, hills 294.44→297.34, desert
+      133.27→137.16, ±3 flat). That is the expected result of a
+      byte-fidelity fix measured by a shape metric: I22 stays CLOSED on
+      its byte-pinned test (`0.898207068`), and the IoU stays the shape
+      judge — the two are not the same axis.
+  - **② V2 CHUNK CENSUS — new instrument + a handover correction.**
+    - **Correction:** `mapgen/experiments/2026-09-28-surface-census.mjs`,
+      which earlier handovers named "the V2 chunk census", is a **Ghidra
+      call-graph region census** (reads `~/work/ghidra-logs/p0_*.csv`;
+      130 fns: 20 dumped / 46 doc-mentioned / 79 unread-territory) — it
+      never counted a rendered chunk, and it is unaffected by dig #113.
+      **No chunk-census instrument existed in-repo**, so this dig added
+      one: **`mapgen/experiments/2026-10-06-v2-chunk-census.mjs`** (C93).
+    - Instrument contract: refuses to run without `SURFACE_V2=1` (the lane
+      under measurement), seed `CAPTURE_SEED` 78633191, scope tx 0..70 ×
+      canvas ty 0..143, smoke scope ty ≤ 96 (the (25)/(26) window);
+      **buckets keyed by biome FILENAME**, not `name` — measured this
+      session that hills.xml / solid_wall.xml / empty.xml all carry
+      `name="_EMPTY_"`, so name-keyed rows hide whole biomes; definitions
+      mirror `noiseChunkMask` exactly (procedural = biomeAt hit ∧ no
+      `templateFile`, `noise-terrain.mjs:202-204`; COMPUTES = `noiseAt`
+      non-null; density = Σmask/2704; textured = 0 < d < 1), and the
+      frame `biomeAt(config, tx, ty − SKY_ROWS)` mirrors `:202`.
+    - **HEAD (post-#113) run** `/tmp/opencode/census-114-post113.log`:
+      **2288 procedural · 663 COMPUTES · 1625 falls · mean density
+      0.0183 · all-air 17 · textured 646 · all-solid 0**; every fall =
+      `noiseDispatch kind -1 (no noise_type)` (0 UNKNOWN, 0 default-arm).
+    - **A/B vs pre-#113** (`mapgen/lib/noise-proto.mjs` swapped to
+      `f33f0bd~1`, run, restored — `git status --short` clean after, only
+      the new untracked script) `/tmp/opencode/census-114-pre113.log`:
+      **658 · 1630 · 0.0185 · all-air 18 · textured 640**. Row diff =
+      **exactly one fall reason disappears: mountain_lake.xml `5 proc,
+      0 compute, 5 fall (surfaceField default arm …)` → `5 proc, 5
+      compute, 0 fall, density 0.0006`** = dig #113's I20② port (+5
+      COMPUTES), plus threshold-crossing speckle in hills (air 16→14,
+      tex 247→249), hills2 0.0046→0.0044, mountain_tree 0.0019→0.0018,
+      pyramid_top 0.0033→0.0026, mountain_top 0.0015→0.0018, pyramid_left
+      0.0009→0.0011, pyramid_right 0.0036→0.0033, pyramid_hallway
+      0.0026→0.0030, snowcastle_hourglass_chamber 0.0052→0.0059 — i.e.
+      **#113's observable census delta = +5 mountain_lake chunks and
+      nothing else structural.**
+    - **Baseline caveat (settled):** (26)'s "**2194 chunks @ ~48–51%
+      solid density**" was an ad-hoc run with no instrument, pre-dating
+      the kind-5 re-binding, C77's sign fix (98) and the dig-#101
+      gate-source change (proxy → `surfaceField` return); it is **not a
+      like-for-like current baseline** and must not be restored-to or
+      diffed-against as one. The current state of that lane is an OPEN
+      question → **ISSUES I23**.
+  - **③ THE BENCH GATE (cache rev) — NO observable default-lane change ⇒
+    r3i STANDS (no bump).**
+    - `npm run bench` (log `/tmp/opencode/bench-114.log`): gen wrote 96
+      chunk entries, ref re-sliced **1100** chunks (every tile a
+      **cache hit** — `find mapgen/out/cache -newermt "2026-10-06 05:00"`
+      = empty, so no ref byte was fetched/altered today), diff scored
+      **20 chunks**: **meanAbsDiff avg 91.21398745928495 · solidMismatchPct
+      avg 41.46745681762695 · best 30_17 31.7% · worst 35_15 50.0%** =
+      the stale Sep-19 `stats.json` values (91.214 / 41.467, 20 chunks) at
+      recorded precision, with **`stats.json` 2819 B and `report.html`
+      9243 B — byte-count identical to the Sep-19 files.**
+    - **Code-path proof (why it had to be identical):** dig #113's diff =
+      ABOUT_MATH/CONSTANTS/ISSUES/VERIFIED + `lib/noise-proto.mjs` +
+      `lib/noise-terrain.mjs` (8 lines, comment) + one test file; the
+      bench pipeline imports none of them (`2-generate.mjs` = paths,
+      biomes, wang-wasm, coords, images). And the **cached artifact** is
+      independent of the lane even when the lane is ON: r3i stores
+      `world.maps` = the per-area `{w,h,attempt,rgb}` written by
+      `ensureWorld`'s area loop (`world-gen.mjs:164..209`, wang/static +
+      colorize), while `attachNoiseTerrain` (`noise-terrain.mjs:363-385`)
+      only installs QUERY-time probes (`world.noiseAt`/`noiseSolidAt`)
+      and **early-returns without `SURFACE_V2`/`SURFACE_V3` (`:367`)**;
+      `worldColorAt` applies the noise overlay at query time
+      (`world-gen.mjs:90-107`) and never writes it into a cached area.
+      ⇒ **no cached byte and no default-render pixel can change ⇒ the
+      cache rule (`genmap-server.mjs:34`) says STAY on r3i — verified,
+      not assumed.**
+  - **④ Flat-region rms vs frozen91 re-run — and the gate's blind spot.**
+    `SURFACE_V2=1 node mapgen/experiments/2026-09-21-surface-shape.mjs`
+    (default window tx 29..47 × ty 11..19, 171 rows; log
+    `/tmp/opencode/shape-114.log`): **allPixelRms 64.647 · flatPixelRms
+    46.958 · flatCoverage 0.1571 · refSolidFrac 0.69031 · refSky 0.01876
+    · refVoid 0.29093 · genSolidFrac 0.50392.** Prior comparable run =
+    entry **(39)** (2026-09-21, same handoff window): allPixelRms
+    73.535 · flatPixelRms **48.717** · coverage **20.3%** · refSolid
+    **0.690** · genSolid **0.429** ⇒ rms improved −1.76 and genSolid
+    +7.5 pts, but **coverage 20.3% → 15.7% is a REF-side difference this
+    session cannot explain** (refSolid matches (39) to 3 dp and no ref
+    byte was touched today) — flagged, not attributed.
+    **The gate's blind spot, re-confirmed by probe this session**
+    (`/tmp/opencode/probe-v2window-114.mjs`, SURFACE_V2=1): that window
+    contains **procedural = 0, v2masks = 0** — exactly (39)'s diagnostic
+    — so the standing flat-rms instrument measures the **wang/template
+    bands only** and CANNOT see a surface-lane change. (39) already
+    recorded this; it has never been distilled to VERIFIED, and no
+    chunk-row-matched replacement instrument exists yet → carried in
+    I23③. Also: the instrument writes a **fixed** filename
+    (`mapgen/out/gen-shape-2026-09-21.json`) regardless of window, so
+    runs overwrite each other — the pre-run file (the (39)-era
+    diagnostic-window JSON, ty 0..10, refVoid 0.953) was preserved at
+    `/tmp/opencode/gen-shape-pre114.json` before the re-run.
+  - **⑤ Frame divergence observed while reading the census (no verdict —
+    reported, not guessed):** the V2 lane evaluates the field in CELL
+    coordinates, `gx = tx·CELLS_PER_CHUNK + cx + 0.5` with
+    `CELLS_PER_CHUNK = CHUNK/10 = 51.2` (`noise-terrain.mjs:87, :234-235`)
+    ⇒ `gx = world_px / 10` exactly (world px = tx·512 + cx·10 + 5), while
+    the V3 lane evaluates at WORLD px (`:319-324`, C80) and `gradAt`'s
+    ramp/topology sources are written in world-y units (StartY −1024…
+    `:145-153`, `:181-189`). Under `SURFACE_V2=1` alone the caves-field
+    conjunct is off (`:222`), so that lane's gradAt = topology image lane
+    else the ramp PROTOTYPE (C39, not byte-backed) — the census density
+    above is for that gradAt. The binary's own argument frame at the
+    0x90a860/surfaceField call site is **unread** (C80 settled the V3
+    gate's frame only) ⇒ **I23②** = read it before touching code.
+  - Landed: CONSTANTS **C93**, ISSUES **I21 verdict (parked)** + **I22's
+    IoU gate executed** + new **I23**, VERIFIED **§8 row 34**, this entry
+    **(114)**, plus the committed instrument
+    `mapgen/experiments/2026-10-06-v2-chunk-census.mjs`. No code patch,
+    no cache bump. Next free: entry **(115)**, **C94**, **I24**; §8 row
+    **35** free.
