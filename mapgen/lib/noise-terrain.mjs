@@ -22,7 +22,7 @@ import path from "node:path";
 // config — the only non-static constants used here, tagged @prov noitool
 // per CONSTANTS.md::C24.
 
-import { evaluator2, noiseDispatch, surfaceField } from "./noise-proto.mjs";
+import { K2, evaluator2, noiseDispatch, surfaceField } from "./noise-proto.mjs";
 import { biomeAt } from "./biomes.mjs";
 import { buildCavesField } from "./caves-field.mjs";
 import { readPng } from "./images.mjs";
@@ -147,8 +147,17 @@ function makeGradAt(def) {
   const y1 = def.mGradientEndY ?? 1024;
   const lo = parseFloat(def.mGradientLowNoise ?? "0");
   const hi = parseFloat(def.mGradientHighNoise ?? "0");
+  // dig #117 (I23② action; C39/C80/C95): the ramp's contract is WORLD-Y PX
+  // (StartY/EndY — C80's capture-validated 0.5-crossing at wy≈+235 px),
+  // while surfaceField now hands gradAt the GAME's grid units
+  // (u = 0.049162514·px + 0.1a, C95). Recover px here so the (A) placeholder
+  // keeps its calibrated behaviour instead of collapsing to C80's
+  // degenerate clamped-flat; the bitmap/topology gradAts stay grid-indexed
+  // (byte law) — only the invented ramp converts. (A) debt, C39.
+  const gridToPx = 1 / (K2.f64_049162514 * K2.f32_0p1); // ≈ 20.34 px/texel
   return (gx, gy) => {
-    const t = Math.max(0, Math.min(1, (gy - y0) / Math.max(1e-6, y1 - y0)));
+    const wy = gy * gridToPx;
+    const t = Math.max(0, Math.min(1, (wy - y0) / Math.max(1e-6, y1 - y0)));
     return lo + (hi - lo) * t;
   };
 }
@@ -229,10 +238,17 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
       gradAt =
         makeGradAtFromTopology(dataDirRef.dataDir, def) ?? makeGradAt(def);
     }
+    // dig #117 (I23② action): FEED PIXELS — the game's caller frame is
+    // px+0.5 (0x908f7e adds 0.5 then calls @0x908f96, C95). V2's old cell
+    // pre-scale (÷10 via CELLS_PER_CHUNK) fed the GRID the byte-right index
+    // (0.04916·px — it stays IDENTICAL after the surfaceField ×0.1:
+    // 0.1·(0.49162514·10·c)) but STARVED every noise/r-eval consumer 10×
+    // (I23②). Same canvas registration as before (tx·512+cx·10+5 =
+    // 10·(tx·51.2+cx+0.5)).
     for (let cy = 0; cy < 52; cy++) {
       for (let cx = 0; cx < 52; cx++) {
-        const gx = tx * CELLS_PER_CHUNK + cx + 0.5;
-        const gy = ty * CELLS_PER_CHUNK + cy + 0.5;
+        const gx = tx * CHUNK + cx * 10 + 5;
+        const gy = ty * CHUNK + cy * 10 + 5;
         let v;
         try {
           v = surfaceField(uid, gx, gy, gradAt, 0, DEF_SEED);

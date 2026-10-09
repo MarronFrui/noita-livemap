@@ -523,12 +523,22 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   lane is wrong on its own: **V2's pre-÷10 makes the grid term exact
   but starves the r-eval 10×; V3 matches the argument frame but runs
   the grid 10×.** ⇒ **the defect is a one-step port omission inside
-  `surfaceField`, not a lane-frame question.** Action (still NO port
-  change until it is written as one dig): add the ×0.1 and the
-  `0.1·P[+0x94]` bias inside `surfaceField`, feed **pixels** in both
-  lanes (drop V2's ÷10 pre-scale), decide the ramp-placeholder units
-  (C39) in the same change, and validate against C79's surface-y IoU +
-  ③'s gate. **③ instrument gap.**
+  `surfaceField`, not a lane-frame question.** **[② ACTION LANDED dig
+  #117 (entry (117), C96):** the ×0.1 + the `0.1·P[+0x94]` y-arm bias
+  are IN `surfaceField` (`noise-proto.mjs:676`), both lanes feed
+  **pixels** (V2's ÷10 dropped; its grid index byte-identical
+  0.049162514·px), the C39 ramp placeholder converts grid→world-px
+  (keeps C80's calibration instead of C80's degenerate clamped-flat);
+  tests **261/261**. C79 A/B, clean same-day (pre-patch run
+  bit-identical to (114)'s baseline): meanAbs **89.58 → 89.42**
+  (n 7065 → 7027, bias 2.88 → 3.11) — **FAIL stands; the frame fix
+  moves the metric ~nothing.** desert/winter/hills **bit-identical**,
+  mountain 47.18 → 46.36, bty10 44.85 → 36.62, lake topAir → 1.
+  Mechanism probed (side-by-side pre/post lib masks): the caves-field
+  band now samples the field's TOP rows (v ∈ [0.25,25.3] at bty14 =
+  26 rows, +25.17/bty — C96), the ramp biomes got their calibrated
+  frame. ⇒ the residual is SHAPE (§8 row 34 sharpened) and ③'s
+  instrument is now the binding next dig.**]** **③ instrument gap.**
   The shape gate (`2026-09-21-surface-shape.mjs`) probes only wang/
   template bands (this session: `/tmp/opencode/probe-v2window-114.mjs`
   = **procedural 0, v2masks 0** in tx29..47 × ty11..19) and the V2 lane
@@ -568,6 +578,25 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   (`0x905acd`), and what the 80 register-form `mov %reg,0xb0(%reg)` stores
   install (statically unresolvable).
   Source: ABOUT_MATH §6 (115).
+
+- [ ] **I25. BitmapCaves grid indexing — u-law vs cell index (opened
+  2026-10-09, dig #117).** The port feeds the caves field through
+  `surfaceField`'s ONE `gradAt` slot, so after dig #117's ×0.1 it is
+  indexed by the byte-law `u = 0.049162514·px + 0.1a` (C95/C96) —
+  i.e. the P1 surface band reads only the field's **top ~26 rows** at
+  bty14 (+25.17 rows per bty step), while the pre-patch window
+  sprawled rows 2..253. Whether the GAME's caves consumer indexes the
+  512×256 grid the same way is **unread**: the fnB per-phase band-
+  stack placement is still a model (the port's `buildCavesField`
+  composition, dig #30/C50 era), and the cell-loop's own frame would
+  index it by CELL (0..511 px/chunk), not by u. The two readings put
+  the surface band on completely different field rows ⇒ the surface
+  shape for the whole BitmapCaves family (hills/desert/pyramid/winter/
+  mountain_tree…) hangs on this. Possible data-side shortcut: the
+  XMLs carry `DEBUG_output_image` attrs (a true-layout view may exist).
+  **Gate:** the fnB per-phase placement read (same read that would
+  retire the caves-field model). Sources: entry (117), C96,
+  `/tmp/opencode/dig117-probe3.mjs`.
 
 ## Strategy (agreed)
 

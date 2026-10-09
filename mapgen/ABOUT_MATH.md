@@ -9408,3 +9408,100 @@ first use from now on):**
     **(116)**, Current_work registry refresh. Docs-only ⇒ **no code
     change, no cache bump** (`mapgen/server/genmap-server.mjs:34`).
     Next free: entry **(117)**, **C96**, **I25**; §8 row **37** free.
+
+- **2026-10-09 (117) — dig #117: I23②'s ACTION LANDED — the
+  `surfaceField` ×0.1, pixels-in-both-lanes and the ramp-unit decision
+  are IN THE PORT (both lanes finally byte-consistent), and the C79
+  IoU A/B says the frame fix alone moves the metric ~nothing
+  (89.58 → 89.42, FAIL stands) — field SHAPE (§8 row 34) stays the
+  binding error, so I23③'s shape instrument is the next dig.**
+  Every byte fact below was re-verified from `noita_dev.exe` on disk
+  **this session** (objdump 0x908f72..0x908fb5 = the +0.5/call window,
+  0x90a860..0x90a930 = the grid law, 0x90aa50..0x90aaf0 = the 10.0
+  undo + r-eval call; floats byte-read in `.rdata` = VA − 0x400E00).
+  - **① The byte law (re-verified; C95 unchanged):** the call site
+    `0x908f7e..0x908f96` adds f64 0.5 (`0x11dfdd8`) to both args then
+    calls `0x90a860`; the callee's grid coordinate =
+    `mulss( cvtpd2ps(0.49162514·x + P[+0x94]), f32 0.1@0x11df974 )`
+    (@0x90a8f9..0x90a90c), the y-arm's bias scaled by f64
+    `0x11dfa08` = 6.86035959282328e-07 (meaning OPEN); `0x11e015c` =
+    f32 10.0 undoes the ×0.1 in the add-noise arm (@0x90aa66/6e), and
+    the r-eval `0x90b280` (@0x90aadd) gets the RAW pixel args. The
+    pre-patch port line (`noise-proto.mjs:676`) =
+    `gradAt(f(x·0.49162514)+valueOfP94, …)` — **no ×0.1** ✓ ((116)'s
+    claim reproduced on disk today).
+  - **② The patch (4 edits; `npm test` 261/261, 48.75 s):**
+    1. `noise-proto.mjs` K2 gains `f32_0p1` (f32 0.1, `0x11df974`) and
+       `f64_6p86e07` (`0x11dfa08`) — both already registered C95.
+    2. `noise-proto.mjs:676` →
+       `gradAt(f(f(x·0.49162514)+p94)·0.1, f(f(y·0.49162514)+p94·6.86e-07)·0.1)`
+       — **the ×0.1 LANDS.**
+    3. `noise-terrain.mjs` `makeGradAt` (the C39 ramp placeholder)
+       converts grid→world-px (`×1/(0.49162514·0.1)`), so the (A)
+       placeholder keeps its capture-validated calibration (C80's
+       0.5-crossing at wy≈+235 px) instead of collapsing to C80's
+       degenerate clamped-flat. The bitmap/topology gradAts stay
+       grid-indexed (byte law) — only the invented ramp converts.
+    4. `noise-terrain.mjs` V2 feeds **pixels** (`tx·CHUNK+cx·10+5`) —
+       its grid index comes out byte-IDENTICAL to before
+       (0.1·(0.49162514·10·c) = 0.049162514·px) while every
+       noise/r-eval consumer stops being starved 10×. Same canvas
+       registration. (V2's ramp frame also moves: cell units → canvas
+       px.)
+    None of these paths is in the default render (`SURFACE_V2/V3` are
+    env-gated) ⇒ **no cache bump** (`genmap-server.mjs:34`).
+  - **③ The C79 IoU A/B (clean same-day):** the pre-patch run
+    reproduced (114)'s baseline **exactly** (n=7065, meanAbs **89.58**,
+    bias 2.88) ⇒ a valid A/B. Post-patch: n=7027, meanAbs **89.42**,
+    bias 3.11, ±1/±2/±3 = 0.019/0.031/0.046 — **FAIL stands.**
+    Per-family: mountain 47.18 → 46.36, bty10 44.85 → **36.62**,
+    bty13 63.33 → 62.70, bty14 131.73 → 132.15, lake topAir
+    0.972 → **1** (sky-top speckle cleaned); **desert/winter/hills
+    bit-identical** (every scored column unchanged).
+  - **④ Mechanism (probed, not inferred):** side-by-side masks of the
+    pre-patch lib (`git show 2084bfe:mapgen/lib/*` →
+    `/tmp/opencode/dig117-prelib`) vs the patched lib on the REAL lane
+    coords: desert (45,62) **diffCells=0**; mountain_left_stub (34,62)
+    **77 cells 0→1** (band at cy=12); mountain_lake (40,62) 28 cells
+    0→1 (cy=20); mountain_tree (31,58) 3; winter (43,62) 8 (its IoU
+    line unchanged). Why the split:
+    - **Frame pitfall (recorded so it isn't repeated):** the noise
+      lane's `ty = bty + SKY_ROWS` (the C79 gen call is
+      `worldColorAt(world, tx·512+x, (bty+48)·512+y)`), so tile
+      (tx,bty) ⇒ `wx = tx·512+cx·10+5−17920`,
+      **`wy = (bty−14)·512+cy·10+5`** — my first probe fed the raw tile
+      frame and got `null` masks from BOTH versions.
+    - **Ramp biomes** (mountain_left_stub/mountain_lake — no
+      BitmapCaves, no bitmap_noise_file ⇒ `makeGradAt`): pre-fix the
+      ramp received `0.49162514·wy` (t≈0.50–0.62 at bty14), post-fix
+      its calibrated px (t≈0.50–0.75) ⇒ the 0→1 gains = the ramp
+      arriving at its C80 frame for the first time.
+    - **BitmapCaves biomes:** pre-fix sampled field rows 2..253;
+      post-fix the **top band only** (`v = 0.049162514·wy` ∈ [0.25,
+      25.3] at bty14 = 26 rows, +25.17 rows per bty step) — desert's
+      top rows are uniform (⇒ inert), mountain_tree's/winter's are
+      structured (⇒ the small diffs).
+    - **lake/lake_statue** (topology_lake.png): 10× lower feature
+      frequency ⇒ the sky-top solid speckle vanished (topAir→1) while
+      the scored lines stayed.
+  - **⑤ Verdict:** the (116) defect was real and is now GONE — both
+    lanes run the grid at `u = 0.049162514·px`, the r-eval at px, and
+    the ramp at its calibrated px — yet C79 does not move, which
+    sharpens §8 row 34: **the residual is SHAPE** (the caves-field
+    model, the (A) ramp, the unread fnB band-stack) behind the still-
+    missing I23③ shape instrument. That instrument is now the binding
+    next dig (the IoU is a line metric and cannot see shape).
+  - **⑥ Caveats:** I23①'s ~1.8% density census was measured on the
+    PRE-patch lane — re-run `2026-10-06-v2-chunk-census.mjs` before
+    diffing density numbers. `mountain_left_stub.xml`/`mountain_lake.xml`
+    carry `name="_EMPTY_"` (the biome NAME ≠ its file; `biomeAt`
+    returns the right FILE, and the IoU's family label comes from the
+    vmap color, which matched in all probed tiles).
+  - **⑦ Residuals still OPEN:** (116)'s list minus the patch itself —
+    `[R+4]`/`P` identities, the y-bias meaning, the driver origin
+    frame (I21 family-local), the FP-slot pattern — PLUS the new
+    **I25** (BitmapCaves grid indexing: u-law vs cell index).
+  - **Landed:** code (`noise-proto.mjs`, `noise-terrain.mjs`),
+    CONSTANTS **C96**, ISSUES **I23② action landed** + **I25 opened**,
+    VERIFIED **§8 row 37**, this entry **(117)**. Next free: entry
+    **(118)**, **C97**, **I26**; §8 row **38** free.

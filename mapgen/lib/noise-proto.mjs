@@ -437,6 +437,8 @@ export const K2 = {
   f64_05243442: 0.05243442,  // f64 0x11dfcc8 (inside-perlin arg scale)
   f64_006: 0.06,             // f64 0x11dfcd8
   f64_049162514: 0.49162514, // f64 0x11dfdc8 (gradient-arg scale)
+  f32_0p1: 0.1,              // f32 0x11df974 (grid-law ×0.1 — C95, dig #117)
+  f64_6p86e07: 6.86035959282328e-07, // f64 0x11dfa08 (y-arm a·bias — C95, dig #117; meaning OPEN)
   h15: 1.5,                  // f32 0x11dfd2c
   f64_5: 5.0,                // f64 0x11dfee0
   f64_1024: 1024.0,          // f64 0x11e0080
@@ -673,7 +675,19 @@ export function surfaceField(uid, x, y, gradAt, valueOfP94, seedInt) {
   //       out = [+0x268]·gradW·per + [+0x264]·rpost + add
   //  (naming: gradWCoef = [+0x268] = the CE mMultiplierPerlin VALUE;
   //           perlinCoef = [+0x264] = the CE mMultiplierGradient VALUE.)
-  let field = gradAt(f(x * K2.f64_049162514) + valueOfP94, f(y * K2.f64_049162514) + valueOfP94);
+  // dig #117 (I23② action, entry (117)): THE ×0.1 LANDS — byte law
+  // re-verified 2026-10-09 in true 0x90a860 (the call-site frame is
+  // PIXELS+0.5, C95):
+  //   u = mulss( cvtpd2ps(0.49162514·x + a), f32 0.1@0x11df974 )  @0x90a8f9..0x90a90c
+  //   v = mulss( cvtpd2ps(0.49162514·y + a·6.86e-07@0x11dfa08), the same 0.1 )
+  //                                                          @0x90a904..0x90a924
+  // (a = P[+0x94] = the per-biome bitmap origin; = 0 here = I24 residual.
+  //  The y-arm's a·6.86e-07 bias meaning is OPEN (C95).) gradAt therefore
+  // indexes a GRID at texel = ~20.34 world px (1/0.049162514); the r-eval
+  // below keeps RAW PIXELS (call 0x90b280 @0x90aadd).
+  let field = gradAt(
+    f(f(x * K2.f64_049162514) + valueOfP94) * K2.f32_0p1,
+    f(f(y * K2.f64_049162514) + valueOfP94 * K2.f64_6p86e07) * K2.f32_0p1);
   if (field < K.KERNEL) field = K.KERNEL;                        // 0x50a5b6
   // 2) r-eval + r' (the field slot := r·field, 0x50a2e2..0x50a2fe):
   const rRaw = noiseDispatch(uid.noiseKind, x, y);               // 0x90AA80 surrogate (flagged)
