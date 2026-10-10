@@ -543,8 +543,23 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   template bands (this session: `/tmp/opencode/probe-v2window-114.mjs`
   = **procedural 0, v2masks 0** in tx29..47 × ty11..19) and the V2 lane
   is OPT-IN (`SURFACE_V2`), refused by the IoU gate (C79) ⇒ nothing
-  currently measures this lane's rendered shape. Source: ABOUT_MATH
-  §6 (114).
+  currently measures this lane's rendered shape. **[③ CLOSED dig #118
+  (entry (118), C97):** `2026-10-10-surface-shape-iou.mjs` measures the
+  full 512×512 solid mask under ANY lane combo (C79-inverted gate;
+  neither-flag and PROC_FILL refused) on C79's exact 56-tile set
+  (cross-checked match, 0 missing / 0 extra). Three-lane baseline —
+  overall iou **v2 0.23391 / v2v3 0.25183 / v3 0.24644**, iouShift
+  gains ≤ +0.008 (dyOpt median 0) ⇒ **lane choice and vertical
+  registration are NOT the shape residual** (§8 row 38); fG
+  0.141–0.167 vs **fR 0.480** ⇒ under-solidity; family gradient
+  mountain 0.59 (best tile **0.92078**) ≫ lake 0.43 > hills 0.09–0.14
+  > desert 0.017–0.074 ≈ winter 0.056 — winter lane-invariant because
+  noiseKind −1 → `noiseDispatch` default-arm throw → chunk falls
+  through (§8 row 30, `noise-proto.mjs:530`). Residual named:
+  field/classify CONTENT = the fnB band-stack read (**I25**) — plus
+  the OPEN dyOpt −12 = L3-anchor-y observation (I21-adjacent).
+  ① (density re-census) and ②'s residuals stay as recorded above.
+  Source: ABOUT_MATH §6 (118).]**
 
 - [ ] **I24. RandomColor consumer — residual OPEN after the reachability
   chain closed** (opened 2026-10-06, dig #115). Landed by (115): the full

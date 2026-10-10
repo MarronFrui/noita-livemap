@@ -9505,3 +9505,101 @@ first use from now on):**
     CONSTANTS **C96**, ISSUES **I23② action landed** + **I25 opened**,
     VERIFIED **§8 row 37**, this entry **(117)**. Next free: entry
     **(118)**, **C97**, **I26**; §8 row **38** free.
+- **2026-10-10 (118) — dig #118: I23③ CLOSED — the SURFACE SHAPE
+  instrument lands (C97) and runs all three lane configs: overall iou
+  0.234–0.252; lane choice AND vertical registration eliminated as the
+  shape residual; the measured failure mode = under-solidity (fG
+  0.141–0.167 vs fR 0.480) behind a family gradient (mountain 0.59 ≫
+  lake 0.43 > hills 0.09–0.14 > desert 0.017–0.074 ≈ winter 0.056).**
+  - **The gap (I23③):** C79's IoU is a LINE metric (first solid run ≥
+    RUN_MIN per column) and its gate REFUSES `SURFACE_V2`; the shape
+    gate `2026-09-21-surface-shape.mjs` reaches only wang/template
+    bands (procedural 0 / v2masks 0, probe (114)) ⇒ nothing measured
+    the noise lanes' rendered 2-D shape — §8 row 37 left "the
+    still-missing I23③ shape instrument" as the binding next dig.
+  - **Built:** `mapgen/experiments/2026-10-10-surface-shape-iou.mjs`,
+    metric spec **C97 registered BEFORE the first run**
+    (constants-first). Lane gate = C79's inverse: any
+    `SURFACE_V2`/`SURFACE_V3` combo accepted and stamped into the
+    outputs (`-v3` / `-v2v3` / `-v2`); neither flag REFUSED
+    (`noise-terrain.mjs:383` never attaches the noise branch ⇒ all-air
+    masks); `PROC_FILL` refused (template-band lane,
+    `template-render.mjs:661` — C79 parity). C79's scorable tile set
+    is re-derived in-script (458 P1 scanned → 56 scorable) and
+    cross-checked against `surface-y-2026-09-24.json`: **match, 0
+    missing / 0 extra, in all three runs.** Per-tile metrics (C97):
+    **iou** over solid cells, **profL1** cavity-curve distance,
+    **dyOpt/iouShift** (registration-vs-interior split), **b0..b3**
+    row-quarter ious, **fR/fG** solid fractions; aggregates
+    pixel-weighted + per-family/per-bty + mean row profiles (ref/gen/
+    genAligned); 10 triptych overlays per lane (best+worst per family;
+    ref | gen | diff with red = miss, green = hallucination).
+  - **Runs — one process per lane (the flags are module-load-time
+    consts, `noise-terrain.mjs:96-97`):** `SURFACE_V3=1`, then
+    `SURFACE_V2=1 SURFACE_V3=1`, then `SURFACE_V2=1`; ~40 s each;
+    logs `/tmp/opencode/dig118-shape-{v3,v2v3,v2}.log`; JSONs + overlay
+    dirs `mapgen/out/surface-shape-2026-10-10-*`.
+  - **Overall numbers** (fR = 0.48029 identical — same ref):
+
+    | lane | iou | iouShift | dyOpt mean (med) | profL1 | fG | b0..b3 |
+    |---|---|---|---|---|---|---|
+    | v2 | 0.23391 | 0.23954 | −43.79 (0) | 0.37802 | 0.14120 | 0.135/0.234/0.252/0.249 |
+    | v2v3 | **0.25183** | 0.25970 | −56.48 (0) | 0.36953 | 0.16694 | 0.169/0.256/0.268/0.263 |
+    | v3 | 0.24644 | 0.25475 | −57.91 (0) | 0.37207 | 0.16055 | 0.167/0.254/0.259/0.257 |
+
+    family iou v3 / v2v3 / v2 (fR): **mountain** 0.593/0.589/0.594
+    (0.504), **lake** 0.429/0.437/0.437 (0.577), **hills**
+    0.134/0.141/0.089 (0.436), **desert** 0.059/0.074/0.017 (0.652),
+    **winter** 0.0556/0.0556/0.0555 (0.373).
+  - **Findings (measured this session):**
+    (i) **lane choice is not the shape variable** — the three configs
+    span Δiou 0.018 (v2v3−v3 = +0.0054, v2−v3 = −0.0125); the
+    caves-field gradAt helps its biomes — desert 0.017→0.074, hills
+    0.089→0.141 from v2 to v2v3 — yet both stay ~10× short of their
+    fR; lake is **byte-identical** v2≡v2v3 (all 7 tiles equal; no
+    `<BitmapCaves>` ⇒ the same topology gradAt in both) ⇒ the lane
+    stamp captures exactly the gradAt fork. Agrees with (117)'s C79
+    A/B (the frame fix moved the line metric ~nothing).
+    (ii) **vertical registration is not the shape variable** —
+    iouShift−iou ≤ +0.008 overall (family gains v3: mountain +0.027,
+    lake +0.036, hills +0.010, desert −0.002, winter ~0); dyOpt
+    median 0 (30/56 tiles exactly 0; 8 tiles hit the −256 search bound
+    = range-capped, still ≤ +0.01 gain each). Even a free half-tile
+    shift leaves mountain at 0.619 ⇒ §8 rows 34/37's SHAPE verdict is
+    now measured at mask level (→ row 38).
+    (iii) **failure mode = under-solidity:** fG 0.141/0.167/0.161 vs
+    fR 0.480 ⇒ the port renders **3–3.5× too little solid** overall;
+    no row band is rescued (v3 b0..b3 = 0.167/0.254/0.259/0.257).
+    (iv) **winter is lane-invariant air:** fG 0.0231/0.0232/0.0231
+    across all three lanes, 11/19 winter tiles fG = 0 under v2,
+    overlay `25_13_winter.png` = the ref valley mass 100 % red-miss —
+    mechanism disk-verified: winter carries no `noise_type` ⇒
+    noiseKind −1 (§8 row 30) ⇒ `noiseDispatch`'s default arm **throws**
+    (`noise-proto.mjs:530`, reached directly @:693 or per-octave via
+    `fbm4` @:623) ⇒ both lanes' catch returns null ⇒ the chunk falls
+    through to air BEFORE any gradAt fork — hence lane-invariance.
+    (v) **mountain proves the pipeline can be near-exact:** best tile
+    `37_13_mountain_right` **iou 0.92078** (dyOpt −12, fR 0.52983 vs
+    fG 0.50194), then 36_12 0.88371, 32_13 0.73874; dyOpt = **−12 on
+    6 tiles (4 of them mountain)** — the value equals the
+    **L3_ANCHOR's y (+12, C78)**: OBSERVATION, OPEN (I21-adjacent) —
+    the anchor y may not be the noise lane's correct registration; do
+    NOT conclude without a lane-local anchor fit.
+    (vi) **desert at tile scale = the C96 symptom:** overlay
+    `48_13_desert.png` shows gen as sparse 10-px speckle over air +
+    the true ground mass missed (red) — the bty14 top-rows sampling
+    (field v ∈ [0.25, 25.3], C96) hallucinating above and never
+    delivering mass below.
+  - **Pitfalls hit:** `Float64Array.map` keeps the typed array type ⇒
+    `JSON.stringify` would emit `{"0":…}` instead of an array (fixed
+    with `Array.from`); lane flags are read at module load ⇒ one lane
+    per process (three runs); `PROC_FILL` lives in
+    `template-render.mjs`, not the noise lane; masks are retained in
+    memory (56 × 2 × 256 KiB ≈ 29 MB) so overlays need no re-render;
+    dyOpt's −256 boundary hits = range-capped optima (8 tiles).
+  - **Landed:** `mapgen/experiments/2026-10-10-surface-shape-iou.mjs`,
+    CONSTANTS **C97** (pre-registered), ISSUES **I23③ closed**,
+    VERIFIED **§8 row 38**, this entry **(118)**, Current_work
+    refresh. **No `mapgen/lib/**` change ⇒ no cache bump**
+    (genmap-server untouched). Tests **261/261**. Next free: entry
+    **(119)**, **C98**, **I26**; §8 row **39** free.
