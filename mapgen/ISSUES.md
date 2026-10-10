@@ -669,8 +669,8 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   #121).** Sources: entries (117), (119), (120), (121), C96, C98, C99,
   C100, `/tmp/opencode/dig117-probe3.mjs`.
 
-- [ ] **I26. The walk/record writer-model reconciliation (opened
-  2026-10-10, dig #120).** Dig #120 settled the 0x8EE750 setter's
+- [x] **I26. The walk/record writer-model reconciliation (opened
+  2026-10-10, dig #120; CLOSED dig #122).** Dig #120 settled the 0x8EE750 setter's
   internals (both flags LOWER-only; the flag gates only the y<25 eave —
   C99) and the blend's t² law, and ported L2/L3 onto a faithful
   `setterStamp`. The fnA WALK (@0x8ef37c pushes flag=1) and the
@@ -689,6 +689,24 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   dominant CARVE lane — the biggest known-wrong-but-kept piece left in
   `caves-field.mjs` (FLAGGED in the walkChain comment). Sources:
   entry (120), C99, caves-field.mjs.
+  **CLOSED dig #122 (entry (122), C101, §8 row 42):** both needs
+  resolved byte-exact. (i) The walk's call-site @0x8ef37c = the setter
+  0x8EE750 with VALUE = `[−0x20]` = the 3-segment radius envelope
+  (prologue re-pinned: `s = (2−trunc(−4u))/5`, `rA = rD = s·0.2u`,
+  `rB = rC = s·(1+2.5u)`), SCALE = clamp01(slot″), flag = 1 ⇒ the walk
+  **CARVES** (SCALE ≤ 1 + the lower-only guard); the flag=1 eave =
+  circle arm only, on the stamp CENTER y (the point `[edi+4]`), q =
+  y/25 (NO −1 — C99 corrected in place). (ii) The record's float
+  engine = FUN_008EF870, a two-sided template lerp `cell += (v −
+  cell)·temp.cell` (the port's old dir="max" no-oped the v<1 carve =
+  the (121) fG 0.840 over-fill); the byte lane = FUN_008EF950's gated
+  stencil copy. Port: `setterStamp` flag/eave, walkChain →
+  `setterStamp(...,1)`, `stampLerpTemplate`, `caveRecordStamp` → the
+  lerp; `carveCircle` = LEGACY (export kept). C97: v2 bit-identical
+  (no cache bump), v3 fG 0.840 → 0.71506 (vs fR 0.48029), IoU
+  0.46464 → 0.45278 (the residual = the registration/model gap, not
+  the writer law). Residual spawned: **I28** (the template fill
+  engine). Sources: entry (122), C101.
 
 - [ ] **I27. The caves-grid object join + the tile→field mapping
   (opened 2026-10-10, dig #121).** Dig #121 closed I25's index question
@@ -718,6 +736,34 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   render (the wrap only diverges for multi-tile rows; the IoU jump
   already validates the read) — but it is the last inferential join in
   the caves chain. Sources: entry (121), C100, VERIFIED §8 row 41.
+
+- [ ] **I28. The record-stamp template fill engine (opened 2026-10-10,
+  dig #122).** I26's closure settled the record phase's two ENGINES
+  (FUN_008EF870's two-sided float lerp `cell += (v − cell)·temp.cell`
+  + FUN_008EF950's gated stencil byte copy — entry (122), C101) but
+  also exposed what feeds them: the per-stamp template (ctor 0x8F9470,
+  seeded from the count draw, `[+0x94]` = u·200000 − 100000) is
+  ctor'd EMPTY — the ctor zero-inits every container block
+  (@0x8f9481..0x8f94c8) and NOTHING in the record window fills it
+  before fn950 runs (only ctor/fn950/dtor touch `(−0xfc)`; the
+  0x668400 call = a log/string op) ⇒ on a fresh template `[temp+4] =
+  0` makes the float loops no-op and `[temp+0x5c] = 0` skips the byte
+  lane. So the record phase's stamp SHAPE (the template's grid0
+  weights + grid1 stencil pattern — what makes the two engines
+  non-trivial) is built ELSEWHERE or by a mechanism outside the walked
+  window. Resolve needs: (a) the template fill code (search the wider
+  builder for stores into the temp's container slots + the `[+0x94]`
+  size's consumer), (b) the `[+0x94] = u·200000 − 100000` semantics
+  (a size? an offset? its 1e5-scale range is unexplained), (c) the
+  template's grid0/grid1 init (who allocates the two f32/byte planes).
+  Port stand-in meanwhile: the (43)(a) linear t as the weight + the
+  R = max(1, trunc(v·4)) circle as the radius + the single-cell byte
+  mark (the stampLerpTemplate comment). Expected impact: MEDIUM — the
+  record lane is the C48 bump carrier (the 1.45..1.55 strengths);
+  with the lerp now carving for v<1 the template's shape decides
+  where the carve/raise lands, so the fG/IoU residual (0.715 vs fR
+  0.480) partly routes here. Sources: entry (122), C101(d),
+  VERIFIED §8 row 42.
 
 ## Strategy (agreed)
 

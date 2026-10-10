@@ -9,7 +9,9 @@
 //       oracle's all-1.0 background)
 //     - the ctor chain (FUN_008f9470 = C27: diddled-ws poro Random, ONE
 //       warm Next draw) and the ×5·w toucher ([P+0x94] = (w·0.5)/0.1, C48)
-//     - the (43)(a) blob-circle falloff (carveCircle)
+//     - the (43)(a) blob-circle falloff (the t law survives as the record
+//       lane's weight model in stampLerpTemplate; carveCircle itself is
+//       legacy — entry (122))
 //     - the smoothstep LERP stamp blend (true 0x8EE930, dig #58) =
 //       the ONLY lowering-capable writer: `v_out = (v_src − v_dst)·t + v_dst`.
 //     - the C50 knob consumer: v = A + d·(B − A) (the strength pair interp)
@@ -65,13 +67,17 @@
 //     C50 OVERTURNED (§8 row 40): [+0x74]/[+0x78] = blob_caves_RADIUS
 //     (C52's slot map) — the old C50 strengthA/B interp, the min(20) cap,
 //     and the uniform y∈[0,h−1] stamps are gone.
-//     SETTLED dig #120 (C99): the 0x8EE750 setter's branch is on VALUE >
-//     1.0 and its flag gates ONLY the y<25 eave — both flags are LOWER-
-//     only (single-cell target = scale when value ≤ 1; circle target =
-//     1 + t·(scale−1)). L2/L3 use setterStamp (that law, flag=0); the
-//     walk/record lanes keep carveCircle (their dir="max" + (43)(a) t
-//     law = a separate open reconciliation pending the walk call-site
-//     read — see the walkChain comment).
+//     SETTLED dig #120 (C99), CLOSED dig #122/I26 (entry (122) + C101):
+//     the 0x8EE750 setter's branch is on VALUE > 1.0 and both arms are
+//     LOWER-only (single-cell target = scale when value ≤ 1; circle
+//     target = 1 + t·(scale−1), t = (value²−d²)/value²). The flag=1 eave
+//     (re-read byte-exact, C101): the CIRCLE arm only, on the stamp
+//     CENTER y < 25, q = y/25 (NO −1 — C99's "(y−1)/25" was a miscite),
+//     target := 1 + q⁸·(target−1). L2/L3 use setterStamp flag=0; the
+//     WALK uses setterStamp flag=1 (value = the radius envelope, scale =
+//     clamp01(slot″) — the walk CARVES); the record lane = the 0x8EF870
+//     two-sided template lerp (stampLerpTemplate, no eave) + the 0x8EF950
+//     stencil byte copy — carveCircle retired to the legacy model.
 //   STILL FLAGGED: the y-drift span (queue #2, entry (74), deferred
 //     pending the fnA window read); walkChain's per-roll draw budget (the
 //     model's); the spawn-lane selector/scatter draws — the port's spawn
@@ -84,23 +90,40 @@ import path from "node:path";
 import { readPng } from "./images.mjs";
 import { NollaPrng } from "./wang-js.mjs";
 
-export const CAVES_FIELD_VER = "caves-field v5 composition (2026-10-10, dig #120: loop-B top-band runs, blob y ∈ [25,h−5], L2 2-pass chains, L3 do_beginning_down chains, the t² blend + setterStamp carve arm; 2026-09-21 dig #55/#61/#64/#65/#68 byte-order swap; 2026-09-22 dig #81: phase 1 = mountain_count)";
+export const CAVES_FIELD_VER = "caves-field v5 composition (2026-10-10, dig #120: loop-B top-band runs, blob y ∈ [25,h−5], L2 2-pass chains, L3 do_beginning_down chains, the t² blend + setterStamp carve arm; dig #122 I26: the walk stamp = setterStamp flag=1 (lower-only carve + the center-y q⁸ eave), the record stamp = the 0x8EF870 two-sided template lerp, carveCircle retired to the legacy model; 2026-09-21 dig #55/#61/#64/#65/#68 byte-order swap; 2026-09-22 dig #81: phase 1 = mountain_count)";
 
 // The C48-verified ×5 toucher: [P+0x94] = (w·0.5)/0.1
 export function toucherValue(w) {
   return (w * 0.5) / 0.1;
 }
 
-// ── the CaveStructure RECORD phase (dig #61 byte-cited) ─────────────────────
-// Per fnB's record walk (slab 0x4f0b23..0x4f0ee8):
+// ── the CaveStructure RECORD phase (dig #61 byte-cited; the engine identity
+// settled entry (122), I26) ──────────────────────────────────────────────────
+// Per fnB's record walk (slab 0x4f0b23..0x4f0ee8 = true 0x8F1323..0x8F16E8):
 //   count pair = [obj+0x1c]/[obj+0x20] (dig #81 correction); the roll = `value = max − trunc(
 //   draw·(max−min+1))` (the draw is SIGNED via mulsd by −4.656612875e-10
 //   = 0x11e0578, the negative NextU scale @0x11e0578 — the roll counts
 //   DOWN from max); the strength pair = the record's own [+0x34]/[+0x38]
 //   f32s (= the XML's per-CaveStructure strength_min/max, byte-verified
 //   against hills.xml's 10 records) composed as A + d·(B−A) inline
-//   (@0x4f0e84..0x4f0eb7), and the writes hit the BYTE grid via the
-//   0x8EF950 blend twin (the [P+0x58] lane).
+//   (@0x4f0e84..0x4f0eb7). The stamp ENGINE (entry (122)): the record
+//   phase calls 0x8EF950 — NOT the setter (the setter's only callers are
+//   the walk @0x8ef37c + L2 @0x8f20d1 + L3 @0x8f2a6c). 0x8EF950 = a gated
+//   windowed copier (gate [this+0x5c] ≠ 0, bounds vs the arg's grid1 dims
+//   [0x40]/[0x44]): per cell, template.byte[i,j] ≠ 0 → field.byte[y0+j,
+//   x0+i] = template.byte[i,j] (the stencil copy); it first runs the FLOAT
+//   twin FUN_008EF870 — per cell over the template's region, field.cell +=
+//   (v − field.cell)·template.cell — a TWO-SIDED lerp with the template's
+//   grid0 cell as the weight (bounds vs the field dims; NO eave, NO
+//   lower-only guard, NO value > 1 branch). On the 1.0 base: v > 1 raises
+//   (the C48 bump peaks 1.45..1.55 ✓), v < 1 CARVES (the old dir="max"
+//   model no-oped there — the I26 over-fill). The per-stamp template
+//   (ctor 0x8F9470, seeded from the count draw; [+0x8c] = seed, [+0x90] =
+//   1.0f, [+0x94] = u·200000 − 100000, const pair 0x11e0504/0x11e04ec) is
+//   ctor'd EMPTY each stamp and its fill engine is not visible in the
+//   record window (open → I27); the port models the weight with the
+//   (43)(a) linear t (stampLerpTemplate) and the stencil with the
+//   single-cell byte mark.
 // The stamp POINT roll lands inside the record's aabb (the aabb_min/max
 // axis spans), negative-scale drawn per the same window.
 export function caveRecordStamp(
@@ -119,17 +142,24 @@ export function caveRecordStamp(
     // the C50 strength interp on the record's own (min,max) pair
     const d = prng.next();
     const vArg = (strengthMin ?? 0) + d * ((strengthMax ?? 0) - (strengthMin ?? 0));
-    // the FLOAT stamp = the 0x8EE750 MAX-BLEED raise (flag=1, the (43)(a)
-    // falloff + the ((y−1)/25)⁸ top-row eave) — the raise/eave lane for the
-    // mountain-class records (the C48 bump peak 1.454092 = a 1.45..1.55
-    // strength draw raised by this arm); the record's byte mark = the
-    // 0x8EF950 lane below.
-    carveCircle(field, w, h, x, y, Math.max(1, Math.trunc((vArg || 0.5) * 4)), vArg, 1, "max");
-    // the BYTE mark = the 0x8EF950 twin lane
+    // the FLOAT stamp = the 0x8EF870 two-sided lerp (entry (122), I26):
+    // v > 1 raises toward vArg (the C48 bump peaks 1.45..1.55 = the
+    // mountain-class records' 1.45..1.55 strength draws), v < 1 CARVES; the
+    // (43)(a) linear t = the stand-in for the template's weight (open, I27).
+    stampLerpTemplate(field, w, h, x, y, Math.max(1, Math.trunc((vArg || 0.5) * 4)), vArg);
+    // the BYTE lane = 0x8EF950's stencil copy (template.byte ≠ 0 →
+    // field.byte at the (x0,y0) offset) — the single-cell stand-in.
     if (bytes && x >= 0 && y >= 0 && x < w && y < h) bytes[y * w + x] = 1;
   }
   return countNext;
 }
+// LEGACY MODEL (entry (122)): the (43)(a) circle + the per-cell ((py−1)/25)⁸
+// eave + the min/max combiner. No production caller remains — the walk lane
+// moved to setterStamp (flag=1, the true center-y eave), the record lane to
+// stampLerpTemplate (the true two-sided combiner); kept for the exported API
+// surface + the (43)(a) model reference. The TRUE laws (I26): the setter's
+// eave fires on the stamp CENTER y with q = y/25 (NO −1), circle arm only;
+// the record's combiner = the two-sided lerp (never a max-keep).
 export function carveCircle(grid, gridW, gridH, cx, cy, radius, vArg, flag, dir = "min") {
   const r0 = Math.trunc(radius + 0.5);
   for (let dy = -r0; dy <= r0; dy++) {
@@ -150,6 +180,31 @@ export function carveCircle(grid, gridW, gridH, cx, cy, radius, vArg, flag, dir 
       } else if (dir === "max") {
         if (grid[idx] < v) grid[idx] = v;
       }
+    }
+  }
+}
+
+// The record lane's float stamp — FUN_008EF870 (entry (122), I26): per cell
+// over the template's region, `field.cell += (vArg − field.cell)·weight` — a
+// TWO-SIDED lerp (write always; no lower-only guard, no eave, no value > 1
+// branch) with the template's grid0 cell as the weight. The (43)(a) linear t
+// = the port's stand-in for the template's weight pattern (the template-fill
+// engine is open — I27); the circle box + the R ≥ 1 clamp keep the port's
+// model radius (also open, I27).
+function stampLerpTemplate(grid, gridW, gridH, cx, cy, radius, value) {
+  const r0 = Math.trunc(radius + 0.5);
+  const y0 = Math.max(0, cy - r0), y1 = Math.min(gridH - 1, cy + r0);
+  const x0 = Math.max(0, cx - r0), x1 = Math.min(gridW - 1, cx + r0);
+  for (let py = y0; py <= y1; py++) {
+    const dy = py - cy;
+    const dy2 = dy * dy;
+    for (let px = x0; px <= x1; px++) {
+      const dx = px - cx;
+      const d2 = dy2 + dx * dx;
+      if (d2 > radius * radius) continue;
+      const t = (radius - Math.sqrt(d2)) / radius;
+      const idx = py * gridW + px;
+      grid[idx] += (value - grid[idx]) * t;
     }
   }
 }
@@ -197,9 +252,11 @@ export function stampBlendLerp(grid, gridW, gridH, cx, cy, radius, vArg) {
 // — the entry (102) frozen design). Per iteration: the trunc pair → the
 // PLAIN box exit (no `& (gridW−1)` wrap) → the cursor gate → the 3-segment
 // lane/radius envelope → the UNCONDITIONAL roll draw → the coin-gated D2
-// arm (one draw) → clamp01 → the `push $1` stamp (flag=1, dir="max" — the
-// walk can only RAISE; the pushed-$1 LERP-vs-max arm inside 0x8ee750 stays
-// FLAGGED) → y += Δy → the spawn gate (spawn_percent is not parsed ⇒ 0 ⇒
+// arm (one draw) → clamp01 → the `push $1` stamp = setterStamp(value=
+// radius, scale=clamp01, flag=1) — LOWER-only carve (write iff cell >
+// target; the walk's SCALE ≤ 1 so the walk CARVES, entry (122) I26) + the
+// flag=1 center-y eave (q = y/25 on the stamp center, y < 25) → y += Δy →
+// the spawn gate (spawn_percent is not parsed ⇒ 0 ⇒
 // the byte-identical skip, no draw) → the two bias draws → the d-split
 // x-law draw (clamp(lerp(min,max,u) + bias, −1, 1)) → substeps > 50's
 // growth-gate draw (fire ⇒ substeps := 0 + the LINEAR 2u−1 re-jitter that
@@ -241,7 +298,7 @@ export function walkChain(grid, gridW, gridH, prng, x0, y0, cursor, budget, walk
     slot += prng.next() * 0.35 - 0.25; // the UNCONDITIONAL roll draw
     if (flagD2 !== 0) slot = (prng.next() * 0.32 + 0.35) * slot; // the D2 arm
     const v = clamp01(slot);
-    carveCircle(grid, gridW, gridH, tx, ty, radius, v, 1, "max"); // `push $1`
+    setterStamp(grid, gridW, gridH, tx, ty, radius, v, 1); // `push $1` (I26)
     y += dy;
     // the spawn gate omitted (spawn_percent = 0 port-side ⇒ byte-identical skip)
     let bias = 0;
@@ -311,9 +368,9 @@ function isSolidCell(v) {
  *   1. the byte-closed walk (C81 caller + C82 body): cave_count walks —
  *      the per-walk cursor (the C52 cave_strength lerp), the path
  *      alternation (case A chained / case B + the surface switch), the
- *      two-arm budget, and walkChain's raise-only `push $1` stamps
- *      (flag=1, dir="max"); the IN-WALK recursion replaces the old outer
- *      `childs` loop
+ *      two-arm budget, and walkChain's `push $1` stamps = setterStamp
+ *      (flag=1: lower-only carve + the center-y q⁸ eave, I26); the
+ *      IN-WALK recursion replaces the old outer `childs` loop
  *   2. the blob phases (the dig #120 byte port, entry (120)): loop B =
  *      mountain_count top-band runs — K = 0.1h, per stamp base = ⌊K·u⌋,
  *      X = rollPos(5,w−5), R = rollF(mountain_size), Y_end = base+⌊11u⌋+15,
@@ -325,8 +382,9 @@ function isSolidCell(v) {
  *      cap (C50 overturned, §8 row 40)
  *   3. the CaveStructure RECORD ARENA walk (dig #61/#81: the 60-byte
  *      records, stride 0x3c; count pair [+0x1c]/[+0x20]; the NEGATIVE
- *      NextU scale roll; the strength pair [+0x34]/[+0x38]; writes =
- *      the BYTE grid, 0x8EF950 — unchanged)
+ *      NextU scale roll; the strength pair [+0x34]/[+0x38]; the engine =
+ *      0x8EF950 → 0x8EF870 — the two-sided template lerp + the stencil
+ *      byte copy, entry (122) I26)
  *   4. layer-2 chains (exactly 2 passes, entry (119)/(120)): s₀ = ±1 (a
  *      50% coin) → [−0x104]; arm A x₀ = center+s·rollF(3.5,35); arm B
  *      flips [−0x104] first, then x₀ = center+s·rollF(25,75); y₀ = 0;
@@ -346,9 +404,11 @@ function isSolidCell(v) {
  *   6. the IN-WALK child recursion lives INSIDE walkChain (C82: the 2%
  *      gate, the shared childCounter) — the old outer fnB `childs` self-call
  *      loop is a RETRACTED false structure (C81)
- * AIR/carve: the carve writers = stampBlendLerp (two-sided) + setterStamp
- * (LOWER-only, the L2/L3 chain floor); the walk/record lanes keep
- * carveCircle's dir="max" model (FLAGGED — see the walkChain comment). The
+ * AIR/carve: the carve writers = stampBlendLerp (two-sided, t²), setterStamp
+ * (LOWER-only — the L2/L3 floor AND the walk's flag=1 stamps, I26), and the
+ * record lane's stampLerpTemplate (two-sided, the (43)(a) t stand-in, I26);
+ * carveCircle (the legacy min/max (43)(a) model) has no production caller
+ * left (kept for the API surface). The
  * old standalone L2/L3 scatter calls are gone: every scatter site lives
  * inside a chain's spawn lane (C46's call-site census).
  */
@@ -525,7 +585,8 @@ export function buildCavesField(dataDir, def, seed) {
   // ── (3) the CaveStructure RECORD ARENA walk (dig #61 byte-cited):
   // per record: the count pair via the NEGATIVE-scale roll; the strength
   // pair = the record's own [+0x34]/[+0x38] f32s composed A + d·(B−A);
-  // the writes hit the BYTE grid (0x8EF950) — the overlay lane.
+  // the float write = the 0x8EF870 two-sided template lerp, the byte
+  // write = the 0x8EF950 stencil copy (entry (122), I26).
   for (const rec of bc.structures ?? []) {
     caveRecordStamp({ field, bytes, w, h }, rec, prng, rollNeg);
   }
@@ -649,21 +710,27 @@ export function buildCavesField(dataDir, def, seed) {
   };
 }
 
-// The 0x8EE750 setter's flag=0 arm (the dig #120 read, entry (120) — C96):
-// the L2/L3 chain stamp. Branch on VALUE > 1.0 (comiss 0x11dfbf0 @0x8ee766):
+// The 0x8EE750 setter (the dig #120 read, entry (120) — C96; the flag=1
+// eave + the center-y law re-read byte-exact entry (122) — C101):
+// Branch on VALUE > 1.0 (comiss 0x11dfbf0 @0x8ee766):
 //   value ≤ 1 → SINGLE CELL: bounds → getter → write iff cell > scale
-//     (a MIN-guard, `comiss scale,cell; jbe ret`), write scale.
+//     (a MIN-guard, `comiss scale,cell; jbe ret`), write scale. NO eave
+//     (the single-cell arm has no eave code, @0x8ee776..0x8ee7d5).
 //   value > 1 → CIRCLE: r0 = trunc(value+0.5), box ±r0, d² > value² →
-//     skip, t = (value²−d²)/value², target = 1 + t·(scale − 1) (the flag=0
-//     arm SKIPS the y<25 eave `q⁸·(target−1)+1`), bounds px/py (no wrap),
-//     write iff cell > target (LOWER-only), write target.
-// So both flags are lower-only; the flag gates ONLY the top-band eave
-// (y < 25). scale here = the chain's scale·s2 ∈ (0, ~0.2): the chains can
-// only carve toward their floor — the single-cell arm writes cells down to
-// ~0.075 (the deep-carve lane), the circle arm targets ∈ [scale, 1].
-// The walk/record lanes keep carveCircle (their dir="max" model + the
-// (43)(a) t law = a separate open reconciliation, see walkChain).
-function setterStamp(grid, gridW, gridH, x, y, value, scale) {
+//     skip, t = (value²−d²)/value², target = 1 + t·(scale − 1); then the
+//     flag ≠ 0 arm (`cmpb $0x0,0x8(%ebp)` @0x8ee839, `je` @0x8ee85c — the
+//     SSE in between leaves EFLAGS alone): if the POINT y ([edi+4] = the
+//     stamp CENTER y — the cell coords are only formed at @0x8ee892) < 25
+//     → target := 1 + (y/25)⁸·(target − 1) (q = y/25.0, f32 0x11e01e0 — NO
+//     −1 in q; C99's "(y−1)/25" = a miscite, overturned entry (122)); then
+//     bounds px/py (no wrap), write iff cell > target (LOWER-only), write
+//     the (possibly eaved) target.
+// So both arms are lower-only; the flag gates ONLY the center-y top-band
+// eave. Callers: the L2/L3 chains pass flag=0 (scale = the chain's scale·s2
+// ∈ (0,~0.2): the chains only carve toward their floor — the single-cell
+// arm writes cells down to ~0.075); the WALK passes flag=1 (value = the
+// radius envelope, scale = clamp01(slot″) ∈ [0,1] — I26).
+function setterStamp(grid, gridW, gridH, x, y, value, scale, flag = 0) {
   if (value <= 1) {
     if (x < 0 || y < 0 || x >= gridW || y >= gridH) return;
     const idx = y * gridW + x;
@@ -672,6 +739,8 @@ function setterStamp(grid, gridW, gridH, x, y, value, scale) {
   }
   const R2 = value * value;
   const r0 = Math.trunc(value + 0.5);
+  // the flag=1 eave factor (constant per stamp: the CENTER y, @0x8ee85e)
+  const q8 = flag !== 0 && y < 25 ? (y / 25) ** 8 : 1;
   const y0 = Math.max(0, y - r0), y1 = Math.min(gridH - 1, y + r0);
   const x0 = Math.max(0, x - r0), x1 = Math.min(gridW - 1, x + r0);
   for (let py = y0; py <= y1; py++) {
@@ -682,7 +751,7 @@ function setterStamp(grid, gridW, gridH, x, y, value, scale) {
       const d2 = dy2 + dx * dx;
       if (d2 > R2) continue;
       const t = (R2 - d2) / R2;
-      const target = 1 + t * (scale - 1);
+      const target = 1 + q8 * t * (scale - 1);
       const idx = py * gridW + px;
       if (grid[idx] > target) grid[idx] = target;
     }

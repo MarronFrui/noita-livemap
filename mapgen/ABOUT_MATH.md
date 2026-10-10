@@ -10040,3 +10040,117 @@ first use from now on):**
     **263/263**; C97 A/B v3 0.46464 / v2v3 0.46557 / v2 0.23391. **No
     cache bump** (caves lane opt-in). Next free: entry **(122)**,
     **C101**, **I28**; §8 row **42** free.
+
+- **2026-10-10 (122) — dig #122: I26 CLOSED — the walk/record
+  writer-model reconciliation (the walk = setterStamp flag=1 CARVE +
+  the center-y q⁸ eave; the record = the 0x8EF870 two-sided template
+  lerp)**
+  - **Scope/method.** The unread half that (119)/(121) FLAGGED: (i) the
+    walk's stamp call-site @0x8ef300..0x8ef37c — which value/scale/flag
+    it pushes; (ii) the setter's flag=1 eave arm + its y source; (iii) the
+    record lane's engine identity (0x8EF950's float twin + the caller);
+    (iv) the per-stamp template ctor. Reads from the true-VA builder
+    slice `/tmp/opencode/dig119/builder-8EE000-8F3700.asm` +
+    `/tmp/opencode/fulltext86.asm` + the PE const bank; exe md5
+    re-verified = C13.
+  - **Result — the WALK half (byte-exact).** The walk's stamp @0x8ef37c
+    = the setter 0x8EE750 with **VALUE = `[−0x20]` = the 3-segment
+    radius envelope R(t)**, **SCALE = clamp01(slot″)**, **flag = 1**
+    (`push $1`). The prologue draws re-pinned byte-exact (C101(a)):
+    `s = (2 − trunc(−4u))/5` (−4.0 f64 @0x11e0608, 2.0 @0x11dfe68,
+    5.0 @0x11e00a0), `rA = rD = s·0.2u` (0.2 @0x11df9b4), `rB = rC =
+    s·(1 + 2.5u)` (2.5 @0x11dff10 + 1.0 @0x11dfbf0), each × `[−0x20]`
+    → `[−0x68]/[−0x50]/[−0x5c]/[−0x6c]`. The lane law (0.2/0.4/0.6/0.7
+    = 0x11df9b4/0x11dfa44/0x11dfaf8/0x11dfb1c), the roll draw
+    (0.35 @0x11dfa1c / −0.25 @0x11df9d0), the D2 arm (0.32
+    @0x11dfa00), the envelope boundaries (0.3 @0x11df9f0 / 0.6 shared)
+    all re-derived from the PE. SCALE ≤ 1 + the setter's lower-only
+    guard ⇒ **the walk CARVES** — the port's `carveCircle(dir="max")`
+    was wrong on the dir, the t law, AND the eave form (three defects,
+    all now closed).
+  - **Result — the setter's flag=1 eave (byte-exact; C99 corrected in
+    place → C101(c)).** flag = the byte `[ebp+8]` (`cmpb $0x0,0x8(%ebp)`
+    @0x8ee839 → `je 0x8ee892` skips; the SSE in between leaves EFLAGS
+    alone). The eave reads `[edi+4]` = the **stamp CENTER y** (the point
+    struct — the cell coords form only at @0x8ee892, AFTER the eave):
+    y < 25 (`cmp $0x19,%eax; jge`) → q = y/**25.0** (`divss 0x11e01e0`
+    — **NO −1**; C99's "(y−1)/25" = a miscite), q²·q⁴·q⁸ via three
+    `mulss %xmm0,%xmm0`, target′ = 1 + q⁸·(target − 1) → `[−0x14]`;
+    the write guard + store use the eaved target. **Circle arm only** —
+    the single-cell arm returns @0x8ee7de before the eave block. The
+    single-cell store corrected too: `movss −0xc(%ebp),%xmm0; movss
+    %xmm0,(%eax)` @0x8ee7cf..0x8ee7d4 (writes SCALE; C99's
+    `movss %xmm2,(%eax)` named the wrong register — xmm2 = VALUE).
+  - **Result — the RECORD half = a DIFFERENT engine.** The setter's
+    callers are exactly 3 (walk 0x8ef37c, L2 0x8f20d1, L3 0x8f2a6c):
+    the record phase does NOT call it. fnB = FUN_008EFDD0 (the earlier
+    A/B pair naming was swapped for this fn — §8 row 41's cites stand,
+    the names rotate); `[−0x13c]` = fnB's `[ebp+8]` = the **field
+    shell** (non-null asserted, slab line 0x326). The per-stamp temp
+    `(−0xfc)` = ctor **0x8F9470** (C101(d): seed = the raw Park-Miller
+    count draw → `[+0x8c]` = seed, `[+0x90]` = 1.0f, `[+0x94]` =
+    u·200000 − 100000 — the size pair 0x11e0504/0x11e04ec, the wrap ×0.5
+    (0x11dfdd8 f64) vs 2³¹−1 (0x11e0220 f64)) dtored @0x8f16dd. The
+    record's strength pair = `[+0x34]/[+0x38]` ✓ C50 ✓; the point rolls
+    (`min + trunc(u·span)`) + the strength compose (`A + d·(B−A)`) ✓ the
+    port was already right. The engine: **FUN_008EF870** runs per cell
+    over the template's grid0 region — `field.cell += (value −
+    field.cell)·temp.cell` — a **two-sided lerp** (getters 0x949ad0 /
+    0x9499f0; NO eave, NO lower-only guard, NO value>1 branch). On the
+    1.0 base: v > 1 raises (the C48 bump peaks 1.45..1.55 ✓), v < 1
+    **CARVES** (the port's `dir="max"` no-oped there = the (121) fG
+    0.840 over-fill signature). The byte lane **FUN_008EF950**: gate
+    `[temp+0x5c] ≠ 0` → the stencil copy `if temp.g1[i,j] ≠ 0 →
+    field.g1[y0+j, x0+i] = temp.g1[i,j]` (bounds vs the field's
+    grid1 dims [0x40]/[0x44]) — the port's single-cell byte mark = the
+    model.
+  - **New residual → I28.** The ctor zero-inits every container block
+    (@0x8f9481..0x8f94c8) and nothing in the record window fills the
+    temp before fn950 runs (only ctor/fn950/dtor touch `(−0xfc)`; the
+    0x668400 call = a log/string op) ⇒ a fresh template ships EMPTY and
+    BOTH engines no-op on it (`[temp+4] = 0` kills the float loops;
+    `[temp+0x5c] = 0` skips the byte lane). The record's template-FILL
+    engine is not in this window → **open (I28)**; the port keeps the
+    (43)(a) linear t + the R ≥ 1 clamp as the weight/radius stand-in.
+  - **Walk arg map (new).** ecx = the prng (the draws via `call
+    0x10098c0` after `mov %esi,%ecx` with esi = `[−0x24]` = saved ecx),
+    `[ebp+8]` = grid, `[ebp+0xc]` = the start point struct {x,y} (the
+    trunc pair → `[−0x4c]/[−0x44]`), `[ebp+0x10]`/`[ebp+0x14]` = the
+    float pair (swapped at the child call @0x8ef804..0x8ef81a),
+    `[ebp+0x18]` = **length** — asserted `length < 10240.f` (C101(b):
+    biome.cpp:579; the child budget lands at the same slot @0x8ef809).
+  - **Port.** `caves-field.mjs`: `setterStamp` gains `flag = 0` (the
+    eave = the circle arm, the center y, q = y/25); walkChain's stamp →
+    `setterStamp(grid,…,tx,ty,radius,v,1)`; new internal
+    `stampLerpTemplate` (the two-sided lerp, the (43)(a) t stand-in);
+    `caveRecordStamp` → the lerp; `carveCircle` marked **LEGACY MODEL**
+    (the export stays — the api surface pins it, no production caller
+    left); the header/phase comments + `CAVES_FIELD_VER` updated. Tests:
+    the record expectations → the lerp (0.55 at the center, no eave),
+    the walkChain "RAISES only" → "CARVES only" (min < 1.0, max ≤ 1.0),
+    the carveCircle describe marked legacy. **263/263.**
+  - **C97 A/B (the (121) baselines vs this dig).** v2 **0.23391
+    bit-identical** (the V2 lane never attaches the caves field ⇒ **no
+    cache bump**), v3 IoU 0.46464 → **0.45278** / fG 0.840 → **0.71506**
+    (vs fR 0.48029 — the over-fill drops −0.125 exactly as I26's
+    uncarved-base prediction said), v2v3 0.46557 → **0.45557** / fG
+    0.72383. The IoU −0.012 = the carve removing solid where the ref
+    still has it — the residual is the registration/model gap (I23①/
+    I24), not the writer law (the law is byte-anchored).
+  - **Pitfalls hit.** The EFLAGS trap again (SSE leaves flags alone —
+    the eave `je` @0x8ee85c tests the `cmpb` @0x8ee839 across a long
+    SSE block); the f32/f64 const trap (0x11e0608/0x11dffe8/0x11e0220
+    read as 0.0/0.0/NaN f32); the arg-offset grep pollution (negative
+    locals `-0x20(%ebp)` substring-match positive `0x20(%ebp)` — use a
+    negative lookbehind); an unlabeled const's role only fell out of
+    the ASSERT STRINGS (10240.0 was nameless until `length < 10240.f`
+    + biome.cpp:579 surfaced via the log pushes).
+  - **Landed:** ABOUT_MATH **(122)**, CONSTANTS **C99 corrected in
+    place** + **C101**, ISSUES **I26 closed** + **I28 opened**,
+    VERIFIED **§8 row 42**, `caves-field.mjs` (setterStamp flag/eave,
+    walkChain stamp swap, stampLerpTemplate, carveCircle legacy) +
+    `tests/mapgen/caves-field.test.mjs` (the mirror). Tests **263/263**
+    (incl. the y224 oracle byte bar — no walk/record stamps land on that
+    row for the oracle seed, so the carve leaves it byte-exact). **No
+    cache bump** (v2 bit-identical). Next free: entry **(123)**,
+    **C102**, **I29**; §8 row **43** free.

@@ -91,8 +91,10 @@ describe("stampBlendLerp — the smoothstep LERP stamp (true 0x8EE930)", () => {
   });
 });
 
-// ── the (43)(a) max-bleed setter (C46, closed incl. the (y/25)⁸ eave) ───────
-describe("carveCircle — the (43)(a) max-bleed/bias setter (true 0x8EE750)", () => {
+// ── the LEGACY (43)(a) min/max model (entry (122): retired from production;
+//    the true laws = setterStamp (flag=1: the CENTER-y q = y/25 eave, the
+//    lower-only carve) + the record's stampLerpTemplate (two-sided lerp)) ────
+describe("carveCircle — the legacy (43)(a) min/max model (no production caller)", () => {
   const w = 32, h = 32;
   const fresh = () => new Float32Array(w * h).fill(1.0);
 
@@ -153,12 +155,14 @@ describe("the roll twins — negative stamp roll (dig #61)", () => {
       { aabbMinX: 10, aabbMaxX: 50, aabbMinY: 5, aabbMaxY: 25, countMin: 3, countMax: 8, strengthMin: 0.55, strengthMax: 2.15 },
       stub
     );
-    // stamp 1 at (aabbMinX, aabbMinY), flag=1 → the (43)(a) eave arm applies
-    // (y=5 < 25): v = ((5−1)/25)⁸·v0 + 1 with v0 = (0.55−1)·1+1 = 0.55 —
-    // the ≈1.0 eave band the C48 oracle's top rows show
-    const q = ((5 - 1) / 25) ** 8;
-    expect(field[5 * 64 + 10]).toBeCloseTo(q * 0.55 + 1.0, 7); // the eave form
-    expect(bytes[5 * 64 + 10]).toBe(1); // the 0x8EF950 byte lane
+    // stamp 1 at (aabbMinX, aabbMinY), v = strengthMin = 0.55 (< 1): the
+    // record lane CARVES — the 0x8EF870 two-sided lerp (entry (122), I26);
+    // at the stamp center t = 1 → field = 1 + (0.55−1)·1 = 0.55 (the old
+    // dir="max" model no-oped there — the I26 over-fill). No eave (fn870
+    // has no flag/eave arm). The remaining 7 stamps re-lerp the same point
+    // (the stub) → the 0.55 fixed point holds.
+    expect(field[5 * 64 + 10]).toBeCloseTo(0.55, 6); // the two-sided lerp
+    expect(bytes[5 * 64 + 10]).toBe(1); // the 0x8EF950 byte lane (model)
   });
 });
 
@@ -193,19 +197,23 @@ describe("scatterEmptyGate — the < 0.5 empty-cell gate + the B-recorder", () =
   });
 });
 
-// ── the byte-closed fnA walk (C81/C82: raise-only, plain box, in-walk cc) ────
+// ── the byte-closed fnA walk (C81/C82: LOWER-only flag=1 stamps, plain box,
+//    in-walk cc — the I26 carve law, entry (122)) ─────────────────────────────
 describe("walkChain — the byte-closed fnA walk (C82)", () => {
   const w = 512, h = 256;
   const mkWalk = () => ({ d0sq: 0.5, dy: 0.3, growth: 0.5, cc: { n: 2 } });
 
-  test("RAISES only: the `push $1` max-bleed stamp never lowers the 1.0 base, and the y<25 eave band proves the stamp ran", () => {
+  test("CARVES only: the `push $1` setter stamp is lower-only (never raises the 1.0 base)", () => {
     const field = new Float32Array(w * h).fill(1.0);
-    // start y = 10 → every stamp lands in the ((y−1)/25)⁸ eave arm (y < 25)
+    // start y = 10 → every stamp is in the y < 25 band: the circle-arm
+    // stamps (value = the radius envelope > 1) get the center-y q⁸ eave
+    // (damped carve); the single-cell stamps (value ≤ 1, no eave) carve
+    // straight down to scale = clamp01(slot″) — the deep-carve lane
     walkChain(field, w, h, new NollaPrng(SEED), 100, 10, 1, 20, mkWalk());
     let min = Infinity, max = -Infinity;
     for (const v of field) { if (v < min) min = v; if (v > max) max = v; }
-    expect(min).toBe(1.0); // raise-only: nothing below the baked base
-    expect(max).toBeGreaterThan(1.0); // the eave lift landed
+    expect(min).toBeLessThan(1.0); // the carve lane landed (I26)
+    expect(max).toBeLessThanOrEqual(1.0); // lower-only: no stamp ever raises
   });
 
   test("deterministic per prng state with FRESH walk objects (the shared cc never leaks across calls)", () => {
