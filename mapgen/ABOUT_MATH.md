@@ -9603,3 +9603,181 @@ first use from now on):**
     refresh. **No `mapgen/lib/**` change ⇒ no cache bump**
     (genmap-server untouched). Tests **261/261**. Next free: entry
     **(119)**, **C98**, **I26**; §8 row **39** free.
+- **2026-10-10 (119) — dig #119: fnB per-phase placement BYTE-READ —
+  mountain = top-band vertical runs, blob y ∈ [25,h−5], L2 = 2 passes ×
+  a 120+⌊81u⌋ count chain, L3 = 1 pass × same, spawn side-lane named.**
+  - **Scope/method.** Closes I25's placement-read gate (read half) for
+    the fnB phases after loop A + the record (earlier digs): loop B =
+    `mountain_count`, loop C = `blob_caves_count`, then L2/L3. Fresh
+    objdump window **VA 0x8EE000–0x8F3700** (6227 lines,
+    `/tmp/opencode/dig119/builder-8EE000-8F3700.asm`); every rdata
+    constant below re-read from `noita_dev.exe` at file = VA−0x400E00
+    (C57) THIS session. **Pitfall:** 11.0 @0x11dff38, 81.0 @0x11dffd8,
+    101.0 @0x11dffe8 are **f64** (used via `mulsd`) — an f32 read of
+    them returns 0.0. Constant bank + gates → **C98**. Call-site table
+    (the three sub-engines, C46 names): setter `0x8ee750` = walk
+    @0x8ef37c (`push $0x1`) / L2 @0x8f20d1 (`push $0x0`) / L3 @0x8f2a6c
+    (`push $0x0`); blend `0x8ee930` = loop B @0x8f0b6d / loop C
+    @0x8f115f; scatter `0x8eead0` = walk @0x8ef3f9 / L2 @0x8f255d /
+    L3 @0x8f2efb.
+  - **Loop B (mountain, 0x8f072a..0x8f0d8c).** count =
+    `rollPos(mountain_count[+0x54],[+0x58])` → [−0x12c] @0x8f0736–
+    0x8f0767, ≤0 → 0x8f0d92; **K = f32(h)·0.1** → [−0x10c] @0x8f0775–
+    0x8f0788 (0.1 = f32 0x11df974). Per stamp (5 draws): **base =
+    ⌊0.1h·u₁⌋** (form @0x8f081a–0x8f083c, `cvttss2si` @0x8f08e5 →
+    [−0x118] @0x8f08f3 — **FLAGGED gap-1 cite slab 4f00e5 = VA
+    0x8F08E5 ✓ exact**); **X = 5+⌊(w−9)u₂⌋ = rollPos(5,w−5)** (w−9 via
+    `add $0xfffffff7` @0x8f08b3 → [−0x134] @0x8f08e9); **R =
+    rollF32(mountain_size[+0x5c],[+0x60])** → [−0x124] @0x8f098f–
+    0x8f09b8 (**no min(20) cap**); **v = 1.5** (0x11dfd2c) → [−0x104]
+    @0x8f0a2f–0x8f0a47; **Y_end = base+⌊11u₃⌋+15** → [−0x108]
+    @0x8f0a4f–0x8f0a64 (11.0 f64). 20% coin: ⌊101u₄⌋ < 20 (`cmp $0x14`
+    @0x8f0af5) → **Y_end := base** @0x8f0b02 AND **v := 1.5+0.25u₅**
+    @0x8f0b08–0x8f0b2c. Row loop runs **row = base..Y_end inclusive**
+    (entry `jg 0x8f0d7b` @0x8f0b40 = empty-range guard — never true as
+    the law stands; back `jle 0x8f0b50` @0x8f0d75): blend(grid,{X,row},
+    R, v) @0x8f0b6d (xmm2 := R @0x8f0b65, xmm3 ← v @0x8f0b5c); then
+    **R += 0.5·(u+1)** @0x8f0c04–0x8f0c1c (0.5 = 0x11dfa94) and a 50%
+    coin ⌊101u⌋<50 (`cmp $0x32` @0x8f0cad) → **v := v·(0.97+0.03u)**
+    @0x8f0d35–0x8f0d4d. count-- @0x8f0d7b → `jne 0x8f0790` @0x8f0d8c.
+    ⇒ **mountain = top-band vertical runs**: a fixed X dropped at the
+    top tenth of the map, running 15–26 rows (1 row on the 20% coin),
+    radius GROWING ≈ +0.75/row from the size roll, value 1.5 (coin: up
+    to 1.75) decaying on half the rows — the port's uniform blobStamp
+    (uniform x/y, radius min(20,·), constant v per stamp) is wrong in
+    KIND, not just constants.
+  - **Loop C (blob, 0x8f0d92..0x8f117b).** count =
+    `rollPos(config[+0x64],[+0x68])` → [−0x110] @0x8f0e26–0x8f0e4d
+    (the negative-scale `sub` form), ≤0 → 0x8f117b @0x8f0e55. Per stamp
+    (4 draws, **y before x**): **y = 25+⌊(h−29)u⌋ = rollPos(25,h−5)**
+    (h−29 @0x8f0edc, ecx=0x19 @0x8f0ee3 → [−0x100] @0x8f0f0a); **x =
+    5+⌊(w−9)u⌋ = rollPos(5,w−5)** (w−9 @0x8f0f80, ecx=5 @0x8f0f8b →
+    [−0x134] @0x8f0fc4; y → [−0x130] @0x8f0fb8); **v =
+    rollF32([+0x6c],[+0x70])** (knob loads @0x8f0fca–0x8f0fdd, roll
+    @0x8f105e–0x8f10a7 → [−0x108]); **R = rollF32([+0x74],[+0x78])**
+    (inline loads @0x8f1078/0x8f1099, roll @0x8f1131–0x8f1158 → xmm2,
+    no cap); blend @0x8f115f (v → xmm3 @0x8f1145); `decl [−0x110]`
+    @0x8f1164, `jne 0x8f0e60` @0x8f1175.
+    ⇒ **blob is uniform but NOT over the full grid: y ∈ [25, h−5]**
+    (both edges trimmed) — the port's y ∈ [0,h−1] spreads mass the
+    game never places.
+  - **Blend `0x8ee930` re-read end-to-end (the port's formula
+    reconciliation input).** Args: ecx = grid, edx = &pos{int x, int y},
+    xmm2 = R, xmm3 = v (→[−0xc]). `1.0 comiss R; jb` @0x8ee93e–0x8ee953
+    ⇒ **R ≤ 1 → single-cell path**: bounds check (negatives / ≥ dims →
+    ret), getter `0x9499f0` (this = grid+0x18, index = w·y+x), then
+    `cell comiss v; jbe → ret` @0x8ee98f–0x8ee993 ⇒ **write v only iff
+    cell > v (= a min-landing)**. **R > 1 → circle path** @0x8ee9ba:
+    `r0 = (int)(R+0.5)` @0x8ee9c1–0x8ee9ce, box loops, d² = dx²+dy²
+    `comiss R²; ja → skip` @0x8eea10, **t = (R²−d²)/R²** @0x8eea1f–
+    0x8eea2a, **t² = t·t** @0x8eea33 (→[−0x20]), per-cell plain bounds
+    checks (**NO wrap** — negatives/out-of-dims skip; the old
+    "wraps at border" phrasing does NOT match these bytes), store
+    **cell += (v−cell)·t²** @0x8eea7f–0x8eea99 (both directions: drag
+    toward v), dx/dy `inc`/`jle` back @0x8eeaa3–0x8eeab0. ⇒ the port's
+    `stampBlendLerp` (linear t = (R−d)/R over r0 = trunc(R+0.5), and
+    unconditional v-write for its r0 = 0 case) matches NEITHER arm —
+    reconciliation = part of the port dig.
+  - **L2 (0x8f1aa1..0x8f2584) — exactly 2 passes of a snaking chain.**
+    Head @0x8f1b00: **s₀ = +1** init @0x8f1a2b, 50% coin ⌊101u⌋<50 →
+    **−1.0** @0x8f1ac5/0x8f1ad6 (101.0 f64, −1.0 = 0x11e05a8); **center
+    = f32(w)·0.5** → [−0x12c] @0x8f1b11; arm test `test %eax,%eax; jne
+    0x8f1bd0` @0x8f1b21 (eax = pass counter). Pass 1 (arm A, window
+    0x8f1b27..0x8f1bd0): **x₀ = w/2 + s₀·rollF(3.5,35)** (form 3.5+
+    31.5u; consts 0x11dfff4/0x11e0250). y₀ = **0** ([−0x140] zeroed
+    @0x8f1ae6). Pass 2 (arm B): **[−0x104] := −s₀** (`xorps 0x11e0c50`
+    @0x8f1bd0, store @0x8f1bdb) and **x₀ = w/2 + (−s₀)·(25+50u)**
+    (`mulss 0x11e0284` / `addss 0x11e01e0` @0x8f1c71–0x8f1c79, ×sign
+    @0x8f1c81, +center @0x8f1c85 → [−0x144] @0x8f1c89). Per pass:
+    pair → [−0x134]/[−0x130] @0x8f1d26–0x8f1d3c; **count =
+    120+⌊81u⌋** → [−0x118] @0x8f1cff–0x8f1d42 (**FLAGGED cites
+    4f1510/4f1518 = VA 0x8F1D10/0x8F1D18 ✓ exact**); chain inits
+    **[−0x128] = 3u+1** @0x8f1dcf–0x8f1ddf (C44 ✓), **[−0x108] =
+    0.1u+0.1** @0x8f1e6d–0x8f1e7d (0.1 = 0x11df970), **[−0x110] =
+    s·(1.25+2.25u)** @0x8f1f11–0x8f1f25; guard `cmpl $0,[−0x118]`
+    @0x8f1eee → `jle 0x8f2585` @0x8f1f2d (flags survive the SSE — the
+    `lahf`/`test` blocks in between do NOT preserve them; each re-derives
+    its own). Inner head copies origin → current ONCE per pass:
+    [−0x138] ← [−0x130], [−0x120] ← [−0x134] @0x8f1f33–0x8f1f4b; loop
+    0x8f1f53..0x8f2577 (`cmpl $0,[−0x118]; jg 0x8f1f53` @0x8f256d–
+    0x8f2577). Per point: **[−0x100] = 0.25u+0.75** @0x8f1fe5–0x8f1ff5;
+    setter `call 0x8ee750` @0x8f20d1 with **flag=0** (`push $0x0`
+    @0x8f2079), pair (int)[−0x120]/[−0x138] → [−0x164]/[−0x160],
+    **value = [−0x128]·(0.35u+0.65)** @0x8f20bd–0x8f20cd (C44 numeric ✓),
+    **scale xmm3 = [−0x108]·[−0x100]** @0x8f20ad–0x8f20b5 (≈ 0.075–0.1,
+    i.e. the single-cell-ish regime of whatever 0x8ee750's flag=0 arm
+    does — its internal meaning stays C46-FLAGGED); **y += 0.1u+0.95**
+    @0x8f216b–0x8f2183 (0x11df970/0x11dfbac); **[−0x108] *= (0.01u+
+    0.99)** @0x8f2211–0x8f2229; **[−0x128] = clamp([−0x128]·(u+0.5),
+    0.75, 4.0)** @0x8f229a–0x8f22ef (upper tested first @0x8f22aa,
+    lower @0x8f22db); **[−0x110] = clamp([−0x110] + (0.5u−0.25),
+    −2.5, 2.5)** @0x8f231c–0x8f23be; `decl [−0x118]` @0x8f23bf; **x +=
+    [−0x110]** @0x8f23c5–0x8f23d6. Spawn side-lane (NO field write):
+    5% coin ⌊101u⌋<5 (`cmp $0x5` @0x8f246b) → both object ptrs
+    non-null → 95/5 selector (`cmp $0x5f` @0x8f252d, `cmovl [−0x150]`
+    @0x8f2538: rnd<95 → `spawn_small_enemies` else `spawn_items`) →
+    pair → [−0x158]/[−0x154] @0x8f2542/0x8f2550, **xmm3 = 1.0**
+    @0x8f251d → `call 0x8eead0` @0x8f255d. Exit **`inc [−0x10c]; cmp
+    $2; jl 0x8f1b00`** @0x8f2585–0x8f2595 ⇒ **exactly 2 passes** (the
+    carried "L2 = 2 passes" claim byte-pinned).
+  - **L3 (0x8f259b..0x8f2f17) — 1 pass, same count, C-rand band.**
+    Gated by **config byte [+0x31]**: `cmpb $0x0,0x31(%eax)` @0x8f25a1,
+    `je 0x8f2fa5` skips L3 entirely. Setup runs the **MSVC `rand()` LCG**
+    (seed 0x132a388, `imul $0x343fd`/`add $0x269ec3`, ÷32767.0 =
+    0x11e04bc): **[−0x140] := 0** (y origin) @0x8f25c5; **x₀ = w/2 +
+    (−s₀)·(3.5+2·r)** @0x8f2650–0x8f2682 (`mulss 0x11dfe68`=2.0, `addss
+    0x11dfff4`=3.5, ×(w·0.5), ×xmm4 = the arm-B-flipped sign reloaded
+    @0x8f257d ⇒ x ∈ center∓[3.5,5.5) — same side as arm B but hugging
+    center) → [−0x144] (overwrites the arm value BEFORE the pair copy);
+    band **lo = [−0x10c] = 1+r₁ ∈ [1,2)** @0x8f25fc–0x8f2608, **hi =
+    [−0x12c] = 2·(1+r₂) ∈ [2,4)** @0x8f2633–0x8f263b (lo < hi always).
+    Then **count = 120+⌊81u⌋** → [−0x118] @0x8f26f0–0x8f2733 (**FLAGGED
+    cites 4f1f01/4f1f09 = VA 0x8F2701/0x8F2709 ✓ exact**); pair copy
+    @0x8f2717+; chain inits **[−0x128] = lerp(lo,hi,u)** (xmm4 = hi−lo
+    @0x8f2793, store @0x8f27dc), **[−0x108] = 0.1u+0.1** @0x8f2881,
+    **[−0x110] = (−s₀)·(0.15+0.2·r)** @0x8f2899–0x8f28b8 (0x11df99c/
+    0x11df9b0); inner loop 0x8f28f0..0x8f2f12 (`jg 0x8f28f0` @0x8f2f12):
+    **[−0x100] = 0.25u+0.75** @0x8f2985–0x8f2995, setter @0x8f2a6c
+    (flag `push $0x0` @0x8f2a0b, same value/scale laws @0x8f2a54–
+    0x8f2a64), **y += 0.1u+0.95** @0x8f2b06–0x8f2b1e, **[−0x108] *=
+    (0.01u+0.99)** @0x8f2bac–0x8f2bbc, **[−0x128] = clamp(·(u+0.5), lo,
+    hi)** @0x8f2c3d–0x8f2c8a (bounds = the rand slots, not consts),
+    **[−0x110] = clamp(+0.3u−0.15, −1.0, 1.0)** @0x8f2d20–0x8f2d55,
+    `decl [−0x118]` @0x8f2d5d, x += vel @0x8f2d6f; same 5%+95/5 spawn
+    lane (gates → 0x8f2f0b, `cmovl [−0x150]` @0x8f2e63, pair via
+    [−0x144]/[−0x140] — slot reuse of the origin pair as the int pair,
+    xmm3 = 1.0 @0x8f2ebb) → `call 0x8eead0` @0x8f2efb.
+  - **The spawn keys = a gameplay side-lane (interpretation flagged).**
+    `.rdata` literals **`spawn_small_enemies`** (19 B, @0x1173110) and
+    **`spawn_items`** (11 B, @0x1173124) are looked up once between the
+    record and L2 (@0x8f19d2 → [−0x150], @0x8f1a12 → [−0x124]); the
+    chain loops call the scatter engine `0x8eead0` on 5% of their
+    points with that key + a pair (the emitter's data flow as read
+    touches no field pointer ⇒ entity spawn, not field geometry).
+    **Out of the caves-field port's scope**; recorded so the walk's own
+    emitter call @0x8ef3f9 (spawn_percent not parsed ⇒ 0 ⇒ inert in the
+    port) can be aligned in a future dig.
+  - **Status / next.** I25's placement-read gate: **DONE (read half)** —
+    the laws retire `caves-field.mjs`'s FLAGGED loop-B/counts items
+    (comment refreshed; **the port itself is the next dig**: loop B/C +
+    L2/L3 chains + blend reconciliation into `buildCavesField`, measured
+    by C97's `2026-10-10-surface-shape-iou.mjs` A/B, then the
+    cache-bump decision). **Not covered:** I25's index half (kind-1/
+    kind≥2 arms 0x908fbc..0x909370 + sampler gate — u-law vs cell
+    index, still unread); y-drift (queue #2) untouched (entry (74),
+    deferred pending the fnA window read); `0x8ee750` internals stay
+    C46's registered summary ("max-bleed + circle falloff"; the flag=1
+    walk arm FLAGGED).
+  - **Pitfalls hit:** the f32/f64 literal trap (above); slot reuse
+    again — [−0x110] loop-C count → L2/L3 velocity, [−0x10c] loop-B K →
+    L2 pass counter → L3 chain-lo, [−0x124] mountain R → spawn_items
+    ptr, [−0x12c] w/2 → L3 chain-hi, [−0x100] loop-C y → L2/L3 draw
+    slot; a Lehmer-filter grep `jg 0x8f…` pattern ate the real row-loop
+    guard `jg 0x8f0d7b` until re-read unfiltered; the blend has NO
+    border wrap (plain bounds checks) — earlier phrasing corrected.
+  - **Landed:** ABOUT_MATH **(119)**, CONSTANTS **C98** (const bank +
+    gates), ISSUES **I25** gate updated, VERIFIED **§8 row 39**,
+    `caves-field.mjs` FLAGGED comment refresh. **Docs + comments only ⇒
+    no `mapgen/lib/**` logic change ⇒ no cache bump** (genmap-server
+    untouched). Tests **261/261**. Next free: entry **(120)**, **C99**,
+    **I26**; §8 row **40** free.

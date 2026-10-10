@@ -601,16 +601,39 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   i.e. the P1 surface band reads only the field's **top ~26 rows** at
   bty14 (+25.17 rows per bty step), while the pre-patch window
   sprawled rows 2..253. Whether the GAME's caves consumer indexes the
-  512×256 grid the same way is **unread**: the fnB per-phase band-
-  stack placement is still a model (the port's `buildCavesField`
-  composition, dig #30/C50 era), and the cell-loop's own frame would
-  index it by CELL (0..511 px/chunk), not by u. The two readings put
-  the surface band on completely different field rows ⇒ the surface
-  shape for the whole BitmapCaves family (hills/desert/pyramid/winter/
-  mountain_tree…) hangs on this. Possible data-side shortcut: the
-  XMLs carry `DEBUG_output_image` attrs (a true-layout view may exist).
-  **Gate:** the fnB per-phase placement read (same read that would
-  retire the caves-field model). Sources: entry (117), C96,
+  512×256 grid the same way is **still unread**: the cell-loop's own
+  frame would index it by CELL (0..511 px/chunk), not by u. The two
+  readings put the surface band on completely different field rows ⇒
+  the surface shape for the whole BitmapCaves family (hills/desert/
+  pyramid/winter/mountain_tree…) hangs on this.
+  - **Placement half: DONE (read) dig #119** — entry (119) byte-verifies
+    the fnB phases that the "still a model" sentence referred to: the
+    port's `buildCavesField` composition (uniform blobStamp, single-
+    point L2/L3 raises) is retired as a description of the bytes —
+    mountain = top-band vertical runs (X = rollPos(5,w−5), base =
+    ⌊0.1h·u⌋, Y_end = base+⌊11u⌋+15 → base on a 20% coin, R grows
+    +0.5(u+1)/row with no cap, v = 1.5 decaying ×(0.97+0.03u) on 50%
+    of rows), blob = uniform x ∈ [5,w−5] × **y ∈ [25,h−5]** (no cap),
+    L2 = exactly 2 passes × count 120+⌊81u⌋ snaking setter-chains from
+    y = 0, L3 = 1 pass × same count (gated by config[+0x31]) from a
+    C-rand band — all via setter 0x8EE750 flag=0; the 5%-gated
+    spawn_small_enemies/spawn_items scatter (0x8EEAD0, xmm3 = 1.0) is
+    a gameplay side-lane with no field write (interpretation flagged).
+  - **Remaining:** (i) the port itself — fold those laws into
+    `buildCavesField` (+ the `stampBlendLerp` t² reconciliation: bytes
+    use t = (R²−d²)/R² squared, plain bounds checks, min-guard for
+    R ≤ 1), measure with C97's `2026-10-10-surface-shape-iou.mjs` A/B,
+    then the cache-bump decision (next dig); (ii) this issue's OWN
+    subject — the index half: the kind-1/kind≥2 arms 0x908fbc..0x909370
+    plus the sampler gate (u-law vs cell index) — still unread;
+    (iii) y-drift (I24/queue #2) deferred pending the fnA window read.
+  - **Data-side shortcut: dead as observed** — `Noita/temptemp/`
+    contains only `biome_map_lua.png` + `worldtree_saved.png` (no
+    DEBUG output image; re-checked dig #119), so a true-layout view
+    would need `DEBUG_output_image` enabled in data.wak's biome XMLs —
+    open, LOW priority.
+  **Gate (updated):** index half read + the port landed (placement
+  read complete). Sources: entries (117), (119), C96, C98,
   `/tmp/opencode/dig117-probe3.mjs`.
 
 ## Strategy (agreed)

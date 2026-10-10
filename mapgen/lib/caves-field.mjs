@@ -52,11 +52,21 @@
 //     dig #81 (2026-09-22) CLOSED queue #1's count-pair→phase map (loop A
 //     = cave_count @4ef701/4ef704, loop B = mountain_count @4eff36/4eff39,
 //     loop C = blob_caves_count @4f05a0/4f05a9 — all byte-shown) and
-//     fixed phase 1 to the mountain lane. STILL FLAGGED: loop B's inner
-//     structure (per-stamp base = (int)f32(xmm4) @4f00e5, provenance
-//     unpinned), the L2/L3 literal counts (120+⌊81u⌋, L2 = 2 passes; read
-//     @4f1510/4f1518/4f1f01/4f1f09, not yet ported), and the y-drift span
-//     (queue #2). The composition follows the byte-cited phase ORDER; the
+//     fixed phase 1 to the mountain lane. READ SETTLED dig #119 (2026-10-
+//     10, entry (119) + C98 + §8 row 39): loop B's inner structure is
+//     now byte-pinned — per-stamp base = ⌊0.1h·u⌋ (slab 4f00e5 = VA
+//     0x8F08E5 ✓), X = rollPos(5,w−5), R = rollF32(mountain_size) +
+//     Σ0.5(u+1)/row (NO min(20) cap), Y_end = base+⌊11u⌋+15 (→ base on
+//     the 20% coin, which also sets v := 1.5+0.25u), v = 1.5 decaying
+//     ×(0.97+0.03u) on 50% of rows — i.e. top-band VERTICAL RUNS, not a
+//     uniform stamp; blob stamps use y ∈ [25,h−5]; and the L2/L3 literal
+//     counts are confirmed (120+⌊81u⌋ both; L2 = exactly 2 passes @
+//     0x8f2585–0x8f2595; cites 4f1510/4f1518/4f1f01/4f1f09 ✓ exact).
+//     Full laws + the t² blend reconciliation live in entry (119);
+//     NOT YET PORTED — porting + the C97 IoU A/B is the next dig (this
+//     composition is expected to change). STILL FLAGGED: the y-drift
+//     span (queue #2, entry (74), deferred pending the fnA window read).
+//     The composition follows the byte-cited phase ORDER; the
 //     per-roll draw counts inside walkChain are the model's.
 import path from "node:path";
 import { readPng } from "./images.mjs";
