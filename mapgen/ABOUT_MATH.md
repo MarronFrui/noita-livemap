@@ -9781,3 +9781,125 @@ first use from now on):**
     no `mapgen/lib/**` logic change ⇒ no cache bump** (genmap-server
     untouched). Tests **261/261**. Next free: entry **(120)**, **C99**,
     **I26**; §8 row **40** free.
+
+- **2026-10-10 (120) — dig #120: `buildCavesField` PORTED to the byte
+  laws (CAVES_FIELD_VER v5) — loop B top-band runs + loop C y-FIRST
+  blob stamps, L2 2-pass + L3 do_beginning_down chains via the
+  lower-only `setterStamp`, the t² blend; C50 overturned, C46's flag
+  branch closed, C98's 0.1-cite corrected; C97 shape A/B run.**
+  - **Scope/method.** The port half of I25's placement gate: entry
+    (119)'s laws folded into `mapgen/lib/caves-field.mjs` + the tests.
+    Byte windows re-read from `/tmp/opencode/dig119/builder-8EE000-
+    8F3700.asm` (slab+0x400800 = VA) THIS session for the items (119)
+    left truncated: the setter 0x8ee7c9..0x8ee930 (the store + the
+    circle arm), loop B's Y_end/coin/row head 0x8f0960..0x8f0b70, L2's
+    head/inits 0x8f1a22..0x8f1f4b, L3's setup+inner 0x8f259b..0x8f2c10.
+    On-disk data re-verified: **hills.xml** (the LocalLow data dir
+    `/mnt/c/Users/xan98/AppData/LocalLow/Nolla_Games_Noita/data/biome/`
+    — the earlier "not found" was the wrong search path) declares
+    `mountain_size_min/max="1"/"10"` and **`do_beginning_down="1"`**
+    (⇒ L3 RUNS for bitmap_hills); the test def gained both knobs.
+    `num()` returns **null** for absent attrs (biomes.mjs:140-143) ⇒
+    the `??` fallbacks are safe and L3 is off by default.
+  - **C50 OVERTURNED (§8 row 40; byte + disk).** Loop C loads
+    **[P+0x74]/[+0x78] as the blend's R (radius)** and **[+0x6c]/[+0x70]
+    as v (strength)** — C52's slot map was right; the CE "(1.549988,
+    0.0) strength pair" = the radius pair mislabeled (hills.xml: strength
+    1.5..3 vs radius 1..10). The `strengthA/B` knobs, the C50 interp,
+    and the dig #54 min(20) cap (no byte site) are gone.
+  - **The setter's internals (C46 CLOSED → C99).** `0x8ee750` branches
+    on **value > 1.0** (comiss vs `0x11dfbf0` @0x8ee766); value ≤ 1 =
+    single cell (bounds → getter → **write iff cell > scale** [−0xc] →
+    store `movss %xmm2,(%eax)` @0x8ee7d5); value > 1 = circle (R2 =
+    value² @0x8ee7e2, r0 = trunc(value+0.5) @0x8ee7ee, d² > R2 → skip,
+    **t = (R2−d²)/R2, target = 1 + t·(scale−1)**, plain bounds, min-
+    guard). The flag=1 arm adds only the y<25 eave `1 + q⁸·(target−1)`
+    BEFORE the guard ⇒ **both flags LOWER-only; the flag gates only the
+    eave** — the dig #55-era "single-point MAX-BLEED raise" label dies
+    (§8 row 39's port-model list). `raisePointMax` is deleted; L2/L3
+    now stamp via the new internal `setterStamp` (flag=0 law). The
+    walk/record lanes KEEP `carveCircle` (dir="max" + the (43)(a) t) —
+    **new I26** (their args aren't byte-proven; the walk call site
+    @0x8ef300..0x8ef37c is the next read).
+  - **The blend reconciliation.** `stampBlendLerp` now implements the
+    byte arms: R ≤ 1 → single-cell min-guard (write iff cell > v); R >
+    1 → r0 = trunc(R+0.5), **t = (R²−d²)/R², w = t²** (@0x8eea33),
+    cell += (v−cell)·w, plain bounds, no wrap (the old linear
+    `t=(R−dist)/r` form is gone; the R ≤ 1 single-cell arm is new).
+  - **The port shape (draw-order exact).** loop B: K = 0.1h once
+    (`0x11df974`); per stamp u₁ base = ⌊K·u₁⌋, u₂ X = 5+⌊(w−9)u₂⌋, u₃
+    R = rollF(mountain_size [+0x5c]/[+0x60]), u₄ Y_end = base+⌊11u₄⌋+15
+    (the −2⁻³¹ `0x11e0578` + sub idiom — computes base − trunc(−11u),
+    i.e. the ASCENDING ⌊11u⌋, re-verified @0x8f0a4f..0x8f0a64), v :=
+    1.5 (`0x11dfd2c`), u₅ the 20% coin → Y_end := base + u₆ (the direct
+    call `0x10098c0` @0x8f0b08) → v := 1.5+0.25u₆; rows base..Y_end:
+    blend @0x8f0b6d → R += 0.5(1+u) → the 50% coin → v *= 0.97+0.03u.
+    loop C: y = rollPos(25,h−5) FIRST, x = rollPos(5,w−5), v =
+    rollF(strength), R = rollF(radius) — 4 draws, no cap. L2: s₀ = ±1
+    (50% coin) → [−0x104]; pass A x₀ = center+s·rollF(3.5,35), pass B
+    flips [−0x104] first then x₀ = center+s·rollF(25,75); y₀ = 0; count
+    = 120+⌊81u⌋; chain = 3u+1; scale = 0.1u+0.1 (**`0x11df974`** — see
+    the C98 correction below); vel = s·(1.25+2.25u); 7 draws/point (s2,
+    value, y, scale-decay, chain-clamp [0.75,4], vel-clamp ±2.5 step
+    0.5u−0.25, spawn coin). L3: gate `bc.doBeginningDown` (config
+    [+0x31], hills = 1) → the module **MSVC C-rand LCG** (state·0x343fd
+    +0x269ec3 int32, (s>>16)&0x7fff ÷ 32767; the port seeds a LOCAL
+    state 0x132a388 — the game's global is unknowable, FLAGGED): r₁ →
+    lo = 1+r₁, r₂ → hi = 2(1+r₂), r₃ → x₀ = center+s·(3.5+2r₃) (s = the
+    post-L2 [−0x104] = −s₀), Lehmer count/chain = lerp(lo,hi,u)/scale,
+    r₄ → vel = s·(0.15+0.2r₄); per point = L2's with chain clamp [lo,hi]
+    and vel ±1.0 step 0.3u−0.15. meta: `l2Calls`/`l3Calls` replace
+    l1/l2v/l3v/sc (the byte-range pins: L2 ∈ [240,400], L3 ∈ [120,200]
+    gated, 0 with the gate off).
+  - **The spawn-lane divergence (FLAGGED).** The per-point spawn coin
+    draw (⌊101u⌋ < 5) is consumed; the byte then gates on the
+    spawn_item/spawn_small_enemies ptrs (`cmpl $0`) — the port's keys
+    are unparsed (null) ⇒ skip ⇒ the selector/scatter draws are NOT
+    consumed (the byte's in-game stream draws them on ~5% of points).
+    Contained: L3 is the last phase, so nothing downstream re-reads the
+    stream (the walk already carries the same class of flag).
+  - **C98 cite correction.** The [−0x108] chain-scale INIT loads
+    **`0x11df974`** (L2 @0x8f1e6d/0x8f1e75, L3 @0x8f2881/0x8f2889 — the
+    same f32 0.1 as loop B's K), NOT `0x11df970` as (119)/C98 claimed;
+    the y-update loads `0x11df970` (L2 @0x8f216b, L3 @0x8f2b06).
+    Functional equivalence (both f32 0.1); C98 amended in place with
+    the correction marker (row not silently edited).
+  - **Tests.** 263/263 (was 261): the l3v/l2v pins → the call-count
+    spans + the new L3-gate test; the blend test re-pinned to the t²
+    form + a new R ≤ 1 min-guard case; the VER stamp → "v5
+    composition". **The y224 byte bar HOLDS** (all 12 cells 1.0): the
+    new loop C could reach x0..11 at y224 (y ∈ [25,h−5], R ≤ 10, v >
+    1 would raise those cells) — deterministic for SEED 78633191 the
+    stamps miss. The "1.0 base bake" test still passes (share 0.988:
+    loop B/C now RAISE toward 1.5-3 while the chains carve the floor).
+  - **C97 shape A/B (all three lanes re-run).** iou: **v2 0.23391 →
+    0.23391** (bit-identical — V2 doesn't consume the caves field, the
+    C97 lane semantics), **v2v3 0.25183 → 0.25393 (+0.0021)**, **v3
+    0.24644 → 0.24708 (+0.0006)**; fR 0.48029 unchanged (ref-side);
+    fG v2 0.141 / v3 0.162 / v2v3 0.169 (baseline band 0.141–0.167).
+    The port is neutral-to-slightly-positive on shape — honest summary:
+    the byte-faithful lanes barely move the 56-tile IoU because the
+    caves field feeds only its biomes' surface band. **No cache bump**
+    (the caves lane is opt-in via SURFACE_V3; the default render never
+    calls buildCavesField).
+  - **Status / next.** I25's placement gate: **DONE (port landed)**.
+    Next dig = **I25's index half** (kind-1/kind≥2 arms
+    0x908fbc..0x909370 + the sampler gate — u-law vs cell index);
+    re-run the v2-chunk census before any I23① density diffs. New
+    **I26** = the walk/record writer-model reconciliation (the walk
+    call-site read is the biggest known-wrong-but-kept piece).
+    y-drift still deferred (queue #2, entry (74)).
+  - **Pitfalls hit.** The neg-scale+sub idiom reads as "negative draw"
+    but computes max − trunc(−span·u) = max + ⌊span·u⌋ (trunc symmetry:
+    the ascending law — re-verified, (119)'s summary was right);
+    `Float32Array.fill(0.1)` stores f32(0.1) ≠ the f64 literal (the
+    test uses Math.fround); hills.xml lives in the LocalLow data dir,
+    not the steam data dir; num() = null (not NaN/undefined) for absent
+    attrs.
+  - **Landed:** ABOUT_MATH **(120)**, CONSTANTS **C50 overturned** +
+    **C98 corrections** + **C99**, ISSUES **I25** updated + **I26**
+    opened, VERIFIED **§8 row 40** + the caves-lane canon update,
+    `caves-field.mjs` **v5** + the test updates. Tests **263/263**;
+    C97 A/B v3 0.24708 / v2v3 0.25393 / v2 0.23391. **No cache bump**
+    (caves lane opt-in). Next free: entry **(121)**, **C100**, **I27**;
+    §8 row **41** free.

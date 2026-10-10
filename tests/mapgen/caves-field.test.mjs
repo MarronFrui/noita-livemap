@@ -50,12 +50,23 @@ describe("stampBlendLerp — the smoothstep LERP stamp (true 0x8EE930)", () => {
     expect(g[8 * w + 8]).toBeCloseTo(0.25, 12);
   });
 
-  test("per-cell form = (v_arg − v_dst)·t + v_dst with t = (r−dist)/r", () => {
+  test("per-cell form = v_dst + (v_arg − v_dst)·t² with t = (r²−d²)/r²", () => {
     const g = fresh();
     const r = 4, vArg = 0.25;
     stampBlendLerp(g, w, h, 8, 8, r, vArg);
-    // one cell 2 left of the center: dist = 2 → t = (4−2)/4 = 0.5
-    expect(g[8 * w + 6]).toBeCloseTo((vArg - 1.0) * 0.5 + 1.0, 12);
+    // one cell 2 left of the center: d² = 4, r² = 16 → t = 12/16 = 0.75,
+    // w = t² = 0.5625 (the dig #120 byte law @0x8eea33, entry (120))
+    expect(g[8 * w + 6]).toBeCloseTo(1.0 + (vArg - 1.0) * 0.75 ** 2, 12);
+  });
+
+  test("R ≤ 1 = the single-cell MIN-guard arm (write iff cell > v)", () => {
+    const g = fresh(); // all 1.0 → v < cell → the write lands
+    stampBlendLerp(g, w, h, 8, 8, 1, 0.25);
+    expect(g[8 * w + 8]).toBeCloseTo(0.25, 12);
+    const g2 = new Float32Array(w * h).fill(0.1); // cell ≤ v → NO write
+    stampBlendLerp(g2, w, h, 8, 8, 1, 0.25);
+    expect(g2[8 * w + 8]).toBe(Math.fround(0.1)); // the f32-stored value
+    expect(g2[8 * w + 7]).toBe(Math.fround(0.1)); // the neighbor untouched too
   });
 
   test("LOWERS without a max-bleed guard (the dig #58 'can lower' pin)", () => {
@@ -214,9 +225,10 @@ describe("walkChain — the byte-closed fnA walk (C82)", () => {
   });
 });
 
-// ── the composed builder (fn C1 + the v4 fnB composition) ───────────────────
+// ── the composed builder (fn C1 + the v5 fnB composition) ───────────────────
 describe("buildCavesField — fn C1 + the byte-cited composition order", () => {
-  // hills.xml's declared knob spans (data-verified on disk 2026-09-21) —
+  // hills.xml's declared knob spans (data-verified on disk 2026-10-10,
+  // the LocalLow data dir: + mountain_size 1..10, do_beginning_down 1) —
   // a synthetic def is enough: the parser output shape is the contract.
   const hillsBC = {
     name: "bitmap_hills", sizeX: 512, sizeY: 256,
@@ -229,6 +241,8 @@ describe("buildCavesField — fn C1 + the byte-cited composition order", () => {
     surfaceCavesCountMin: 7, surfaceCavesCountMax: 12,
     surfaceCaveChildsMin: 2, surfaceCaveChildsMax: 7,
     mountainCountMin: 0, mountainCountMax: 15,
+    mountainSizeMin: 1, mountainSizeMax: 10,
+    doBeginningDown: 1,
     structures: [
       { imageFile: "cave_$[0-999].png", aabbMinX: 5, aabbMaxX: 507, aabbMinY: 0, aabbMaxY: 20, countMin: 5, countMax: 12, strengthMin: 0.55, strengthMax: 2.15 },
       { imageFile: "mountain_rock.png", aabbMinX: 5, aabbMaxX: 507, aabbMinY: 0, aabbMaxY: 20, countMin: 0, countMax: 4, strengthMin: 1.45, strengthMax: 1.55 },
@@ -263,14 +277,22 @@ describe("buildCavesField — fn C1 + the byte-cited composition order", () => {
     expect(r.meta.blobPhase2).toBeLessThanOrEqual(hillsBC.blobCavesCountMax);
   });
 
-  test("the dig #55 raise lanes keep their byte classes (C44 chain bases)", () => {
+  test("the L2/L3 chain call counts live in the byte ranges (dig #120)", () => {
     const r = buildCavesField(null, mkDef(hillsBC), SEED);
-    // L3's value = (d·0.1+0.1)·(d·0.35+0.65) ∈ [0.065, 0.2] — the deep-carve
-    // raise class (the C44 [−0x108] = d·0.1+0.1 chain base).
-    expect(r.meta.l3v).toBeGreaterThanOrEqual(0.065 - 1e-9);
-    expect(r.meta.l3v).toBeLessThanOrEqual(0.2 + 1e-9);
-    // L2's value = [−0x128]·(d·0.35+0.65) with [−0x128] = the L1 output ≤ 1
-    expect(r.meta.l2v).toBeLessThanOrEqual(1.0000000001);
+    // L2 = exactly 2 passes × (120 + ⌊81u⌋) ∈ [240, 400] (entry (119);
+    // the passes are byte-confirmed @0x8f2585–0x8f2595)
+    expect(r.meta.l2Calls).toBeGreaterThanOrEqual(240);
+    expect(r.meta.l2Calls).toBeLessThanOrEqual(400);
+    // L3 = one chain of 120 + ⌊81u⌋ ∈ [120, 200], gated on the hills
+    // do_beginning_down = 1 (the byte je @0x8f2fa5)
+    expect(r.meta.l3Calls).toBeGreaterThanOrEqual(120);
+    expect(r.meta.l3Calls).toBeLessThanOrEqual(200);
+  });
+
+  test("the L3 gate: do_beginning_down = 0 → zero L3 calls (byte je)", () => {
+    const r = buildCavesField(null, mkDef({ ...hillsBC, doBeginningDown: 0 }), SEED);
+    expect(r.meta.l3Calls).toBe(0);
+    expect(r.meta.l2Calls).toBeGreaterThanOrEqual(240); // L2 is ungated
   });
 
   test("deterministic per (diddled ws, params) — the C48 byte-identity verdict", () => {
@@ -348,6 +370,6 @@ describe.skipIf(!hasNoitaData() || !hasOracle)("the C48 oracle byte bar (seed 78
 });
 
 // CAVES_FIELD_VER pins the byte-status generation (the composition epoch).
-test("CAVES_FIELD_VER is the v4 composition stamp", () => {
-  expect(CAVES_FIELD_VER).toContain("v4 composition");
+test("CAVES_FIELD_VER is the v5 composition stamp", () => {
+  expect(CAVES_FIELD_VER).toContain("v5 composition");
 });

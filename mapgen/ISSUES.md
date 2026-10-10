@@ -619,22 +619,56 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
     C-rand band — all via setter 0x8EE750 flag=0; the 5%-gated
     spawn_small_enemies/spawn_items scatter (0x8EEAD0, xmm3 = 1.0) is
     a gameplay side-lane with no field write (interpretation flagged).
-  - **Remaining:** (i) the port itself — fold those laws into
-    `buildCavesField` (+ the `stampBlendLerp` t² reconciliation: bytes
-    use t = (R²−d²)/R² squared, plain bounds checks, min-guard for
-    R ≤ 1), measure with C97's `2026-10-10-surface-shape-iou.mjs` A/B,
-    then the cache-bump decision (next dig); (ii) this issue's OWN
-    subject — the index half: the kind-1/kind≥2 arms 0x908fbc..0x909370
-    plus the sampler gate (u-law vs cell index) — still unread;
-    (iii) y-drift (I24/queue #2) deferred pending the fnA window read.
+  - **Port: DONE dig #120** — entry (120) folds all of the above into
+    `buildCavesField` (`CAVES_FIELD_VER` v5): loop B top-band runs, the
+    blob y-FIRST stamps with **strength = [+0x6c]/[+0x70] / radius =
+    [+0x74]/[+0x78] (C50 OVERTURNED**, §8 row 40; the min(20) cap +
+    strengthA/B knobs gone), the L2 2-pass + L3 do_beginning_down
+    chains through the settled **lower-only** setter law (`setterStamp`:
+    value ≤ 1 → single-cell min-guard; value > 1 → circle, target =
+    1+t·(scale−1), t = (value²−d²)/value²; the flag gates only the y<25
+    eave — C46 closed, C99), and the t² blend (t = (R²−d²)/R², w = t²,
+    the R ≤ 1 min-guard arm). C97 A/B after the port: iou v2 0.23391
+    (lane-identical — expected, it doesn't consume the caves field) /
+    v2v3 0.25183 → **0.25393** / v3 0.24644 → **0.24708**; **no cache
+    bump** (caves lane opt-in via SURFACE_V3; the default render
+    untouched). Tests 263/263 — the y224 byte bar HOLDS (the new loop C
+    could have threatened x0..11 at y224; this seed's stamps miss,
+    deterministic).
+  - **Remaining:** (i) this issue's OWN subject — the index half: the
+    kind-1/kind≥2 arms 0x908fbc..0x909370 plus the sampler gate (u-law
+    vs cell index) — still unread (next dig); (ii) y-drift
+    (I24/queue #2) deferred pending the fnA window read; (iii) the new
+    **I26** — the walk/record writer-model reconciliation (carveCircle's
+    dir="max" + the (43)(a) t vs the now-settled setter/blend laws).
   - **Data-side shortcut: dead as observed** — `Noita/temptemp/`
     contains only `biome_map_lua.png` + `worldtree_saved.png` (no
     DEBUG output image; re-checked dig #119), so a true-layout view
     would need `DEBUG_output_image` enabled in data.wak's biome XMLs —
     open, LOW priority.
-  **Gate (updated):** index half read + the port landed (placement
-  read complete). Sources: entries (117), (119), C96, C98,
-  `/tmp/opencode/dig117-probe3.mjs`.
+  **Gate (updated):** port landed; the index half remains. Sources:
+  entries (117), (119), (120), C96, C98, C99, `/tmp/opencode/dig117-probe3.mjs`.
+
+- [ ] **I26. The walk/record writer-model reconciliation (opened
+  2026-10-10, dig #120).** Dig #120 settled the 0x8EE750 setter's
+  internals (both flags LOWER-only; the flag gates only the y<25 eave —
+  C99) and the blend's t² law, and ported L2/L3 onto a faithful
+  `setterStamp`. The fnA WALK (@0x8ef37c pushes flag=1) and the
+  CaveStructure record float stamps still go through `carveCircle`,
+  whose model predates those reads: dir="max" (a raise-only write the
+  byte setter never does) and the t law `t=(R−d)/R` + the flag-1 eave
+  `q⁸·v+1` (byte shape: `1 + q⁸·(target−1)` — same branch shape, so
+  that part is cosmetic). Resolving needs: (i) the walk's CALL-SITE
+  read @0x8ef300..0x8ef37c — which value/scale xmm2/xmm3 the walk
+  pushes (its carveCircle args are currently shape-mapped, not
+  byte-proven); (ii) the record float-stamp engine identity (0x8EF950's
+  float twin for the record lane — the byte-grid writer is settled, the
+  float lane is not). Expected impact: under dir="max" the walk is
+  near-no-op on the 1.0 base (v ≤ 1 never beats an existing 1.0);
+  switching it to the min-guard/circle law would make the walk the
+  dominant CARVE lane — the biggest known-wrong-but-kept piece left in
+  `caves-field.mjs` (FLAGGED in the walkChain comment). Sources:
+  entry (120), C99, caves-field.mjs.
 
 ## Strategy (agreed)
 
