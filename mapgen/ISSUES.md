@@ -594,8 +594,8 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   install (statically unresolvable).
   Source: ABOUT_MATH §6 (115).
 
-- [ ] **I25. BitmapCaves grid indexing — u-law vs cell index (opened
-  2026-10-09, dig #117).** The port feeds the caves field through
+- [x] **I25. BitmapCaves grid indexing — u-law vs cell index (opened
+  2026-10-09, dig #117; RESOLVED dig #121).** The port feeds the caves field through
   `surfaceField`'s ONE `gradAt` slot, so after dig #117's ×0.1 it is
   indexed by the byte-law `u = 0.049162514·px + 0.1a` (C95/C96) —
   i.e. the P1 surface band reads only the field's **top ~26 rows** at
@@ -635,19 +635,39 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
     untouched). Tests 263/263 — the y224 byte bar HOLDS (the new loop C
     could have threatened x0..11 at y224; this seed's stamps miss,
     deterministic).
-  - **Remaining:** (i) this issue's OWN subject — the index half: the
-    kind-1/kind≥2 arms 0x908fbc..0x909370 plus the sampler gate (u-law
-    vs cell index) — still unread (next dig); (ii) y-drift
-    (I24/queue #2) deferred pending the fnA window read; (iii) the new
-    **I26** — the walk/record writer-model reconciliation (carveCircle's
-    dir="max" + the (43)(a) t vs the now-settled setter/blend laws).
+  - **Index half: DONE dig #121 — CELL, not u-law.** The game's caves
+    consumer = the sampler 0x90d860's field read @0x90dba5..0x90dbd0:
+    idx = `[owner+0x9c]·y + x` (row-major CELL; OUTER = y proven by the
+    world-compute @0x90dbed feeding xmm3/y from the OUTER counter),
+    getter `0x9499f0` on `&owner+0xb4`, gate `comiss 0x11dfa94 (0.5) →
+    jbe 0x90e02b` — and the writer 0x8EE750 uses the SAME law
+    (@0x8ee79e `W·y + x`, same getter/layout — reader/writer closure).
+    The u-law belongs to surfaceField's kind-0 grad chain only; the
+    kind-1 (bitmap_data mod-wrap RGB arm) / kind-2 (warp → P → variant
+    `[P+0x23c]` ∈ {1,2,else} → 0x8facd0/0x8faae0/0x8fa9b0 → comiss 0.5)
+    arms never touch the float field (entry (121), C100). **Port fixed:**
+    the caves-lane gate value = the DIRECT cell read (`gradAt(wx, wy)`,
+    not `surfaceField(...)` — V3 chain + V2 loop; the test mirror
+    patched in lockstep) ⇒ C97 shape IoU **v3 0.24708 → 0.46464, v2v3
+    0.25393 → 0.46557**, v2 bit-identical; fG 0.162 → 0.840 exposes the
+    uncarved 1.0 base = I26's signature. Tests 263/263; no cache bump
+    (caves lane opt-in).
+  - **Remaining:** (i) the join/mapping residuals moved to the new
+    **I27** (fnB's buffer ↔ the sampler's `owner+0xb4` slot wiring is
+    inferential; the port's mod-wrap tile repeat vs the game's caller-
+    managed window origins unread); (ii) y-drift (I24/queue #2) deferred
+    pending the fnA window read; (iii) **I26** — the walk/record
+    writer-model reconciliation (carveCircle's dir="max" + the (43)(a) t
+    vs the now-settled setter/blend laws) — now the DOMINANT blocker
+    for the BitmapCaves shape (the fG 0.84 over-fill).
   - **Data-side shortcut: dead as observed** — `Noita/temptemp/`
     contains only `biome_map_lua.png` + `worldtree_saved.png` (no
     DEBUG output image; re-checked dig #119), so a true-layout view
     would need `DEBUG_output_image` enabled in data.wak's biome XMLs —
     open, LOW priority.
-  **Gate (updated):** port landed; the index half remains. Sources:
-  entries (117), (119), (120), C96, C98, C99, `/tmp/opencode/dig117-probe3.mjs`.
+  **Gate: CLOSED (both halves — placement dig #119/#120, index dig
+  #121).** Sources: entries (117), (119), (120), (121), C96, C98, C99,
+  C100, `/tmp/opencode/dig117-probe3.mjs`.
 
 - [ ] **I26. The walk/record writer-model reconciliation (opened
   2026-10-10, dig #120).** Dig #120 settled the 0x8EE750 setter's
@@ -669,6 +689,35 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   dominant CARVE lane — the biggest known-wrong-but-kept piece left in
   `caves-field.mjs` (FLAGGED in the walkChain comment). Sources:
   entry (120), C99, caves-field.mjs.
+
+- [ ] **I27. The caves-grid object join + the tile→field mapping
+  (opened 2026-10-10, dig #121).** Dig #121 closed I25's index question
+  (the sampler reads idx = W·y + x, the writer 0x8EE750 the same —
+  entry (121), C100) and fixed the port (the direct cell read ⇒ C97 v3
+  0.24708 → 0.46464), but two joins in the chain remain INFERENTIAL:
+  (i) **object identity** — the literal buffer wiring fnB-built ↔ the
+  sampler's `owner+0xb4` slot was not byte-traced: the fnB-region
+  factory installs `[obj+0xb0] = 0x8ee1b0` + a smart-ptr at
+  `[obj+0xb4]` (`*0x24` virtual result) on a **0xb8-byte** alloc (ctor
+  `0x8f9470`) @0x8ee379..0x8ee427, yet the sampler's owner carries
+  slots out to `[+0x2a4]` ⇒ a different, bigger object; no `+0x9c`
+  (stride) or `+0xb4` (accessor) INIT site exists in 0x79xxxx–0x90xxxx
+  (0x795b45's `+0x9c` is vector `end−begin>>5` math). Standing today on
+  dig 83's consumer chain + dig #121's reader/writer law closure + the
+  measured IoU jump (reading the v5 field cell-wise is what doubled the
+  shape IoU — strong empirical support, not a byte proof).
+  (ii) **tile→field mapping** — the port mod-wraps world px (mod
+  512/256 = the tile-repeat assumption); the game's sampler gets its
+  window from its caller (`[sampler+0xc]/[+0x8]/[+0x10]` bounds, the
+  origin ptrs `[+0x24]/[+0x28]` added ONLY for the P-eval @0x90dbed)
+  ⇒ which field row a chunk at an arbitrary biome y reads in a
+  multi-tile region is unread (single-tile chunks: identical). Resolve
+  needs: (a) the config/biome grid-slot init (who stores the built
+  buffer into `+0x9c`/`+0xb4`), (b) the sampler's caller frame (the
+  window passed per biome row). Expected impact: LOW for the current
+  render (the wrap only diverges for multi-tile rows; the IoU jump
+  already validates the read) — but it is the last inferential join in
+  the caves chain. Sources: entry (121), C100, VERIFIED §8 row 41.
 
 ## Strategy (agreed)
 

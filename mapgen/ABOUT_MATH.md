@@ -9903,3 +9903,140 @@ first use from now on):**
     C97 A/B v3 0.24708 / v2v3 0.25393 / v2 0.23391. **No cache bump**
     (caves lane opt-in). Next free: entry **(121)**, **C100**, **I27**;
     §8 row **41** free.
+
+- **2026-10-10 (121) — dig #121: I25's index half CLOSED — the caves
+  consumer is CELL-indexed (idx = W·y + x), the u-law is kind-0 only;
+  the port's caves-lane gate value rewired to the direct cell read; C97
+  shape IoU nearly doubles (v3 0.24708 → 0.46464).**
+  - **Scope/method.** The unread window from (119)/(120): FUN_00908f40's
+    kind-1/kind≥2 arms 0x908fbc..0x909370 (function ends 0x90936f; the
+    next fn 0x909370 = a per-cell chunk loop carrying the same
+    512-chunk biome-map frame — origins [X+0x38]/[X+0x40], `sar $9`,
+    `idiv [X+0x50]`, clamp `[X+0x54]−1`, getter `0x94c700` on
+    `[X+0x68]`) + the sampler 0x90d860's field-read block + the writer
+    `0x8EE750`'s index math. Byte source: `/tmp/opencode/fulltext86.asm`
+    (the true-VA full disasm — grep/sed-sliced, so C70's window-
+    misalignment trap is avoided), dig #119's builder dump, and
+    `/tmp/opencode/dig121/*.asm`; exe re-verified on disk this session
+    (17,007,104 B, md5 `8b611494212a69492dd0a4527d9c92e0` = C13).
+  - **THE ANSWER (I25 index half): CELL, not u-law.** The game's caves
+    consumer = the sampler 0x90d860's field read @0x90dba5..0x90dbd0:
+    `eax = [owner+0x9c]` (grid[0] = W), `ecx = &owner+0xb4` (the f32
+    accessor object), `imul %esi` → `add %edi` = **idx = W·esi + edi**,
+    getter `0x9499f0` (dig 83's slab 0x5491f0), `movss` the f32 value,
+    `comiss 0x11dfa94 (0.5) → jbe 0x90e02b` = the air arm. Loop
+    orientation = **OUTER y, INNER x**, proven two independent ways:
+    (1) the world-compute @0x90dbed..0x90dc0d feeds `xmm2 = origin_a +
+    INNER` and `xmm3 = origin_b + OUTER`, and the kind-2 arm's warp call
+    @0x9091d7..0x9091ec pins `xmm2 = x` (−0x28) / `xmm3 = y` (−0x20)
+    per C95 ⇒ x comes from the INNER counter, y from the OUTER;
+    (2) the writer closure below. ⇒ **idx = W·y + x, row-major CELL —
+    the u-law `u = 0.049162514·px + 0.1a` (C95/C96) belongs to
+    surfaceField's kind-0 grad chain ONLY.** (dig 83's canon line
+    already carried `idx y·[owner+0x9c]+x` for this gate; this dig
+    re-derived it byte-exact, proved the orientation, and closed the
+    writer side.)
+  - **Writer–reader closure (both sides re-read on disk this session).**
+    fnB's setter `0x8EE750` @0x8ee776..0x8ee7c9: `esi = [p]` = x,
+    `edx = [p+4]` = y, `eax = [grid]` = W, bounds `x<W` / `y<H`
+    (either negative or ≥ → `0x8ee91c`), `imul %edx,%eax` → `add %esi`
+    = **W·y + x**, accessor `lea 0x18(%ecx)`, getter `0x9499f0` — the
+    SAME law, SAME getter, SAME object layout (`[0]`=W, `[4]`=H,
+    `[+0x18]`=f32 data) as the sampler's, with the offsets interlocking:
+    `[owner+0x9c]` = grid[0] ⇔ accessor `owner+0xb4` = grid+0x18. The
+    sampler's sibling grids share the identical layout — u16 grid at
+    `owner+0xbc` (stride `[0xbc]`, accessor `+0xd4` @0x90da28), byte
+    grid at `owner+0xdc` (accessor `+0xf4` @0x90db49), byte grid at
+    `owner+0x188` (accessor `+0x1a0`, dig 83).
+  - **The kind arms (0x908fbc..0x90936f) — NEITHER touches the float
+    field.** kind==1 = the **bitmap_data pixel arm**: `[R+0x1b0]` null →
+    ret0 (the procedural_terrain.cpp:2670 assert block between); `x_int
+    mod W` and `y_int mod H` via `idiv` + the negative fix-up `add`,
+    idx = `W·(y mod H) + (x mod W)`, getter `0x949f60` (the COLOR
+    getter), `test $0xffffff` → RGB ≠ 0 ⇒ the material pair
+    `driver[+0xa0] → 0x4b8080 → driver[+0x28] → 0x4b80e0` (the line
+    0xa7a = 2682 assert when `[+0xa0]` is null). kind==2 = the **P-lane**:
+    warp `0x908cb0(x, y, f32)` (param 0.0f first, `[P+0x234]` second,
+    1.0f on the fallback; the warp = dig 83's true 0x908CB0) with the P
+    object `[region+0x1d4]` → `0x8fae40` count; >0 → resolve via
+    `0x4b80e0`, params `[P+0x234]/[+0x238]`, **variant select
+    `[P+0x23c]`: 1 → `0x8facd0`, 2 → `0x8faae0`, else → `0x8fa9b0`** →
+    `comiss [−0xc] = 0.5` → jb ret0 → re-count `0x8fae40` >0 → the
+    shared material tail @0x9091b6, else the fallback `0x908e70` →
+    floor-fix → classifier `0x8f5030` (`mBiomeMaterials` = `[X+0x2a4]`).
+    kind==0 = C95's surfaceField arm (re-read, unchanged: +0.5 →
+    `0x90a860` → cvttsd2si ints → `0x8f5030`).
+  - **The fnB factory observation (join evidence).** The fnB-region
+    factory fn @0x8ee379..0x8ee427 allocates a **0xb8-byte** object via
+    ctor `0x8f9470`, installs **`[obj+0xb0] = 0x8ee1b0`** (the
+    CellFactory color→idx thunk) and a **smart-ptr swap at `[obj+0xb4]`**
+    (old saved; new = a `*0x24` virtual-call result; the old released
+    via its vtable — @0x8ee3f3..0x8ee3f9; the same store again
+    @0x8ee692). The sampler's owner is a BIGGER object (its slots reach
+    `[+0x2a4]`) ⇒ the literal buffer wiring fnB-built ↔ sampler slot is
+    NOT byte-traced this dig (no `+0x9c`/`+0xb4` init site in
+    0x79xxxx–0x90xxxx — the 0x795b45 `+0x9c` is vector `end−begin>>5`
+    math, not the stride). The join therefore rests on dig 83's consumer
+    chain + this dig's law closure + the measured IoU jump → **NEW I27**.
+  - **The port patch.** `noise-terrain.mjs` — the caves-lane gate value
+    is now the DIRECT cell read (the wrong piece was never gradAt's
+    mod-wrap body — that was already the byte law — but its
+    ARGUMENTS,which came from surfaceField's u-law chain): V3 chain
+    `field = gradKind === "caves" ? gradAt(wx, wy) : surfaceField(...)`;
+    V2 loop `v = cavesSrc ? gradAt(gx, gy) : surfaceField(...)` (`cavesSrc`
+    = the existing caves-gradAt attach condition). The dig #101 comment
+    block carries a dig #121 correction marker; the gate/logger comments
+    updated ("the FIELD" = the direct read for caves, the combine for
+    kind-0). Frame note: canvas vs world px agree under the modulo (the
+    C80 origins 17920 = 35·512 and 31744 = 124·256 are multiples of both
+    wrap dims), so the V2 lane's canvas px stay valid. The test mirror
+    `cell()` in `surface-wiring.test.mjs` patched in lockstep (hills →
+    `gradAtMirror(def)(wx, wy)`; the `surfaceField` import dropped;
+    `uidMirror` kept as the kind-0 mirror with a usage note).
+  - **Tests 263/263** (the data-gated equivalence suite passes with the
+    patched mirror). **No cache bump** (the caves lane is opt-in via
+    SURFACE_V3; the default render never enters the noise branch).
+  - **C97 shape A/B (all three lanes re-run, same 56-tile set).** iou:
+    **v2 0.23391 → 0.23391** (bit-identical — the V2-only lane never
+    attaches the caves field, C97 semantics), **v3 0.24708 → 0.46464
+    (+0.218)**, **v2v3 0.25393 → 0.46557 (+0.212)**; fR 0.48029
+    unchanged (ref side); fG **v3 0.162 → 0.840**, v2v3 0.169 → 0.845,
+    v2 0.141 unchanged. Post-patch v3 per-family iou (fG): mountain
+    0.5497 (0.688) / desert 0.6447 (0.984) / winter 0.3664 (0.977) /
+    hills 0.4306 (0.975) / lake 0.4306 (0.331 — the non-caves C39 image
+    lane, path untouched). v3 iouShift 0.64285 ≫ iou 0.46464 ⇒ the
+    residual is now registration-heavy (dyOpt mean −156, med −231); the
+    bty14 row: iou 0.7399, dyOpt mean −44.9, **med −12** (the C78
+    anchor ±1 — recorded as an observation, not a claim).
+  - **Honest summary.** The index fix nearly DOUBLES the caves-family
+    shape IoU — the largest single-lane gain on record — and the
+    over-fill it exposes (fG 0.84 vs fR 0.48; deep band b3 0.70) is
+    exactly I26's predicted signature: under `carveCircle`'s dir="max"
+    the walk is a near-no-op on the 1.0 base, so the caves never get
+    carved. **I26 is now the dominant blocker for the BitmapCaves
+    family's shape.**
+  - **Not covered (deferred).** The agenda's kind-0 P-chain items: the
+    r-eval 0x90b280 read PARTIAL (comisd vs `0x11e0050` → the `0x90b680`
+    pair fast-path returning 0/1.0f; the normal path gates `[X+0x6c]`,
+    does the 512-chunk biome-map lookup via `0x94c700` on `[X+0x68]`,
+    then the `0x29` = 41-px band rank + `0x909c70` compare and the
+    `/0x11e0274` ramp divisor) — slot `[X+0x94]`, the `[+0xb0]` topology
+    question, C39's ramp, I21, and the dyOpt −12 anchor all REMAIN for a
+    dedicated kind-0 dig; the v2-chunk census re-run (the I23① density
+    gate) was NOT needed — the v2 lane is bit-identical this dig; C79
+    not re-run (C97 is the shape instrument of record).
+  - **Pitfalls hit.** The sed-by-anchor trick dies on non-instruction-
+    aligned VAs (`^  90b600:` absent → empty range → sed "unknown
+    command"; use line offsets); my first `+0x9c` filter regex used
+    `{3}` against 6-digit addresses (zero matches = a false negative);
+    the `+0x9c` displacement is container-common (3438 hits — 0x795b45's
+    is `end−begin>>5` vector math); the sampler's bounds blocks
+    reference SIBLING-grid slots (`[0xbc]/[0xc0]`, `[0xdc]/[0xe0]`) —
+    do not read them as the f32 grid's own limits.
+  - **Landed:** ABOUT_MATH **(121)**, CONSTANTS **C100**, ISSUES **I25
+    closed** + **I27 opened**, VERIFIED **§8 row 41** + the caves-lane
+    canon update, `noise-terrain.mjs` (V2/V3 caves value source + the
+    comment corrections), `surface-wiring.test.mjs` (the mirror). Tests
+    **263/263**; C97 A/B v3 0.46464 / v2v3 0.46557 / v2 0.23391. **No
+    cache bump** (caves lane opt-in). Next free: entry **(122)**,
+    **C101**, **I28**; §8 row **42** free.

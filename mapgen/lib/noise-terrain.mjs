@@ -226,14 +226,23 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
     // gradAt when a bitmap_noise_file exists (the lake family), else the
     // ramp instrument.
     let gradAt = null;
-    // THE open lane: the caves-field composition is still a model (the
-    // fn B per-phase placement is un-read) — visual = VERIFIED.md §12.
+    // dig #121 (entry (121), I25 index half): when the caves field
+    // attaches, the lane's VALUE = the field read DIRECTLY at cell
+    // coords — the game's sampler reads it via getter 0x9499f0 on
+    // &owner+0xb4 with idx = W·y + x (stride [0x9c] = grid[0]) and the
+    // >0.5 gate (@0x90dba5..0x90dbd0), NOT through surfaceField's
+    // u-law grad chain (that law belongs to the kind-0 noise lane
+    // only). The wrapper below is the byte law (mod-wrap = the tile
+    // repeat; canvas vs world px agree under it — the C80 origins are
+    // multiples of 512 and 256).
+    let cavesSrc = false;
     if (SURFACE_V3 && def.bitmapCaves && def.bitmapCaves.sizeX) {
       const caves = ensureCavesField(dataDirRef.dataDir, def, seed);
       const { w: fw, h: fh, field } = caves;
       gradAt = (gx, gy) =>
         field[(((Math.floor(gy) % fh) + fh) % fh) * fw
             + (((Math.floor(gx) % fw) + fw) % fw)];
+      cavesSrc = true;
     } else {
       gradAt =
         makeGradAtFromTopology(dataDirRef.dataDir, def) ?? makeGradAt(def);
@@ -251,7 +260,11 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
         const gy = ty * CHUNK + cy * 10 + 5;
         let v;
         try {
-          v = surfaceField(uid, gx, gy, gradAt, 0, DEF_SEED);
+          // dig #121: the caves-lane value = the direct cell read
+          // (gradAt above is the cell-law wrapper); the noise combine
+          // stays for every other grad source.
+          v = cavesSrc ? gradAt(gx, gy)
+            : surfaceField(uid, gx, gy, gradAt, 0, DEF_SEED);
         } catch {
           return null; // unread-core lane → whole chunk falls through
         }
@@ -288,6 +301,15 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
   // no longer throws — ported dig #113) ⇒ return null = whole chunk
   // falls through honestly (V2 :237-241 mirror). Evaluate/classify keep the C76 lane frame unchanged this
   // dig (evaluator2≡classify floor-fix identity; frame flip = I21).
+  // **dig #121 correction (entry (121), I25 index half):** the
+  // "surfaceField's RETURN" sentence above = the kind-0 law ONLY. For
+  // BitmapCaves biomes the game's sampler reads the caves field
+  // DIRECTLY (idx = W·y + x via getter 0x9499f0 on &owner+0xb4,
+  // stride [0x9c] = grid[0]; gate value > 0.5 @0x90dba5..0x90dbd0) —
+  // the u-law grad chain is the kind-0 surfaceField path and never
+  // touches the caves grid (writer 0x8EE750 uses the same W·y+x,
+  // reader/writer closure verified dig #121). The caves lane's gate
+  // value below is therefore the DIRECT cell read, not the combine.
   const surfaceTable = ensureSurfaceTable(dataDirRef.dataDir, def);
   const uid = uidFrom(def, cfg);
   let gradAt = null;
@@ -337,16 +359,23 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
       const wy = y + bandTopPx - worldY0;
       let field;
       try {
-        field = surfaceField(uid, wx, wy, gradAt, 0, DEF_SEED);
+        // dig #121: BitmapCaves ⇒ the DIRECT cell read (the sampler's
+        // law, see the correction block above); every other grad source
+        // keeps the kind-0 combine.
+        field = gradKind === "caves" ? gradAt(wx, wy)
+          : surfaceField(uid, wx, wy, gradAt, 0, DEF_SEED);
       } catch {
         flushLog();
         return null; // unread-core lane → whole chunk falls through (V2 mirror)
       }
       let solid = 0;
       let v = null;
-      // the sampler's own gate: process only when the FIELD (the
-      // surfaceField return) > 0.5 — comiss 0x11dfa94 @0x90dbc3 →
-      // jbe @0x90e02b (P/P-table null arm stays the && below, @0x90dd01)
+      // the sampler's own gate: process only when the FIELD > 0.5 —
+      // comiss 0x11dfa94 @0x90dbc3 → jbe @0x90e02b (P/P-table null arm
+      // stays the && below, @0x90dd01). dig #121: "the FIELD" = the
+      // surfaceField return for the kind-0 lanes, the DIRECT cell read
+      // of the caves grid for BitmapCaves biomes (the sampler's own
+      // source — the same getter, the same gate).
       if (field > 0.5 && surfaceTable) {
         // evaluator2 @0x90dd24 = (x, y, field): xmm0/xmm1 = the same
         // origin-added counters classify receives after the floor-fix

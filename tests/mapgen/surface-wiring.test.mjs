@@ -1,11 +1,19 @@
 // tests/mapgen/surface-wiring.test.mjs — dig #97 (Phase 4 step 3): the
 // SURFACE_V3 lane's classify wiring (CONSTANTS C76); RE-DERIVED dig #101
 // (entry (101), C80): the gate value is no longer the a=1.0 single-call
-// proxy (the dig-#100 flood root cause) — it is surfaceField's RETURN
-// computed at WORLD px (C80: wx = x − 17920, wy = canvas py − 31744), and
-// evaluator2 takes the classifier's own lane coords (the evaluator2 ≡
-// classify floor-fix identity). Chain pinned by C76/C80:
-//   field = surfaceField(uid, wx, wy, gradAt, 0, 0)   (world frame, C80)
+// proxy (the dig-#100 flood root cause); RE-DERIVED dig #121 (entry
+// (121), I25 index half): for <BitmapCaves> biomes the gate value is the
+// caves grid read DIRECTLY at cell coords — the game's sampler reads it
+// via getter 0x9499f0 on &owner+0xb4, idx = W·y + x (stride [0x9c] =
+// grid[0]), writer 0x8EE750 same law — NOT surfaceField's u-law grad
+// chain (kind-0 only). Non-caves grads still take the kind-0 combine at
+// WORLD px (C80: wx = x − 17920, wy = canvas py − 31744). evaluator2
+// takes the classifier's own lane coords (the evaluator2 ≡ classify
+// floor-fix identity). Chain pinned by C76/C80 + dig #121:
+//   caves:    field = gradAt(wx, wy)          (world frame, cell law —
+//                                              the wrapper mod-wraps the
+//                                              tile, dig #121)
+//   kind-0:   field = surfaceField(uid, wx, wy, gradAt, 0, 0)  (C80)
 //   gate:  field > 0.5 (@0x90dbc3 comiss 0x11dfa94 → jbe) ∧ table ≠ null
 //   v = evaluator2(x, y, field)                        (@0x90dd24)
 //   solid = classify(table, x, y, v) ≠ null            (@0x90dd7e → accept
@@ -41,7 +49,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { noiseChunkMask } from "../../mapgen/lib/noise-terrain.mjs";
 import { loadBiomeConfig } from "../../mapgen/lib/biomes.mjs";
-import { evaluator2, surfaceField } from "../../mapgen/lib/noise-proto.mjs";
+import { evaluator2 } from "../../mapgen/lib/noise-proto.mjs";
 import { buildCavesField } from "../../mapgen/lib/caves-field.mjs";
 import {
   componentFromXml,
@@ -83,7 +91,10 @@ function table() {
 // uid mirror — a verbatim duplicate of noise-terrain.mjs's uidFrom
 // (C43/C37 attr→slot map). Duplication is deliberate: any drift between
 // the lane and this mirror changes `field` bit-wise and breaks the
-// round-trip/equivalence assertions below.
+// round-trip/equivalence assertions below. NOTE (dig #121): the hills
+// probe's cell() no longer consumes it — the caves lane bypasses
+// surfaceField entirely (direct cell read); kept as the kind-0 mirror
+// for a future non-caves probe (MIN_X/MAX_X ride along with it).
 function uidMirror(def) {
   const n = (v, d) => { const p = parseFloat(v); return Number.isFinite(p) ? p : d; };
   return {
@@ -108,8 +119,10 @@ function uidMirror(def) {
 }
 
 // gradAt mirror — the lane's selection for hills (<BitmapCaves> ⇒ the
-// caves-field grid; noise-terrain.mjs dig-#101 branch). The grid is
-// (seed, name)-deterministic (C49) and memoized like the lane's cache.
+// caves-field grid; noise-terrain.mjs dig-#101 selection, dig #121 VALUE
+// source). The grid is (seed, name)-deterministic (C49) and memoized
+// like the lane's cache. Since dig #121 this wrapper IS the lane's gate
+// value for hills (cell law: idx = (gy mod h)·w + (gx mod w)).
 function gradAtMirror(def) {
   if (!_caves) _caves = buildCavesField(dataDir, def, CAPTURE_SEED);
   const { w: fw, h: fh, field } = _caves;
@@ -119,13 +132,16 @@ function gradAtMirror(def) {
 }
 
 // Exact mirror of the lane's default-branch math (noise-terrain.mjs,
-// dig #101): same expression order ⇒ bit-identical field/v inputs.
+// dig #121): same expression order ⇒ bit-identical field/v inputs.
+// hills carries <BitmapCaves> ⇒ the lane's gate value = the DIRECT cell
+// read (the dig #121 branch) — gradAtMirror is the cell-law wrapper;
+// surfaceField is not consulted for caves biomes any more.
 function cell(def, tx, ty, cx, cy) {
   const x = tx * 512 + cx * 10 + 5;
   const y = ty * 512 + cy * 10 + 5 - SKY_PX;
   const wx = x - WORLD_X0; // C80
   const wy = y + SKY_PX - WORLD_Y0; // C80 (canvas py = y + 24576)
-  const field = surfaceField(uidMirror(def), wx, wy, gradAtMirror(def), 0, 0);
+  const field = gradAtMirror(def)(wx, wy);
   const v = evaluator2(x, y, field);
   return { field, v, x, y };
 }
