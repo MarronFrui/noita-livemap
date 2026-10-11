@@ -18,16 +18,16 @@ dig and report why instead of improvising (rules = AGENTS.md charter):
    new data / new instrument / named overturning evidence). If no NEW
    evidence exists, STOP: it is a repeat dig; move to the next queue
    item.
-2. **Predict-then-read (§2)**: write your expected law in 1–2 sentences
+2. **Predict-then-read**: write your expected law in 1–2 sentences
    BEFORE opening the disasm; label agree/refute after.
-3. **Full-window extraction (§2)**: dated-extract every enclosing
+3. **Full-window extraction**: dated-extract every enclosing
    function prologue→ret into `mapgen/extractions/` and add a manifest
    row (file, VA range, tool, exe md5 = C13). Re-derive EVERY number
    this session; a prior cite is a search hint, not evidence.
 4. Derive the law; port it. Stream/budget laws get COUNT tests (0/1/N +
-   the skip path, §4). Register each new PE constant (CONSTANTS.md)
+   the skip path). Register each new PE constant (CONSTANTS.md)
    before use. A surprise in the port = re-read the bytes, never
-   accommodate it in code (§2(4)).
+   accommodate it in code.
 5. **A-register maintenance:** if the dig touched D-row lanes (ISSUES
    §A), the dig must end with fewer D-rows than it began with — or
    state exactly which remain and why (then the dig re-opens scope).

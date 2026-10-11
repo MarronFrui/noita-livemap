@@ -81,7 +81,7 @@ npm run preview
 | ---- | ---------- |
 | `bridge/index.js` | File watcher + WebSocket broadcaster (Node ESM: `ws`, `chokidar`) |
 | `mapgen/` | Map-gen bench: wasm loader, biome layout parser, chunk renderer, reference slicer, diff/fit rig (plain ESM `.mjs`) |
-| `mapgen/extractions/` | Byte-extraction dumps (gitignored, path-stable) + tracked `MANIFEST.md` — the manifest rows that docs and code cite (METHODOLOGY §2) |
+| `mapgen/extractions/` | Byte-extraction dumps (gitignored, path-stable) + tracked `MANIFEST.md` — the manifest rows that docs and code cite (charter: extraction protocol) |
 | `mapcap/` | Capture-based ground truth: noita-mapcap slicing, seed-differential analysis, predetermined zones (`mapcap/README.md`) |
 | `mods/noita-live-map/` | Noita Lua telemetry mod (`init.lua`, `files/telemetry.lua`) |
 | `src/main.ts`, `src/style.css` | Vite frontend; embeds noitamap iframe |
