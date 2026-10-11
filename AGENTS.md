@@ -99,8 +99,18 @@ npm run preview
 - Frontend is TypeScript; bridge and scripts are plain JavaScript (`.js`, `.mjs`).
 - Treat `vendor/` as read-only upstream code — changes there belong in the
   respective submodule repos, not here.
-- Read `SESSION_CONTEXT.md` before planning work; it records decisions and the
-  intended next steps so sessions don't rediscover context.
+- Read `SESSION_CONTEXT.md` before planning work — noting it is STALE
+  (since entry (110)) and superseded by `GOALS.md` + the four registries;
+  derive live state, don't copy it.
+- **Campaign method (see `GOALS.md`, enforced):** (1) derive every byte
+  claim THIS session from the enclosing function's full extent (prologue
+  → ret), freshly extracted — a prior cite is a hint, not evidence;
+  (2) stream/budget laws get COUNT tests (0/1/N), never boolean;
+  (3) stream equivalence is measured before C97 shape metrics mean
+  convergence; modelled lanes stay FLAGGED with a queue position;
+  (4) no tuning — commit correctness even when the metric ticks down;
+  (5) one dig = one commit = tree clean; `/dig`, `/status`, `/verify`
+  commands enforce the protocol.
 - Domain facts must carry a source (file + section) verified on disk **this
   session**. Never carry numbers from chat memory, prior-session summaries, or
   handovers into work or docs — re-check first.
