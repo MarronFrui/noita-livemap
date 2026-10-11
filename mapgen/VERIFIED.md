@@ -191,6 +191,7 @@ of these mechanisms, cite the row instead of re-running it.
 | 40 | **C50**: "[P+0x74]/[+0x78] = the blob-strength (min,max) pair consumed by fnB (v = A + d·(B−A) → the blob-setter v_arg); CE (+0x74,+0x78) = (1.549988, 0.0) hills-class" — plus its derived port model (the strengthA/B knobs, the dig #54 radius min(20) cap, the uniform-stamp blob lanes) | **OVERTURNED dig #120 (byte + disk):** loop C loads **[+0x74]/[+0x78] as the blend's R (radius)** (rollF → xmm2 @0x8f10e8..0x8f115f) and **[+0x6c]/[+0x70] as v (strength)** — C52's slot map was right; the CE "strength pair (1.549988, 0.0)" = the radius pair mislabeled. hills.xml on disk (2026-10-10, the LocalLow data dir) declares blob_caves_strength 1.5..3 / blob_caves_radius 1..10; the min(20) cap has NO byte site (R = rollF, uncapped) and the strengthA/B knobs are gone from the port. The **full port lands this dig** (entry (120), C99): loop B top-band runs, loop C y-first stamps, the L2 2-pass + L3 do_beginning_down chains through the now-settled **lower-only** setter law (C46's flag branch closed: flag = eave-gate only), and the t² blend — `caves-field.mjs` v5. C97 shape A/B: v3 0.24644 → **0.24708**, v2v3 0.25183 → **0.25393**, v2 0.23391 unchanged (lane-expected), no cache bump. I25's **index half stays OPEN**; new I26 = the walk/record writer-model reconciliation. Sources: entry (120), C99, ISSUES I25/I26 |
 | 41 | The consumer model **"the caves field's gate value = surfaceField's RETURN — the driver 0x908F40 kind-0 arm feeds exactly that into the f32 grid the gate reads (dig #101's comment premise), so the caves field must ride surfaceField's ONE gradAt slot and is indexed by the u-law `u = 0.049162514·px + 0.1a`"** — the routing/I25 premise the port ran on through dig #120 | **ELIMINATED dig #121 — bytes + measurement.** The caves consumer = the sampler 0x90d860's DIRECT cell read @0x90dba5..0x90dbd0: `eax = [owner+0x9c]` (grid[0] = W), `ecx = &owner+0xb4`, `idx = W·esi + edi` with **OUTER = y / INNER = x** (world-compute @0x90dbed..0x90dc0d: xmm2 = origin_x + INNER, xmm3 = origin_y + OUTER — the kind-2 warp call @0x9091d7 pins xmm2 = x, xmm3 = y), getter `0x9499f0` (= dig 83's slab 0x5491f0), gate `comiss 0x11dfa94 (0.5) → jbe 0x90e02b` — and the writer `0x8EE750` uses the SAME law @0x8ee776..0x8ee79e (`W·y + x`, same getter, same `[0]`=W/[4]`=H/[+0x18]`=data layout ⇒ reader/writer closure). The u-law belongs to **surfaceField's kind-0 grad chain only** (C95/C96 stand in that scope); the kind-1 arm = bitmap_data `W·(y mod H)+(x mod W)` RGB pixel arm (getter `0x949f60`) and kind-2 = warp → `0x8fae40` → variant `[P+0x23c]` → comiss 0.5 — neither touches the float field. Port: `noise-terrain.mjs` now reads the caves lane directly (`gradKind === "caves" ? gradAt(wx,wy) : surfaceField(...)`) ⇒ C97 shape IoU **v3 0.24708 → 0.46464, v2v3 0.25393 → 0.46557, v2 bit-identical**; fG 0.162 → 0.840 (vs fR 0.480) exposes the uncarved 1.0 base = I26's signature. Residuals → **I27** (object join + tile mapping). Sources: entry (121), C100, ISSUES I25 closed/I26/I27 |
 | 42 | The caves-field port model **"the walk's `push $1` stamp = a raise-only `carveCircle(dir="max")` (the walk can only RAISE — flag=1 eave = the per-cell `((py−1)/25)⁸·v+1`) and the record's float stamps = `carveCircle(dir="max")` raises"** — the biggest known-wrong-but-kept piece left in `caves-field.mjs` (the (121) FLAGGED reconciliation) | **ELIMINATED dig #122 — bytes + measurement (I26 CLOSED).** (i) The walk's stamp @0x8ef37c = the setter 0x8EE750 with **VALUE = the 3-segment radius envelope R(t)** (prologue re-pinned: `s=(2−trunc(−4u))/5`, `rA=rD=s·0.2u`, `rB=rC=s·(1+2.5u)`, all consts re-read — C101(a)), **SCALE = clamp01(slot″)**, **flag = 1** ⇒ SCALE ≤ 1 + the setter's lower-only guard ⇒ **the walk CARVES**. (ii) The flag=1 eave, byte-exact: the flag = the byte `[ebp+8]` (`cmpb` @0x8ee839, `je` @0x8ee85c); the y = the **stamp CENTER** y (the point `[edi+4]` @0x8ee85e — the cell coords form only at @0x8ee892), q = **y/25.0** (`0x11e01e0`, **no −1** — C99's "(y−1)/25" corrected in place), q²·q⁴·q⁸ → target′ = 1 + q⁸·(target−1), **circle arm only** (C101(c)). (iii) The record phase does NOT call the setter (its callers = walk 0x8ef37c / L2 0x8f20d1 / L3 0x8f2a6c): its engine = **FUN_008EF870** — per cell over the per-stamp template's region, `field.cell += (v − field.cell)·temp.cell`, a **two-sided lerp** (no eave/guard/value-branch) — plus **FUN_008EF950**'s stencil byte copy (gate `[temp+0x5c] ≠ 0`, copy the template's nonzero bytes to (x0,y0)); the ctor 0x8F9470 ships the template EMPTY (C101(d)) ⇒ the fill engine = **I28 open**. Port: `setterStamp` flag param + the center-y eave, walkChain → `setterStamp(...,1)`, new `stampLerpTemplate`, `caveRecordStamp` → the lerp, `carveCircle` = LEGACY (export kept). C97 A/B: v2 **0.23391 bit-identical** (no cache bump), v3 fG **0.840 → 0.71506** (vs fR 0.48029 — the (121) over-fill signature drops as I26 predicted), IoU 0.46464 → 0.45278 (the carve removes solid the ref keeps — the residual is the registration/model gap I23①/I24, not the writer law). Sources: entry (122), C99 corrected, C101, ISSUES I26 closed/I28 |
+| 43 | The caves-field port model **"the record lane stamps via the 0x8EF870 two-sided template lerp (the port's `stampLerpTemplate` stand-in) + the 0x8EF950 stencil byte copy, with the count roll `count_max − trunc(u·span)` counting DOWN from max"** — the record half of entry (122)'s reconciliation (C51's roll/write claims) | **ELIMINATED dig #123 — bytes (I28 CLOSED, C102).** The record window (fnB @0x8f11b3..0x8f1746) is a PRNG-DRAW CONSUMER: the ctor 0x8F9470 zero-inits the template (`movl $0x0` @0x8f9481..0x8f94c8 ⇒ `[temp+0] = [temp+4] = [temp+0x5c] = 0`) and nothing in the window fills it (the temp's only addresses = the 3 `lea −0xfc` sites ctor/fn950/dtor) ⇒ fn870 exits `[temp+4] ≤ 0` @0x8ef888b and fn950 skips the stencil `cmpl $0,0x5c(%ebx)` @0x8ef977 → the epilogue @0x8efa2d ⇒ **no field/byte writes**. The count roll = `count_min + trunc(u·(count_max − count_min + 1))` — **UP from min** (`jle 0x8f16f1` skips ≤ 0; the −2⁻³¹ `mulsd` = a negative-intermediate idiom, not a down-count — C51 corrected in place). Per stamp: the ctor-seed (its own draws are stack-local) + the 0x668400 resolver (1 draw per well-formed `$[lo-hi]` group; XML census 94 plain / 8 grouped of 102 image_file values) + X + Y + strength = 4–5 stream draws, all values discarded ⇒ the lane shifts the STREAM only. Port: `caveRecordStamp` draws-only `(rec, prng)`, `rollNeg` + the stamp call removed, `stampLerpTemplate` LEGACY. Oracle y224 byte bar holds; C97 v2 0.23391 bit-identical (**no cache bump**) / v3 IoU 0.45278 → 0.45240, fG 0.71506 → 0.71459 (near mask-neutral). Sources: entry (123), C102, ISSUES I28 closed. |
 
 ## 9. Open frontier (ranked)
 
@@ -523,17 +524,21 @@ binary side unread) · ❌ unexplored.
   empty-cell gate only; **the only lowering-capable writer = the
   smoothstep LERP stamp `0x8EE930`** (`v_out = (v_src−v_dst)·t + v_dst`
   per cell) and the **C32 LoadFromImageData ±1.0 family**; the
-  **CaveStructure record lane (the fnB load phase) stamps the BYTE
-  grid** (`0x8EF950`, the [P+0x58] byte lane) with its own per-record
-  count pair [+0x1c]/[+0x20] (dig #81 correction; +0x28/+0x30 = the
-  AABB lane) + strength pair [+0x34]/[+0x38] = the
-  XML's per-record strength_min/max (byte-verified vs hills.xml's 10
-  records) and the NEGATIVE-grade NextU-scale roll (`mulsd 0x11e0578`).
-  BYTE-EXACT in the port: fn C1's 1.0 base + the ×5·w toucher, the C27
-  ctor chain, the C50 knob/record interps, the (43)(a) falloff incl.
-  the (y/25)⁸ eave, the (58) `stampBlendLerp` byte-form, the record
-  roll/writer (its own counts + strength pair + byte-grid), and the
-  scatter's roll+gate+recursion. **Still FLAGGED:** the per-phase
+  **CaveStructure record lane (the fnB load phase) writes NOTHING —
+  OVERTURNED dig #123 (C102):** the 0x8EF950 stencil gate (`0x5c(%ebx)
+  = 0` @0x8ef977) always skips on the ctor-zeroed template, and the
+  count roll is **up-from-min** (the "NEGATIVE-grade NextU-scale roll
+  (`mulsd 0x11e0578`)" read the sign at the const — C51 corrected in
+  place). The surviving facts: its per-record count pair
+  [+0x1c]/[+0x20] (dig #81 correction; +0x28/+0x30 = the AABB lane) +
+  strength pair [+0x34]/[+0x38] = the XML's per-record
+  strength_min/max (byte-verified vs hills.xml's 10 records) — the
+  lane's ONLY effect = the draws (C102). BYTE-EXACT in the port: fn
+  C1's 1.0 base + the ×5·w toucher, the C27 ctor chain, the C50
+  knob/record interps, the (43)(a) falloff incl. the (y/25)⁸ eave, the
+  (58) `stampBlendLerp` byte-form, the record lane's DRAW budget (its
+  own counts + strength pair = values discarded), and the scatter's
+  roll+gate+recursion. **Still FLAGGED:** the per-phase
   ORDER of the draw consumption (which strength span feeds which
   phase — the [−0x128]/[−0x108] windows are pinned but their
   per-phase *value-source read* is not) + the C1/C2 hand-off detail +
@@ -600,6 +605,28 @@ binary side unread) · ❌ unexplored.
   C53/C73 — xmm4 = u1·(−0x10c) @8f07b5..8f083c → cvttss2si @8f08e5 →
   −0x118 @8f08f3; the base's value semantics stay OPEN]**. Tests 177/177; the
   y224 byte bar re-run = 0/12, rms 0.0000 BYTE-EXACT.**
+- **UPDATE (dig #123, 2026-10-11): the CaveStructure record lane is a
+  PRNG-DRAW consumer — I28 CLOSED.** The record window (fnB
+  @0x8f11b3..0x8f1746) never writes: the ctor 0x8F9470 zero-inits the
+  per-stamp template (dims/containers/`0x5c` = 0) and nothing fills it
+  ⇒ fn870 exits `[temp+4] ≤ 0` @0x8ef888b, fn950 skips the byte stencil
+  @0x8ef977 → the epilogue @0x8efa2d — **no float/byte writes** (the
+  "record stamps the BYTE grid" / "0x8EF870 two-sided lerp" models are
+  ELIMINATED — §8 row 43; C51's roll/write claims corrected in place).
+  The law = the draw budget (C102): count = count_min + trunc(u·span) —
+  **up from min**, ≤0 skips; per stamp: the ctor-seed (the ctor's own
+  draws are stack-local, not the stream) + the 0x668400 image resolver
+  (1 draw per well-formed `$[lo-hi]` group; census 94 plain / 8 grouped
+  of 102 image_file values) + X + Y + strength = 4–5 draws, values
+  discarded ⇒ the record lane shifts the STREAM only. Port:
+  `caveRecordStamp` draws-only, `rollNeg` removed, `stampLerpTemplate`
+  LEGACY. The C48 bump is therefore NOT the records' (the ref's y0 bell
+  x10..28 stays unexplained — a raise-capable lane's POSITIONS diverge
+  under the still-modelled walk draw budget, or I27's published
+  objects). C97: v2 0.23391 bit-identical (**no cache bump**), v3 IoU
+  0.45278 → 0.45240 / fG 0.71506 → 0.71459 (near mask-neutral), v2v3
+  0.45557 → 0.45521. Tests 265/265 (the y224 byte bar holds). Sources:
+  entry (123), C102.
 - **UPDATE (dig #121, 2026-10-10): the caves-lane GATE VALUE is the
   direct cell read — I25's index half CLOSED.** The chain's gate
   ("sampler true 0x90d860 → the RAW float field … idx y·[owner+0x9c]+x

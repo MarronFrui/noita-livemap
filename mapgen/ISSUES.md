@@ -737,7 +737,7 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   already validates the read) — but it is the last inferential join in
   the caves chain. Sources: entry (121), C100, VERIFIED §8 row 41.
 
-- [ ] **I28. The record-stamp template fill engine (opened 2026-10-10,
+- [x] **I28. The record-stamp template fill engine (opened 2026-10-10,
   dig #122).** I26's closure settled the record phase's two ENGINES
   (FUN_008EF870's two-sided float lerp `cell += (v − cell)·temp.cell`
   + FUN_008EF950's gated stencil byte copy — entry (122), C101) but
@@ -764,6 +764,40 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   where the carve/raise lands, so the fG/IoU residual (0.715 vs fR
   0.480) partly routes here. Sources: entry (122), C101(d),
   VERIFIED §8 row 42.
+  **CLOSED dig #123 (entry (123), C102, §8 row 43):** there is NO fill
+  engine for the frame-local template — it stays empty and BOTH
+  engines no-op ⇒ the record lane writes NOTHING (its only effect =
+  the prng draws). (a) The windowed slot census @0x8f11b3..0x8f1746:
+  the temp's only addresses = the 3 `lea −0xfc` sites (ctor/fn950/
+  dtor) + the lua-cache handle at `[−0x48]` (assigned then released,
+  never read); the temp is frame-local ⇒ nothing outside fnB can
+  address it. fn870's dims gate (`cmp [temp+4],0; jle 0x8ef940`
+  @0x8ef888b) and fn950's stencil skip (`cmpl $0,0x5c(%ebx); je
+  0x8efa2d` @0x8ef977 → the epilogue) then make both engines no-ops on
+  the fresh template. (b) `[+0x94] = u·200000 − 100000` = the ctor's
+  STACK-LOCAL Random draw (`lea 0x8(%esp)` → `0x10098c0` ×2 @0x8f958d/
+  0x8f9596), seeded by the ctor arg trunc(u·(2³¹−1)) — it never
+  touches the stream and lands on a temp nothing reads ⇒ **inert**;
+  the size/offset semantics belong to the sibling FACTORY objects'
+  lane (I27 — stays open). (c) grid0/grid1 = the ctor's vector
+  zero-init (no allocator runs) ⇒ dims 0 ⇒ both engines' bounds fail
+  before any cell access. The draw law landed as C102: count =
+  count_min + trunc(u·span) — **up from min** (C51's down-from-max
+  corrected in place; ≤0 skips the record), per stamp = ctor-seed +
+  the 0x668400 resolver (1 draw per well-formed `$[lo-hi]` group; XML
+  census 94 plain / 8 grouped of 102) + X + Y + strength = 4–5 stream
+  draws, values discarded. Port: `caveRecordStamp` = the draws-only
+  `(rec, prng)`; `rollNeg` + the stamp call removed;
+  `stampLerpTemplate` = LEGACY (the engine reference for I27). Impact
+  revision: the MEDIUM assumed the records carried the C48 bump — the
+  byte law says the bump comes from another raise-capable lane (loop
+  B/C positions under the still-modelled walk draw budget, or I27's
+  published objects; the ref's y0 bell x10..28 stays unexplained).
+  C97 A/B: v2 0.23391 bit-identical (**no cache bump**), v3 IoU
+  0.45278 → 0.45240 / fG 0.71506 → 0.71459 (vs fR 0.48029 — near
+  mask-neutral: the removed winter/brush v<0.5 carves ≈ the
+  stream-shifted L2/L3/scatter positions), v2v3 0.45557 → 0.45521 /
+  fG 0.72327. Sources: entry (123), C102.
 
 ## Strategy (agreed)
 

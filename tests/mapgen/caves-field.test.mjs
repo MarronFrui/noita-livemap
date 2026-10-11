@@ -93,7 +93,7 @@ describe("stampBlendLerp — the smoothstep LERP stamp (true 0x8EE930)", () => {
 
 // ── the LEGACY (43)(a) min/max model (entry (122): retired from production;
 //    the true laws = setterStamp (flag=1: the CENTER-y q = y/25 eave, the
-//    lower-only carve) + the record's stampLerpTemplate (two-sided lerp)) ────
+//    lower-only carve); the record lane is draws-only since entry (123)) ─────
 describe("carveCircle — the legacy (43)(a) min/max model (no production caller)", () => {
   const w = 32, h = 32;
   const fresh = () => new Float32Array(w * h).fill(1.0);
@@ -131,38 +131,58 @@ describe("carveCircle — the legacy (43)(a) min/max model (no production caller
   });
 });
 
-// ── the roll twins (the dig #61 NEGATIVE scale vs the dig #65 POSITIVE form) ─
-describe("the roll twins — negative stamp roll (dig #61)", () => {
-  test("the record count roll counts DOWN from max via the negative scale", () => {
-    // stub prng: always draws 0.0 → count = max − trunc(0·span) = max
-    const stub = { next: () => 0.0 };
-    const field = new Float32Array(64 * 64).fill(1.0);
-    const bytes = new Uint8Array(64 * 64);
-    const got = caveRecordStamp(
-      { field, bytes, w: 64, h: 64 },
-      { aabbMinX: 10, aabbMaxX: 50, aabbMinY: 5, aabbMaxY: 25, countMin: 2, countMax: 6, strengthMin: 0.55, strengthMax: 2.15 },
-      stub
-    );
-    expect(got).toBe(6); // counts down from MAX (a min+ roll would give 2)
+// ── the record lane = a PRNG-DRAW consumer (dig #123, I28 CLOSED) ────────────
+describe("caveRecordStamp — the record lane draws only (dig #123)", () => {
+  // a counting stub: every next() consumes one stream draw (returning the
+  // mid value 0.5 — the values are discarded, only the BUDGET is observable)
+  const counting = () => {
+    const s = { draws: 0 };
+    s.stub = {
+      next: () => {
+        s.draws++;
+        return 0.5;
+      },
+    };
+    return s;
+  };
+
+  test("the count roll counts UP from min (the rollPos twin)", () => {
+    // stub prng: always draws 0.0 → count = min + trunc(0·span) = min
+    const lo = { next: () => 0.0 };
+    expect(caveRecordStamp({ countMin: 2, countMax: 6 }, lo)).toBe(2);
+    // u → 1: count reaches MAX (the old down-from-max twin gave 6 at u = 0)
+    const hi = { next: () => 0.999999 };
+    expect(caveRecordStamp({ countMin: 2, countMax: 6 }, hi)).toBe(6);
   });
 
-  test("the record's own strength pair feeds the stamp value (min at draw 0)", () => {
-    const stub = { next: () => 0.0 };
-    const field = new Float32Array(64 * 64).fill(1.0);
-    const bytes = new Uint8Array(64 * 64);
-    caveRecordStamp(
-      { field, bytes, w: 64, h: 64 },
-      { aabbMinX: 10, aabbMaxX: 50, aabbMinY: 5, aabbMaxY: 25, countMin: 3, countMax: 8, strengthMin: 0.55, strengthMax: 2.15 },
-      stub
+  test("count ≤ 0 skips the record entirely (the `jle 0x8f16f1` guard)", () => {
+    const s = counting();
+    // count = −4 + trunc(0.5·4) = −2 ≤ 0 → the whole record skips
+    expect(caveRecordStamp({ countMin: -4, countMax: -1 }, s.stub)).toBe(-2);
+    expect(s.draws).toBe(1); // only the count roll — no per-stamp draws
+  });
+
+  test("per stamp: ctor-seed + X + Y + strength = 4 draws (values discarded)", () => {
+    const s = counting();
+    const got = caveRecordStamp(
+      { countMin: 3, countMax: 8, imageFile: "data/biome_impl/caves/pit.png" },
+      s.stub
     );
-    // stamp 1 at (aabbMinX, aabbMinY), v = strengthMin = 0.55 (< 1): the
-    // record lane CARVES — the 0x8EF870 two-sided lerp (entry (122), I26);
-    // at the stamp center t = 1 → field = 1 + (0.55−1)·1 = 0.55 (the old
-    // dir="max" model no-oped there — the I26 over-fill). No eave (fn870
-    // has no flag/eave arm). The remaining 7 stamps re-lerp the same point
-    // (the stub) → the 0.55 fixed point holds.
-    expect(field[5 * 64 + 10]).toBeCloseTo(0.55, 6); // the two-sided lerp
-    expect(bytes[5 * 64 + 10]).toBe(1); // the 0x8EF950 byte lane (model)
+    expect(got).toBe(6); // 3 + trunc(0.5·6) = 6 stamps
+    expect(s.draws).toBe(1 + 6 * 4); // the count roll + 4 per stamp (no '$')
+  });
+
+  test("the 0x668400 resolver adds 1 draw per well-formed $[lo-hi] group", () => {
+    const drawCount = (imageFile) => {
+      const s = counting();
+      caveRecordStamp({ countMin: 1, countMax: 1, imageFile }, s.stub);
+      return s.draws;
+    };
+    expect(drawCount("cave.png")).toBe(1 + 4); // no '$' → 0 resolver draws
+    expect(drawCount("cave_$[0-999].png")).toBe(1 + 5); // 1 group → 1 draw
+    expect(drawCount("a_$[1-4]_b$[5-9].png")).toBe(1 + 6); // 2 groups → 2 draws
+    // malformed group → the "Error in parsing, no end in sight" path, 0 draws
+    expect(drawCount("bad_$[x].png")).toBe(1 + 4);
   });
 });
 

@@ -10154,3 +10154,122 @@ first use from now on):**
     row for the oracle seed, so the carve leaves it byte-exact). **No
     cache bump** (v2 bit-identical). Next free: entry **(123)**,
     **C102**, **I29**; §8 row **43** free.
+- **2026-10-11 (123) — dig #123: I28 CLOSED — the record lane is a
+  PRNG-DRAW consumer (the template ships empty ⇒ both engines no-op ⇒
+  no field/byte writes; the count law is up-from-min)**
+  - **Scope/method.** The residual (122) opened as I28: who FILLS the
+    per-stamp template before fn950 runs. Three reads, all re-verified
+    on disk this session: (i) the record window's slot census
+    @0x8f11b3..0x8f1746 — every address of the frame-local temp
+    `(−0xfc)`; (ii) the ctor 0x8F9470 body + where its internal draws
+    come from; (iii) the fn870/fn950 entry gates + epilogue and the
+    0x668400 resolver's full control flow (the only windowed call
+    besides ctor/fn950/dtor). Plus the XML census of all 102
+    CaveStructure records (on disk).
+  - **Result — the no-write proof (byte-exact).** There is NO fill
+    engine for this temp: the ctor zero-inits every dim/container slot
+    (`movl $0x0` @0x8f9481..0x8f94c8 ⇒ `[temp+0] = [temp+4] =
+    [temp+0x5c] = 0`) and the windowed slot census finds only the 3
+    `lea −0xfc` sites (ctor @0x8f1300, fn950 @0x8f169d, dtor
+    @0x8f16dd) + a lua-cache handle at `[−0x48]` that is assigned then
+    released, never read; the temp is frame-local ⇒ nothing outside
+    fnB can address it. fn870 exits at its dims gate (`cmp
+    [temp+4],0; jle 0x8ef940` @0x8ef888b → 0x8ef940) and fn950 (which
+    calls fn870 first @0x8ef96f) exits via `cmpl $0,0x5c(%ebx); je
+    0x8efa2d` @0x8ef977 → the epilogue @0x8efa2d (`pop edi/esi/ebx;
+    mov ebp,esp; pop ebp; ret`). **Both engines no-op on the fresh
+    template ⇒ the record lane writes NOTHING.** The `[+0x94] =
+    u·200000 − 100000` question resolves the same way: it is the
+    ctor's STACK-LOCAL Random draw (`lea 0x8(%esp)` → `0x10098c0` ×2
+    @0x8f958d/0x8f9596 → `movss` @0x8f95b1), seeded by the ctor arg
+    trunc(u·(2³¹−1)) — it never touches the stream and lands on a
+    temp nothing reads ⇒ **inert** (its size semantics belong to I27's
+    published factory objects). grid0/grid1 = the ctor's vector
+    zero-init (no allocator runs) ⇒ dims 0 ⇒ both engines' bounds fail
+    before any cell access. I28's (a)/(b)/(c) all close.
+  - **Result — the draw law (byte-exact; C51's count law corrected in
+    place → C102).** The lane's ONLY effect = prng draws. Count roll
+    @0x8f11b3..0x8f1280: `count = [rec+0x1c] + trunc(u·([rec+0x20] −
+    [rec+0x1c] + 1))` — **UP from min** (the rollPos twin); ≤ 0 →
+    `jle 0x8f16f1` @0x8f1280 skips the record with ZERO draws. The
+    dig #61 "negative NextU scale, counts DOWN from max" = a double
+    misread: the `mulsd 0x11e0578` (−2⁻³¹) @0x8f1266 forms the
+    NEGATIVE intermediate `−u·span` which `cvttsd2si` @0x8f1272 +
+    `sub %eax,%ecx` @0x8f1276 SUBTRACT from the count_MIN slot `[−0x120]`
+    (`0x1c(%eax)` @0x8f11d2 — dig #61 took the minuend as max) ⇒ min −
+    trunc(−u·span) = min + trunc(u·span); u = the NEW state·2⁻³¹
+    (state stored back @0x8f1262 before use — matches `prng.next()`).
+    Per stamp (the loop counts DOWN: `decl [−0x120]; jne 0x8f1295`):
+    **4 always + 1 per resolver group** — (1) the ctor-seed draw
+    @0x8f12c5..0x8f130a (state stored @0x8f130a; the ctor arg =
+    trunc(u·(2³¹−1)), ×2⁻³¹ `0x11df988` then ×(2³¹−1) `0x11e0220`);
+    (2) the image resolver @0x8f144e → 0x668400: `find('$')` @0x668494
+    → npos ⇒ assign + `jmp 0x668788`, 0 draws; else find `$[`/`]`,
+    split the inner on "-" → count ≥ 2 (`cmp $2; jae 0x6685dc`) ⇒ ONE
+    draw @0x6685ff (value = lo + trunc(u·(hi−lo+1))), < 2 ⇒ "Error in
+    parsing, no end in sight" @0x6685bf, 0 draws (the substitution
+    still runs with value 0); the recursion @0x66873f re-runs on the
+    substituted string (group removed) ⇒ exactly 1 draw per well-formed
+    group. XML census: 94 plain / 7 `$[0-999]` / 1 `$[1-4]` of 102;
+    (3) X @0x8f14b6 (store @0x8f1518) = `[rec+0x28] + trunc(u·([rec+0x30]
+    − [rec+0x28] + 1))`; (4) Y @0x8f157f (store @0x8f15d9) =
+    `[rec+0x24] + trunc(u·([rec+0x2c] − [rec+0x24] + 1))`; (5)
+    strength @0x8f164d (f32 store @0x8f16a3) = `[rec+0x34] + u·([rec+0x38]
+    − [rec+0x34])` (the C50 inline `A + d·(B−A)` compose @0x8f1684..0x8f16b7
+    ✓). All three tail rolls are unconditional (their assert `jp`
+    skips only the print). fn950's call: ecx = the temp, edx = the
+    field, stack Y/X/strength (the `push %ecx` room @0x8f169c,
+    `movss` @0x8f16bb, pushes @0x8f16c0/0x8f16c7, call @0x8f16c8,
+    `add $0xc` @0x8f16cd) — the values are DISCARDED.
+  - **Observations.** The old port's y0 row carried a phantom raise
+    bell at x100..110 (peak 1.5311 — a record stamp's strength draw)
+    that the game never writes; it disappears with the draws-only
+    conversion while pre-record lanes' stamps (x4:0.8222/x5:0.8828)
+    stay byte-identical ✓ (they draw before the record lane). The
+    ref's y0 bump bell (x10..28, peak 1.454092) is STILL not
+    reproduced: with records proven write-free, the bump must come
+    from a raise-capable lane the port places differently (loop B/C
+    under the still-modelled walk draw budget — the (121) FLAGGED
+    ~0.15 draws/point coin-hits) or from I27's published-template
+    objects — the C50-derived oracle pin now guards a span, not a
+    record-lane attribution.
+  - **Port.** `caveRecordStamp({countMin,countMax,imageFile}, prng)` →
+    draws-only (count up-from-min; per stamp the ctor-seed + the
+    resolver group loop + X + Y + strength; returns the rolled count);
+    internal `resolverDraws` mirrors 0x668400's group law (1 draw per
+    well-formed `$[lo-hi]` group); the ctx param, the aabb/point/
+    strength rolls, the byte write, `rollNeg` (sole use) and the
+    `stampLerpTemplate` CALL removed — `stampLerpTemplate` itself kept
+    as **LEGACY MODEL** (the engine reference for I27's published
+    objects; carveCircle-style treatment); `CAVES_FIELD_VER` extended
+    within the v5 epoch (the default render is untouched — no bump);
+    header/phase comments rewritten. Tests: the count-law test →
+    up-from-min + the ≤0 `jle` guard, the stamp-value test → the draw
+    budget + the resolver group law (2-group + malformed cases).
+    **265/265** (263 + 2 net new).
+  - **C97 A/B (the (122) baselines vs this dig).** v2 **0.23391 →
+    0.23391 bit-identical** ⇒ **no cache bump** (the default render
+    never attaches the caves field), v3 IoU 0.45278 → **0.45240** / fG
+    0.71506 → **0.71459** (vs fR 0.48029 unchanged) — essentially
+    mask-NEUTRAL at the aggregate (|Δ| ≤ 0.0004): the removed record
+    carves (winter/brush v<0.5) ≈ the stream-shifted L2/L3/scatter
+    positions; v2v3 0.45557 → **0.45521** / fG 0.72383 → **0.72327**.
+    The correction matters for the field VALUES (the phantom y0
+    raise), not for the mask aggregate.
+  - **Pitfalls hit.** The count law's two twins differ in sign ONLY
+    via the −2⁻³¹ const trick — a `trunc(−x)`-shaped byte still means
+    `+trunc(x)` semantically, and the sub's MINUEND slot decides
+    everything (dig #61 swapped it); a `resolverDraws()` TRUTHY test
+    consumed ONE draw where the binary's recursion draws ONCE PER
+    GROUP (caught by the 2-group unit test — budget laws need COUNT
+    tests, not boolean tests); my own span arithmetic in the ≤0 test
+    ((−1)−(−4)+1 = 4, not 3).
+  - **Landed:** ABOUT_MATH **(123)**, CONSTANTS **C51 corrected in
+    place (row + 2 bullets + the AIR-split claim)** + **C102**, ISSUES
+    **I28 closed**, VERIFIED **§8 row 43** + **§12 corrections + the
+    dig-#123 UPDATE**, `caves-field.mjs` (draws-only record lane,
+    rollNeg removed, resolverDraws, legacy comments) +
+    `tests/mapgen/caves-field.test.mjs` (the mirror). Tests **265/265**
+    (incl. the y224 oracle byte bar — the stream shift moved no stamp
+    onto y224 x0..11). **No cache bump** (v2 bit-identical). Next
+    free: entry **(124)**, **C103**, **I29**; §8 row **44** free.

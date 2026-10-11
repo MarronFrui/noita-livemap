@@ -9,9 +9,9 @@
 //       oracle's all-1.0 background)
 //     - the ctor chain (FUN_008f9470 = C27: diddled-ws poro Random, ONE
 //       warm Next draw) and the ×5·w toucher ([P+0x94] = (w·0.5)/0.1, C48)
-//     - the (43)(a) blob-circle falloff (the t law survives as the record
-//       lane's weight model in stampLerpTemplate; carveCircle itself is
-//       legacy — entry (122))
+//     - the (43)(a) blob-circle falloff (carveCircle = the legacy model,
+//       entry (122); stampLerpTemplate lost its only caller dig #123 — the
+//       record lane is draws-only)
 //     - the smoothstep LERP stamp blend (true 0x8EE930, dig #58) =
 //       the ONLY lowering-capable writer: `v_out = (v_src − v_dst)·t + v_dst`.
 //     - the C50 knob consumer: v = A + d·(B − A) (the strength pair interp)
@@ -40,8 +40,15 @@
 //       entry (102) ⑦ is in; the bodies below run the byte-closed walk
 //       (the old x-wanderer lane, rollAcc/L1 chain, the `& (gridW−1)`
 //       wrap, and the outer `childs` loop are gone).
-//     - the CaveStructure record roll = max − trunc(|draw|·(max−min+1))
-//       (the NEGATIVE NextU scale, dig #61).
+//     - the CaveStructure record phase = a PRNG-DRAW CONSUMER, nothing more
+//       (dig #123, entry (123)): count = count_min + trunc(u·(count_max −
+//       count_min + 1)) — the UP-from-min rollPos twin (dig #61's "negative
+//       NextU scale counts DOWN from max" misread the −2⁻³¹ const trick);
+//       per stamp: the ctor-seed + [the 0x668400 resolver iff image_file
+//       has `$[lo-hi]`] + X + Y + strength draws, all values discarded — the
+//       per-stamp template (ctor 0x8F9470) ships empty and the engines
+//       no-op (fn870's `[temp+4] ≤ 0` dims gate @0x8ef888b, fn950's
+//       `[temp+0x5c] = 0` stencil skip @0x8ef977 — I28 CLOSED)
 //   READ SETTLED dig #119 (2026-10-10, entry (119) + C98 + §8 row 39) and
 //     PORTED dig #120 (2026-10-10, entry (120) + C99 + §8 row 40): the
 //     blob phases, L2/L3, and the blend now run the byte laws:
@@ -75,9 +82,10 @@
 //     CENTER y < 25, q = y/25 (NO −1 — C99's "(y−1)/25" was a miscite),
 //     target := 1 + q⁸·(target−1). L2/L3 use setterStamp flag=0; the
 //     WALK uses setterStamp flag=1 (value = the radius envelope, scale =
-//     clamp01(slot″) — the walk CARVES); the record lane = the 0x8EF870
-//     two-sided template lerp (stampLerpTemplate, no eave) + the 0x8EF950
-//     stencil byte copy — carveCircle retired to the legacy model.
+//     clamp01(slot″) — the walk CARVES); the record lane writes NOTHING
+//     (dig #123: the engines no-op on the ctor-empty template — the lane
+//     only consumes draws) — carveCircle/stampLerpTemplate retired to the
+//     legacy model.
 //   STILL FLAGGED: the y-drift span (queue #2, entry (74), deferred
 //     pending the fnA window read); walkChain's per-roll draw budget (the
 //     model's); the spawn-lane selector/scatter draws — the port's spawn
@@ -90,76 +98,97 @@ import path from "node:path";
 import { readPng } from "./images.mjs";
 import { NollaPrng } from "./wang-js.mjs";
 
-export const CAVES_FIELD_VER = "caves-field v5 composition (2026-10-10, dig #120: loop-B top-band runs, blob y ∈ [25,h−5], L2 2-pass chains, L3 do_beginning_down chains, the t² blend + setterStamp carve arm; dig #122 I26: the walk stamp = setterStamp flag=1 (lower-only carve + the center-y q⁸ eave), the record stamp = the 0x8EF870 two-sided template lerp, carveCircle retired to the legacy model; 2026-09-21 dig #55/#61/#64/#65/#68 byte-order swap; 2026-09-22 dig #81: phase 1 = mountain_count)";
+export const CAVES_FIELD_VER = "caves-field v5 composition (2026-10-10, dig #120: loop-B top-band runs, blob y ∈ [25,h−5], L2 2-pass chains, L3 do_beginning_down chains, the t² blend + setterStamp carve arm; dig #122 I26: the walk stamp = setterStamp flag=1 (lower-only carve + the center-y q⁸ eave), the record stamp = the 0x8EF870 two-sided template lerp, carveCircle retired to the legacy model; 2026-10-11 dig #123 I28: the record lane = a draws-ONLY consumer (count up-from-min + the ctor-seed/resolver-iff-$[lo-hi]/X/Y/strength per-stamp budget; the engines no-op on the ctor-empty template); 2026-09-21 dig #55/#61/#64/#65/#68 byte-order swap; 2026-09-22 dig #81: phase 1 = mountain_count)";
 
 // The C48-verified ×5 toucher: [P+0x94] = (w·0.5)/0.1
 export function toucherValue(w) {
   return (w * 0.5) / 0.1;
 }
 
-// ── the CaveStructure RECORD phase (dig #61 byte-cited; the engine identity
-// settled entry (122), I26) ──────────────────────────────────────────────────
-// Per fnB's record walk (slab 0x4f0b23..0x4f0ee8 = true 0x8F1323..0x8F16E8):
-//   count pair = [obj+0x1c]/[obj+0x20] (dig #81 correction); the roll = `value = max − trunc(
-//   draw·(max−min+1))` (the draw is SIGNED via mulsd by −4.656612875e-10
-//   = 0x11e0578, the negative NextU scale @0x11e0578 — the roll counts
-//   DOWN from max); the strength pair = the record's own [+0x34]/[+0x38]
-//   f32s (= the XML's per-CaveStructure strength_min/max, byte-verified
-//   against hills.xml's 10 records) composed as A + d·(B−A) inline
-//   (@0x4f0e84..0x4f0eb7). The stamp ENGINE (entry (122)): the record
-//   phase calls 0x8EF950 — NOT the setter (the setter's only callers are
-//   the walk @0x8ef37c + L2 @0x8f20d1 + L3 @0x8f2a6c). 0x8EF950 = a gated
-//   windowed copier (gate [this+0x5c] ≠ 0, bounds vs the arg's grid1 dims
-//   [0x40]/[0x44]): per cell, template.byte[i,j] ≠ 0 → field.byte[y0+j,
-//   x0+i] = template.byte[i,j] (the stencil copy); it first runs the FLOAT
-//   twin FUN_008EF870 — per cell over the template's region, field.cell +=
-//   (v − field.cell)·template.cell — a TWO-SIDED lerp with the template's
-//   grid0 cell as the weight (bounds vs the field dims; NO eave, NO
-//   lower-only guard, NO value > 1 branch). On the 1.0 base: v > 1 raises
-//   (the C48 bump peaks 1.45..1.55 ✓), v < 1 CARVES (the old dir="max"
-//   model no-oped there — the I26 over-fill). The per-stamp template
-//   (ctor 0x8F9470, seeded from the count draw; [+0x8c] = seed, [+0x90] =
-//   1.0f, [+0x94] = u·200000 − 100000, const pair 0x11e0504/0x11e04ec) is
-//   ctor'd EMPTY each stamp and its fill engine is not visible in the
-//   record window (open → I27); the port models the weight with the
-//   (43)(a) linear t (stampLerpTemplate) and the stencil with the
-//   single-cell byte mark.
-// The stamp POINT roll lands inside the record's aabb (the aabb_min/max
-// axis spans), negative-scale drawn per the same window.
-export function caveRecordStamp(
-  { field, bytes, w, h }, { aabbMinX, aabbMaxX, aabbMinY, aabbMaxY, countMin, countMax, strengthMin, strengthMax }, prng,
-  rollNeg = (min, max) => max - Math.trunc((max - min + 1) * prng.next())
-) {
-  const countNext = rollNeg(countMin ?? 0, countMax ?? 0);
-  for (let s = 0; s < countNext; s++) {
-    // the per-stamp point roll (the negative NextU transform, spans = aabb)
-    const xSpan = (aabbMaxX ?? w - 1) - (aabbMinX ?? 0) + 1;
-    const ySpan = (aabbMaxY ?? 0) - (aabbMinY ?? 0) + 1;
-    const dx = Math.trunc(prng.next() * xSpan); // the draw's [+span] lane
-    const dy = Math.trunc(prng.next() * ySpan);
-    const x = (aabbMinX ?? 0) + dx;
-    const y = (aabbMinY ?? 0) + dy;
-    // the C50 strength interp on the record's own (min,max) pair
-    const d = prng.next();
-    const vArg = (strengthMin ?? 0) + d * ((strengthMax ?? 0) - (strengthMin ?? 0));
-    // the FLOAT stamp = the 0x8EF870 two-sided lerp (entry (122), I26):
-    // v > 1 raises toward vArg (the C48 bump peaks 1.45..1.55 = the
-    // mountain-class records' 1.45..1.55 strength draws), v < 1 CARVES; the
-    // (43)(a) linear t = the stand-in for the template's weight (open, I27).
-    stampLerpTemplate(field, w, h, x, y, Math.max(1, Math.trunc((vArg || 0.5) * 4)), vArg);
-    // the BYTE lane = 0x8EF950's stencil copy (template.byte ≠ 0 →
-    // field.byte at the (x0,y0) offset) — the single-cell stand-in.
-    if (bytes && x >= 0 && y >= 0 && x < w && y < h) bytes[y * w + x] = 1;
+// ── the CaveStructure RECORD phase — a PRNG-DRAW CONSUMER, nothing more
+// (dig #61 byte-cited; engine identity entry (122), I26; the DRAW LAW + the
+// no-write proof dig #123, I28 CLOSED) ───────────────────────────────────────
+// Per the record window (fnB @0x8f11b3..0x8f1746):
+//   count roll @0x8f120c..0x8f1280: count = [rec+0x1c] + trunc(u·([rec+0x20]
+//     − [rec+0x1c] + 1)) — UP from min (dig #61's "negative NextU scale,
+//     counts DOWN from max" misread the −2⁻³¹ const trick; the roll is the
+//     rollPos twin), ≤ 0 → `jle 0x8f16f1` skips the record (zero draws).
+//   per stamp (the loop counts DOWN: `decl [−0x120]; jne 0x8f1295`):
+//     1. ctor-seed draw @0x8f12c5..0x8f130a (the state is stored back
+//        @0x8f130a; the ctor arg = trunc(u·(2³¹−1))). The ctor 0x8F9470
+//        draws twice from a STACK-LOCAL Random seeded by that arg (`lea
+//        0x8(%esp)` → 0x10098c0 ×2 @0x8f958d/0x8f9596, feeding [+0x94] =
+//        u·200000 − 100000) — it never touches the stream, so the stamp
+//        costs EXACTLY this one stream draw.
+//     2. the image resolver @0x8f144e → 0x668400: 1 draw iff the record's
+//        image_file carries a well-formed `$[lo-hi]` group (`find('$')`
+//        @0x668494 → npos ⇒ assign + return, 0 draws; else find `$[`/`]`,
+//        split the inner on "-" → count ≥ 2 (`cmp $2; jae 0x6685dc`) ⇒ the
+//        draw @0x6685ff, value = lo + trunc(u·(hi−lo+1)); a malformed group
+//        logs "Error in parsing, no end in sight" @0x6685bf, 0 draws; the
+//        recursion @0x66873f re-runs on the SUBSTITUTED string (group
+//        removed) ⇒ exactly 1 draw per well-formed group. XML census (all
+//        102 CaveStructure records, on disk 2026-10-11): 94 plain, 7
+//        `$[0-999]`, 1 `$[1-4]` ⇒ 1 resolver draw for those 8, 0 for the
+//        rest).
+//     3. the X roll @0x8f14b6 (state store @0x8f1518): [rec+0x28] + trunc(u·([rec+0x30] − [rec+0x28] + 1)).
+//     4. the Y roll @0x8f157f (state store @0x8f15d9): [rec+0x24] + trunc(u·([rec+0x2c] − [rec+0x24] + 1)).
+//     5. the strength roll @0x8f164d (state store @0x8f16a3): f32
+//        [rec+0x34] + u·([rec+0x38] − [rec+0x34]).
+//   then fn950 (ecx = the temp, edx = the field, stack: Y/X/strength — the
+//   values are DISCARDED) + the temp dtor (0x64cad0); record stride 0x3c,
+//   back-edge `jb 0x8f11b3`.
+// The no-write proof (I28 CLOSED): the ctor zero-inits every dim/container
+// slot (`movl $0x0` @0x8f9481..0x8f94c8 ⇒ [temp+0] = [temp+4] =
+// [temp+0x5c] = 0) and nothing in the window fills them (the temp's only
+// addresses = the 3 `lea −0xfc` sites ctor/fn950/dtor; the −0x48 handle is
+// assigned then released, never read) ⇒ fn870 exits at its dims gate
+// (`cmp [temp+4],0; jle 0x8ef940` @0x8ef888b) and fn950's byte stencil
+// skips (`cmpl $0,0x5c(%ebx); je 0x8efa2d` @0x8ef977 = the epilogue). The
+// lane's only observable effect = the draws above; the port mirrors the
+// draw budget and discards the values (entry (123)).
+export function caveRecordStamp({ countMin, countMax, imageFile }, prng) {
+  const lo = countMin ?? 0;
+  const hi = countMax ?? 0;
+  const resolverCount = resolverDraws(imageFile); // pure — hoisted out of the loop
+  const count = lo + Math.trunc((hi - lo + 1) * prng.next()); // up from min
+  for (let s = 0; s < count; s++) {
+    prng.next(); // the ctor-seed draw (the seed arg feeds a local Random)
+    // the 0x668400 resolver — 1 draw per well-formed `$[lo-hi]` group (the
+    // binary recurses per group inside ONE call, @0x66873f)
+    for (let g = 0; g < resolverCount; g++) prng.next();
+    prng.next(); // the X roll (discarded)
+    prng.next(); // the Y roll (discarded)
+    prng.next(); // the strength roll (discarded)
   }
-  return countNext;
+  return count;
+}
+
+// The 0x668400 resolver's DRAW BUDGET (the byte law above): 1 per
+// well-formed `$[lo-hi]` group, 0 otherwise (no '$' / malformed group). The
+// port never loads images, so only the draw count matters — the rolled
+// index is discarded, and the binary's substitution removes the group
+// before the recursion (each group costs at most one draw).
+function resolverDraws(imageFile) {
+  const s = imageFile ?? "";
+  let draws = 0;
+  for (let from = 0; ; ) {
+    const open = s.indexOf("$[", from);
+    if (open < 0) return draws;
+    const close = s.indexOf("]", open + 2);
+    if (close < 0) return draws;
+    if (s.slice(open + 2, close).split("-").length >= 2) draws++;
+    from = close + 1; // the substituted string has this group removed
+  }
 }
 // LEGACY MODEL (entry (122)): the (43)(a) circle + the per-cell ((py−1)/25)⁸
 // eave + the min/max combiner. No production caller remains — the walk lane
-// moved to setterStamp (flag=1, the true center-y eave), the record lane to
-// stampLerpTemplate (the true two-sided combiner); kept for the exported API
+// moved to setterStamp (flag=1, the true center-y eave) and the record lane
+// is a draws-only consumer since entry (123); kept for the exported API
 // surface + the (43)(a) model reference. The TRUE laws (I26): the setter's
 // eave fires on the stamp CENTER y with q = y/25 (NO −1), circle arm only;
-// the record's combiner = the two-sided lerp (never a max-keep).
+// the record lane writes NOTHING (I28: both engines no-op on the ctor-empty
+// template).
 export function carveCircle(grid, gridW, gridH, cx, cy, radius, vArg, flag, dir = "min") {
   const r0 = Math.trunc(radius + 0.5);
   for (let dy = -r0; dy <= r0; dy++) {
@@ -184,13 +213,16 @@ export function carveCircle(grid, gridW, gridH, cx, cy, radius, vArg, flag, dir 
   }
 }
 
-// The record lane's float stamp — FUN_008EF870 (entry (122), I26): per cell
-// over the template's region, `field.cell += (vArg − field.cell)·weight` — a
-// TWO-SIDED lerp (write always; no lower-only guard, no eave, no value > 1
-// branch) with the template's grid0 cell as the weight. The (43)(a) linear t
-// = the port's stand-in for the template's weight pattern (the template-fill
-// engine is open — I27); the circle box + the R ≥ 1 clamp keep the port's
-// model radius (also open, I27).
+// LEGACY MODEL (entry (122); its only caller removed entry (123)) —
+// FUN_008EF870: per cell over the template's region, `field.cell += (vArg −
+// field.cell)·weight` — a TWO-SIDED lerp (write always; no lower-only guard,
+// no eave, no value > 1 branch) with the template's grid0 cell as the
+// weight. The (43)(a) linear t + the circle box + the R ≥ 1 clamp were the
+// port's stand-in for the template's weight pattern. Dig #123 (I28 CLOSED)
+// proved the record window never fills the template ⇒ both engines no-op ⇒
+// the lane draws only; kept as the engine-model reference for I27's
+// published sibling objects (the 0x8ee39a.. factory lane), which may carry
+// a filled template.
 function stampLerpTemplate(grid, gridW, gridH, cx, cy, radius, value) {
   const r0 = Math.trunc(radius + 0.5);
   const y0 = Math.max(0, cy - r0), y1 = Math.min(gridH - 1, cy + r0);
@@ -404,11 +436,11 @@ function isSolidCell(v) {
  *   6. the IN-WALK child recursion lives INSIDE walkChain (C82: the 2%
  *      gate, the shared childCounter) — the old outer fnB `childs` self-call
  *      loop is a RETRACTED false structure (C81)
- * AIR/carve: the carve writers = stampBlendLerp (two-sided, t²), setterStamp
- * (LOWER-only — the L2/L3 floor AND the walk's flag=1 stamps, I26), and the
- * record lane's stampLerpTemplate (two-sided, the (43)(a) t stand-in, I26);
- * carveCircle (the legacy min/max (43)(a) model) has no production caller
- * left (kept for the API surface). The
+ * AIR/carve: the carve writers = stampBlendLerp (two-sided, t²) and
+ * setterStamp (LOWER-only — the L2/L3 floor AND the walk's flag=1 stamps,
+ * I26); the record lane writes nothing (dig #123, I28). carveCircle +
+ * stampLerpTemplate (the legacy models) have no production caller left
+ * (carveCircle kept for the API surface). The
  * old standalone L2/L3 scatter calls are gone: every scatter site lives
  * inside a chain's spawn lane (C46's call-site census).
  */
@@ -422,14 +454,12 @@ export function buildCavesField(dataDir, def, seed) {
   prng.next();
 
   const field = new Float32Array(w * h).fill(1.0); // fn C1's bake
-  const bytes = new Uint8Array(w * h); // the 0x8EF950 record lane ([P+0x58])
+  const bytes = new Uint8Array(w * h); // the [P+0x58] byte plane — the 0x8FAFC0 scatter B-recorder only (the record lane no longer writes it, dig #123)
 
-  // The byte-declared roll forms (dig #65): the count/pos pair roll =
-  // `min + trunc(draw·(max−min+1))` (POSITIVE fraction); the stamp-lane
-  // roll (dig #61) = `max − trunc(|draw|·(max−min+1))` (the NEGATIVE
-  // NextU scale) — two distinct twins, both byte-cited.
+  // The byte-declared roll form (dig #65; the record lane's count roll
+  // re-pinned as the SAME form dig #123 — the old rollNeg "twin" misread
+  // the −2⁻³¹ const trick): `min + trunc(draw·(max−min+1))`.
   const rollPos = (min, max) => min + Math.trunc((max - min + 1) * prng.next());
-  const rollNeg = (min, max) => max - Math.trunc((max - min + 1) * prng.next());
   const rollF = (min, max) => min + (max - min) * prng.next();
   const clamped = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
 
@@ -582,13 +612,13 @@ export function buildCavesField(dataDir, def, seed) {
     return blobCount;
   })();
 
-  // ── (3) the CaveStructure RECORD ARENA walk (dig #61 byte-cited):
-  // per record: the count pair via the NEGATIVE-scale roll; the strength
-  // pair = the record's own [+0x34]/[+0x38] f32s composed A + d·(B−A);
-  // the float write = the 0x8EF870 two-sided template lerp, the byte
-  // write = the 0x8EF950 stencil copy (entry (122), I26).
+  // ── (3) the CaveStructure RECORD walk — a PRNG-DRAW consumer (dig #123,
+  // I28 CLOSED): per record the count roll (up from min; ≤ 0 skips the
+  // record) + per stamp the ctor-seed / resolver-iff-$[lo-hi] / X / Y /
+  // strength draws. The stamp engines no-op on the ctor-empty template
+  // ⇒ no field/byte writes (see caveRecordStamp's byte ledger).
   for (const rec of bc.structures ?? []) {
-    caveRecordStamp({ field, bytes, w, h }, rec, prng, rollNeg);
+    caveRecordStamp(rec, prng);
   }
 
   // ── (4) layer-2 chains — the dig #120 byte port (entry (119)/(120); L2
