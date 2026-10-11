@@ -36,6 +36,7 @@ cd bridge && npm install
 cd ../vendor/noitamap && npm install && npm run build
 cd ../..
 npm run copy:noitamap
+git config core.hooksPath .githooks   # MANDATORY commit gates (scripts/precommit-gates.mjs)
 
 # Development (two terminals)
 npm run dev:bridge   # bridge WebSocket server on :8080
@@ -129,6 +130,28 @@ rules, with the incident that motivates each in one line:
 - **No tuning; one dig = one commit.** Commit correctness even when the
   metric ticks down (precedents: digs #122/#123); port + tests + gates +
   the four registries land in one commit, tree ends clean.
+- **Numbers are claims.** Every reported number carries its unit, range
+  and reproduction path; an unqualified number is a non-claim. The
+  shorthand decodes as follows — each row is verifiable at its named
+  location:
+  - `dig #N` / `evidence entry (N)` — one dig = one read→law→port→test
+    →docs cycle (ABOUT_MATH §6, dated).
+  - `C-row` = one CONSTANTS.md entry (byte-pinned constants/laws, VA
+    cites + width). `I-row` = one issue (ISSUES.md). `§8 row` = one
+    proven-wrong claim (VERIFIED do-not-re-test). `A1..A6` = one debt
+    row (ISSUES §A register). `X-row` = one extraction manifest entry
+    (`mapgen/extractions/MANIFEST.md`: file + VA range + md5).
+  - `stream / draws` — the PRNG sequence; every draw = one uniform
+    u ∈ (0,1) at a consumption site (which site + how many = the count
+    laws; see caves-field.mjs header).
+  - `IoU <x>` — 2-D solid-mask agreement generated-vs-capture, **0..1
+    (1 = pixel-identical)**, aggregated over the 56 C97 capture tiles;
+    plain = before registration tolerance; `IoU-shifted` = after the
+    best vertical shift. `fG`/`fR` = solid-pixel FRACTION generated /
+    reference (0..1 over 512×512). `dyOpt` = best vertical registration
+    shift in tile rows (−256..+256; negative = generated sits lower).
+    Instrument: `mapgen/experiments/2026-10-10-surface-shape-iou.mjs`;
+    artifacts: `mapgen/out/surface-shape-*.json` + overlays.
 
 ## Conventions
 

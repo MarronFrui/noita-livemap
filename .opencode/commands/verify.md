@@ -5,6 +5,10 @@ description: Run the full dig gate battery (tests + oracle bars + C97 A/B)
 Run the gate battery in this order and report each result explicitly
 (name the expectation before the run — honest gating):
 
+0. Mandatory-gate wiring: `git config core.hooksPath .githooks` must
+   resolve (self-heal if unset) — the dig gates in
+   `scripts/precommit-gates.mjs` run at commit time, git-natively.
+
 1. `npm test` — must be all-pass. Verify the data-dependent suites RAN
    (not skipped): the report must show the oracle describe blocks
    executing when the data is present. Report test count vs the last

@@ -1,0 +1,115 @@
+// scripts/precommit-gates.mjs — MANDATORY commit gates (charter enforcement).
+//
+// Wired via `.githooks/pre-commit` + `.githooks/commit-msg` (core.hooksPath).
+// Runs git-natively at commit time — no session, prompt, or agent can skip
+// it (only the git-native `--no-verify` escape, which is treated as a
+// process failure to be registered). Machine-checkable structure in this
+// script; the full test battery runs whenever mapgen/tests code is staged.
+//
+import { execSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+
+const fail = (m) => {
+  console.error(`\n[precommit-gates] FAIL: ${m}`);
+  process.exit(1);
+};
+const ok = (m) => console.log(`[precommit-gates] ok: ${m}`);
+const sh = (cmd) => {
+  try {
+    return execSync(cmd, { encoding: "utf8", cwd: process.cwd() });
+  } catch (e) {
+    fail(`command failed: ${cmd}\n${e.stdout ?? ""}${e.stderr ?? e.message}`);
+  }
+};
+
+const staged = sh("git diff --cached --name-only --diff-filter=ACM")
+  .split("\n").filter(Boolean);
+
+const mode = process.argv[2] && fs.existsSync(process.argv[2]) ? "commit-msg" : "pre-commit";
+
+if (mode === "commit-msg") runCommitMsg(process.argv[2], staged);
+else runPreCommit(staged);
+
+// ── commit-msg: dig-commit structure (the dig protocol, machine-enforced) ──
+function runCommitMsg(msgFile, staged) {
+  const msg = fs.readFileSync(msgFile, "utf8");
+  const m = /^dig #(\d+):/.exec(msg);
+  if (!m) return ok("non-dig commit — no dig structure required");
+
+  const n = Number(m[1]);
+  // The 'Next free' line wraps mid-phrase in older entries (the "(124)"
+  // instance is split across lines) — derive the next free dig from the
+  // entry HEADERS ("(N) — dig #N:"), which are always single-line.
+  const head = Number(
+    (sh(`grep -oE "\\([0-9]+\\) — dig #[0-9]+" mapgen/ABOUT_MATH.md | tail -1`)
+      .match(/dig #(\d+)/) ?? fail("cannot read ABOUT_MATH entry headers"))[1]
+  );
+  const nextFree = head + 1;
+  if (n !== nextFree) {
+    fail(`dig #${n} ≠ head-entry+1 (${nextFree}) — fix the dig numbering or the skipped registry entry first`);
+  }
+  for (const need of ["mapgen/ABOUT_MATH.md", "mapgen/CONSTANTS.md", "mapgen/ISSUES.md", "mapgen/VERIFIED.md"]) {
+    if (!staged.includes(need)) {
+      fail(`dig commits land all four registries in the same commit — missing ${need}`);
+    }
+  }
+  const addedAbout = sh("git diff --cached -U0 -- mapgen/ABOUT_MATH.md")
+    .split("\n").filter((l) => l.startsWith("+")).join(" ")
+    .replace(/\s+/g, " "); // the 'Next free' phrase wraps mid-line in some entries
+  for (const need of [`(${n}) — dig #${n}`, `Next free: entry **(${n + 1})**`]) {
+    if (!addedAbout.includes(need)) {
+      fail(`ABOUT_MATH must gain the dated entry "(${n}) — dig #${n}" and refresh 'Next free: entry **(${n + 1})**'`);
+    }
+  }
+  const codeChanged = staged.some((f) => /^mapgen\/(lib|server|pipeline|experiments)\/.*\.mjs$/.test(f));
+  const testsChanged = staged.some((f) => /^tests\/.*\.mjs$/.test(f));
+  if (codeChanged && !testsChanged) {
+    fail("mapgen code staged without tests — every lane law lands with its count tests");
+  }
+  return ok(`dig #${n} structure`);
+}
+
+// ── pre-commit: gate battery + citation resolvability ──────────────────────
+function runPreCommit(staged) {
+  // 1. Full test battery when any mapgen/tests code is staged. The suite
+  //    includes the data-dependent oracle bars; a hard-skip also fails (2).
+  const codeChanged = staged.some(
+    (f) => /^mapgen\/(lib|server|pipeline|experiments)\/.*\.(mjs|js)$/.test(f) || /^tests\/.*\.mjs$/.test(f)
+  );
+  if (codeChanged) {
+    console.log("[precommit-gates] mapgen/tests code staged — running the FULL gate battery (npm test)…");
+    try {
+      execSync("npm test", { stdio: "inherit", cwd: process.cwd() });
+      ok("npm test (full battery incl. oracle bars)");
+    } catch {
+      fail("npm test — fix the gates before committing (this is charter, not courtesy)");
+    }
+  } else ok("no mapgen/tests code staged — test battery not required");
+
+  // 2/3. Per-staged-doc citation hygiene on ADDED lines only (grandfathers
+  //      historical text; new rot is the regression).
+  const docs = staged.filter((f) => f.endsWith(".md"));
+  for (const f of docs) {
+    if (!fs.existsSync(f)) continue;
+    const added = sh(`git diff --cached -U0 -- ${shQuote(f)}`).split("\n")
+      .filter((l) => l.startsWith("+")).join("\n");
+    const tmpCite = added.match(/\/tmp\/[A-Za-z0-9._\/-]+/);
+    if (tmpCite) {
+      fail(`${f}: new /tmp citation "${tmpCite[0]}" — /tmp is volatile (the (102)–(123) era orphaned cites); cite a manifest row`);
+    }
+    for (const m of added.matchAll(/mapgen\/extractions\/([A-Za-z0-9._-]+)/g)) {
+      if (m[1] === "MANIFEST.md") continue; // the manifest itself is not an extraction
+      const p = path.join("mapgen/extractions", m[1]);
+      if (!fs.existsSync(p)) fail(`${f}: extraction cite ${p} does not exist on disk`);
+      const manifest = fs.existsSync("mapgen/extractions/MANIFEST.md")
+        ? fs.readFileSync("mapgen/extractions/MANIFEST.md", "utf8") : fail("MANIFEST.md missing");
+      if (!manifest.includes(m[1])) fail(`${f}: extraction cite ${m[1]} has no manifest row`);
+    }
+  }
+  return ok("citation hygiene");
+}
+
+function shQuote(s) {
+  return `'${s.replaceAll("'", `'\\''`)}'`;
+}

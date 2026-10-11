@@ -6,7 +6,7 @@ You are entering dig mode for: $ARGUMENTS
 
 Live repo state (this shell block, not handovers):
 
-!`git log --oneline -3 && git status --short && echo "--- open issues:" && grep -n "^- \[ \] \*\*I[0-9]" mapgen/ISSUES.md | sed 's/(opened.*//' && echo "--- registry positions:" && grep -oE "Next free: entry \*\*[0-9]+\*\*" mapgen/ABOUT_MATH.md | tail -1`
+!`git log --oneline -3 && git status --short && (git config core.hooksPath || echo "(hooksPath unset — run: git config core.hooksPath .githooks)") && echo "--- open issues:" && grep -n "^- \[ \] \*\*I[0-9]" mapgen/ISSUES.md | sed 's/(opened.*//' && echo "--- registry positions (head entry → next dig $(( $(grep -oE "\\([0-9]+\\) — dig #[0-9]+" mapgen/ABOUT_MATH.md | tail -1 | grep -oE "[0-9]+$") + 1 )):" && grep -oE "\\([0-9]+\\) — dig #[0-9]+" mapgen/ABOUT_MATH.md | tail -1`
 
 Protocol — every step is mandatory; if you cannot complete one, stop the
 dig and report why instead of improvising (rules = AGENTS.md charter):

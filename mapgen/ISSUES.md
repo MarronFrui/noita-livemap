@@ -799,6 +799,31 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   stream-shifted L2/L3/scatter positions), v2v3 0.45557 → 0.45521 /
   fG 0.72327. Sources: entry (123), C102.
 
+- [ ] **I29. Canon-source audit — the false-statement sweep (opened
+  2026-10-12).** User mandate: mistakes or false statements may lie in
+  the CORE verified self-documentation (VERIFIED §8 elimination rows,
+  CONSTANTS C-rows) and propagate as canon into the port. The audit
+  risk is concrete: ~a decade of digs cited volatile `/tmp` extraction
+  paths, which orphaned citations (the 2026-10-12 audit already found
+  one registry inconsistency — the vacated §8 row 29). Staged plan:
+  - **Stage 1 — machine auditability sweep (rides dig #124, cheap):**
+    classify EVERY §8 `Sources:` line and every C-row byte claim as
+    MANIFEST-RESOLVABLE / /tmp-ORPHANED / ABSENT (dumps deleted, never
+    migrated). Output = the audit table appended to the digs entry +
+    A-register rows for unreachable sources. No re-derivation yet.
+  - **Stage 2 — load-bearing re-derivation (interleaved digs):** re-
+   derive the claims that FEED the gates/port first — C13 (rng
+    semantics), C46/C51/C102 (the lanes' laws), C57 (VA shift), the
+    C48-oracle chain (the y224 bar's source) — each from a FRESH
+    manifest extraction; any overturn lands as the standard
+    elimination + in-place correction pair.
+  - **Stage 3 — full sweep:** remaining rows ~10 per dig until every
+    §8/C-row row is re-derived or explicitly marked unreachable.
+  Expected impact: HIGH — resolvability is the foundation of the
+  claim contract; a canon row whose evidence no longer exists is ITSELF
+  a defect. Sources: method commits 7b854a2..810cf1 (2026-10-12);
+  the catch of the vacated row 29; the charter (AGENTS.md).
+
 ## Strategy (agreed)
 
 1. Keep the verified wang core (prediction-solved, oracle-validated).

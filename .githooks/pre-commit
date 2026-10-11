@@ -1,0 +1,3 @@
+#!/bin/sh
+# Mandatory charter gates — wired via core.hooksPath (see AGENTS.md setup).
+exec node "$(git rev-parse --show-toplevel)/scripts/precommit-gates.mjs"
