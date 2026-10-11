@@ -80,6 +80,7 @@ npm run preview
 | ---- | ---------- |
 | `bridge/index.js` | File watcher + WebSocket broadcaster (Node ESM: `ws`, `chokidar`) |
 | `mapgen/` | Map-gen bench: wasm loader, biome layout parser, chunk renderer, reference slicer, diff/fit rig (plain ESM `.mjs`) |
+| `mapgen/extractions/` | Byte-extraction dumps (gitignored, path-stable) + tracked `MANIFEST.md` — the manifest rows that docs and code cite (METHODOLOGY §2) |
 | `mapcap/` | Capture-based ground truth: noita-mapcap slicing, seed-differential analysis, predetermined zones (`mapcap/README.md`) |
 | `mods/noita-live-map/` | Noita Lua telemetry mod (`init.lua`, `files/telemetry.lua`) |
 | `src/main.ts`, `src/style.css` | Vite frontend; embeds noitamap iframe |
@@ -91,7 +92,8 @@ npm run preview
 | `vendor/noita-tools/` | Git submodule (TwoAbove/noita-tools) — **OBSOLETE reference**: legacy data/wasm container only; never a comparison target (see `mapgen/VERIFIED.md`) |
 | `tools/zig/` | Zig toolchain used for native tooling |
 | `ROADMAP.md` | Phased plan (Phases 0–5) |
-| `GOALS.md` | The campaign goal stack + method charter (read first in mapgen sessions) |
+| `GOALS.md` | The campaign goal stack + milestone ladder (read first in mapgen sessions) |
+| `METHODOLOGY.md` | The RE method system: claim contract, extraction protocol, test doctrine, stream-first rule, approximation register (rules enforced by `/dig`) |
 | `docs/history/SESSION_CONTEXT-archived-2026-09-28.md` | Retired handover (stale at entry (110); kept for the early-campaign survey + machine-setup history only — do NOT read as current state) |
 
 ## Conventions
@@ -104,15 +106,12 @@ npm run preview
   derive live state from the four registries — hand-rolled handover
   files are retired (the stale `SESSION_CONTEXT.md` cost the campaign
   two weeks of drift; its archive is history-only).
-- **Campaign method (see `GOALS.md`, enforced):** (1) derive every byte
-  claim THIS session from the enclosing function's full extent (prologue
-  → ret), freshly extracted — a prior cite is a hint, not evidence;
-  (2) stream/budget laws get COUNT tests (0/1/N), never boolean;
-  (3) stream equivalence is measured before C97 shape metrics mean
-  convergence; modelled lanes stay FLAGGED with a queue position;
-  (4) no tuning — commit correctness even when the metric ticks down;
-  (5) one dig = one commit = tree clean; `/dig`, `/status`, `/verify`
-  commands enforce the protocol.
+- **Campaign rules (`GOALS.md` + `METHODOLOGY.md`, enforced by `/dig`):**
+  byte claims only from this-session full-function extractions (manifest
+  rows in `mapgen/extractions/MANIFEST.md`); STREAM/BUDGET laws tested
+  as COUNTS (0/1/N); stream equivalence before shape-metric claims;
+  no tuning; anti-loop guard before every dig; approximation register
+  (`METHODOLOGY.md` §6) must shrink on active-path digs.
 - Domain facts must carry a source (file + section) verified on disk **this
   session**. Never carry numbers from chat memory, prior-session summaries, or
   handovers into work or docs — re-check first.

@@ -11,3 +11,7 @@ mapgen/noita-dat
 mapcap/out/
 lab/ghidra-status.json
 CE_GUIDE.md
+
+# byte-extraction dumps (path-stable, gitignored; git tracks only MANIFEST.md)
+mapgen/extractions/*.asm
+mapgen/extractions/*.txt

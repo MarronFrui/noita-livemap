@@ -41,27 +41,13 @@ because three compromises compounded:
    temptation to tune existed. (We held the no-tuning line; the
    instrument was the weak part.)
 
-## Method charter (the process rules that fix 1–3)
+## Method charter
 
-1. **Full-window reads.** Every byte claim is derived THIS session from
-   a dated extraction covering the enclosing function(s) from prologue
-   to the last `ret` — never from a prior session's cite, never from a
-   window bounded by old addresses. Numbers without a this-session
-   extraction do not enter docs or code.
-2. **Count tests for stream laws.** Any law that consumes draws is
-   tested as counts (0 / 1 / N cases), plus an end-to-end stream-trace
-   comparison against the game, before any shape metric is consulted.
-3. **Stream truth before shape truth.** The stream trace (draws consumed
-   per phase boundary vs the game's disassembly) is the convergence
-   instrument; C97 IoU is only interpreted after the stream trace is
-   byte-clean through a lane.
-4. **No silent deferrals.** A model-not-byte lane stays in the FLAGGED
-   register with a named dig in the queue. Deferrals have positions,
-   not moods.
-5. **No tuning.** If a metric worsens while correctness improves, commit
-   anyway and say so in the docs (precedents: digs #122, #123).
-6. **One dig = one commit.** Port + tests + gates + the four registries
-   land together; the tree ends clean. `/dig` enforces the protocol.
+The rules live in `METHODOLOGY.md` (the claim contract / full-window
+extraction / count-test doctrine / stream-first theorem / approximation
+register / anti-loop guard) and are enforced by `/dig`. `GOALS.md`
+owns the WHY and the ladder; `METHODOLOGY.md` owns the HOW; the
+registries own the state.
 
 ## Milestone ladder (in order — do not skip ahead)
 
