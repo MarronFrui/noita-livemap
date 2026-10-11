@@ -13,7 +13,8 @@ Cheap facts first:
 
 Then, using the shell tool yourself (not injected):
 - last three dig commits' themes (git log),
-- the top three items of VERIFIED §9 / GOALS.md ladder M3–M5 and which
+- the top three items of VERIFIED §9 / the Current_work P1 queue and
+  which
   one is next,
 - C97 latest baselines from the newest ABOUT_MATH entry (grep the tail),
 - anything whose only support is a retired/stale handover file

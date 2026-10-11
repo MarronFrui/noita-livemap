@@ -21,7 +21,8 @@ Noita Lua mod  →  telemetry JSON  →  Node bridge  →  frontend  →  noitam
 3. `src/main.ts` (Vite frontend) receives telemetry, displays it, and drives a
    player marker inside the embedded noitamap iframe.
 
-Long-term goal (see `GOALS.md`, `ROADMAP.md`): procedurally generate
+Long-term goal (see `ROADMAP.md`; the campaign frontier = `mapgen/VERIFIED.md`
+§9 + `SESSION_CONTEXT.md`): procedurally generate
 the world map for the live seed using our own Ghidra-reconstructed generation
 (`mapgen/VERIFIED.md` is the canon), instead of showing pre-captured tiles.
 
@@ -92,9 +93,42 @@ npm run preview
 | `vendor/noita-tools/` | Git submodule (TwoAbove/noita-tools) — **OBSOLETE reference**: legacy data/wasm container only; never a comparison target (see `mapgen/VERIFIED.md`) |
 | `tools/zig/` | Zig toolchain used for native tooling |
 | `ROADMAP.md` | Phased plan (Phases 0–5) |
-| `GOALS.md` | The campaign goal stack + milestone ladder (read first in mapgen sessions) |
-| `METHODOLOGY.md` | The RE method system: claim contract, extraction protocol, test doctrine, stream-first rule, approximation register (rules enforced by `/dig`) |
-| `docs/history/SESSION_CONTEXT-archived-2026-09-28.md` | Retired handover (stale at entry (110); kept for the early-campaign survey + machine-setup history only — do NOT read as current state) |
+| `SESSION_CONTEXT.md` | **The session context loader** (gitignored by design) — read at session start; also `Current_work.md` (gitignored live P1 task tracker) |
+
+## Campaign method charter
+
+Enforced by the `/dig` command. No separate method file — these are the
+rules, with the incident that motivates each in one line:
+
+- **Claim levels — B/M/D.** Every claim is B (BYTE: this-session
+  full-function extraction, cited to a `mapgen/extractions/MANIFEST.md`
+  row), M (MEASURED: instrument artifact), or D (DEBT: a stand-in — must
+  be registered in `ISSUES.md` §A, FLAGGED in code, and queued). D
+  claims are never load-bearing. **Purification law:** an active-path
+  dig ends with fewer D-rows than it started with, or re-opens its
+  scope. *(C51's mispin lived ~10 digs by hiding among untagged claims.)*
+- **Full-window extraction + fresh reads.** Read claims from the
+  enclosing function's prologue→ret, loop heads and epilogues included,
+  extracted THIS session; a prior cite is a hint, not evidence.
+  Predict the law before opening the disasm; if the port surprises
+  you, re-read the bytes — never accommodate the surprise in code.
+  *(Dig #122's re-read started past the count roll; dig #123's
+  `trunc(−x)` idiom was explained instead of re-read.)*
+- **Anti-loop guard.** A dig names its NEW evidence (unread window /
+  new data / new instrument / named overturning evidence) and the
+  registry claim it touches BEFORE reading anything; if it cannot, it
+  is a repeat dig — take the next queue item instead.
+- **Count tests.** Stream/budget laws get 0/1/N count tests plus the
+  skip path; a replacement test must FAIL under the old law's
+  arithmetic; data-dependent suites must RUN (not skip) in gates.
+  *(Dig #123's 2-group resolver bug.)*
+- **Stream-first.** While a D-level lane sits upstream in the RNG
+  stream, shape metrics (C97 IoU) are noise — interpret them only after
+  the stream trace is clean through the touched lane and everything
+  upstream. Build the stream-trace instrument with dig #124 (fnA walk).
+- **No tuning; one dig = one commit.** Commit correctness even when the
+  metric ticks down (precedents: digs #122/#123); port + tests + gates +
+  the four registries land in one commit, tree ends clean.
 
 ## Conventions
 
@@ -102,16 +136,9 @@ npm run preview
 - Frontend is TypeScript; bridge and scripts are plain JavaScript (`.js`, `.mjs`).
 - Treat `vendor/` as read-only upstream code — changes there belong in the
   respective submodule repos, not here.
-- Mapgen sessions: read `GOALS.md` first (goal stack + method charter);
-  derive live state from the four registries — hand-rolled handover
-  files are retired (the stale `SESSION_CONTEXT.md` cost the campaign
-  two weeks of drift; its archive is history-only).
-- **Campaign rules (`GOALS.md` + `METHODOLOGY.md`, enforced by `/dig`):**
-  byte claims only from this-session full-function extractions (manifest
-  rows in `mapgen/extractions/MANIFEST.md`); STREAM/BUDGET laws tested
-  as COUNTS (0/1/N); stream equivalence before shape-metric claims;
-  no tuning; anti-loop guard before every dig; approximation register
-  (`METHODOLOGY.md` §6) must shrink on active-path digs.
+- Mapgen sessions: start at `SESSION_CONTEXT.md` (gitignored context
+  loader, kept current per dig) → derive live state from the four
+  registries — no other handover files exist.
 - Domain facts must carry a source (file + section) verified on disk **this
   session**. Never carry numbers from chat memory, prior-session summaries, or
   handovers into work or docs — re-check first.

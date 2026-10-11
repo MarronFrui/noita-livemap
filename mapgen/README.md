@@ -7,7 +7,8 @@ Tools to reverse-engineer and validate Noita's procedural world generation
 hypotheses (do not re-test), and the ranked open frontier; feed session
 context from it. `ABOUT_MATH.md` is the full research journal (evidence log
 §6+); `ghidra-ledger.md` tracks the decompilation processing state.
-`GOALS.md` (repo root) holds the goal stack and the method charter.
+`SESSION_CONTEXT.md` (repo root, gitignored) = the session context loader;
+the method charter lives in `AGENTS.md`.
 
 **Authority (2026-09-08):** all facts stand on our own Ghidra asm work +
 game oracles. **`vendor/noita-tools` (noitool) is OBSOLETE** — historical

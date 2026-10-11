@@ -808,3 +808,26 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
 4. Predictable spawns (moon, dark moon, HM bands) = free alignment/anchors.
 5. Maintain this registry + SESSION_CONTEXT handover; request a new session
    when context degrades.
+
+## §A register — approximations (D-level claims; the purification scoreboard)
+
+Port stand-ins marked D **are debt, not products**. Levels: B (byte:
+this-session full-function extraction, manifest-cited) / M (measured:
+instrument artifact) / D (debt: a stand-in — this table + FLAGGED in
+code + an owning issue + a queue slot). Purification law: **an
+active-path dig must end with fewer D-rows than it started with, or
+state exactly which remain and why.** Rows are demoted (D→B/M) ONLY by
+the dig that reads their bytes; they are never silently deleted (the
+correction moves to VERIFIED §8 per the two-layer doc rule).
+
+| id | stand-in | location | owning issue | the read that removes it |
+| --- | --- | --- | --- | --- |
+| A1 | `walkChain` per-roll draw counts are MODEL, not byte-laws | `caves-field.mjs` header + `walkChain` | next dig (dig #124, the fnA walk window) | the fnA window read, full extent |
+| A2 | spawn selector / coin-hit draws skipped (~0.15 draws/point) | `caves-field.mjs` `walkChain` spawn lane | rides I21's data-parse frontier | fnA read first, then the spawn-key parse dig |
+| A3 | y-drift span | `caves-field.mjs` header | I24 (deferred) | the same fnA window as A1 |
+| A4 | F2/G2 widened consts UNPINNED + MOD12 corner-hash reading + `noiseKind` dispatch | `noise-proto.mjs` 467/475/501/647 | I21 family | the kind-0 r-eval/P-chain dig |
+| A5 | `colorize` band/vein approx; `template-render` seeded-fBm fill; `biomes.mjs` noitool-derived name-list flags; `has-path` noitool-derived start_x | respective lib files | product-render debt, blocked on the noise/lane work (I23) | the I23 V2-lane read family |
+| A6 | C32 fallback-grey bake per-biome "A-resolver = open" | `caves-field.mjs` ~798 | possible STALE DEBT — digs #87/#88 read `0x8EE1B0`'s arms | staleness re-check at the next caves-lane dig |
+
+Locations are relative to `mapgen/lib/`. This table is maintained BY
+the digs (§ dig protocol); a stale row here is a process bug.

@@ -3,7 +3,8 @@
 Dated, digest-pinned record of every byte-extraction `mapgen/extractions/`
 holds. Docs cite these rows (file + row id), never ad-hoc `/tmp` paths —
 `/tmp` is volatile and has already orphaned historical cites
-(`ABOUT_MATH` (102)–(123) era). Rule: METHODOLOGY.md §2(2).
+(`ABOUT_MATH` (102)–(123) era). Manifest rule = AGENTS.md charter
+(extraction protocol).
 
 | id | file (in this dir) | VA range | tool | date | md5 | cited by | notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
