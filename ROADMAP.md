@@ -51,7 +51,7 @@ Default write path:
 
 ### Map-Gen Prediction bench (`mapgen/`, 2026-09-03)
 
-- [x] Data.wak extracted; local machine setup documented in `SESSION_CONTEXT.md`
+- [x] Data.wak extracted; local machine setup documented in `AGENTS.md`
 - [x] WASM harness, biome layout parser (game-truth; noitool's maps.json used only as a now-obsolete cross-check), chunk renderer
 - [x] Capture fetcher (noitamap CDN, seed 78633191, DZI→512px chunks, cached)
 - [x] Diff/report pipeline (per-chunk scores, heatmap, side-by-sides, noise-floor calibration)

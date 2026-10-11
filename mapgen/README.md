@@ -7,7 +7,7 @@ Tools to reverse-engineer and validate Noita's procedural world generation
 hypotheses (do not re-test), and the ranked open frontier; feed session
 context from it. `ABOUT_MATH.md` is the full research journal (evidence log
 §6+); `ghidra-ledger.md` tracks the decompilation processing state.
-`SESSION_CONTEXT.md` (repo root) holds strategy and current state.
+`GOALS.md` (repo root) holds the goal stack and the method charter.
 
 **Authority (2026-09-08):** all facts stand on our own Ghidra asm work +
 game oracles. **`vendor/noita-tools` (noitool) is OBSOLETE** — historical
@@ -21,8 +21,8 @@ against the noitamap capture of seed `78633191`.
 
 ## Quick start
 
-Prerequisites: extracted game data (see `SESSION_CONTEXT.md` → "Local machine
-setup"; auto-detected, or set `NOITA_DATA_DIR`), then:
+Prerequisites: extracted game data (machine paths in `AGENTS.md` →
+"Environment notes"; auto-detected, or set `NOITA_DATA_DIR`), then:
 
 ```bash
 npm run bench        # 2-generate → 1-fetch-capture → 3-compare

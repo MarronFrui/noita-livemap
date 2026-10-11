@@ -21,7 +21,7 @@ Noita Lua mod  →  telemetry JSON  →  Node bridge  →  frontend  →  noitam
 3. `src/main.ts` (Vite frontend) receives telemetry, displays it, and drives a
    player marker inside the embedded noitamap iframe.
 
-Long-term goal (see `ROADMAP.md`, `SESSION_CONTEXT.md`): procedurally generate
+Long-term goal (see `GOALS.md`, `ROADMAP.md`): procedurally generate
 the world map for the live seed using our own Ghidra-reconstructed generation
 (`mapgen/VERIFIED.md` is the canon), instead of showing pre-captured tiles.
 
@@ -91,7 +91,8 @@ npm run preview
 | `vendor/noita-tools/` | Git submodule (TwoAbove/noita-tools) — **OBSOLETE reference**: legacy data/wasm container only; never a comparison target (see `mapgen/VERIFIED.md`) |
 | `tools/zig/` | Zig toolchain used for native tooling |
 | `ROADMAP.md` | Phased plan (Phases 0–5) |
-| `SESSION_CONTEXT.md` | Current state, decisions, key technical facts, next steps |
+| `GOALS.md` | The campaign goal stack + method charter (read first in mapgen sessions) |
+| `docs/history/SESSION_CONTEXT-archived-2026-09-28.md` | Retired handover (stale at entry (110); kept for the early-campaign survey + machine-setup history only — do NOT read as current state) |
 
 ## Conventions
 
@@ -99,9 +100,10 @@ npm run preview
 - Frontend is TypeScript; bridge and scripts are plain JavaScript (`.js`, `.mjs`).
 - Treat `vendor/` as read-only upstream code — changes there belong in the
   respective submodule repos, not here.
-- Read `SESSION_CONTEXT.md` before planning work — noting it is STALE
-  (since entry (110)) and superseded by `GOALS.md` + the four registries;
-  derive live state, don't copy it.
+- Mapgen sessions: read `GOALS.md` first (goal stack + method charter);
+  derive live state from the four registries — hand-rolled handover
+  files are retired (the stale `SESSION_CONTEXT.md` cost the campaign
+  two weeks of drift; its archive is history-only).
 - **Campaign method (see `GOALS.md`, enforced):** (1) derive every byte
   claim THIS session from the enclosing function's full extent (prologue
   → ret), freshly extracted — a prior cite is a hint, not evidence;
@@ -128,6 +130,10 @@ npm run preview
 
 ## Environment notes
 
+- Noita install: `/mnt/e/Programmes/Steam/steamapps/common/Noita`
+  (`noita_dev.exe` = the RE target, `tools_modding/` ships `wang_gen.exe`).
+- Extracted game data (Step 0 done, `-wizard_unpak`): `/mnt/c/Users/xan98/AppData/LocalLow/Nolla_Games_Noita/data/` — resolved via `NOITA_DATA_DIR` with that path as fallback, never copied into the repo.
+- Windows user for telemetry/bridge paths: `xan98`.
 - Noita runs on Windows; the bridge typically runs in WSL. `/mnt/c/...` paths
   do not emit file-change events, hence the polling watcher in `bridge/index.js`.
 - Telemetry file (Windows/WSL):

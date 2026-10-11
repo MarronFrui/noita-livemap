@@ -4,8 +4,9 @@ This file is the plan of record for the mapgen campaign. The **live
 state** lives in the four registries (`mapgen/ABOUT_MATH.md` §6,
 `mapgen/CONSTANTS.md`, `mapgen/ISSUES.md`, `mapgen/VERIFIED.md` §8/§12)
 and is derived fresh every session (`/status`) — never copy numbers from
-here into work or docs. `SESSION_CONTEXT.md` is STALE (since entry 110)
-and superseded by the registries.
+here into work or docs. `SESSION_CONTEXT.md` was RETIRED 2026-10-12 (stale
+since entry (110); archived at `docs/history/SESSION_CONTEXT-archived-2026-09-28.md`,
+history only).
 
 ## The primary goal (non-negotiable)
 
