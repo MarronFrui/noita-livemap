@@ -123,7 +123,7 @@ function runPreCommit(staged) {
       fail(`${f}: new /tmp citation "${tmpCite[0]}" — /tmp is volatile (the (102)–(123) era orphaned cites); cite a manifest row`);
     }
     for (const m of added.matchAll(/mapgen\/extractions\/([A-Za-z0-9._-]+)/g)) {
-      if (m[1] === "MANIFEST.md") continue; // the manifest itself is not an extraction
+      if (m[1] === "MANIFEST.md" || m[1].startsWith(".")) continue; // manifest + internal dot-files are not citeable extractions
       const p = path.join("mapgen/extractions", m[1]);
       if (!fs.existsSync(p)) fail(`${f}: extraction cite ${p} does not exist on disk`);
       const manifest = fs.existsSync("mapgen/extractions/MANIFEST.md")

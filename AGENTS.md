@@ -115,10 +115,11 @@ rules, with the incident that motivates each in one line:
   you, re-read the bytes — never accommodate the surprise in code.
   *(Dig #122's re-read started past the count roll; dig #123's
   `trunc(−x)` idiom was explained instead of re-read.)*
-- **Anti-loop guard.** A dig names its NEW evidence (unread window /
-  new data / new instrument / named overturning evidence) and the
-  registry claim it touches BEFORE reading anything; if it cannot, it
-  is a repeat dig — take the next queue item instead.
+- **Anti-loop guard (mechanical since dig #125).** A dig names its NEW
+  evidence in its ABOUT entry as '**NEW EVIDENCE:**' — the commit-msg
+  gate REFUSES any dig entry lacking the declaration (grandfathered ≤
+  124); if no new evidence exists, the dig is a repeat — the next queue
+  item instead.
 - **Count tests.** Stream/budget laws get 0/1/N count tests plus the
   skip path; a replacement test must FAIL under the old law's
   arithmetic; data-dependent suites must RUN (not skip) in gates.

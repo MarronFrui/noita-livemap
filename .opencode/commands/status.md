@@ -7,7 +7,7 @@ from memory or stale files; state the source next to each number.
 
 Cheap facts first:
 
-!`echo "=== HEAD ===" && git log --oneline -5 && echo && git status --short && echo "=== registry positions ===" && grep -cE "^- \*\*2026-" mapgen/ABOUT_MATH.md | xargs echo "evidence entries:" && grep -cE "^\| C[0-9]+" mapgen/CONSTANTS.md | xargs echo "constants rows:" && sed -n "/## 8. Eliminated/,/## 9/p" mapgen/VERIFIED.md | grep -cE "^\| [0-9]+" | xargs echo "eliminated rows:" && grep -oE "Next free: entry \*\*[0-9]+\*\*" mapgen/ABOUT_MATH.md | tail -1`
+!`echo "=== HEAD ===" && git log --oneline -5 && echo && git status --short && echo "=== registry positions ===" && grep -cE "^- \*\*2026-" mapgen/ABOUT_MATH.md | xargs echo "evidence entries:" && grep -cE "^\| C[0-9]+" mapgen/CONSTANTS.md | xargs echo "constants rows:" && sed -n "/## 8. Eliminated/,/## 9/p" mapgen/VERIFIED.md | grep -cE "^\| [0-9]+" | xargs echo "eliminated rows:"`
 
 !`echo "=== OPEN issues (ranked as in file) ===" && grep -n "^- \[ \] \*\*I[0-9]" mapgen/ISSUES.md | cut -c1-160 && echo && echo "=== FLAGGED (model-not-byte) in code+docs ===" && grep -rn "FLAGGED" mapgen/*.md mapgen/lib/*.mjs | cut -c1-160`
 

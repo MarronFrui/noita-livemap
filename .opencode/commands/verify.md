@@ -28,3 +28,20 @@ Run the gate battery in this order and report each result explicitly
 
 Report: a table of gates, each green/red/changed, and whether the
 current work is committable.
+
+Final step — the BYPASS audit (machine): every commit must have a
+gate-journal entry within ±150s of its creation timestamp; a commit
+without one = a `--no-verify`/hook-less bypass — list them; the
+charter treats the bypass as a registered process failure. Verify:
+
+!`node -e '
+const fs = require("fs");
+const { execSync } = require("child_process");
+const commits = execSync("git log --format=\"%ct %h %s\" -30", {encoding:"utf8"}).trim().split("\n").map(l => { const [t, h, ...s] = l.split(" "); return { t: +t, h, s: s.join(" ") }; });
+let journal = [];
+try { journal = fs.readFileSync("mapgen/extractions/.gate-journal.log", "utf8").trim().split("\n"); } catch {}
+const jts = journal.filter(l => l.includes(" commit-msg ok")).map(l => +l.split(" ")[0]);
+const js = jts.length ? Math.min(...jts) - 300 : Infinity; // grandfather pre-journal commits
+const bypassed = commits.filter(c => c.s.startsWith("dig #") && c.t > js && !jts.some(j => Math.abs(j - c.t) < 150));
+console.log(bypassed.length ? "BYPASS DETECT: " + bypassed.map(c => c.h + " " + c.s.slice(0, 40)).join("; ") : "no dig-commit bypasses detected (journal coverage complete)");
+'`
