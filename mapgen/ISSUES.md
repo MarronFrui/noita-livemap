@@ -800,29 +800,39 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   fG 0.72327. Sources: entry (123), C102.
 
 - [ ] **I29. Canon-source audit — the false-statement sweep (opened
-  2026-10-12).** User mandate: mistakes or false statements may lie in
-  the CORE verified self-documentation (VERIFIED §8 elimination rows,
-  CONSTANTS C-rows) and propagate as canon into the port. The audit
-  risk is concrete: ~a decade of digs cited volatile `/tmp` extraction
-  paths, which orphaned citations (the 2026-10-12 audit already found
-  one registry inconsistency — the vacated §8 row 29). Staged plan:
+  2026-10-12, scoped 2026-10-12).** User mandate: mistakes or false
+  statements may lie in the verified self-documentation and propagate
+  into the port. **Scope: EVERYTHING EXCEPT VERIFIED §8** (the
+  elimination table is settled by definition — do-not-re-test; its only
+  standing obligation = eliminated port models stay marked LEGACY in
+  code, which they are). Concretely: the 98 C-rows (with their ~532
+  pinned const/VA tokens across the whole canon), VERIFIED
+  §1–§7 + §9–§12 (~1133 lines), and the registry cross-links. The audit
+  risk is concrete: **19/98 C-rows cite orphaned /tmp dumps** (evidence
+  that no longer exists) and only 1 manifest-resolvable citation row
+  exists so far. Staged plan:
   - **Stage 1 — machine auditability sweep (rides dig #124, cheap):**
-    classify EVERY §8 `Sources:` line and every C-row byte claim as
-    MANIFEST-RESOLVABLE / /tmp-ORPHANED / ABSENT (dumps deleted, never
-    migrated). Output = the audit table appended to the digs entry +
-    A-register rows for unreachable sources. No re-derivation yet.
+    classify every C-row's const/VA cite + every /tmp cite as
+    MANIFEST-RESOLVABLE / /tmp-ORPHANED / ABSENT; also link-check the
+    canon prose (§9–§11 refs + Current_work routing). Output = the
+    audit table into the digs entry + A-register rows for unreachable
+    sources. Plus: build the CONST-VERIFIER — parse each registered
+    const from the manifest dumps, decode (f32/f64 per its registered
+    width), compare with the pinned value; per-C-row verdict.
   - **Stage 2 — load-bearing re-derivation (interleaved digs):** re-
-   derive the claims that FEED the gates/port first — C13 (rng
-    semantics), C46/C51/C102 (the lanes' laws), C57 (VA shift), the
-    C48-oracle chain (the y224 bar's source) — each from a FRESH
-    manifest extraction; any overturn lands as the standard
-    elimination + in-place correction pair.
-  - **Stage 3 — full sweep:** remaining rows ~10 per dig until every
-    §8/C-row row is re-derived or explicitly marked unreachable.
-  Expected impact: HIGH — resolvability is the foundation of the
-  claim contract; a canon row whose evidence no longer exists is ITSELF
-  a defect. Sources: method commits 7b854a2..810cf1 (2026-10-12);
-  the catch of the vacated row 29; the charter (AGENTS.md).
+    derive from FRESH manifest extractions the claims that FEED the
+    gates/port first — C13 (rng semantics), C46/C51/C102 (the lanes'
+    laws — C51/C102 are already fresh), C57 (VA shift), the C48-oracle
+    chain (the y224 bar's source); any overturn lands as the standard
+    in-place correction pair.
+  - **Stage 3 — full canon sweep:** remaining C-rows + canon sections
+    ~10 rows per dig until every audited claim is re-derived, or
+    explicitly tagged CE/capture-anchored (those cannot be re-verified
+    from the binary alone — they need a game-lab re-run, ~1–2 sessions).
+  Expected impact: HIGH — resolvability is the foundation of the claim
+  contract; a canon row whose evidence no longer exists is ITSELF a
+  defect. Sources: method commits 7b854a2..810cf1 (2026-10-12); the
+  catch of the vacated row 29; the charter (AGENTS.md).
 
 ## Strategy (agreed)
 
