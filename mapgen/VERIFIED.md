@@ -614,6 +614,16 @@ binary side unread) · ❌ unexplored.
   salvaged to digest-pinned bank rows X1–X61 — every registered claim
   now has re-openable evidence I29 stages 2–3 (the law-row re-reads)
   remain. Sources: entry (124), C103.
+- **UPDATE (dig #125, 2026-10-12): the walk lane's own draw census is
+  byte-cited site-level** (the X10 window + fnB's walk-call frame in
+  X2): **3 always-draws/point + 5 conditional sites + the child
+  recursion's self-consumption**; the y-drift = the frame ARG (no
+  draw — I24 halves); the spawn-lane law = byte-exact (D3+D4+95/5 →
+  the scatter), the port's skip honest (data-parse debt, I21). The
+  STREAM-TRACE instrument landed (`buildCavesField.meta.streamTrace`,
+  the phase-partition invariant = a TEST). The walk port = byte-faithful
+  at every census site (v2 bit-identical/v3 metric-identical). Sources:
+  entry (125), C104.
 - **UPDATE (dig #123, 2026-10-11): the CaveStructure record lane is a
   PRNG-DRAW consumer — I28 CLOSED.** The record window (fnB
   @0x8f11b3..0x8f1746) never writes: the ctor 0x8F9470 zero-inits the

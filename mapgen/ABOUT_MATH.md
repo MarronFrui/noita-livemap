@@ -10331,3 +10331,56 @@ first use from now on):**
     (`7b-neighbouring commits` spirit), `tests/mapgen/const-verifier.test.mjs`.
     Tests **272/272**. **No cache bump** (no render change). Next
     free: entry **(125)**, **C104**, **I30**; §8 row **45** free.
+- **2026-10-12 (125) — dig #125: A1 DEMOTED + the walk-window stream census
+  + the stream-trace instrument (C104(d)/(e)); I24's drift = arg, no draw**
+  - **NEW EVIDENCE:** the fnB walk fn's own window (manifest X10,
+    0x8eec70..0x8ef903) — never satewide site-censused for ITS OWN draw
+    order until now (digs #82/#101 gave the port-shape; dig #122 gave the
+    setter's laws; the坑 walk's per-iteration draw COUNTS were the last
+    registered MODEL lane on the active path) + fnB's walk-call push
+    frame (X2 @0x8f06b9..0x8f0703) for the y-drift source.
+  - **Predict-then-read.** Prediction (before the read): 1 always roll +
+    1 D2-arm + 2 bias coins + 1 x-law + growth/child conditional draws
+    ≈ 7-9 draws/point; the drift = arg, no draw. **Verdict: AGREE on the
+    count shape** (3 always + 5 conditional sites + the child recursion's
+    own draws; the seed-lag = the growth-counter reset handling); the
+    labels refined per C104(d).
+  - **Findings (byte-exact, all cites re-derived this session from X10
+    site census + X2's fnB call frame).** Per point: **3 always-draws**
+    (the 0.35u−0.25 value roll @0x8ef24b + bias gate 1 @0x8ef433 + bias
+    gate 2 @0x8ef4db — both ×101/25-coins) + **5 conditional sites**
+    (D2-arm iff the prologue's 50% coin @0x8eecc1 set [−0x70]; the
+    growth-counter roll @0x8ef6c0 behind the [−0x48] > 50 gate
+    (`cmp $0x32; jle` @0x8ef631; the counter resets @0x8ef6cb INSIDE the
+    taken branch = the port's existing model ✓ — the dig #125 edit was
+    comment-level only, confirmed by the metric-identical A/B below); the
+    2% child-gate draw
+    @0x8ef71e (×100, `0x11e02dc`); the child-budget draw @0x8ef7c6
+    (×50−50); the child SELF-recursion `call 0x8eec70` @0x8ef823 with
+    decl-shared counter @0x8ef79e). The spawn lane: gated by
+    `[−0x58]/[−0x64] ≥ 0` + threshold [ebp+0x2c] → D3 @0x8ef3b3 → D4 coin
+    @0x8ef3cf → 95/5 `cmp $0x5f`+`cmovl` → the 0x8EEAD0 scatter
+    (@0x8ef3f9). The y-drift = `y += arg[ebp+0x20]` @0x8ef389 — **no
+    draw** (I24's mechanism answered; the pending slot-identity piece =
+    the fnB push-frame mapping). The scatter itself draws only its
+    span roll (byte-cited dig #56/#81 — no new model).
+  - **Port.** The walk port = byte-faithful at EVERY census site (the
+    A/B below proves it empirically: v2 bit-identical, v3
+    metric-identical); the dig #125 caves-field edit = comments only.
+    The stream-trace instrument built (C104(e) + caves-field trace
+    buckets + the partition-invariant TEST).
+  - **A-register.** A1 DEMOTED (byte-cited sites + documented micro-merges
+    ≤1 draw/pt); A2 → the LAW known, the port skip honest (I21's data
+    frontier); A3 → mechanism found (arg, no draw); the register shrank
+    ✓ (the purification law).
+  - **C97 A/B (run this dig):** v2 **0.23391 bit-identical** ⇒ **no
+    cache bump** (the V2 lane never attaches the caves field); v3 IoU
+    **0.45240** / fG **0.71459** (fR 0.48029) — metric-identical to
+    entry (123): the walk's census + trace add no field deltas (the
+    honest confirmation of the byte-faithful port).
+  - **Landed:** ABOUT_MATH **(125)**, CONSTANTS **C104**, ISSUES **§A
+    re-written (A1 demoted/A2 law-known/A3 mechanism-found)**, VERIFIED
+    §12 (the audit + census note), caves-field.mjs (the trace + the reset
+    correction), tests (the partition invariant). Tests **273/273**?? —
+    count at gate. Next free: entry **(126)**, **C105**, **I30**; §8 row
+    **45** free.

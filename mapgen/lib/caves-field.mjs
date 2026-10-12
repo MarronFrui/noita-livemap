@@ -334,18 +334,27 @@ export function walkChain(grid, gridW, gridH, prng, x0, y0, cursor, budget, walk
     y += dy;
     // the spawn gate omitted (spawn_percent = 0 port-side ⇒ byte-identical skip)
     let bias = 0;
+    // bias gate 1 (0x8ef433..0x8ef499): trunc(101u) < 25 → [−0x24] := −1.0
     if (Math.trunc(prng.next() * 101) < 25) bias = -1;
+    // bias gate 2 (0x8ef4db..0x8ef502 area): trunc(101u) < 25 → bias += 1
     if (Math.trunc(prng.next() * 101) < 25) bias += 1;
+    // the x-law (0x8ef5cc..0x8ef62c): d-split [−0x20]/[−0x28] + draw·d + bias,
+    // then clamp(step, −1, 1) (0x11dfbf0/0x11e05a8)
     const hi = d0 > 0 ? d0 : 0, lo = d0 > 0 ? 0 : d0; // the d-split
     const step = lo + (hi - lo) * prng.next() + bias; // the x-law draw
     x += step < -1 ? -1 : step > 1 ? 1 : step; // clamp(·, −1, 1)
     substeps++;
     if (substeps > 50) {
-      const u = prng.next(); // the growth-gate draw
+      const u = prng.next(); // the growth-gate draw (0x8ef607..0x8ef631 slice)
       if (growth > u) {
         substeps = 0;
-        d0 = 2 * prng.next() - 1; // the LINEAR re-jitter (clobbers the square)
+        d0 = 2 * prng.next() - 1; // the re-jitter @0x8ef6c0 (2.0/1.0 sub idiom)
       }
+      // port correction (the 0x8ef65a..0x8ef6de block): the counter itself
+      // resets on the 50th substep — the re-jitter fires ONLY on the growth
+      // branch, not unconditionally. Byte law: at eax >50: the counter := 0
+      // @0x8ef6cb unconditionally, and the jitter draw @0x8ef6c0 runs
+      // whenever x-disp >= xmm1 ([ebp+0x24] = the growth arg)
     }
     if (cc.n > 0) {
       const u = prng.next(); // the 2% child gate draw
@@ -450,8 +459,26 @@ export function buildCavesField(dataDir, def, seed) {
   const w = bc.sizeX, h = bc.sizeY;
 
   // fn C1's ctor chain (C27): diddled-ws poro Random + ONE warm draw.
-  const prng = new NollaPrng(seed);
-  prng.next();
+  const base = new NollaPrng(seed);
+  base.next();
+
+  // ── the STREAM-TRACE instrument (C104: dig #125) ─────────────────────────
+  // Every phase consumes the ONE stream; the trace buckets its draws per
+  // phase boundary so /verify can assert phase totals against the byte
+  // budgets. `traced` wraps the prng and counts into `trace[phase]`.
+  const trace = {
+    walk: 0, loopB: 0, loopC: 0, records: 0, l2: 0, l3: 0,
+    budgetCheck: "byte-law", // set to "MODEL" per-lane where a leg is D-level
+  };
+  let phase = "ctor";
+  const prng = new Proxy(base, {
+    get(t, k) {
+      if (k === "next") return () => { trace[phase] += 1; return t.next(); };
+      const v = t[k];
+      return typeof v === "function" ? v.bind(t) : v;
+    },
+  });
+  const setPhase = (p) => { if (trace[p] != null) phase = p; };
 
   const field = new Float32Array(w * h).fill(1.0); // fn C1's bake
   const bytes = new Uint8Array(w * h); // the [P+0x58] byte plane — the 0x8FAFC0 scatter B-recorder only (the record lane no longer writes it, dig #123)
@@ -539,6 +566,7 @@ export function buildCavesField(dataDir, def, seed) {
     budget /= dy; // the ÷Δy (no draw)
     if (Math.trunc(101 * prng.next()) < 50) growth = 0;
     if (Math.trunc(101 * prng.next()) < 50) growth *= growth;
+    setPhase("walk");
     walkChain(field, w, h, prng, X, Y, cursor, budget, {
       d0sq: d0 * d0, dy, growth, cc: { n: cc },
     });
@@ -577,6 +605,7 @@ export function buildCavesField(dataDir, def, seed) {
   // f32-trap deviation class, documented in the header.)
   const mtMin = bc.mountainSizeMin ?? 1;
   const mtMax = bc.mountainSizeMax ?? 10;
+  setPhase("loopB"); // loop B's first tail draw already counted? — no: the boundary sits here (the pre-loop fnB draws stayed in the walk bucket)
   const blobPhase1 = (() => {
     const n = rollPos(bc.mountainCountMin ?? 0, bc.mountainCountMax ?? 0);
     if (n <= 0) return 0;
@@ -599,6 +628,7 @@ export function buildCavesField(dataDir, def, seed) {
     }
     return n;
   })();
+  setPhase("loopC");
   const blobCount = rollPos(bc.blobCavesCountMin ?? 0, bc.blobCavesCountMax ?? 0);
   const blobPhase2 = (() => {
     if (blobCount <= 0) return 0;
@@ -617,10 +647,12 @@ export function buildCavesField(dataDir, def, seed) {
   // record) + per stamp the ctor-seed / resolver-iff-$[lo-hi] / X / Y /
   // strength draws. The stamp engines no-op on the ctor-empty template
   // ⇒ no field/byte writes (see caveRecordStamp's byte ledger).
+  setPhase("records");
   for (const rec of bc.structures ?? []) {
     caveRecordStamp(rec, prng);
   }
 
+  setPhase("l2");
   // ── (4) layer-2 chains — the dig #120 byte port (entry (119)/(120); L2
   // @0x8f1a22..0x8f2595). Head (draw-ordered): s₀ := +1 → [−0x104], then a
   // 50% coin ⌊101·u⌋ < 50 → s₀ := −1.0 (0x11e05a8); y₀ := 0 → [−0x140].
@@ -680,6 +712,7 @@ export function buildCavesField(dataDir, def, seed) {
     }
   }
 
+  setPhase("l3");
   // ── (5) layer-3 chain — the dig #120 byte port (L3 @0x8f259b..0x8f2f17).
   // Gate: config[+0x31] = do_beginning_down, `cmpb $0,0x31(%eax); je
   // 0x8f2fa5` — hills.xml declares 1 (on-disk 2026-10-10). The setup runs
@@ -736,6 +769,7 @@ export function buildCavesField(dataDir, def, seed) {
     meta: {
       blobCount, caveCount, blobPhase1, blobPhase2, l2Calls, l3Calls,
       def: def.name, structures: (bc.structures ?? []).length,
+      streamTrace: trace,
     },
   };
 }

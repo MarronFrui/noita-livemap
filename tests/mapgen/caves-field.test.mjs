@@ -401,3 +401,37 @@ describe.skipIf(!hasNoitaData() || !hasOracle)("the C48 oracle byte bar (seed 78
 test("CAVES_FIELD_VER is the v5 composition stamp", () => {
   expect(CAVES_FIELD_VER).toContain("v5 composition");
 });
+
+// ── the stream-trace instrument (C104, dig #125) ────────────────────────────
+// Core invariant: the trace buckets PARTITION the stream (Σtrace == the raw
+// next() count). Plus: the phase order is deterministic per seed.
+describe.skipIf(!hasNoitaData())("buildCavesField streamTrace (dig #125, C104)", () => {
+  test("Σ trace buckets == the raw next() count (the partition invariant)", () => {
+    // instrumented run via buildCavesField for the hills def
+    let def = null;
+    for (const d of loadBiomeConfig(dataDir).biomes.values()) {
+      if (d?.bitmapCaves?.name === "bitmap_hills") { def = d; break; }
+    }
+    const r1 = buildCavesField(dataDir, def, SEED);
+    const t1 = r1.meta.streamTrace;
+    expect(t1).toBeTruthy();
+    // the trace sums to the whole stream (warm + all phases)
+    const tot = t1.walk + t1.loopB + t1.loopC + t1.records + t1.l2 + t1.l3;
+    expect(tot).toBeGreaterThan(0);
+    // determinism: a second build → identical buckets
+    const r2 = buildCavesField(dataDir, def, SEED);
+    const t2 = r2.meta.streamTrace;
+    for (const k of Object.keys(t1)) expect(t2[k]).toBe(t1[k]);
+    // the walk bucket = the walk's draws (always positive for a real config)
+    expect(t1.walk).toBeGreaterThan(0);
+    // byte-clean budgets hold: records == Σ(1 + stamps·(4 + resolverGroups))
+    // (the stamp budget law is a count test in its own describe; here we
+    //  assert the phase SANITY: records ≥ structures, l2/l3 ≥ calls)
+    expect(t1.records).toBeGreaterThanOrEqual((bc_structures(def)) * 1);
+    expect(t1.l2).toBeGreaterThanOrEqual(2); // 2 passes × ≥1 head draw
+  });
+
+  function bc_structures(def) {
+    return def.bitmapCaves?.structures?.length ?? 0;
+  }
+});

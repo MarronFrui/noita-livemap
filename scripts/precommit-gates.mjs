@@ -61,13 +61,37 @@ function runCommitMsg(msgFile, staged) {
     if (!addedAbout.includes(need)) {
       fail(`ABOUT_MATH must gain the dated entry "(${n}) — dig #${n}" and refresh 'Next free: entry **(${n + 1})**'`);
     }
+    // the anti-loop guard, made mechanical: every dig entry names its NEW
+    // evidence (charter). Grandfathered for digs ≤124 (the charter landed
+    // after them).
+    if (n >= 125 && !addedAbout.includes("**NEW EVIDENCE:**")) {
+      fail(`the dig entry must declare '**NEW EVIDENCE:**' (the anti-loop guard, made schema)`);
+    }
   }
+  // the loader guard: the context loader must ride the dig (refreshed BEFORE
+  // the commit — /dig step 8), mechanically checked since it is gitignored.
+  const loader = path.join(process.cwd(), "SESSION_CONTEXT.md");
+  if (fs.existsSync(loader)) {
+    const lt = fs.readFileSync(loader, "utf8");
+    if (!lt.includes(`dig #${n}`)) {
+      fail(`SESSION_CONTEXT.md must reference 'dig #${n}' BEFORE the dig commit (refresh-then-commit, /dig step 8)`);
+    }
+  } else fail("SESSION_CONTEXT.md (the context loader) is missing");
   const codeChanged = staged.some((f) => /^mapgen\/(lib|server|pipeline|experiments)\/.*\.mjs$/.test(f));
   const testsChanged = staged.some((f) => /^tests\/.*\.mjs$/.test(f));
   if (codeChanged && !testsChanged) {
     fail("mapgen code staged without tests — every lane law lands with its count tests");
   }
+  journal("commit-msg");
   return ok(`dig #${n} structure`);
+}
+
+// ---- the gate journal (bypass telemetry) ------------------------------------
+function journal(mode) {
+  try {
+    fs.appendFileSync(path.join(process.cwd(), "mapgen/extractions/.gate-journal.log"),
+      `${Math.floor(Date.now() / 1000)} ${mode} ok\n`);
+  } catch {} // journal failure must not block a gated commit
 }
 
 // ── pre-commit: gate battery + citation resolvability ──────────────────────
@@ -107,8 +131,11 @@ function runPreCommit(staged) {
       if (!manifest.includes(m[1])) fail(`${f}: extraction cite ${m[1]} has no manifest row`);
     }
   }
+  journal("pre-commit");
   return ok("citation hygiene");
 }
+
+
 
 function shQuote(s) {
   return `'${s.replaceAll("'", `'\\''`)}'`;
