@@ -343,7 +343,7 @@ binary side unread) · ❌ unexplored.
    (`whiteLattice2d(12.5,−3.25)` → **0.898207068**; the old 0.493832439
    literal and the smoke 0.834 were round-derived = stale). The lane's
    "computes + real texture" claims stand unchanged.
-   **钩 dispatcher cores READ (2026-09-20 (27), C41):** case 1 = the
+   **hook dispatcher cores READ (2026-09-20 (27), C41):** case 1 = the
    FastBlock LCG-hash (214013/2531011-pinned, ÷16384), case 3 = the
    FNV24 + the 12-dir .data pairs @0x12eb950 (all pinned; the
    1234567.0 sentinel @0x11e0180), case 2 = whiteLattice twin

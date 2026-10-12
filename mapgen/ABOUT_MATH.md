@@ -2998,7 +2998,7 @@ first use from now on):**
     (same frame: 2× 0x44d0b0-round calls, inline floor+fracs,
     smoothstep weights, 57.0 @0x11e028c mul, calls of
     **true 0x44d110(sin) ×N**) — differs only in constant lane
-    (the exact diff = next trace item, Рrоman-flagged).
+    (the exact diff = next trace item, Roman-flagged).
   - **case 3 = true 0x8fc940 (slab 0x4fb340) = the FNV24
     white-lattice with a 12-PAIR .data gradient table @.data VA
     0x12eb950 (file .data+0x950, BYTE-PINNED this session — 12 f64
@@ -3061,7 +3061,7 @@ first use from now on):**
   objdump from the live exe.
   - **The 0x4ed900..0x4ee6xx biome.cpp frame = a per-biome "caves/lua"
     builder** (asserts cited: "…\biome.cpp RandomColor input_color
-    output_colors" @0x1172ea8; links:记忆 "spawn_small_enemies @0x1173110",
+    output_colors" @0x1172ea8; memory links: "spawn_small_enemies @0x1173110",
     "spawn_items @0x1173124", "bitmap_noise @0x11730cc",
     "caves_setup.mLuaScript.empty() == false" @0x11730e8):
     - `call 0x4ee2d0(esi=) = the FNV24-hash (dig #6's C41) for the
@@ -3184,7 +3184,7 @@ first use from now on):**
     layers = the "sand-top/ore-band"-style overlays; layer-1 = the
     BASE-band. The `.11dfa1c/0x11dfa20 = 0.35`, `0x11dfa00 = 0.32`,
     `0x11dfb14 = 0.65` = all f32-clean pins (upper-band 0.65..1).
-  -андид-confirmed with the DATA-side: the .11dfa-except values
+  - Confirmed with the DATA-side: the .11dfa-except values
     (.32/.35/.65) look suspiciously like the mGradientMaxY/MinY-role
     — per-biome 0.498571 / 0.25 = NO match to any pinned band — the
     boundaries [0.35..0.7) SETTLE as the mGr-lead-in for the visual
@@ -3338,7 +3338,7 @@ first use from now on):**
     px = the underground tunnel-band = the "AND the terrain-fill":
     the "1.0"-row band = the SOLID baseline (the "everything is
     filled = 1.0"), NOT a per-area run. This = a "the CONFIG-Layer's
-    = the world-'UNIT-0-1-scale = the '.без built-the stage = the
+    = the world-'UNIT-0-1-scale = the '.without built-the stage = the
     ONE-per-band accumulator!!" pattern.
   - **The row `y=64 @x=1010 = 0.0964 / 0.2694-` pair + `y=128 =
     0.3741 / 0.5791 / 0.2240 / 0.0438` = the C43-band-stack's
@@ -3963,14 +3963,14 @@ first use from now on):**
     three grids (float/u16/byte), and of the FULL-XML BandCaves chain
     (the [eax+0x2c/0x28] (range-y pair), [eax+0x38/34] (int cave-count
     pair), and the JSON-LUA hooks through 0x3eaa80. The DECODE still
-    admits the stages: [the两层 the 0x1346cd8 2c-byte slot as its
+    admits the stages: [the two-layer 0x1346cd8 2c-byte slot as its
     'template' pull from cache at 4f0b2f/4f101d with the same id].
   - **A cluster of ORACLE-SHAPE probes run against the C48 y=0 bump
     (h = .454092, symmetry c ≈ 19.0..19.5, ±10 falloff): none of the
     naive shapes reach the byte noise floor** (sqrt-cap ~0.168 max err,
     sphere-cap ~0.10-0.17, linear cones ~0.17, spherical caps ~0.10) —
     the bump writer is in fnB's per-phase block bodies (the layer-setter
-    arg masks, the aabb arithmetic OR the (0x11dfa5c = .45) + bit的理论
+    arg masks, the aabb arithmetic OR the (0x11dfa5c = .45) + bit-theory
     value) — SHELF: the next CE-diff picks it up at runtime with the C48
     dense dump in hand, exactly the same path as the C47/C48 closure.
   - The C46/C43-blob primitives are PORTED byte-exact into
@@ -4119,7 +4119,7 @@ first use from now on):**
     non-art px. Canonical default = walang pixels: art scenes + wang areas
     only, everything else air → SURFACE_V2 back to opt-in, attachNoiseTerrain
     no-ops without a lane flag (VERIFIED §12's mandate line enforced).
-  - **Zoomкої moire (zoomed-out dense rock / mid clean / zoom-in rock)** =
+  - **Zoom moire (zoomed-out dense rock / mid clean / zoom-in rock)** =
     renderTile's global point-sample `(y*512+j)*2^z` — phase per zoom level.
     Fix: block-majority downsampling over the distinct 10px wang cells in
     each scale block; offline census on the island tile: 12.4/3.1/0.8/30.3/
@@ -4282,7 +4282,7 @@ first use from now on):**
   - **fn C2 (slab 0x4f2a60..0x4f3b00) census:** its own children = fn C1
     (0x4f27f0 ✓), TWO INTERNAL hitherto-unlisted functions
     (`0x4f3bf0`, `0x4f3460` — the next read targets), `0x24c2d0`,
-    `0xc070c0`; **ZERO calls of the blend twins (0x8EF870物业0x8EF950)
+    `0xc070c0`; **ZERO calls of the blend twins (0x8EF870/0x8EF950)
     or the arena-recorder family** — so fn C2's body is NOT the
     lowering writer either.
   - ⇒ the writer that applies SUB-1.0 stamp/image values onto the
@@ -4503,7 +4503,7 @@ first use from now on):**
     two-lane `comiss` weights, and the per-phase fork at `cmp $0x21
     (=33) / $0xa (=10) / $0x14 (=20) / $0x32 (=50)` — the count gates
     = the blob/cave/worm phases' own box bounds, byte-cited in order.
-  - **The phase order in the fnB body (the draw-sequencing byte事实):**
+  - **The phase order in the fnB body (the draw-sequencing byte-facts):**
     `0xc090c0` draw #1 (@0x4ef707) = the x-cursor roll from
     [obj+0x2c]/[0x28]; draw #2 (@0x4ef739) = the y-cursor roll from
     [obj+0x38]/[0x34]; then per-iteration: [obj+0x3c]/[+0x40] = the
@@ -4586,7 +4586,7 @@ first use from now on):**
   (2 − trunc(0·draw)) = 2 is CONSTANT, and the step-lane's
   correct unit = **(1.0 + 2.5·draw)·0.2** with the pivot as the
   walk-step span — the seller gate on the byte-facts): the compare
-  holds the y0徘徊 bands (the walk spans their thresholds).** The
+  holds the y0-roam bands (the walk spans their thresholds).** The
   oracle rows y64/y96/y192/y224 improved to the deep-carve band vs
   the last spin — the byte-cited walk weights bake the composition's
   branch lane form; the walk step byte = per-pivot compose = the
@@ -4755,7 +4755,7 @@ first use from now on):**
 - **2026-09-21 (78) — dig #78: the Work-band / 6-lane question CLOSED
   with the data check (the byte test the dig 77 pending promised):**
   - The Work heaven/hell band tokens: `the_end.xml` (the_end + the
-    boss_victoryroom family, the下沉 "heaven/edge" band), `essenceroom_hell`
+    boss_victoryroom family, the sunken "heaven/edge" band), `essenceroom_hell`
     (hell), `the_sky` — all biomes live in `data/biome/`. NO
     the_work.xml exists in this build (the band renders through the
     the_end + the_sky/essenceroom_hell + the mountain_tree/solid_wall
@@ -10336,7 +10336,7 @@ first use from now on):**
   - **NEW EVIDENCE:** the fnB walk fn's own window (manifest X10,
     0x8eec70..0x8ef903) — never satewide site-censused for ITS OWN draw
     order until now (digs #82/#101 gave the port-shape; dig #122 gave the
-    setter's laws; the坑 walk's per-iteration draw COUNTS were the last
+    setter's laws; the walk's per-iteration draw COUNTS were the last
     registered MODEL lane on the active path) + fnB's walk-call push
     frame (X2 @0x8f06b9..0x8f0703) for the y-drift source.
   - **Predict-then-read.** Prediction (before the read): 1 always roll +
