@@ -10331,7 +10331,115 @@ first use from now on):**
     (`7b-neighbouring commits` spirit), `tests/mapgen/const-verifier.test.mjs`.
     Tests **272/272**. **No cache bump** (no render change). Next
     free: entry **(125)**, **C104**, **I30**; §8 row **45** free.
-- **2026-10-12 (125) — dig #125: A1 DEMOTED + the walk-window stream census
+- **2026-10-12 (126) — dig #126: I29 Stage 2 — the fnB walk-call FRAME-SLOT law
+  (the 10-arg map + the exit-gate law + the A1/A3 collapse); the port's walk
+  value-exit = the NEW port divergence (I30/A7), the port FROZEN (no lib edits)**
+  - **NEW EVIDENCE:** the fnB walk-call push frame `0x8f06b9..0x8f0703`
+    (X2's full-window read 0x8eff90..0x8f0703) + the walk fn's arg-slot
+    consumption census (X10 0x8eec70..0x8ef86) — the walk's argument
+    IDENTITY (which fnB slot walks in as which `[ebp+x]`) had never been
+    byte-read; (102)'s "the target slot = the 0x04(%esp) = −0x10c
+    candidate" was a prediction, and it was WRONG (the drift = [−0x120]).
+  - **Predict-then-read.** Prediction (before the read): the y-drift
+    argument = fnB's `[−0x10c]` (the (102)-era frame-slot note). Verdict:
+    **SURPRISE — the drift arg `[walk+0x20]` = `[−0x120]`** (the
+    0.4u+0.1-law slot @0x8f0475..0x8f04b3), and `[−0x10c]` walks in as
+    the walk's DEAD arg (scale0). Re-read per the charter (never
+    accommodate the surprise): the full 10-word push frame decoded with
+    the `add $0x28` cleanup as the cross-check; the map is C105(a).
+  - **The frame law (C105(a), byte-exact).** (grid = [−0x13c]) ·
+    (&point = &−0x134) · cursor = **[−0x104]** = lerp(cfg+0x3c, cfg+0x40,
+    u)·laneFactor = **lerp(cave_strength min, max, u)** (C52 slots) ·
+    scale0 = [−0x10c] = 0.5u+0.5 → **DEAD** (the walk's only read = the
+    child re-pass @0x8ef804) · budget = [−0x110] = lerp(0.15S, 0.96S, u)
+    with the flag=1 0.45-override (@0x8f053f..0x8f058d = the port's exact
+    two-arm law) · d0² = [−0x100]² · **y-drift = [−0x120]** = 0.4u+0.1
+    (+0.5, ⌊101u⌋<33) · growth = [−0x148] = u + f32[0x11df874](= **0.0**,
+    the dead addend) with the u·101<50 zero/square coins · cc =
+    **&−0x124** (the loop's SHARED counter cell; the child-gate's
+    `*cell > 0` @0x8ef6e9 + the child's `decl` @0x8ef79e) · spawn
+    threshold = **cfg[+0x24]** (spawn_percent; the [−0x58]/[−0x64]
+    attr-value pair = "spawn_small_enemies"(19)/"cave_childs"(11) reads
+    @0x8eee8f..0x8eef0f). The lane jump-table factor arms (lane 3/4/5 =
+    0.4u+0.1 / 0.25u+0.75 / 0.13u+1.07, consts 0x11dfa40/0x11df9d0/
+    0x11dfb2c/0x11df990/0x11dfc20) and the caseA ±0.01w re-lerp
+    ([−0x140]/[−0x10c] = [−0x128]·∓0.01, consts 0x11e0560 f32 −0.01 /
+    0x11df8e8 f32 +0.01) are named in the row.
+  - **The exit-gate law (C105(b), NEW — the dig's surprise #2).**
+    `0x8ef104` loads the CURSOR and `0x8ef109 comiss %xmm7,%xmm3; jae
+    0x8ef85d` exits when **xmm3 (the previous point's clamped value) ≥
+    the cursor**; the comiss operand→flag mapping verified against two
+    internal precedents (the setter's `write iff cell > value` jbe
+    @0x8ee7b2 and the walk's own clamp01 top jbe @0x8ef35f-8ef364) —
+    AT&T `comiss src,dst` ⇒ Intel dst,src, jae = dst ≥ src. The walk's
+    value dynamics (slot = 1−lane; roll = 0.35u−0.25; v = clamp01(slot+roll);
+    lane rises from v_prev toward the cursor in the t<0.2 band — the
+    band's base = xmm3 = **v_prev, a carry the port does not model**) make
+    this a carve-while-below-the-strength walk: the value decays 1 → ~0.23
+    over t and the walk stops when it bounces back to the cave_strength
+    level. The d-instrument (the walk-length sim, 300 walks × C ∈
+    {0.3,0.55,0.9,1.5} × budget 60): **M1 (exit iff v ≥ C) med = 1 stamp
+    at C ∈ {0.3,0.55}, 63 (budget-length) at C = 1.5 — BIMODAL**; the
+    port (no exit) = uniformly 63 ⇒ the port's walks overshoot on the
+    low-strength cursor range. Registered as **I30 + §A A7**; the port
+    change + the oracle count-test (the walk-length census + the field
+    rows vs the C48 caves-grid oracle) = **dig #127**.
+  - **Refuted in passing (§8 row 45 candidate, cosmetic — no port
+    delta).** (122)'s "[the float pair is] swapped at the child call"
+    @0x8ef804..0x8ef81a = the load ORDER (14-loaded-then-10) misread as
+    an argument swap: the child receives the parent's `[0x10]/[0x14]`
+    values in the SAME slots (per-slot movss, no swap).
+  - **C13/C46/C48 stage-2 re-derivation (the I29 stage-2 rows).** The
+    C13 mapping rule exercised LIVE all dig (every read below = slab/
+    true-VA cited + section-mapped); C46's walk/stamp/getter identities
+    re-derived from X10/X2 at site level (the setter map CONFIRMED —
+    see below); C48's "[P+0x94] signature + the y0 bump writer OPEN"
+    note re-confirmed unchanged (the bump's writer still routes to
+    fnB's case blocks / the image-blend twin = untouched, stays open
+    in C48's own text). C46's stale "100.0 f64 @0x11dffe8" rdata note
+    = a label slip (the byte = **101.0** @0x11dffe8, confirmed by both
+    the const-verifier and C53's own 101.0 note) — C46 amended in place.
+  - **Setter identity re-derived (the C99/C101 law CONFIRMED at the
+    source).** The setter 0x8ee750's branch comiss reads **xmm2 = VALUE**
+    (the >1.0 circle test @0x8ee766+jb → the circle path 0x8ee7df; xmm3's
+    snapshot [−0xc] = the single-cell write TARGET, `cell := [−0xc]`
+    write iff cell > it @0x8ee7b2-jbe/0x8ee7cf-64) — the walk's call
+    pushes xmm2 = the radius envelope ([−0x20]) as VALUE and xmm3 =
+    the clamped composite as the single-cell/blend scale — consistent
+    with C99 in-place (note: C99's "[−0xc] = scale" wording = the same
+    snapshot slot; no overturn, the wording tension recorded here only).
+  - **Port.** FROZEN (no lib/test edits): the walk-arg WIRING is
+    confirmed byte-equal, the two divergences (the exit-gate + the
+    lane carry) need the count-test + the A/B protocol to land safely,
+    which is exactly dig #127. Streams: no draw-count changes in the
+    port side this dig (the frame map CONFIRMS the port's 9-arg
+    walkChain against the byte's 10-slot frame, the dead scale0 =
+    the port's dropped draw — byte-equal).
+  - **A-register.** A1 COLLAPSED (the micro-merge flag's condition =
+    the frame-slot law = landed); A3 DEMOTED (the drift identity =
+    [−0x120]); A7 OPENED (the walk's exit law = the port divergence).
+    The D-count: started 6 (A1..A6 with A6 stale-flag), ended 6
+    (A1/A3 demoted to byte-level, A7 opened D-level) — the
+    purification law's not-clear-this-dig case, stated.
+  - **Pitfalls hit.** The comiss operand→flag mapping (two
+    precedents + the walk's own clamp = the three-way agreement; a
+    50/50 chat-derivation trap resolved by BYTE precedents, not
+    intuition); the stack-map arithmetic (the 8f0698 push-%ecx =
+    a SCRATCH slot for the config[+0x24] write, not an argument);
+    the −3.0 lane multiplier is F64 (mulsd) = the "3 − trunc(−3u)"
+    ∈ {3,4,5} idiom's source; every f64-under-f32 decode trap
+    re-flagged (C101(b)'s standing note).
+  - **Tests.** The standing battery (273/273 at entry (125)'s HEAD);
+    no new tests = no port change (the dig #127 count-tests are
+    DESIGNED, written into I30). y224 byte bar 0/12 rms 0.0000 (ran).
+  - **Landed:** ABOUT_MATH **(126)**, CONSTANTS **C105** (C46 amended
+    in place for the 101.0 label), ISSUES **I30 opened** + §A
+    **A1/A3 collapsed, A7 opened**, manifest **X62** (the const-dump
+    instrument). No port delta ⇒ no C97 A/B (the C97 numbers stay
+    v2 0.23391 / v3 0.45240 / v2v3 0.45521 / fG 0.71459). Next free:
+    entry **(127)**, **C106**, **I31**; §8 row **45** free-era note: the
+    (122)-swap = the §8 row 45 candidate (cosmetic).
+- **2026-10-12 (125) — dig #125: A1 DEMOTED + the walk-window stream census**
   + the stream-trace instrument (C104(d)/(e)); I24's drift = arg, no draw**
   - **NEW EVIDENCE:** the fnB walk fn's own window (manifest X10,
     0x8eec70..0x8ef903) — never satewide site-censused for ITS OWN draw

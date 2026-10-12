@@ -624,6 +624,24 @@ binary side unread) · ❌ unexplored.
   the phase-partition invariant = a TEST). The walk port = byte-faithful
   at every census site (v2 bit-identical/v3 metric-identical). Sources:
   entry (125), C104.
+- **UPDATE (dig #126, 2026-10-12): I29 Stage 2 — the fnB walk-ARG identity
+  law (C105)**: the walk's 10-slot push frame mapped slot-for-slot — the
+  cursor = lerp(cave_strength min/max, u)·laneFactor, the scale0 arg is
+  DEAD (never read; the port's dropped draw = byte-equal), the budget =
+  lerp(0.15S,0.96S,u) with the flag=1 0.45-override, **the Y-drift arg =
+  fnB's [−0x120] (0.4u+0.1 +0.5 coin), the (102)-era −0x10c prediction
+  OVERTURNED by the bytes**, growth = u + 0.0 with the two u·101<50
+  zero/square coins, the child counter = a frame-SHARED pointer, the
+  spawn threshold = cfg[+0x24]. **The walk's carve EXIT gate (@0x8ef109)
+  = exit iff the previous value ≥ the cursor (the comiss mapping
+  verified against the setter's write-gate + the clamp01) — the port
+  lacks it (uniformly budget-length walks = the I30/A7 divergence; a
+  1-stamp murmur byte-side at low cave_strength) — dig #127 ports it
+  with the oracle count-test.** Also: (122)'s "float pair swapped at the
+  child call" refuted as a description (the child re-passes the pair
+  unchanged; §8 row 45 candidate, cosmetic); C46's "100.0 @0x11dffe8"
+  label slip amended (the byte = 101.0, C53's own note). Sources: entry
+  (126), C105, §A A1/A3/A7.
 - **UPDATE (dig #123, 2026-10-11): the CaveStructure record lane is a
   PRNG-DRAW consumer — I28 CLOSED.** The record window (fnB
   @0x8f11b3..0x8f1746) never writes: the ctor 0x8F9470 zero-inits the

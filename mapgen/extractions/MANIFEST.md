@@ -73,3 +73,4 @@ an old one.
 | X59 | `dig118-shape-v2v3.log` | (C97 run log) | instrument log | 2026-10-12 salvage | `e4f6692370c722240958155b1da5204e` | (salvage bank) | entry (124) |
 | X60 | `dig118-shape-v3.log` | (C97 run log) | instrument log | 2026-10-12 salvage | `96586b224aa4a857124469fbb1e33505` | (salvage bank) | entry (124) |
 | X61 | `surface-y-log-q3a.jsonl` | (surface-y jsonl log) | instrument log | 2026-10-12 salvage | `4b678381fee83eb7d72f7300495a2b1c` | (salvage bank) | entry (124) |
+| X62 | `dig126-constdump.mjs` | (instrument source) | session tooling (const-verifier export `readConst`) | 2026-10-12 dig #126 | `9d9eff005ef7862f3c19c313eab8c710` | C105 | the dig-126 const reads (the walk-frame const bank) |
