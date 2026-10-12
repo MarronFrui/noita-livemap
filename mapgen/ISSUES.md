@@ -800,7 +800,8 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   fG 0.72327. Sources: entry (123), C102.
 
 - [ ] **I29. Canon-source audit — the false-statement sweep (opened
-  2026-10-12, scoped 2026-10-12).** User mandate: mistakes or false
+  2026-10-12, scoped 2026-10-12; STAGE 1 EXECUTED dig #124 2026-10-12 —
+  see the dig entry; stages 2–3 remain).** User mandate: mistakes or false
   statements may lie in the verified self-documentation and propagate
   into the port. **Scope: EVERYTHING EXCEPT VERIFIED §8** (the
   elimination table is settled by definition — do-not-re-test; its only

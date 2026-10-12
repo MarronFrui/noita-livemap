@@ -1019,7 +1019,7 @@ Key functions mapped:
   lives in BiomeSpawnScripts::GameLuaManager instances (global list
   DAT_01347698..0134769c, 12 list-management users dumped — consumer not yet
   among them)
-- 1,958 RTTI class names extracted (/tmp/opencode/rtti-names.txt) — no
+- 1,958 RTTI class names extracted (mapgen/extractions/rtti-names.txt (X20)) — no
   wang/generator class (the fill is free functions)
 
 Method notes: byte-scan fingerprints for short constants (0x343FD = fd 43 03 00)
@@ -1231,7 +1231,7 @@ vertex row-major, the rep-reduce pass, the `(H+4)/4+6` vertex grid (70×32),
 warm-up absorbed. The 644M-candidate failure (§7septies verdict) and the
 §7novies negative were both purely the SEED. Files (new, on disk):
 `experiments/2026-09-08-subseed-sweep.mjs` (planted-solution integrity test —
-PASS; flip-rate calibration), `-export.mjs` (key binaries → `/tmp/opencode/
+PASS; flip-rate calibration), `-export.mjs` (key binaries → `the session temp bank (now settled under mapgen/extractions/, manifest X1–X61)
 subsweep/key_{91,92,93}.bin`), `2026-09-08-subseed-sweep.c` (sweeper; FNV
 grid-hash cross-check vs JS bit-identical on 5 values; planted key → exactly
 1 survivor in 2.147e9), `2026-09-08-subseed-invert.mjs` (S → C inversion),
@@ -2913,7 +2913,7 @@ first use from now on):**
       (113): 0x44d0b0 = the CRT FLOOR wrapper — cvtss2sd → fldl →
       fstpl → MSVCR120.dll!floor (IAT 0x114a534, hint 1646) → fstpl →
       cvtpd2ps, NO fistp anywhere in the 55-B body; byte-read
-      (`/tmp/opencode/verify-floor-113.mjs`). So every "round" gloss
+      (`mapgen/extractions/verify-floor-113.mjs (X9)`). So every "round" gloss
       below and every round-derived number in this entry = wrong]**;
       identity of
       the second = **true 0x44d110 (slab 0x4c910) = SIN — resolved via
@@ -2929,7 +2929,7 @@ first use from now on):**
       **[SUPERSEDED (113): the slot→name chain read here was off by one
       from 0x114a514 on and mis-labelled 3 slots; re-read from the PE
       import directory (name-records resolved, not assumed,
-      `/tmp/opencode/resolve-wrappers-113.mjs`): 0x114a510 =
+      `mapgen/extractions/resolve-wrappers-113.mjs (X7)`): 0x114a510 =
       _libm_sse2_acos_precise · 0x114a514 = _libm_sse2_cos_precise ·
       518 = _libm_sse2_log10_precise · 51c = _libm_sse2_pow_precise ·
       520 = _libm_sse2_sin_precise · 524 = _libm_sse2_sqrt_precise ·
@@ -2982,7 +2982,7 @@ first use from now on):**
 
 - **2026-09-20 (27) — dig #12: the dispatcher cores W2-side READ (all five
   remaining noise-lane cores names/formulas/tables pinned).**
-  All byte-cited in `/tmp/opencode/cases245.asm` (regen from the exe);
+  All byte-cited in `mapgen/extractions/cases245.asm (X18)` (regen from the exe);
   values verified in-file this session.
   - **case 1 = true 0x8fd850 (slab 0x4fb050) = "FastBlock" LCG-hash
     white noise (f32 in, f64 out)**: seed = trunc(x)·1733853720
@@ -3367,7 +3367,7 @@ first use from now on):**
   data_raw.bin f[0xee9600:0xf25a00]); C13 anchor re-pinned first
   (`cmp eax,0xFF420000` @ file 0x500e4d = true 0x901a4d = slab
   0x50124d ✓). All address math python; windows in
-  /tmp/opencode/slabs (ephemeral) — the load-bearing byte facts are
+  mapgen/extractions/slabs (X41) (ephemeral) — the load-bearing byte facts are
   registered below and in CONSTANTS.md C44.
   - Call graph (all e8 caller/callee targets byte-read):
     - **fn A = slab 0x4ee470 = true 0x8EEC70** — the LAYER-1 band
@@ -3543,7 +3543,7 @@ first use from now on):**
      Both 0xc33222/0xc33234 land mid-instruction in fulltext86 (`lea`
      @0xc3321f, `je` @0xc33233) and 0x1033a1c..0x1033a5e are not
      decoded labels there — the thunk bytes were read straight from
-     the exe; `/tmp/opencode/resolve-wrappers-113.mjs`]**
+     the exe; `mapgen/extractions/resolve-wrappers-113.mjs (X7)`]**
   2. **The switch has FOUR branches:** slab 0x50a355: `dec`×ε cascade —
      addNoise 1→0x50a7eb (ported dig #11), 2→**0x50a6ba**, 3→**0x50a603**,
      else→0x50a37d..0x50a41b (calls **true 0x8FB570 = UNREAD**; dead in
@@ -3804,7 +3804,7 @@ first use from now on):**
     poison the I1 instrument against the no-guessing mandate, so
     the dig #26 deliverable is the registered evidence + these
     three named sub-reads as the fresh-session queue. Artifacts:
-    /tmp/opencode/caves-fnA.asm (1050 lines incl. the two blend
+    mapgen/extractions/caves-fnA.asm (X17) (1050 lines incl. the two blend
     twins at 0x4ef070/0x4ef150), caves-fnB.asm (3551 lines).
 
 - **2026-09-21 (43) — dig #26 addendum: sub-reads (a)+(b) PARTIALLY
@@ -3887,7 +3887,7 @@ first use from now on):**
     caves-field port) but now with a byte oracle artifact to match.
 
 - **2026-09-21 (46) — dig #27: the worm-node mislabel CORRECTED + fn B's
-  phase map read (objdump-only, fresh slabs; artifacts /tmp/opencode/
+  phase map read (objdump-only, fresh slabs; artifacts the session temp bank (now settled under mapgen/extractions/, manifest X1–X61)
   worm.asm + in-repo dumps unchanged).**
   1. **true 0x8FAFC0 (slab 0x4fa7c0) DECODED = NOT a worm — it is the
      B-CHANNEL / SCRIPT-MARK RECORDER, the in-binary twin of C32's
@@ -4185,13 +4185,13 @@ first use from now on):**
     interpolation before the 0x4ee130 setter call. The per-record
     +0x1c/+0x20 f32/int window = the CaveStructure pattern's count/
     strength fields (C50's "DIFFERENT struct" note lives HERE).
-  - Artifact: /tmp/opencode/fnb.dis (3551 lines, the full fn B slab).
+  - Artifact: mapgen/extractions/fnb.dis (X35) (3551 lines, the full fn B slab).
   - NEXT (unchanged): per-phase block semantics between the call sites
     (the layer-2/3 setter arg masks, the aabb arithmetic, the
     beginning-paths lane), then the port against the C48 oracle.
 
 - **2026-09-21 (55) — fnB sub-read (1): the layer-2/3 setter arg masks
-  DECODED byte-exact (all slab windows in /tmp/opencode/fnb.dis; true
+  DECODED byte-exact (all slab windows in mapgen/extractions/fnb.dis (X35); true
   VA = slab + 0x400800 per C13; anchor re-pinned ✓):**
   - **Layer-2 (slab 0x4f186b..0x4f18d6 = true 0x8F2265..0x8F20D6):**
     1. Random draw (C6/C7 closed form → edx).
@@ -4870,7 +4870,7 @@ first use from now on):**
     @0x116b1c4 + `" ) - SetValue( "` @0x116b1f8 + `" ) - couldn't find
     the member\n"` @0x116b220); getters int 0x4448e0, f32 0x444970, bool
     0x444850, string 0x445820, presence 0x4447f0; arm rule = key imm
-    +0x16 → store. Window: `/tmp/opencode/recparse.dis` (adjust-vma
+    +0x16 → store. Window: `mapgen/extractions/recparse.dis (X37)` (adjust-vma
     0x4b1100), every store byte-read this session.
   - **CavesSetup slots:** header +0x00 (vtable presumed, NOT read);
     name SSO string +0x04..+0x1c (key "name" `mov $0x116a8fc` @4b144c,
@@ -4901,7 +4901,7 @@ first use from now on):**
     on the consumer side, w[+0x1c]/h[+0x20]).
   - **Record dispatcher = true VA 0x4ABD60, class `"CaveStructure"`
     @0x117bf0c** (error arm pushes `" ) - SetValue( "` 0x116b1f8 + the
-    class name); window `/tmp/opencode/recdisp2.dis` (adjust-vma
+    class name); window `mapgen/extractions/recdisp2.dis (X38)` (adjust-vma
     0x4ABD40). Nine keyed stores, key strings read this session:
     `image_file` 0x117bf1c → SSO string +0x04 (`add $4,%esi` @4abda2 +
     the SSO quartet); `count_min` 0x117bf38 → `mov %eax,0x1c(%esi)`
@@ -5713,7 +5713,7 @@ first use from now on):**
     ret @0x741ab4, int3 pad 0x741ab7..F, next prologue 0x741ac0);
     ctor store run @0x65f4c9..0x65f4ec; LoadFromImageData per-pixel
     0x8f9be4..0x8fa182 (fresh aligned windows over the cached
-    /tmp/opencode/lfid.dis, fn span 0x8f9ab0..0x8fa930 = C62 ✓);
+    mapgen/extractions/lfid.dis (X36), fn span 0x8f9ab0..0x8fa930 = C62 ✓);
     pixel fetcher 0x9fe3c0..0x9fe44f. Before the hunt: VERIFIED §8
     rows 18–25 + C64/C65 re-read (phantoms honored: no `call
     0x8ed180`, no `movl $0x132b518,0x38(%esi)`, no "wang-fill
@@ -6027,7 +6027,7 @@ first use from now on):**
     read by dd at file = VA − 0x400E00: 0x119f068 = `gfx_glow_color`,
     0x119f078 = `wang_color`, 0x114b900 = dword `0a 00 00 00` +
     `vector<T> too long` (hexdump). Call-site censuses from the
-    cached full-.text sweep /tmp/opencode/fulltext86.asm (this
+    cached full-.text sweep mapgen/extractions/fulltext86.asm (X1) (this
     session). Before the hunt: VERIFIED §8 rows 18–25 + C64–C68
     re-read; phantoms honored (no `call 0x8ed180`, no `movl
     $0x132b518,0x38(%esi)`, no "wang-fill @0x8ee5bd", no `push
@@ -6468,7 +6468,7 @@ first use from now on):**
     and the `+0x1e0` slot-width overturn (§8 row 28).**
     - Method: byte RE of `noita_dev.exe` (17,007,104 B, md5
       `8b611494212a69492dd0a4527d9c92e0`) — awk/grep windows over the
-      cached true disassembly (`/tmp/opencode/fulltext86.asm`) +
+      cached true disassembly (`mapgen/extractions/fulltext86.asm (X1)`) +
       python `.rdata` scans (`file_off = VA − 0x400e00`, C13).
       Docs-only dig; no port changes; `lib/` untouched.
     - **① Classifier `0x8f5030..0x8f5749`** (file string 0x1173240 =
@@ -6605,7 +6605,7 @@ first use from now on):**
     item dissolved.**
     - Method: byte RE of `noita_dev.exe` (17,007,104 B, md5
       `8b611494212a69492dd0a4527d9c92e0`) over the cached true
-      disassembly `/tmp/opencode/fulltext86.asm` (slab→true +0x400800
+      disassembly `mapgen/extractions/fulltext86.asm (X1)` (slab→true +0x400800
       re-confirmed this session: C53's 4f1510/4f1f01/4f2a3c convert
       EXACTLY to 8F1D10/8F2701/8F323C; dispatchers 4b1410/4abd60
       already true). Docs-only dig; `lib/` untouched, `vendor/`
@@ -6758,7 +6758,7 @@ first use from now on):**
     the (93) BUILD residual is now OPEN only on its RESOLVE half.**
     - Method: byte RE of `noita_dev.exe` (17,007,104 B, md5
       `8b611494212a69492dd0a4527d9c92e0`) over the cached true
-      disassembly `/tmp/opencode/fulltext86.asm` (slab→true +0x400800;
+      disassembly `mapgen/extractions/fulltext86.asm (X1)` (slab→true +0x400800;
       `.rdata` VA = file + 0x400E00; strings recovered by scanning the
       exe binary — objdump's ASCII gutter splits literals, so `grep` of
       the asm never matches them). Docs-only dig; `lib/` untouched,
@@ -6885,7 +6885,7 @@ first use from now on):**
     `rarePolka`, arities 1/3/4/6), byte-cited gate by gate, + 37
     tests + the api-surface pin; module-as-library only, default
     render untouched.**
-    - Method: byte RE over `/tmp/opencode/fulltext86.asm` — classifier
+    - Method: byte RE over `mapgen/extractions/fulltext86.asm (X1)` — classifier
       loop/assert region 1512120..1512205 + loop tail 1512525..1512565
       + limit/polygon 1512305..1512392, ramp + the 8fbed6..8fbf26 gap
       1520576..1520668, builder 1516229..1516965, hashes
@@ -6992,7 +6992,7 @@ first use from now on):**
     the SURFACE_V3 lane (chain = C76); 3 new data-gated tests, default
     render untouched.**
     - **① RE — full chain byte-pinned this session** (all cites = CONSTANTS
-      C76; source `/tmp/opencode/fulltext86.asm`): FUN_0090d860's loop —
+      C76; source `mapgen/extractions/fulltext86.asm (X1)`): FUN_0090d860's loop —
       outer **ESI = y** (init `mov (%ebx),%esi` @0x90d8cf → save
       `[esp+0x14]`, min-fold head `jge 0x90dddd` @0x90d8ed), inner
       **EDI = x** (`xor %edi,%edi` @0x90d8f6, bound `*[args+0x10]`, tail
@@ -7092,7 +7092,7 @@ first use from now on):**
       color-keyed ⇒ hills_flat/mountain_center defs are color-absent —
       asserted and noted in-test; raw XML stays ground truth for those).
     - **② The switch, full re-read** (CONSTANTS **C77**; source
-      /tmp/opencode/fulltext86.asm + /tmp/opencode/rdata.bin, file = VA −
+      mapgen/extractions/fulltext86.asm (X1) + mapgen/extractions/rdata.bin (X33), file = VA −
       0x400E00, anchor 0xeb14 ↔ VA 0x11df914): gate `comiss 0x11dfb84`
       @true **0x90ab48** → `jbe 0x90b0a2`; loads @0x90ab55/0x90ab5b;
       `dec %eax` @0x90ab74 → je 1→**0x90afeb** / 2→**0x90aeba** /
@@ -7210,7 +7210,7 @@ first use from now on):**
       including (11,12) itself (Δ −0.0317/−0.0049/−0.0486) and the sign
       control (−11,−12) (−0.0240/−0.0082/−0.0474) — now negative ⇒
       sign-closed. **Layer+sign proof by reconstruction**
-      (`/tmp/opencode/l3-matched-window.mjs`): rebuilding the pre frame
+      (`mapgen/extractions/l3-matched-window.mjs (X23)`): rebuilding the pre frame
       from the current code via back-shift `old(q) = new(q−anchor)` and
       scoring (11,12) is **bit-equal to the recorded pre JSON 32/32 ×
       air/edge/lum**, post full (0,0) equals the recorded post JSON 32/32
@@ -7393,7 +7393,7 @@ first use from now on):**
     applied.**
     - Method: byte RE of `noita_dev.exe` (17,007,104 B, md5
       `8b611494212a69492dd0a4527d9c92e0`, per (94)) over the cached true
-      disasm `/tmp/opencode/fulltext86.asm` + direct rdata reads
+      disasm `mapgen/extractions/fulltext86.asm (X1)` + direct rdata reads
       (file = VA − 0x400E00; anchors re-validated in the SAME run:
       `0x11dffe8` = f64 101.0, `0x11dfa40` = f32 0.4; `0x11dfef0` /
       `0x11e05f8` raw-byte hexdumped). Docs dig: `lib/` untouched by
@@ -7496,7 +7496,7 @@ first use from now on):**
       landed: L1 `SURFACE_LOG` JSONL logger + L2 fit extension;
       baseline FAIL preserved at
       `mapgen/out/surface-y-2026-09-24.entry101.json`, baseline log
-      `/tmp/opencode/surface-y-log-baseline.jsonl`. The drop path
+      `mapgen/extractions/surface-y-log-baseline.jsonl (X40)`. The drop path
       (`SURFACE_V3` const + attach gate + genmap-server r3i→r3j) stays
       OFF until an IoU PASS. Q1/Q2 remain parked for the user's Ghidra
       at 0x7930d3.
@@ -7514,12 +7514,12 @@ first use from now on):**
     meanAbs ⇒ drop path stays OFF, no §12 distill.**
     - Method: one patch per the (102) stage-7 design + C81/C82, every
       byte fact RE-VERIFIED from `CONSTANTS.md:109-110` and the cached
-      dumps this session — `/tmp/opencode/fna-102.asm`: the prologue
+      dumps this session — `mapgen/extractions/fna-102.asm (X10)`: the prologue
       coin `cmovl %edx,%ecx` with edx=1 ⇒ flag = `[trunc(101u) < 50]`,
       the d-split `[−0x20] = max(d₀²,0) / [−0x28] = min(d₀²,0)`
       @8ef53d..8ef565, the child tail `decl` @8ef79e → budget draw
       @8ef7c6 → `xorps` sign-flip → recursion @8ef823 → `jbe 8ef0d0`;
-      `/tmp/opencode/fnb-102.asm`: the caller pair mirrors @8f0068 /
+      `mapgen/extractions/fnb-102.asm (X11)`: the caller pair mirrors @8f0068 /
       8f00ce / 8f019e / 8f0182 / 8f0298 / 8f02b9 (case A/B/switch all
       sync `(X,Y)` ⇒ the port passing the chain slots is
       byte-consistent); knob keys `biomes.mjs:170-183`. No sweeps.
@@ -7558,7 +7558,7 @@ first use from now on):**
       47.17, nPairs +20; winter + lake byte-identical (0 flips).
       The headline meanAbs +1.60 = the +205 newly-paired columns
       entering the pool with their own errors.
-    - L1 diff (`/tmp/opencode/surface-y-log-{baseline,q3a}.jsonl`,
+    - L1 diff (`mapgen/extractions/surface-y-log-baseline.jsonl (X40) — the fuller brace runs were {baseline,q3a}.jsonl`,
       199,542 lockstep samples, 0 coord mismatches): **2,029 solid
       flips, ALL `gradKind:caves`** — 1,942 AIR→SOLID vs 87
       SOLID→AIR (net +1,855 sample cells solid); field delta
@@ -7596,7 +7596,7 @@ first use from now on):**
     - Method: local Ghidra dumps for the region (P1) + one 4-fn
       P1DumpList headless run (0x909c70 / 0x94c700 / 0x8fd920 /
       0x8fdad0 — 4/4 OK, javac-pre-verified first). Asm lane =
-      /tmp/opencode/text.bin (exe f[0x400c00:0xdd0000], objdump
+      mapgen/extractions/text.bin (X32) (exe f[0x400c00:0xdd0000], objdump
       `--adjust-vma=0x801800` ⇒ printed = true VA; file = VA −
       0x400C00), with the VA map re-pinned on C77's digest facts
       BEFORE reading: `comiss xmm2,[0x11dfb84]` @0x90ab48 (jbe rel →
@@ -7794,7 +7794,7 @@ first use from now on):**
     Resolves (105) [OPEN (a)]; C75's `v` input now sourced
     byte-level on both ends of the port contract. No patch, no port,
     no IoU — judge parked.**
-    - Method: `/tmp/opencode/fulltext86.asm` (cached whole-exe AT&T
+    - Method: `mapgen/extractions/fulltext86.asm (X1)` (cached whole-exe AT&T
       disasm, true VAs — C57 scope note: 0x7930d3 ∈ lower .text, NOT
       text.bin) for all driver windows + text.bin (`f[0x400c00:
       0xdd0000]`, adjust-vma 0x801800) for 0x908f96..0x908fe0; rdata
@@ -7883,7 +7883,7 @@ first use from now on):**
     opens of (106) ([esp+0x2c]/[esp+0x30]/[esp+0x40] write-flow,
     [esp+0x54] at the id-check, 0x793df2's target, grass nesting).
     No patch, no port, no IoU — judge parked.**
-    - Method: `/tmp/opencode/fulltext86.asm` windows only (driver ∈
+    - Method: `mapgen/extractions/fulltext86.asm (X1)` windows only (driver ∈
       lower .text; text.bin not needed this round); every window
       grepped on disk this session (incl. the 0x79369a..0x7936f5
       factory window re-read after an early grep truncation).
@@ -8014,7 +8014,7 @@ first use from now on):**
     this). Closes (107)'s [esp+0x38] identity open and the
     tree-handler continuation open; corrects (106)'s post-call
     quote. No patch, no port, no IoU — judge parked.**
-    - Method: `/tmp/opencode/fulltext86.asm` windows only (driver ∈
+    - Method: `mapgen/extractions/fulltext86.asm (X1)` windows only (driver ∈
       lower .text); every address below re-read on disk this session;
       floats + assert strings byte-read from `noita_dev.exe` (rdata
       file = VA − 0x400E00).
@@ -8177,7 +8177,7 @@ first use from now on):**
     pair-array-provenance opens, and pins `driver[+0x28] = width` /
     `driver[+0x8c] = ceiling_plants_to_insert`. No patch, no port,
     no IoU — judge parked.**
-    - Method: `/tmp/opencode/fulltext86.asm` windows only; every
+    - Method: `mapgen/extractions/fulltext86.asm (X1)` windows only; every
       address below re-read on disk this session; assert strings
       byte-read from `noita_dev.exe` (rdata file = VA − 0x400E00).
     - **The NULL path inserts ceiling plants** (0x793105..0x793314):
@@ -8299,7 +8299,7 @@ first use from now on):**
     elapsed time; `frame[+0x48]` writer found; CORRECTION of (109)'s
     "third vector". Closes (107)'s post-loop opens and (109)'s two
     tags. No patch, no port, no IoU — judge parked.**
-    - Method: `/tmp/opencode/fulltext86.asm` windows; strings
+    - Method: `mapgen/extractions/fulltext86.asm (X1)` windows; strings
       byte-read (`0x11a4814`, `0x117a518`); every address below
       re-read on disk this session.
     - **Function range byte-defined**: `FUN_00792580` =
@@ -8444,9 +8444,9 @@ first use from now on):**
     (109)'s / (110)'s setup-region, env-sample, frame[+0x70]/[+0x50]/
     [+0x48]/[+0x80]/[+0x7c] and "frame[+0xf0] fill" tags. No patch, no
     port, no IoU — judge parked.**
-    - Method: `/tmp/opencode/fulltext86.asm` (true VAs) for every
-      0x793xxx site + window `/tmp/opencode/dig111-setup.asm`
-      (0x792503..0x792eff) + `/tmp/opencode/dig111-biome.asm` (the two
+    - Method: `mapgen/extractions/fulltext86.asm (X1)` (true VAs) for every
+      0x793xxx site + window `mapgen/extractions/dig111-setup.asm (X13)`
+      (0x792503..0x792eff) + `mapgen/extractions/dig111-biome.asm (X14)` (the two
       builder bodies); Ghidra decompiles at
       `~/work/ghidra-logs/surface-region/` as reading aids; strings and
       f64 byte-read from `noita_dev.exe` (rdata file = VA − 0x400E00);
@@ -8753,17 +8753,17 @@ first use from now on):**
     **[UPDATED (113): I22 closed (endpoints swapped); and the cell =
     FLOOR, not round — so "true 0.494" = round-derived = STALE, the
     true byte-literal = 0.898207068 (C92).]**
-    - Method: cached whole-file disasm `/tmp/opencode/fulltext86.asm`
+    - Method: cached whole-file disasm `mapgen/extractions/fulltext86.asm (X1)`
       (true VAs) windows 0x8fb350..0x8fb567 (whole fn: prologue,
       weights, corner chain, blends) + the twin tail 0x8fb789..0x8fb841;
-      the port's own evidence file `/tmp/opencode/case1core.asm`
+      the port's own evidence file `mapgen/extractions/case1core.asm (X15)`
       (slab = true − 0x400800) re-read — byte-identical at every
       cited site; rdata from `noita_dev.exe` at file = VA − 0x400E00,
       byte-read this session: **0x11dfbf0 = f32 1.0** (corner arg
       `addss` @0x8fb4d3 = c0+1), **0x11df874 = f32 0.0** (@0x8fb50c =
       c0+0), re-matched C40/C83 anchors 57.0@0x11e028c,
       58.0@0x11e0298, 43758.546875@0x11e04c8, 2.0@0x11dfe68,
-      3.0@0x11dff70. Numeric demo `/tmp/opencode/sidebyside-112.mjs`.
+      3.0@0x11dff70. Numeric demo `mapgen/extractions/sidebyside-112.mjs (X8)`.
     - **0x8fb350 byte law (whole body re-read):** fx = x − floor(x),
       fy = y − floor(y) (cvttss2si + comiss + jbe/dec floor-fix,
       @0x8fb38f..3cb); **wx = (3.0 − 2·fx)·fx² → slot(-0xc)**
@@ -8865,7 +8865,7 @@ first use from now on):**
   re-derived every byte claim from the exe this session, corrected the
   docs' round-derived glosses, and closed the two issues.
   - **THE OVERTURN: `0x44d0b0` = the CRT `floor` wrapper, not fld/fistp
-    round.** Byte-walk of the PE import directory (`/tmp/opencode/
+    round.** Byte-walk of the PE import directory (`the session temp bank (now settled under mapgen/extractions/, manifest X1–X61)
     verify-floor-113.mjs`, 656 entries, no hardcoded offsets): body
     55 B @0x44d0b0 (ret @0x44d0e6) = `cvtss2sd @0x44d0b9 → fldl @0x44d0c6
     → fstpl @0x44d0ca → call 0x1033a52 @0x44d0cd → fstpl @0x44d0d2 →
@@ -8876,7 +8876,7 @@ first use from now on):**
     every round-derived gloss superseded inline at (26)/(40) and in
     CONSTANTS (C40/C83/C91 + the two "fp-round helper" texts); the
     CORRECT row = **C92**.
-  - **IAT chain re-read whole** (`/tmp/opencode/resolve-wrappers-113.mjs`,
+  - **IAT chain re-read whole** (`mapgen/extractions/resolve-wrappers-113.mjs (X7)`,
     names resolved from the import dir, one thunk per slot in order):
     0x114a510 `_libm_sse2_acos_precise` · 0x114a514
     `_libm_sse2_cos_precise` · 518 `_libm_sse2_log10_precise` · 51c
@@ -8892,7 +8892,7 @@ first use from now on):**
     item's other half, 0xc33222 → 0x114a514, = **cos** not acos.
     The 0xc33xxx are slab VAs (true = +0x400800, C31's memset check).
   - **Floor confirmed at BOTH c0 sites (byte-read
-    `/tmp/opencode/fulltext86.asm`, windows re-read this session):**
+    `mapgen/extractions/fulltext86.asm (X1)`, windows re-read this session):**
     0x8fb350 calls @0x8fb373/382 → `mulss 0x11e028c` (57.0) @0x8fb3e9 +
     `addss −0x8(%ebp)` (floor(x) slot) @0x8fb3fc → store c0 −0x4
     @0x8fb417; 0x8fb570 calls @0x8fb593/5a2, c0 @0x8fb6f2..6fe, and the
@@ -8921,7 +8921,7 @@ first use from now on):**
        addNoise 0 (hills_flat/mountain_lake/laboratory) + stale 4.
     4. `noise-terrain.mjs` comment: the I20 default arm no longer throws
        (only the noiseKind −1 winter/mountain_center path does).
-  - **Numeric re-derivation** (`/tmp/opencode/sidebyside-112.mjs`, floor
+  - **Numeric re-derivation** (`mapgen/extractions/sidebyside-112.mjs (X8)`, floor
     cell re-run): **port ≡ asm-literal at all 5 points, |Δ| ≤ 1.19e-7**;
     the asm-complement (pre-(112) orientation) now mismatches everywhere
     (0.17..0.54). Literals — (12.5,−3.25) **0.898207068** / compl
@@ -8944,7 +8944,7 @@ first use from now on):**
     diverging from the plain-smoothstep lattice (comment fixed
     round(2.25) → floor(2.25)).
   - **Gates: `npm test` = 261/261, exit 0, 51 s** (log
-    `/tmp/opencode/fulltest-113.log`).
+    `mapgen/extractions/fulltest-113.log (X26)`).
   - Landed: CONSTANTS **C92** (+ supersessions at C40/C83/C91 and the
     two "fp-round helper" texts), ISSUES **I20** + **I22** closed,
     VERIFIED CASE-1 fidelity caveat updated to "fixed" (0.898207068) +
@@ -8956,11 +8956,11 @@ first use from now on):**
   verdict = FIELD SHAPE dominates, registration does NOT ⇒ I21 parked; the
   reproducible V2 chunk census instrument landed (+ a handover correction);
   `npm run bench` = NO observable default-lane change ⇒ cache r3i STANDS.**
-  All numbers re-derived on disk this session (logs in `/tmp/opencode`).
+  All numbers re-derived on disk this session (logs in the session temp bank — 2026-10-12: not individually banked; the instrument name in the row stands).
   - **① IoU re-run — the gate I21 was waiting on** (`SURFACE_V3=1 node
     mapgen/experiments/2026-09-24-surface-y-iou.mjs`, C79 spec; this run
-    `/tmp/opencode/iou-114.log` vs the pre-#113 Oct-2 run
-    `/tmp/opencode/iou-113.log`):
+    `mapgen/extractions/iou-114.log (X24)` vs the pre-#113 Oct-2 run
+    `mapgen/extractions/iou-113.log (X25)`):
     - **overall: n 7064→7065, meanAbs 88.76 → 89.58, bias 1.62 → 2.88,
       ±3 0.046 → 0.045, genNoLine 14902 → 14901, fitX(a) 0.11583 → 0.09831,
       fitDepth(a) −0.347 → −0.562** (b 86.65 → 99.172).
@@ -9010,13 +9010,13 @@ first use from now on):**
       `templateFile`, `noise-terrain.mjs:202-204`; COMPUTES = `noiseAt`
       non-null; density = Σmask/2704; textured = 0 < d < 1), and the
       frame `biomeAt(config, tx, ty − SKY_ROWS)` mirrors `:202`.
-    - **HEAD (post-#113) run** `/tmp/opencode/census-114-post113.log`:
+    - **HEAD (post-#113) run** `mapgen/extractions/census-114-post113.log (X29)`:
       **2288 procedural · 663 COMPUTES · 1625 falls · mean density
       0.0183 · all-air 17 · textured 646 · all-solid 0**; every fall =
       `noiseDispatch kind -1 (no noise_type)` (0 UNKNOWN, 0 default-arm).
     - **A/B vs pre-#113** (`mapgen/lib/noise-proto.mjs` swapped to
       `f33f0bd~1`, run, restored — `git status --short` clean after, only
-      the new untracked script) `/tmp/opencode/census-114-pre113.log`:
+      the new untracked script) `mapgen/extractions/census-114-pre113.log (X28)`:
       **658 · 1630 · 0.0185 · all-air 18 · textured 640**. Row diff =
       **exactly one fall reason disappears: mountain_lake.xml `5 proc,
       0 compute, 5 fall (surfaceField default arm …)` → `5 proc, 5
@@ -9037,7 +9037,7 @@ first use from now on):**
       question → **ISSUES I23**.
   - **③ THE BENCH GATE (cache rev) — NO observable default-lane change ⇒
     r3i STANDS (no bump).**
-    - `npm run bench` (log `/tmp/opencode/bench-114.log`): gen wrote 96
+    - `npm run bench` (log `mapgen/extractions/bench-114.log (X31)`): gen wrote 96
       chunk entries, ref re-sliced **1100** chunks (every tile a
       **cache hit** — `find mapgen/out/cache -newermt "2026-10-06 05:00"`
       = empty, so no ref byte was fetched/altered today), diff scored
@@ -9065,7 +9065,7 @@ first use from now on):**
   - **④ Flat-region rms vs frozen91 re-run — and the gate's blind spot.**
     `SURFACE_V2=1 node mapgen/experiments/2026-09-21-surface-shape.mjs`
     (default window tx 29..47 × ty 11..19, 171 rows; log
-    `/tmp/opencode/shape-114.log`): **allPixelRms 64.647 · flatPixelRms
+    `mapgen/extractions/shape-114.log (X19)`): **allPixelRms 64.647 · flatPixelRms
     46.958 · flatCoverage 0.1571 · refSolidFrac 0.69031 · refSky 0.01876
     · refVoid 0.29093 · genSolidFrac 0.50392.** Prior comparable run =
     entry **(39)** (2026-09-21, same handoff window): allPixelRms
@@ -9075,7 +9075,7 @@ first use from now on):**
     session cannot explain** (refSolid matches (39) to 3 dp and no ref
     byte was touched today) — flagged, not attributed.
     **The gate's blind spot, re-confirmed by probe this session**
-    (`/tmp/opencode/probe-v2window-114.mjs`, SURFACE_V2=1): that window
+    (`mapgen/extractions/probe-v2window-114.mjs (X22)`, SURFACE_V2=1): that window
     contains **procedural = 0, v2masks = 0** — exactly (39)'s diagnostic
     — so the standing flat-rms instrument measures the **wang/template
     bands only** and CANNOT see a surface-lane change. (39) already
@@ -9085,7 +9085,7 @@ first use from now on):**
     (`mapgen/out/gen-shape-2026-09-21.json`) regardless of window, so
     runs overwrite each other — the pre-run file (the (39)-era
     diagnostic-window JSON, ty 0..10, refVoid 0.953) was preserved at
-    `/tmp/opencode/gen-shape-pre114.json` before the re-run.
+    `mapgen/extractions/gen-shape-pre114.json (X39)` before the re-run.
   - **⑤ Frame divergence observed while reading the census (no verdict —
     reported, not guessed):** the V2 lane evaluates the field in CELL
     coordinates, `gx = tx·CELLS_PER_CHUNK + cx + 0.5` with
@@ -9196,7 +9196,7 @@ first use from now on):**
     **1951247** town_under/forest (`FF01CFEE` → 4 colors, `FF12BBEE`);
     comments verbatim: "changes the color to random material",
     "randomizes blocking and non blocking paths", "can be used to
-    randomize scripts as well" (`/tmp/opencode/rc-blocks.txt`).
+    randomize scripts as well" (`mapgen/extractions/rc-blocks.txt (X21)`).
   - **⑤ Pick-sign CORRECTION:** `mulsd 0x11e0578` = f64 **−4.656612875e-10
     = −1/(2³¹−1)** (byte-read) — **NOT −2⁻³¹** (the old gloss was a
     rounding read; magnitude is byte-identical to `0x11df988` =
@@ -9276,8 +9276,8 @@ first use from now on):**
   frame").**
   Docs-only: no code, no cache bump. Every fact below was re-read from
   `noita_dev.exe` on disk **this session** (fresh objdump windows
-  0x908f40..0x909380, 0x90a860..0x90b140 → `/tmp/opencode/dig116-90a860.asm`,
-  0x909da0..0x909e60; call sites from `/tmp/opencode/fulltext86.asm`;
+  0x908f40..0x909380, 0x90a860..0x90b140 → `mapgen/extractions/dig116-90a860.asm (X12)`,
+  0x909da0..0x909e60; call sites from `mapgen/extractions/fulltext86.asm (X1)`;
   floats byte-read in `.rdata` = VA − 0x400E00). Landed: CONSTANTS
   **C95**, ISSUES **I23② settled + action** and an I24④ cross-reference
   fix, VERIFIED **§8 row 36**, this entry **(116)**.
@@ -9460,7 +9460,7 @@ first use from now on):**
     bit-identical** (every scored column unchanged).
   - **④ Mechanism (probed, not inferred):** side-by-side masks of the
     pre-patch lib (`git show 2084bfe:mapgen/lib/*` →
-    `/tmp/opencode/dig117-prelib`) vs the patched lib on the REAL lane
+    `mapgen/extractions/dig117-prelib (X42)`) vs the patched lib on the REAL lane
     coords: desert (45,62) **diffCells=0**; mountain_left_stub (34,62)
     **77 cells 0→1** (band at cy=12); mountain_lake (40,62) 28 cells
     0→1 (cy=20); mountain_tree (31,58) 3; winter (43,62) 8 (its IoU
@@ -9537,7 +9537,7 @@ first use from now on):**
   - **Runs — one process per lane (the flags are module-load-time
     consts, `noise-terrain.mjs:96-97`):** `SURFACE_V3=1`, then
     `SURFACE_V2=1 SURFACE_V3=1`, then `SURFACE_V2=1`; ~40 s each;
-    logs `/tmp/opencode/dig118-shape-{v3,v2v3,v2}.log`; JSONs + overlay
+    logs `mapgen/extractions/dig118-shape-v2.log (X58)`, `dig118-shape-v2v3.log (X59)`, `dig118-shape-v3.log (X60)`; JSONs + overlay
     dirs `mapgen/out/surface-shape-2026-10-10-*`.
   - **Overall numbers** (fR = 0.48029 identical — same ref):
 
@@ -9610,7 +9610,7 @@ first use from now on):**
     the fnB phases after loop A + the record (earlier digs): loop B =
     `mountain_count`, loop C = `blob_caves_count`, then L2/L3. Fresh
     objdump window **VA 0x8EE000–0x8F3700** (6227 lines,
-    `/tmp/opencode/dig119/builder-8EE000-8F3700.asm`); every rdata
+    `mapgen/extractions/builder-8EE000-8F3700.asm (X2)`); every rdata
     constant below re-read from `noita_dev.exe` at file = VA−0x400E00
     (C57) THIS session. **Pitfall:** 11.0 @0x11dff38, 81.0 @0x11dffd8,
     101.0 @0x11dffe8 are **f64** (used via `mulsd`) — an f32 read of
@@ -9789,7 +9789,7 @@ first use from now on):**
   branch closed, C98's 0.1-cite corrected; C97 shape A/B run.**
   - **Scope/method.** The port half of I25's placement gate: entry
     (119)'s laws folded into `mapgen/lib/caves-field.mjs` + the tests.
-    Byte windows re-read from `/tmp/opencode/dig119/builder-8EE000-
+    Byte windows re-read from `mapgen/extractions/builder-8EE000-8F3700.asm (X2) — the text was:
     8F3700.asm` (slab+0x400800 = VA) THIS session for the items (119)
     left truncated: the setter 0x8ee7c9..0x8ee930 (the store + the
     circle arm), loop B's Y_end/coin/row head 0x8f0960..0x8f0b70, L2's
@@ -9914,10 +9914,10 @@ first use from now on):**
     512-chunk biome-map frame — origins [X+0x38]/[X+0x40], `sar $9`,
     `idiv [X+0x50]`, clamp `[X+0x54]−1`, getter `0x94c700` on
     `[X+0x68]`) + the sampler 0x90d860's field-read block + the writer
-    `0x8EE750`'s index math. Byte source: `/tmp/opencode/fulltext86.asm`
+    `0x8EE750`'s index math. Byte source: `mapgen/extractions/fulltext86.asm (X1)`
     (the true-VA full disasm — grep/sed-sliced, so C70's window-
     misalignment trap is avoided), dig #119's builder dump, and
-    `/tmp/opencode/dig121/*.asm`; exe re-verified on disk this session
+    `mapgen/extractions/dig121-fn908f40.asm (X43)`, `dig121-fn90b110.asm (X44)`, `dig121-sampler90d860.asm (X46)`, `dig121-sampler90da00.asm (X47)` + `dig121-rev90b280.asm (X45 — 0 B salvage; re-extract the window from the exe when the kind-0 dig opens it)`; exe re-verified on disk this session
     (17,007,104 B, md5 `8b611494212a69492dd0a4527d9c92e0` = C13).
   - **THE ANSWER (I25 index half): CELL, not u-law.** The game's caves
     consumer = the sampler 0x90d860's field read @0x90dba5..0x90dbd0:
@@ -10050,8 +10050,8 @@ first use from now on):**
     it pushes; (ii) the setter's flag=1 eave arm + its y source; (iii) the
     record lane's engine identity (0x8EF950's float twin + the caller);
     (iv) the per-stamp template ctor. Reads from the true-VA builder
-    slice `/tmp/opencode/dig119/builder-8EE000-8F3700.asm` +
-    `/tmp/opencode/fulltext86.asm` + the PE const bank; exe md5
+    slice `mapgen/extractions/builder-8EE000-8F3700.asm (X2)` +
+    `mapgen/extractions/fulltext86.asm (X1)` + the PE const bank; exe md5
     re-verified = C13.
   - **Result — the WALK half (byte-exact).** The walk's stamp @0x8ef37c
     = the setter 0x8EE750 with **VALUE = `[−0x20]` = the 3-segment
@@ -10273,3 +10273,61 @@ first use from now on):**
     (incl. the y224 oracle byte bar — the stream shift moved no stamp
     onto y224 x0..11). **No cache bump** (v2 bit-identical). Next
     free: entry **(124)**, **C103**, **I29**; §8 row **44** free.
+- **2026-10-12 (124) — dig #124: I29 Stage 1 EXECUTED — the canon-source
+  audit (constant-sweep + citation-bank conversion); the M3 walk read
+  rescheduled to (125)**
+  - **Scope/method.** The I29 stage-1 machine pass: (i) the
+    **const-verifier** — every parseable `(value, VA[, width])` pair in
+    the 98 C-rows read at the section-mapped offset of the live exe
+    (md5 = C13 re-verified) and compared under the declared (or both)
+    widths; (ii) the **citation sweep** — every `/tmp`-cited extraction
+    artifact salvaged from the still-alive session temp dir, landed under
+    `mapgen/extractions/`, digest-pinned, and every registry cite
+    converted to a manifest row; (iii) the **link check** — every new
+    extraction cite must resolve on disk + be manifest-registered (a
+    mechanical post-commit gate now: scripts/precommit-gates.mjs).
+  - **Findings.** (1) **0 genuine constant mismatches in 131 machine
+    verdicts** + 3 sign-ambiguities resolved by eyes as canon-correct
+    (the rows' own text carries the negative signs — `[0x11e05f8] = f64
+    −3.0`, `[0x11e0610] = f64 −5.0`, `[0x11e05a8] = f32 −1.0`); 5
+    RUNTIME (BSS) cites classified honestly (C47's CE pair), 5 CODE
+    cites skipped correctly. Coverage note: only ~18 C-rows carry
+    parseable float pairs — the machine tier pins the const banks, and
+    stages 2–3 (eyes) own the law rows (the I29 table stays open).
+    (2) **C57 precision**: the flat `VA−0x400E00` mapping is exact for
+    `.rdata` (section table reproduced it to the byte) but NOT for
+    `.data` (its delta is 0x401A00) — the const-verifier uses the real
+    PE section table and C103 registers the law. The C47 CE cites
+    proved to be `.data` BSS (beyond RawSize) — runtime-only by design,
+    now classified properly by the instrument.
+    (3) **~100 volatile `/tmp` citations → manifest banks X1–X61**
+    (each digest-verified vs disk): fulltext86 (188 MB), raw .text/
+    .rdata bytes, the dig121 noise-lane windows, dig111/116 window
+    dumps, dig118 shape logs, the surface-y logs, `slabs/` (234 MB),
+    `dig117-prelib/`, the dig123 windows (X48–X57 = the dig-123-era
+    citations' restatement). Residual `/tmp` cites in the registries:
+    **0** (three bare temp-bank mentions annotated as provenance notes).
+    (4) link-checker: 96 extraction cites — 0 problems.
+  - **Pitfalls (tool-audit incidents, all caught by the machine gates or
+    my own re-read).** The width token "f64"-digit parse bug (every f64
+    pair mispaired → false MISMATCH ×15 — caught by debugging the TOOL,
+    not by touching the canon); the ±-token sign drop (3 false
+    MISMATCHes — the canon was right); the pre-commit citation lint
+    BLOCKED two of my own commits before they landed (a dangling var +
+    a manifest-scoping false positive — cleanup on the spot); the MSVC
+    wrapped 'Next free' phrase — path citations in single-line-greps
+    break on wrapped lines (use entry headers, the hook law).
+  - **Port.** No port changes (an audit dig): the register/law content
+    untouched except C57/C47 precision annotations IN C103 (the law row)
+    + the sweep's classification (no canon row overturned — the first
+    sweep verdict = the canon's numeric layer is byte-sound).
+  - **Tests.** 272/272 (265 + 7 const-verifier PE spot checks —
+      the .rdata/.data mappings, the spot pairs, the sign twins, the BSS
+      classification). Oracle byte bar ran (the surf suite).
+  - **Landed:** ABOUT_MATH **(124)**, CONSTANTS **C103**, ISSUES **I29
+    stage-1 annotated** (stages 2–3 remain), VERIFIED §12 note (this
+    row: the instrument exists + the mapping law), manifest **X1–X61**
+    (each digest-verified), `scripts/precommit-gates.mjs` + hooks
+    (`7b-neighbouring commits` spirit), `tests/mapgen/const-verifier.test.mjs`.
+    Tests **272/272**. **No cache bump** (no render change). Next
+    free: entry **(125)**, **C104**, **I30**; §8 row **45** free.

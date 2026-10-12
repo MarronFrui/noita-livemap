@@ -38,14 +38,14 @@ function runCommitMsg(msgFile, staged) {
   if (!m) return ok("non-dig commit — no dig structure required");
 
   const n = Number(m[1]);
-  // The 'Next free' line wraps mid-phrase in older entries (the "(124)"
-  // instance is split across lines) — derive the next free dig from the
-  // entry HEADERS ("(N) — dig #N:"), which are always single-line.
-  const head = Number(
-    (sh(`grep -oE "\\([0-9]+\\) — dig #[0-9]+" mapgen/ABOUT_MATH.md | tail -1`)
-      .match(/dig #(\d+)/) ?? fail("cannot read ABOUT_MATH entry headers"))[1]
-  );
-  const nextFree = head + 1;
+  // Compare against the HEAD (committed) version, not the working tree —
+  // the dig's own entry (N) + next-free (N+1) ARE part of the staged diff.
+  const headDoc = (() => {
+    try { return execSync(`git show HEAD:mapgen/ABOUT_MATH.md`, { encoding: "utf8" }); }
+    catch { return ""; }
+  })();
+  const prevHead = Math.max(...[...headDoc.matchAll(/\((\d+)\) — dig #\d+/g)].map((m) => Number(m[1])), 0);
+  const nextFree = prevHead + 1;
   if (n !== nextFree) {
     fail(`dig #${n} ≠ head-entry+1 (${nextFree}) — fix the dig numbering or the skipped registry entry first`);
   }
@@ -55,7 +55,7 @@ function runCommitMsg(msgFile, staged) {
     }
   }
   const addedAbout = sh("git diff --cached -U0 -- mapgen/ABOUT_MATH.md")
-    .split("\n").filter((l) => l.startsWith("+")).join(" ")
+    .split("\n").filter((l) => l.startsWith("+")).map((l) => l.slice(1)).join(" ")
     .replace(/\s+/g, " "); // the 'Next free' phrase wraps mid-line in some entries
   for (const need of [`(${n}) — dig #${n}`, `Next free: entry **(${n + 1})**`]) {
     if (!addedAbout.includes(need)) {
