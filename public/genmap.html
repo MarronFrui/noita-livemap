@@ -70,6 +70,12 @@
       // the tiles) → the trackpad bursts become buttery instead of the
       // per-notch 2× jumps; the tile refetch only at the level crossings.
       let zF = 1, zFtarget = 1, zFanim = null;
+      // dig: the zoom anchor — the world point + the screen position frozen
+      // at the wheel event; the eased animation keeps THIS world point under
+      // the cursor at every interpolated frame (the first cut re-anchored
+      // with the mid-flight scale against the target scale = the hard
+      // one-direction drift).
+      let zAnchor = null;
       function setZoomTarget(t) {
         zFtarget = Math.max(0, Math.min(MAXZ, t));
         if (zFanim == null) zFanim = requestAnimationFrame(zoomStep);
@@ -79,9 +85,13 @@
         if (Math.abs(zFtarget - zF) < 0.002) zF = zFtarget;
         const zL = Math.round(zF);
         if (zL !== z) { z = zL; } // the fetch level flips at the .5 crossings
+        if (zAnchor) {
+          cam.x = zAnchor.wx - (zAnchor.mx - cv.width / 2) * 2 ** zF;
+          cam.y = zAnchor.wy - (zAnchor.my - cv.height / 2) * 2 ** zF;
+        }
         draw();
         if (zF !== zFtarget) zFanim = requestAnimationFrame(zoomStep);
-        else zFanim = null;
+        else { zFanim = null; zAnchor = null; }
       }
       const tiles = new Map(); // key -> {img, ok}
       let zones = null, showZones = false; // per-chunk tags
@@ -319,7 +329,7 @@
       seedInput.addEventListener("keydown", (e) => e.key === "Enter" && load());
 
       let dragging = false, last = null;
-      cv.addEventListener("mousedown", (e) => { dragging = true; setFollow(false); last = [e.clientX, e.clientY]; cv.classList.add("dragging"); });
+      cv.addEventListener("mousedown", (e) => { dragging = true; setFollow(false); zAnchor = null; last = [e.clientX, e.clientY]; cv.classList.add("dragging"); });
       addEventListener("mouseup", () => { dragging = false; cv.classList.remove("dragging"); });
       addEventListener("mousemove", (e) => {
         if (!dragging) return;
@@ -332,14 +342,19 @@
       cv.addEventListener("wheel", (e) => {
         e.preventDefault();
         // the wheel deltas: the line-mode multiply, the trackpad pixel-mode = tiny —
-        // accumulate into the eased target (the pinch = ctrl+wheel too)
+        // accumulate into the eased target (the pinch = ctrl+wheel too).
+        // The ANCHOR = frozen in the CURRENT frame (the world point under
+        // the cursor + the cursor position); the eased zoom keeps THE point
+        // under the cursor at every frame (the drift fix).
         const d = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
-        const wx = cam.x + (e.clientX - cv.width / 2) * 2 ** zF;
-        const wy = cam.y + (e.clientY - cv.height / 2) * 2 ** zF;
+        const mx = e.clientX - cv.getBoundingClientRect().left;
+        const my = e.clientY - cv.getBoundingClientRect().top;
+        zAnchor = {
+          wx: cam.x + (mx - cv.width / 2) * 2 ** zF,
+          wy: cam.y + (my - cv.height / 2) * 2 ** zF,
+          mx, my,
+        };
         setZoomTarget(zFtarget - (e.ctrlKey ? d * 2.4 : d) * 0.0022);
-        // anchor: keep the world point under the cursor stable at the target zoom
-        cam.x = wx - (e.clientX - cv.width / 2) * 2 ** zFtarget;
-        cam.y = wy - (e.clientY - cv.height / 2) * 2 ** zFtarget;
       }, { passive: false });
 
       resize();

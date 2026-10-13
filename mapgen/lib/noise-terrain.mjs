@@ -548,44 +548,50 @@ export function attachNoiseTerrain(world, dataDir, seed = 0) {
   // back to null = transparent air (the sky row's blue = the template
   // lane's biome_color, landed later). The game's true parallax/layering
   // = OPEN (tagged): this is the prototype tile law.
-  // dig #133 (I32 p2c, the SKY/Hell layer law): the backdrop SELECTOR —
-  // world rows above the datum (canvas py < 31744, i.e. chunk ty < 62) =
-  // THE SKY (one backdrop: the parallax gradient + stars, to the Heaven
-  // end); rows ≥ 62 = the underground bands = the chunk biome's own
-  // background_image (the per-area cave bgs; hell = the_end's art via its
-  // own declaration). The hills def's cave-bg does NOT paint the sky.
-  world.bgImageAt = (tx, ty, gx, gy) => {
-    if (ty < 62) {
-      const sb = ensureSkyBackdrop(dataDir);
-      if (!sb.sky) return null;
-      // the vertical gradient: the png's top = high altitude (blue), its
-      // bottom = the horizon (warm). t: 1 at the datum → 0 at the canvas top.
-      const tRaw = gy / 31744;
-      const t = tRaw < 0 ? 0 : tRaw > 1 ? 1 : tRaw;
-      const sr = Math.floor(t * (sb.sky.h - 1)); // the png's top = blue (high), bottom = warm (horizon)
-      const sx = ((gx % sb.sky.w) + sb.sky.w) % sb.sky.w;
-      const q = 4 * (sr * sb.sky.w + sx);
-      let r = sb.sky.px[q], g = sb.sky.px[q + 1], b = sb.sky.px[q + 2];
-      // the stars: hash-placed in the upper sky, alpha-composited
-      if (t < 0.75) {
-        const cx = Math.floor(gx / 32), cy = Math.floor(gy / 32);
-        if (skyStarHash(cx, cy) % 23 === 0 && sb.star) {
-          const h2 = skyStarHash(cx + 7919, cy + 104729);
-          const ox = h2 % 32, oy = (h2 >> 5) % 32;
-          const lx = gx - cx * 32 - ox, ly = gy - cy * 32 - oy;
-          if (lx >= 0 && ly >= 0 && lx < sb.star.w && ly < sb.star.h) {
-            const sq = 4 * (ly * sb.star.w + lx);
-            const a = sb.star.px[sq + 3] / 255;
-            if (a > 0) {
-              r = Math.round(sb.star.px[sq] * a + r * (1 - a));
-              g = Math.round(sb.star.px[sq + 1] * a + g * (1 - a));
-              b = Math.round(sb.star.px[sq + 2] * a + b * (1 - a));
-            }
+  // dig #133 (I32 p2c, the SKY/Hell layer law) + dig #134 fix-3: the
+  // backdrop is split — `bgImageAt` = the VOID/bins-air path (the caller
+  // decides); `skyAt` = the pure sky (the parallax gradient + the stars),
+  // called for the world rows above the datum (the caller's ty < 62 = the
+  // sky band, to the Heaven end). The per-biome backgrounds (the C109
+  // law) = the UNDERGROUND bands (ty >= 62).
+  // dig #133 (I32 p2c, the SKY/Hell layer law) + dig #134 fix-3: the
+  // backdrop is split — `skyAt` = the pure sky (the parallax gradient +
+  // the stars; the world rows above the datum = the caller's ty < 62 =
+  // the band to the Heaven end) and `bgImageAt` = the C109 per-biome
+  // backdrop for the UNDERGROUND bands (ty ≥ 62).
+  const skyAt = (tx, ty, gx, gy) => {
+    const sb = ensureSkyBackdrop(dataDir);
+    if (!sb.sky) return null;
+    // the vertical gradient: the png's top = high altitude (blue), its
+    // bottom = the horizon (warm). t: 1 at the datum → 0 at the canvas top.
+    const tRaw = gy / 31744;
+    const t = tRaw < 0 ? 0 : tRaw > 1 ? 1 : tRaw;
+    const sr = Math.floor(t * (sb.sky.h - 1)); // the png's top = blue (high), bottom = warm (horizon)
+    const sx = ((gx % sb.sky.w) + sb.sky.w) % sb.sky.w;
+    const q = 4 * (sr * sb.sky.w + sx);
+    let r = sb.sky.px[q], g = sb.sky.px[q + 1], b = sb.sky.px[q + 2];
+    // the stars: hash-placed in the upper sky, alpha-composited
+    if (t < 0.75) {
+      const cx = Math.floor(gx / 32), cy = Math.floor(gy / 32);
+      if (skyStarHash(cx, cy) % 23 === 0 && sb.star) {
+        const h2 = skyStarHash(cx + 7919, cy + 104729);
+        const ox = h2 % 32, oy = (h2 >> 5) % 32;
+        const lx = gx - cx * 32 - ox, ly = gy - cy * 32 - oy;
+        if (lx >= 0 && ly >= 0 && lx < sb.star.w && ly < sb.star.h) {
+          const sq = 4 * (ly * sb.star.w + lx);
+          const a = sb.star.px[sq + 3] / 255;
+          if (a > 0) {
+            r = Math.round(sb.star.px[sq] * a + r * (1 - a));
+            g = Math.round(sb.star.px[sq + 1] * a + g * (1 - a));
+            b = Math.round(sb.star.px[sq + 2] * a + b * (1 - a));
           }
         }
       }
-      return [r, g, b];
     }
+    return [r, g, b];
+  };
+  const bgImageAtInner = (tx, ty, gx, gy, skyInstead) => {
+    if (skyInstead || ty < 62) return skyAt(tx, ty, gx, gy);
     const ch = world.noiseAt?.(tx, ty);
     const bd = ch?.backdrop;
     if (!bd) return null;
@@ -596,6 +602,8 @@ export function attachNoiseTerrain(world, dataDir, seed = 0) {
     const q = 4 * (by * bd.w + bx);
     return [bd.pixels[q], bd.pixels[q + 1], bd.pixels[q + 2]];
   };
+  world.skyAt = skyAt;
+  world.bgImageAt = (tx, ty, gx, gy) => bgImageAtInner(tx, ty, gx, gy, false);
   return world;
 }
 

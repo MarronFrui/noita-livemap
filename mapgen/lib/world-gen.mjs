@@ -98,12 +98,61 @@ export function worldColorAt(world, wx, wy) {
   // the sky (the user's in-game observation; the biome map rows 1..12 =
   // hills = the sky region per the byte map).
   if (ty < 62) {
+    // dig #134 fix-3 (the boss-room law, the user's "3 squares" report):
+    // the WANG BIOMES inside the sky-band rows = terrain, not sky. The
+    // biome map rows 12..13 carry the pyramid's mosaic (the pyramid/
+    // left/right/entrance/hallway + the boss room), and their chunks' wang
+    // bins = the real corridor/wall fill (the "art and corridors mix")
+    // — the #133 sky-first decision erased them (the 3 squares missing).
+    // Order now: 1) the wang bin fill (the terrain; the bin's airDark
+    // cells composite the area def's bg via the #134 bin-air law);
+    // 2) the template buffer's art pieces over it; 3) the VOID defs (the
+    // _sky/barren/darkness family = the "renders black" set) + the bin-less
+    // chunks = the sky backdrop (the gradient+stars). The hills def's
+    // cave-bg = still NOT in the sky (only the VOID bgs route here).
+    let binPx = null, voidChunk = false;
+    {
+      const idxB = world.grid[ty * WORLD_CHUNKS_W + tx];
+      if (idxB >= 0) {
+        const a = world.areas[idxB];
+        const m = world.maps.get(a.key);
+        if (m) {
+          const lx = gx - a.area.x1 * CHUNK, ly = gy - (a.area.y1 + SKY_ROWS) * CHUNK;
+          if (lx >= 0 && ly >= 0 && lx < m.w * 10 && ly < m.h * 10) {
+            const ax = Math.floor(lx / 10), ay = Math.floor(ly / 10);
+            const p = 3 * (ay * m.w + ax);
+            const r = m.rgb[p], g = m.rgb[p + 1], b = m.rgb[p + 2];
+            const airDark =
+              (r === 13 && g === 14 && b === 18) || (r === 12 && g === 13 && b === 17) ||
+              (r === 16 && g === 16 && b === 18) || (r === 21 && g === 23 && b === 30);
+            voidChunk = /(?:^|\/)(the_sky|barren|darkness|potion_mimics|boss_sky|sky_light_injector)\.xml$/.test(a.def?.filename ?? "");
+            if (voidChunk) {
+              // the void-sky bin's own pixels (the colorized black) NEVER
+              // paint — the = the sky backdrop handles the whole chunk (the
+              // first fix's order bug: the black passed the non-airDark
+              // "terrain" branch and returned as ground)
+            } else if (!airDark) {
+              return [r, g, b]; // the wang terrain (the boss room walls, the mines fill)
+            } else {
+              // the bin air = the area def's declared bg (the C111 law)
+              const bd = biomeBackdrop(a.def, world.dataDir);
+              if (bd) {
+                const bx = ((lx % bd.w) + bd.w) % bd.w, by = ((ly % bd.h) + bd.h) % bd.h;
+                const q = 4 * (by * bd.w + bx);
+                binPx = [bd.pixels[q], bd.pixels[q + 1], bd.pixels[q + 2]];
+              }
+            }
+          }
+        }
+      }
+    }
     const buf = world.templates?.get(`${tx},${ty}`);
     if (buf) {
       const o = 3 * ((gy - ty * 512) * 512 + (gx - tx * 512));
       if (buf[o] !== 9) return [buf[o], buf[o + 1], buf[o + 2]];
     }
-    return world.bgImageAt?.(tx, ty, gx, gy) ?? null;
+    if (!voidChunk && binPx) return binPx;
+    return world.skyAt?.(tx, ty, gx, gy) ?? null;
   }
   const idx = world.grid[ty * WORLD_CHUNKS_W + tx];
   if (idx >= 0) {
