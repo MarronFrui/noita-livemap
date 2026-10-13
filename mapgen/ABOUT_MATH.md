@@ -10419,6 +10419,32 @@ first use from now on):**
     §12 + **§8 row 45** (the (122)-swap cosmetic refutation note),
     SESSION_CONTEXT refreshed pre-commit. **No cache bump.** Next free:
     entry **(128)**, **C106**, **I32**; §8 row **46**.
+  - **AMEND (2026-10-13, later same session — analysis-only, no port
+    change; instrument `mapgen/experiments/2026-10-13-i31-oracle-meter-reliability.mjs`).**
+    The oracle-row verdict above ("the pre-patch port was closer on the
+    sampled slice") is SUPERSEDED by the meter-reliability differential.
+    Classes separated: **presence** (carved-cell count per sampled row:
+    ref 49 / pre-law 26 / post-law **0**; summed over y16..y192) vs
+    **displacement** (best-shifted rms over the full field, window
+    dx ±6 / dy ±8: post-patch does NOT recover — y96 0.2721→0.6489,
+    y128 0.2432→0.5723 ⇒ NOT registration) vs plain rms. The edge-band
+    quantification: the byte truth carves 58% (49/84) of its sampled
+    x0..11 cells while the port carves **0** in those rows and holds
+    **9 carved cells over the ENTIRE x<12 edge band** (256 rows); the
+    port touches 18877/131072 = **14.40%** of the grid (solid share
+    0.9007). Reading: the pre-law walk's over-wander was accidentally
+    COMPENSATING the under-carve; the exit law only EXPOSED the
+    presence gap. Meter classification: the C48 rows and the C97 fG
+    (0.78289 vs fR 0.48029) are consistent sentinels of one structural
+    presence gap; as differential verdicts they are UNRELIABLE (the
+    user's challenge upheld — partial-model steps can move them either
+    way, and none carries registration semantics). Arbitration = a
+    byte-side full-grid dump (a game-lab CE re-run; the C48 artifact
+    was a one-shot read) — registered as the resolution path in I31.
+    The I30 port stands on the byte anchors (the triple-verified
+    comiss mapping; the count laws; the census matching the law's OWN
+    predicted bimodality), not on any meter. No meter-motivated port
+    change (the charter's no-tuning law).
 - **2026-10-12 (126) — dig #126: I29 Stage 2 — the fnB walk-call FRAME-SLOT law
   (the 10-arg map + the exit-gate law + the A1/A3 collapse); the port's walk
   value-exit = the NEW port divergence (I30/A7), the port FROZEN (no lib edits)**

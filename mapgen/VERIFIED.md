@@ -640,7 +640,17 @@ binary side unread) · ❌ unexplored.
   1-stamp murmur byte-side at low cave_strength) — **PORTED dig #127
   (I30 closed; the census low-cursor median 1 vs the control 32 /
   murmur 120/150; C97 v3 0.45240 → 0.46508, v2 0.23391 bit-identical,
-  no cache bump; the C48-oracle rms read the other way — I31).** Also: (122)'s "float pair swapped at the
+  no cache bump; the C48-oracle rms read the other way — and the
+  same-session meter-reliability differential settled WHY: presence-type
+  (ref 49 / pre-law 26 / post-law 0 carved cells in the sampled x0..11
+  rows; shift window doesn't recover; the byte truth carves 58% of its
+  sampled edge cells vs 9 cells across the port's whole x<12 band),
+  i.e. the port under-carves globally (14.40% of the grid touched vs a
+  ~50%-scale byte-side touch law — ×3.5 whole-grid, ×200 on the sampled
+  edge band) and the pre-law walks were accidentally
+  compensating; the row meters stay SENTINELS (unreliable as
+  differential verdicts — I31); arbitration = a byte-side full-grid
+  dump.** Also: (122)'s "float pair swapped at the
   child call" refuted as a description (the child re-passes the pair
   unchanged; §8 row 45 candidate, cosmetic); C46's "100.0 @0x11dffe8"
   label slip amended (the byte = 101.0, C53's own note). Sources: entry
