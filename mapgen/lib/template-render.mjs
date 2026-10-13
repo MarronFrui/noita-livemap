@@ -456,7 +456,10 @@ export function renderTemplateWorld(dataDir, config, seed) {
     if (!def.templateFile || !def.luaScript) continue;
     const parsed = getPixelScenes(dataDir, def);
     if (!parsed || parsed.scenes.length === 0) continue;
-    if (parsed.dynamic > 0) continue; // unresolvable callsites = honest skip
+    // NOTE: parsed.dynamic counts only the UNRESOLVABLE callsites (which
+    // parseInitPixelScenes already drops from the scenes list) — a nonzero
+    // count must NOT skip the blit (the pyramid's mixed static/dynamic
+    // init lost its whole art set to this gate in the first cut).
     for (const area of def.areas ?? []) {
       for (let ty = area.y1; ty <= area.y2; ty++) {
         for (let tx = area.x1; tx <= area.x2; tx++) {

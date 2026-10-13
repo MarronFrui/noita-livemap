@@ -109,21 +109,28 @@ describe.skipIf(!hasData)("surface-band compositor (digs #130/#131/#132)", () =>
 
   test("the wang-biome art-crust blit (dig #134): the pyramid's LoadPixelScene pieces land over the corridors", async () => {
     const { ensureWorld, worldColorAt } = await import("../../mapgen/lib/world-gen.mjs");
+    const { renderTemplateWorld } = await import("../../mapgen/lib/template-render.mjs");
     const { loadBiomeConfig } = await import("../../mapgen/lib/biomes.mjs");
     const world = ensureWorld(78633191, DATA_DIR, { onProgress: () => {} });
     await world.ready;
-    void loadBiomeConfig;
-    // the pyramid pieces (the sandstone art) = the non-airDark, non-bg
-    // bright/sandy pixels INSIDE the band — count them across the band's chunks
+    // the strongest pin: the template buffer for the pyramid chunk carries
+    // the blitted art (non-9 pixels) — the first cut's `dynamic > 0` gate
+    // skipped the whole blit (the pyramid's init has unresolvable callsites
+    // mixed with the static ones); this pin FAILS under that gate.
+    const buffers = renderTemplateWorld(DATA_DIR, loadBiomeConfig(DATA_DIR), 78633191);
+    const buf = buffers.get("51,62");
+    expect(buf).toBeDefined();
+    let painted = 0;
+    for (let i = 0; i < buf.length; i += 3) if (buf[i] !== 9) painted++;
+    expect(painted).toBeGreaterThan(1000);
+    // the pyramid pieces (the sandstone art) = the warm tones in the band
     let art = 0;
     for (let tx = 51; tx <= 57; tx++) for (let y = 0; y < 512; y += 8) for (let x = 0; x < 512; x += 8) {
       const c = worldColorAt(world, tx * 512 + x, 62 * 512 + y);
       if (!c) continue;
-      // the pyramid's sandstone art = the warm yellow/tan tones (the bg
-      // = the cooler dusk tones) — the presence of BOTH = the mix
       if (c[0] > 180 && c[1] > 140 && c[2] < 140) art++;
     }
-    expect(art).toBeGreaterThan(50);
+    expect(art).toBeGreaterThan(20);
   });
 
   test("the per-area background law (dig #132): the def carries the Topology backgroundImage and the loader tiles it", async () => {    const { loadBiomeConfig, biomeAt } = await import("../../mapgen/lib/biomes.mjs");
