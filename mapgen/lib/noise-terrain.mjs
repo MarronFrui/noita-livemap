@@ -94,8 +94,7 @@ const surfaceTableCache = new Map(); // def.filename -> table | null
 // dig #132 (I32 p2b): the per-biome AIR backdrop — the Topology
 // background_image loaded once per def; {w,h,pixels} | {fill} | null.
 const backdropCache = new Map(); // def.filename -> backdrop | null
-function ensureBiomeBackdrop(dataDir, def) {
-  if (!def?.filename) return null;
+export function ensureBiomeBackdrop(dataDir, def) {  if (!def?.filename) return null;
   if (backdropCache.has(def.filename)) return backdropCache.get(def.filename);
   let bd = null;
   const rel = def.backgroundImage;

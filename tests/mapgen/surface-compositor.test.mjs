@@ -85,8 +85,48 @@ describe.skipIf(!hasData)("surface-band compositor (digs #130/#131/#132)", () =>
     expect([...r62.mask].filter((v) => v).length).toBe(2409);
   });
 
-  test("the per-area background law (dig #132): the def carries the Topology backgroundImage and the loader tiles it", async () => {
+
+  test("the bin-air backdrop law (dig #134): the wang bands' AIR cells composite the area biome's declared bg", async () => {
+    const { ensureWorld, worldColorAt } = await import("../../mapgen/lib/world-gen.mjs");
     const { loadBiomeConfig, biomeAt } = await import("../../mapgen/lib/biomes.mjs");
+    const dataDir = DATA_DIR;
+    const world = ensureWorld(78633191, dataDir, { onProgress: () => {} });
+    await world.ready;
+    const cfg = loadBiomeConfig(dataDir);
+    // the pyramid band: the def declares background_pyramid.png; its air
+    // cells (the colorize airDark family in the bins) must composite it
+    const def = biomeAt(cfg, 51, 14).biome;
+    expect(def.backgroundImage).toBe("data/weather_gfx/background_pyramid.png");
+    let bg = 0, dark = 0;
+    for (let y = 0; y < 512; y += 8) for (let x = 0; x < 512; x += 8) {
+      const c = worldColorAt(world, 51 * 512 + x, 62 * 512 + y);
+      if (!c) continue;
+      if (c[0] < 40 && c[1] < 40 && c[2] < 45) dark++; else bg++;
+    }
+    expect(bg).toBeGreaterThan(200); // the bg/corridor mix, not the flat airDark wall
+    void dark;
+  });
+
+  test("the wang-biome art-crust blit (dig #134): the pyramid's LoadPixelScene pieces land over the corridors", async () => {
+    const { ensureWorld, worldColorAt } = await import("../../mapgen/lib/world-gen.mjs");
+    const { loadBiomeConfig } = await import("../../mapgen/lib/biomes.mjs");
+    const world = ensureWorld(78633191, DATA_DIR, { onProgress: () => {} });
+    await world.ready;
+    void loadBiomeConfig;
+    // the pyramid pieces (the sandstone art) = the non-airDark, non-bg
+    // bright/sandy pixels INSIDE the band — count them across the band's chunks
+    let art = 0;
+    for (let tx = 51; tx <= 57; tx++) for (let y = 0; y < 512; y += 8) for (let x = 0; x < 512; x += 8) {
+      const c = worldColorAt(world, tx * 512 + x, 62 * 512 + y);
+      if (!c) continue;
+      // the pyramid's sandstone art = the warm yellow/tan tones (the bg
+      // = the cooler dusk tones) — the presence of BOTH = the mix
+      if (c[0] > 180 && c[1] > 140 && c[2] < 140) art++;
+    }
+    expect(art).toBeGreaterThan(50);
+  });
+
+  test("the per-area background law (dig #132): the def carries the Topology backgroundImage and the loader tiles it", async () => {    const { loadBiomeConfig, biomeAt } = await import("../../mapgen/lib/biomes.mjs");
     const { noiseChunkMask } = await import("../../mapgen/lib/noise-terrain.mjs");
     const cfg = loadBiomeConfig(DATA_DIR);
     const def = biomeAt(cfg, 41, 14).biome; // the hills def (bty14 = ty62)

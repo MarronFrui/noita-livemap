@@ -444,6 +444,30 @@ export function renderTemplateWorld(dataDir, config, seed) {
   renderWorldExtension(buffers, config, seed);
   blitSplicedScenes(buffers, dataDir);
   blitFixedScenes(buffers, dataDir);
+  // dig #134 (I32 p2c, the ART-CRUST for the WANG biomes): the generic
+  // LoadPixelScene lane extended to the templateFile biomes (the pyramid
+  // family: the game's per-chunk init() pieces — left/right/entrance/
+  // hallway — at the chunk-local (x,y) origins, the census X63's chunk-
+  // origin placement form). Blit at each OWNED chunk origin (the
+  // ownership gate = the biome map's px, the dig-52 law); the blit lands
+  // OVER the wang bins at render (the template buffer = checked before
+  // the bins in worldColorAt).
+  for (const [, def] of config.biomes) {
+    if (!def.templateFile || !def.luaScript) continue;
+    const parsed = getPixelScenes(dataDir, def);
+    if (!parsed || parsed.scenes.length === 0) continue;
+    if (parsed.dynamic > 0) continue; // unresolvable callsites = honest skip
+    for (const area of def.areas ?? []) {
+      for (let ty = area.y1; ty <= area.y2; ty++) {
+        for (let tx = area.x1; tx <= area.x2; tx++) {
+          const at = biomeAt(config, tx, ty);
+          if (!at || at.biome !== def) continue;
+          const wx = (tx - 35) * 512, wy = (ty - 14) * 512;
+          blitInitScenes(buffers, dataDir, def, wx, wy, seed);
+        }
+      }
+    }
+  }
   return buffers;
 }
 

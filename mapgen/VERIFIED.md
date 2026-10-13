@@ -487,7 +487,12 @@ binary side unread) · ❌ unexplored.
    **p1 landed dig #130:** the per-cell material bands (classify →
    materials.xml wang_color) are COMPOSITED (857-color banding vs the
    flat slab); the art crust placement = p2 (X63/spliced), the
-   carve-architecture = I31/I29-2/I21. **p2c landed dig #133 (C110):** the SKY/Hell layer law — the sky = ONE
+   carve-architecture = I31/I29-2/I21. **p2d landed dig #134 (C111):** the FILLER law — the "meaningless
+   chunks" (the noodly walls) = the KIND-0 noise chain (the filler def
+   empty.xml = NO BitmapCaves, SIN_CAPPED_SIMPLEX); the real biomes =
+   the BitmapCaves fields with their own knobs; the bin-air backdrop +
+   the wang-biome art blit landed; the kind-0 dig (I21) = the shape
+   root, the priority. **p2c landed dig #133 (C110):** the SKY/Hell layer law — the sky = ONE
    backdrop (the parallax gradient + the stars) for every world row above
    the datum to the Heaven end; the per-biome bgs = the underground air
    pockets only; hell = the_end's own art. **p2b landed dig #132 (C109):** the per-area backdrop law (air = the

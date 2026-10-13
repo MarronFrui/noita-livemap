@@ -10335,6 +10335,53 @@ METER-CLASS (this entry covers meter history, E1-only): every row below
   is a counted reading with its class; no new meter run this entry
   (the only instrument = the register grep + the already-run I31
   differential, cite in row 9).
+- **2026-10-13 (134) — dig #134: I32 p2d — the FILLER-vs-BIOME distinction
+  audit + the bin-air backdrop law (C111) + the wang-biome art-crust blit.**
+  - **NEW EVIDENCE:** the user's hint decoded — "our model makes no
+    distinction between the sand and these chunks": the filler def
+    (`empty.xml`, the biome map's filler color ff48E311) = **NO
+    BitmapCaves at all** — `noise_type="SIN_CAPPED_SIMPLEX"` + the
+    mGradient chain ⇒ **the "meaningless chunks" (the noodly walls) =
+    the KIND-0 noise chain** (the surfaceField ramp+perlin combine —
+    the I21/A4 lane, the port's placeholder) — while the real biomes
+    (desert = blob 5..15/strength 1..3/cave_count 10..30; snowcave…)
+    = the **BitmapCaves** fields with their own knobs (vs the
+    hills-family blob 20..55/count 50..100). TWO generation laws — our
+    port paints both with the same mush (the kind-0 lane = the
+    placeholder; the caves-band knobs = the under-carve I31). **The
+    kind-0 dig (I21) = the shape root = the next dig** (the filler law +
+    the sand law = the same byte read: the r-eval 0x90b280 + the
+    P-chain).
+  - **The surface-pin lane (the user's trees/cacti anchor) = the DATA:**
+    the per-biome `<VegetationComponent>` — hills.xml = tree_spruce_1/2/3
+    (probability 0.328, wood_loose, tree_extra_y=14, the radius bands),
+    desert.xml = vine_growth_1.xml (ceiling_plant_material). The trees/
+    cacti = data-driven vegetation ON the crust = the surface-line
+    validator (p3 placement dig).
+  - **The bin-air backdrop law (C111):** the wang bands' AIR cells (the
+    colorize airDark family = the 4 exact shades) = the area biome's
+    Topology background_image (the pyramid band = background_pyramid.png,
+    the mines' air = the coalmine bg, the HM walls = the temple def's
+    own). Wire: `worldColorAt`'s bin branch composites the backdrop on
+    the airDark cells (the sky band bypasses — the #133 sky-first).
+  - **The wang-biome art-crust blit:** the generic LoadPixelScene lane
+    extended to the templateFile biomes (the pyramid family = the census
+    X63's chunk-origin placements: left/right/entrance/hallway at
+    (x,y), left_bottom at (x,y+512), right_bottom at (x+512−61,y+512));
+    blit at each OWNED chunk origin (the dig-52 ownership gate), over
+    the bins (the template buffer checked first at render). The
+    pyramid's upper half = the art + the corridors mix = the byte's own
+    composition.
+  - **Probes:** the pyramid chunks = 7 (tx51..55/57, ty62); the chunk
+    (51,62) = the dark-solid 93 + the non-dark 4003 (the bg/corridor/art
+    mix); the sky = 255,229,186 (unchanged). Tests **284/284**.
+  - **Landed:** `mapgen/lib/template-render.mjs` (the wang-biome
+    init-scene pass), `mapgen/lib/world-gen.mjs` (the bin-air backdrop +
+    the biomeBackdrop memo), `noise-terrain.mjs` (ensureBiomeBackdrop
+    exported), ABOUT_MATH **(134)**, CONSTANTS **C111**, ISSUES I32
+    note (the pyramid bg/art landed; the filler = the I21 kind-0 dig =
+    the priority). Next free: entry **(135)**, **C112**, **I34**; §8 row
+    **46**.
 - **2026-10-13 (133) — dig #133: I32 p2c — the SKY/Hell LAYER LAW (C110):
   ONE sky backdrop (the parallax gradient + the stars) for every world row
   above the datum, to the Heaven end; hell = the_end's own art; the

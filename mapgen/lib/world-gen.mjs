@@ -13,6 +13,19 @@ import { colorizeArea } from "./colorize.mjs";
 import { renderTemplateWorld } from "./template-render.mjs";
 import { readPng } from "./images.mjs";
 import { materialColorByName } from "./colorize.mjs"; // dig #130 surface-lane colors
+import { ensureBiomeBackdrop } from "./noise-terrain.mjs"; // dig #134 bin-air backdrop
+
+// dig #134: the bin-air backdrop memo (per def.filename) — the wang
+// bands' AIR cells composite the area biome's declared bg art.
+const binBackdrops = new Map();
+function biomeBackdrop(def, dataDir) {
+  if (!def?.filename || !dataDir) return null;
+  const key = def.filename;
+  if (binBackdrops.has(key)) return binBackdrops.get(key);
+  const bd = ensureBiomeBackdrop(dataDir, def);
+  binBackdrops.set(key, bd);
+  return bd;
+}
 import { attachNoiseTerrain } from "./noise-terrain.mjs"; // F3 (2026-09-20)
 
 export const CHUNK = 512;
@@ -102,7 +115,24 @@ export function worldColorAt(world, wx, wy) {
       if (lx >= 0 && ly >= 0 && lx < m.w * 10 && ly < m.h * 10) {
         const ax = Math.floor(lx / 10), ay = Math.floor(ly / 10);
         const p = 3 * (ay * m.w + ax);
-        return [m.rgb[p], m.rgb[p + 1], m.rgb[p + 2]];
+        // dig #134 (the bin-air backdrop law; C109/C110 extended to the
+        // bin lane): the wang bands' AIR cells (the colorize airDark
+        // family) = the area biome's Topology background_image (the
+        // pyramid band's bg, the mines' air = the coalmine bg, the HM
+        // walls = the temple def's own). The per-biome law = byte-backed
+        // (each def declares its bg); the sky band never reaches here
+        // (the ty<62 sky-first branch).
+        const r = m.rgb[p], g = m.rgb[p + 1], b = m.rgb[p + 2];
+        if ((r === 13 && g === 14 && b === 18) || (r === 12 && g === 13 && b === 17)
+          || (r === 16 && g === 16 && b === 18) || (r === 21 && g === 23 && b === 30)) {
+          const bd = biomeBackdrop(a.def, world.dataDir);
+          if (bd) {
+            const bx = ((lx % bd.w) + bd.w) % bd.w, by = ((ly % bd.h) + bd.h) % bd.h;
+            const q = 4 * (by * bd.w + bx);
+            return [bd.pixels[q], bd.pixels[q + 1], bd.pixels[q + 2]];
+          }
+        }
+        return [r, g, b];
       }
     }
   }
