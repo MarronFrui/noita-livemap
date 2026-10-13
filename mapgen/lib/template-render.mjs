@@ -239,13 +239,28 @@ export function parseInitPixelScenes(src) {
     if (depth <= 0) { endIdx = i; break; }
   }
   const scenes = [];
+  const backdrops = []; // dig #134: the LoadBackgroundSprite pieces
   let dynamic = 0;
   for (let i = head; i <= endIdx; i++) {
     const raw = lines[i];
     const code = raw.replace(/--.*$/, "").trim();
     if (code.startsWith("--") || code === "") continue;
-    if (!/^LoadPixelScene\s*\(/.test(code)) continue;
+    const isScene = /^LoadPixelScene\s*\(/.test(code);
+    const isBackdrop = /^LoadBackgroundSprite\s*\(/.test(code);
+    if (!isScene && !isBackdrop) continue;
     const args = splitArgsLine(code);
+    if (isBackdrop) {
+      // dig #134 (the LoadBackgroundSprite lane): the per-chunk bg art
+      // pieces (the pyramid family's left_background.png etc. — the
+      // "clean background" layers the user saw in-game); same
+      // chunk-local frame.
+      const bgp = unquote(args[0]);
+      if (!bgp) { dynamic++; continue; }
+      const bdx = evalXY(args[1]); const bdy = evalXY(args[2]);
+      if (bdx == null || bdy == null) { dynamic++; continue; }
+      backdrops.push({ bg: bgp, dx: bdx[0] + bdx[1], dy: bdy[0] + bdy[1] });
+      continue;
+    }
     if (args.length < 4) { dynamic++; continue; }
     const mat = unquote(args[0]);
     if (!mat) { dynamic++; continue; }
@@ -254,8 +269,9 @@ export function parseInitPixelScenes(src) {
     if (dxE == null || dyE == null) { dynamic++; continue; }
     const bg = args[4] && args[4] !== '""' ? unquote(args[4]) : null;
     scenes.push({ mat, vis, bg, dx: dxE[0] + dxE[1], dy: dyE[0] + dyE[1] });
+    continue;
   }
-  return { scenes, dynamic };
+  return { scenes, backdrops, dynamic };
 }
 
 function getPixelScenes(dataDir, def) {
@@ -273,8 +289,11 @@ function getPixelScenes(dataDir, def) {
 
 function blitInitScenes(buffers, dataDir, def, x, y, seed) {
   const parsed = getPixelScenes(dataDir, def);
-  if (process.env.TEMPLATE_DEBUG) console.log('[blitInitScenes]', def.name, def.filename, 'scenes:', parsed?.scenes.length ?? 'no-parse');
+  if (process.env.TEMPLATE_DEBUG) console.log('[blitInitScenes]', def.name, def.filename, 'scenes:', parsed?.scenes.length ?? 'no-parse', 'backdrops:', parsed?.backdrops?.length ?? 0);
   if (!parsed || parsed.scenes.length === 0) return false;
+  // the bg pieces first (the LoadBackgroundSprite layers, dig #134), then
+  // the scenes over them
+  for (const bd of parsed.backdrops ?? []) blitBackdrop(buffers, dataDir, bd.bg, x + bd.dx, y + bd.dy);
   for (const sc of parsed.scenes) {
     if (sc.bg) blitBackdrop(buffers, dataDir, sc.bg, x + sc.dx, y + sc.dy);
     blitScene(buffers, dataDir, def, sc.mat, sc.vis, x + sc.dx, y + sc.dy, def.name, seed);
@@ -453,7 +472,15 @@ export function renderTemplateWorld(dataDir, config, seed) {
   // OVER the wang bins at render (the template buffer = checked before
   // the bins in worldColorAt).
   for (const [, def] of config.biomes) {
-    if (!def.templateFile || !def.luaScript) continue;
+    // dig #134 fix-2 (MOSAIC law): the art-pass key = the def's own
+    // lua_script (the init() LoadPixelScene holder), NOT templateFile —
+    // the pyramid = a MOSAIC of per-chunk biomes (pyramid_left/right/
+    // entrance/hallway at the biome rows 12..14 = canvas ty 60..62; each
+    // = a SIN_CAPPED_SIMPLEX def with luaScript + LoadPixelScene init()
+    // + LoadBackgroundSprite). Probed this session: these defs carry
+    // templateFile = undefined (def.template = true) — the first gate
+    // skipped exactly them. The luaScene parser handles their
+    // chunk-local (x, y) forms.
     const parsed = getPixelScenes(dataDir, def);
     if (!parsed || parsed.scenes.length === 0) continue;
     // NOTE: parsed.dynamic counts only the UNRESOLVABLE callsites (which
