@@ -64,6 +64,32 @@ function ensureCavesField(dataDir, def, seed) {
 // seed {min:0, max:0} is the documented proxy — the game's seed init is
 // unread (OPEN, C76) and buildMaterialsTable's extend-if-narrower rule
 // makes the real band = the comps' hull ∪ {0,0} = [0, 3.5] for hills.
+// dig #133 (I32 p2c, the SKY/Hell layer law): ONE sky backdrop for every
+// world row above the datum (canvas py < 31744 = bty 0..13 + the vmap
+// sky above, all the way up to the Heaven end) — the parallax gradient
+// (weather_gfx/parallax_background.png: blue high → warm at the horizon)
+// + the star sprite (star_007.png) at hash-deterministic positions.
+// The per-biome bg art (cave_04_alt etc.) = the UNDERGROUND bands only
+// (bty ≥ 14); the hills def's cave-bg declaration does NOT paint the sky
+// (the user's in-game observation + the biome-map rows 1..12 = hills with
+// sky visible). Hell = the_end's own background_the_end.png (its
+// declaration; the template-lane air bg for the hell rows = tagged OPEN).
+const skyBackdropCache = { done: false, sky: null, star: null };
+function ensureSkyBackdrop(dataDir) {
+  if (skyBackdropCache.done) return skyBackdropCache;
+  skyBackdropCache.done = true;
+  const dir = dataDir ?? dataDirRef.dataDir;
+  try {
+    const sky = readPng(path.join(dir, "weather_gfx/parallax_background.png"));
+    skyBackdropCache.sky = { w: sky.width, h: sky.height, px: sky.data };
+    const star = readPng(path.join(dir, "weather_gfx/star_007.png"));
+    skyBackdropCache.star = { w: star.width, h: star.height, px: star.data };
+  } catch { /* missing art → transparent sky (honest) */ }
+  return skyBackdropCache;
+}
+const skyStarHash = (cx, cy) =>
+  (Math.imul(cx, 2654435761) ^ Math.imul(cy, 340573321)) >>> 0;
+
 const surfaceTableCache = new Map(); // def.filename -> table | null
 // dig #132 (I32 p2b): the per-biome AIR backdrop — the Topology
 // background_image loaded once per def; {w,h,pixels} | {fill} | null.
@@ -523,7 +549,44 @@ export function attachNoiseTerrain(world, dataDir, seed = 0) {
   // back to null = transparent air (the sky row's blue = the template
   // lane's biome_color, landed later). The game's true parallax/layering
   // = OPEN (tagged): this is the prototype tile law.
+  // dig #133 (I32 p2c, the SKY/Hell layer law): the backdrop SELECTOR —
+  // world rows above the datum (canvas py < 31744, i.e. chunk ty < 62) =
+  // THE SKY (one backdrop: the parallax gradient + stars, to the Heaven
+  // end); rows ≥ 62 = the underground bands = the chunk biome's own
+  // background_image (the per-area cave bgs; hell = the_end's art via its
+  // own declaration). The hills def's cave-bg does NOT paint the sky.
   world.bgImageAt = (tx, ty, gx, gy) => {
+    if (ty < 62) {
+      const sb = ensureSkyBackdrop(dataDir);
+      if (!sb.sky) return null;
+      // the vertical gradient: the png's top = high altitude (blue), its
+      // bottom = the horizon (warm). t: 1 at the datum → 0 at the canvas top.
+      const tRaw = gy / 31744;
+      const t = tRaw < 0 ? 0 : tRaw > 1 ? 1 : tRaw;
+      const sr = Math.floor(t * (sb.sky.h - 1)); // the png's top = blue (high), bottom = warm (horizon)
+      const sx = ((gx % sb.sky.w) + sb.sky.w) % sb.sky.w;
+      const q = 4 * (sr * sb.sky.w + sx);
+      let r = sb.sky.px[q], g = sb.sky.px[q + 1], b = sb.sky.px[q + 2];
+      // the stars: hash-placed in the upper sky, alpha-composited
+      if (t < 0.75) {
+        const cx = Math.floor(gx / 32), cy = Math.floor(gy / 32);
+        if (skyStarHash(cx, cy) % 23 === 0 && sb.star) {
+          const h2 = skyStarHash(cx + 7919, cy + 104729);
+          const ox = h2 % 32, oy = (h2 >> 5) % 32;
+          const lx = gx - cx * 32 - ox, ly = gy - cy * 32 - oy;
+          if (lx >= 0 && ly >= 0 && lx < sb.star.w && ly < sb.star.h) {
+            const sq = 4 * (ly * sb.star.w + lx);
+            const a = sb.star.px[sq + 3] / 255;
+            if (a > 0) {
+              r = Math.round(sb.star.px[sq] * a + r * (1 - a));
+              g = Math.round(sb.star.px[sq + 1] * a + g * (1 - a));
+              b = Math.round(sb.star.px[sq + 2] * a + b * (1 - a));
+            }
+          }
+        }
+      }
+      return [r, g, b];
+    }
     const ch = world.noiseAt?.(tx, ty);
     const bd = ch?.backdrop;
     if (!bd) return null;

@@ -62,6 +62,29 @@ describe.skipIf(!hasData)("surface-band compositor (digs #130/#131/#132)", () =>
     expect([...r62.matIdx].filter((v) => v !== 255).length).toBe(2409);
   });
 
+  test("the sky/Hell layer law (dig #133): the sky band = ONE backdrop (the parallax gradient + stars) over every air row above the datum; the mines band unchanged", async () => {
+    const { ensureWorld, worldColorAt } = await import("../../mapgen/lib/world-gen.mjs");
+    const world = ensureWorld(78633191, DATA_DIR, { onProgress: () => {} });
+    await world.ready;
+    // the high sky = the parallax png's blue top rows (105,170,200 family)
+    const high = worldColorAt(world, 35 * 512 + 256, 1 * 512 + 10);
+    expect(high).not.toBeNull();
+    expect(high[1]).toBeGreaterThan(120); // green channel high = blue, not airDark/cave-bg
+    expect(high[0]).toBeLessThan(160);
+    // the stars: bright specks exist in the sky band (the hash-placed sprites)
+    let stars = 0;
+    for (let ty = 5; ty < 55; ty++) for (let y = 0; y < 512; y += 2) for (let x = 0; x < 512; x += 2) {
+      const c = worldColorAt(world, 40 * 512 + x, ty * 512 + y);
+      if (c && c[0] > 200 && c[1] > 200 && c[2] > 230) stars++;
+    }
+    expect(stars).toBeGreaterThan(100);
+    // the mines band's first chunk: the terrain unchanged (2409 classified)
+    const { noiseChunkMask } = await import("../../mapgen/lib/noise-terrain.mjs");
+    const cfg2 = (await import("../../mapgen/lib/biomes.mjs")).loadBiomeConfig(DATA_DIR);
+    const r62 = noiseChunkMask(cfg2, 41, 62, 78633191);
+    expect([...r62.mask].filter((v) => v).length).toBe(2409);
+  });
+
   test("the per-area background law (dig #132): the def carries the Topology backgroundImage and the loader tiles it", async () => {
     const { loadBiomeConfig, biomeAt } = await import("../../mapgen/lib/biomes.mjs");
     const { noiseChunkMask } = await import("../../mapgen/lib/noise-terrain.mjs");

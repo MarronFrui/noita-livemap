@@ -10335,6 +10335,44 @@ METER-CLASS (this entry covers meter history, E1-only): every row below
   is a counted reading with its class; no new meter run this entry
   (the only instrument = the register grep + the already-run I31
   differential, cite in row 9).
+- **2026-10-13 (133) — dig #133: I32 p2c — the SKY/Hell LAYER LAW (C110):
+  ONE sky backdrop (the parallax gradient + the stars) for every world row
+  above the datum, to the Heaven end; hell = the_end's own art; the
+  per-biome cave bgs = the underground bands only.**
+  - **NEW EVIDENCE:** the sky art located (this session, data):
+    `weather_gfx/parallax_background.png` (256×256, the sky gradient: the
+    blue top rows (102,169,199) → the warm horizon (254,206,109)) +
+    `weather_gfx/star_007.png` (19×19, the white star sprite with alpha).
+    Hell = the_end.xml's own `background_the_end.png` (its Topology
+    declaration). The user's layer law (in-game): the sky = ONE block
+    with stars extending up to the Work (Heaven); the cave bgs =
+    underground only; hell = its own bg.
+  - **The wire:** `worldColorAt`'s FIRST decision = the sky band
+    (chunk ty < 62 = the vmap sky clamp + the biome rows 0..13): the
+    template buffer's ART px (the mountain/hills LoadPixelScene pieces,
+    the moon, the spliced scenes) over the sky backdrop — the area-bin
+    lane NEVER paints the band (the_sky's bin = the void black; the
+    extension's airDark = superseded). `world.bgImageAt` = the selector:
+    ty < 62 = the sky (the gradient t = gy/31744, the png's top = blue;
+    the stars hash-placed (imul-cells, 1-in-23 of 32px cells, t < 0.75)
+    alpha-composited); ty ≥ 62 = the per-biome backdrop (C109 unchanged;
+    the ty62 pin 2409 unchanged).
+  - **Probes:** the high sky = 102,169,199 (the png blue) · the mid =
+    255,229,186 · the star px sweep (tx40) = 1022 · the mines chunk =
+    2409 (unchanged). The near-datum dark (13,14,18) = the
+    mountain_left_entrance's own art piece (the template lane's blit =
+    the byte's art).
+  - **OPEN (tagged):** the game's true sky law (the gradient's exact
+    span/the star placement/the day-night cycle) — the prototype's
+    hash-placement = the A-flag; the parallax scroll law; hell's
+    template-lane air (the_end = templateFile ⇒ the bin lane paints its
+    air airDark — the hell band's air bg = tagged, later dig).
+  - **Landed:** `mapgen/lib/noise-terrain.mjs` (ensureSkyBackdrop +
+    skyStarHash + the bgImageAt selector), `world-gen.mjs` (the sky band
+    first-decision), tests (the sky/Hell pin = the 4th in
+    surface-compositor), ABOUT_MATH **(133)**, CONSTANTS **C110**, VERIFIED
+    §12 layer note. Tests **284/284**. No cache bump. Next free: entry
+    **(134)**, **C111**, **I33**; §8 row **46**.
 - **2026-10-13 (132) — dig #132: I32 p2b — the PER-AREA BACKGROUND law
   (C109): the air backdrop = the chunk biome's Topology background_image.**
   - **NEW EVIDENCE:** the per-biome bg declarations (this session, data):

@@ -74,6 +74,24 @@ export function worldColorAt(world, wx, wy) {
   const gx = wx + L3_ANCHOR.x, gy = wy + L3_ANCHOR.y;
   if (gx >= WORLD_W || gy >= WORLD_H) return null;
   const tx = Math.floor(gx / CHUNK), ty = Math.floor(gy / CHUNK);
+  // dig #133 (I32 p2c, the SKY/Hell layer law): the SKY BAND = chunk rows
+  // 0..61 (the vmap sky clamp + the biome map's rows 0..13 = the_sky/hills
+  // sky region, all the way up to the Heaven end). ONE backdrop (the
+  // parallax gradient + stars) with the template lane's ART pieces over
+  // it (the mountain/hills LoadPixelScene pieces, the moon, the spliced
+  // scenes). The area-bin lane NEVER paints here (the_sky's bin = the
+  // void black; the extension's airDark = superseded by the sky). The
+  // hills def's declared cave-bg belongs to the underground pockets, not
+  // the sky (the user's in-game observation; the biome map rows 1..12 =
+  // hills = the sky region per the byte map).
+  if (ty < 62) {
+    const buf = world.templates?.get(`${tx},${ty}`);
+    if (buf) {
+      const o = 3 * ((gy - ty * 512) * 512 + (gx - tx * 512));
+      if (buf[o] !== 9) return [buf[o], buf[o + 1], buf[o + 2]];
+    }
+    return world.bgImageAt?.(tx, ty, gx, gy) ?? null;
+  }
   const idx = world.grid[ty * WORLD_CHUNKS_W + tx];
   if (idx >= 0) {
     const a = world.areas[idx];
