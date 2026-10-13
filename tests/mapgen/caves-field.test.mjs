@@ -184,6 +184,16 @@ describe("caveRecordStamp — the record lane draws only (dig #123)", () => {
     // malformed group → the "Error in parsing, no end in sight" path, 0 draws
     expect(drawCount("bad_$[x].png")).toBe(1 + 4);
   });
+
+  // dig #135: the count slot's 0-arm (the `test %ecx,%ecx; jle 0x8f16f1`
+  // guard's lower twin) — count = 0 ⇒ the record writes nothing beyond the
+  // count roll; the port's record stamp stays byte-neutral until the
+  // grouped-class write port (dig #136), the dig-135 scope correction.
+  test("count 0 = the pure skip arm (only the count roll, no stamp draws)", () => {
+    const s = counting();
+    expect(caveRecordStamp({ countMin: 0, countMax: 0 }, s.stub)).toBe(0);
+    expect(s.draws).toBe(1);
+  });
 });
 
 // ── the scatter engine (true 0x8EEAD0, dig #56/#81) ──────────────────────────

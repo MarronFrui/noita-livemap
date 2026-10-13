@@ -10335,6 +10335,115 @@ METER-CLASS (this entry covers meter history, E1-only): every row below
   is a counted reading with its class; no new meter run this entry
   (the only instrument = the register grep + the already-run I31
   differential, cite in row 9).
+- **2026-10-14 (135) — dig #135: the 0x8EF870 ADD-BLEND WINDOW READ —
+  the record-lane image stamp = the y=0 bump's writer family
+  (C48's "named identify target"); the fn870/fn950 write laws + the
+  record window's placement/strength/count frame.**
+  - **NEW EVIDENCE:** (1) the whole-binary direct-call census of the
+    blend twins, fresh this session (the fulltext86.asm X1 bank grep): **0x8EF950 is called exactly once (fnB @0x8F16C8, the
+    record window), 0x8EF870 exactly once (fn950 @0x8EF96F), zero
+    other direct or fn-pointer references** (all `0x8ef870`/`0x8ef950`
+    byte patterns in the full disasm = those 2 lines) ⇒ no other lane
+    can reach the twins. (2) Fresh full-window extractions dated
+    2026-10-14: `dig135-builder-8EE000-8F3700.asm` (0x8EE000..0x8F3700,
+    md5 `3f038a25…`, X64) + `dig135-ctor-8F9470.asm`
+    (0x8F9470..~0x8F96C0, md5 `df505fa8…`, X65); exe md5 re-verified =
+    C13. (3) the C48 oracle's FULL pattern Shape re-census (E1):
+    y0 = a symmetric bell (x10..29 over base 1.0, peak 1.454092
+    @x19, the ±10 falloff EXACTLY symmetric pairwise
+    (15,23)=(1.4339), (16,22)=(1.4483), (17,21)=(1.4529),
+    (18,20)=(1.4540)) + y16/y32 carry >1.0 shoulders AS WELL
+    (y16 max 1.3885 @x8, y32 max 1.2576 @x11, both still ascending
+    to x11 ⇒ the SAME mountain profile sampled at its left flank;
+    ⌈1.0 + α·0.454092⌈ for an image-alpha α ⇒ y16@x8: α=0.879,
+    y32@x11: α=0.567); the >0 slices vanish by y48 (carves only).
+  - **PREDICTION (pre-read):** the bump is NOT written by fn870 as a
+    fnA/fnB-family carve (the twins have NO fnA/fnB callsites — C51-era
+    census seen at (122)); it comes from the record lane's
+    image_file-stamped records (the GROUPED `$[lo-hi]` class whose
+    template is NOT ctor-empty — dig #123's no-op covered only the
+    plain class) blending via fn870 at the record's own anchor.
+    **OUTCOME: the census agrees (the ONLY twin-caller chain =
+    fnB-record → fn950 → fn870); dig #123's "the record lane writes
+    NOTHING" is TRUE for the plain class and FALSE for the filled
+    template — C48's writer sentence ("the 0x8EF870 twin / an explicit
+    image-bake") resolves to THE RECORD LANE, not a separate bake.
+  - **The write laws (byte-exact, this session's windows):**
+    - **fn870 (0x8EF870..0x8EF946) = the ALPHA-BLEND stamp**:
+      (ecx = src record wrapper, edx = dst sibling wrapper, stack
+      [ebp+8] = xs (i32), [ebp+0xc] = ys (i32), [ebp+0x10] = v (f32)):
+      for y in 0..[src+4]−1 (the TEMPLATE'S OWN H), x in 0..[src+0]−1:
+      dst_clip x = xs+x ∈ [0, [dst+0]), y = ys+y ∈ [0, [dst+4]) —
+      the jge skips (NO wrap; partial-off stamps clip); src idx =
+      [src+0]·y + x (row-major, getter 0x949ad0 on src+0x18 = the f32
+      template), dst idx = [dst+0]·(ys+y) + (xs+x) (getter 0x9499f0 on
+      dst+0x18) — **dst' = dst + src_pixel·(v − dst)** (@0x8EF8E6..FA:
+      `subss (%eax)` = v−dst, `mulss (%esi)` = ×src, `addss (%eax)`,
+      store back) ⇒ with src ∈ [0,1] = the per-pixel ALPHA of the
+      record's template image, v = the stamp VALUE.
+      *Port-form check: C46's "dst += v·(src−dst)" interpoland naming
+      was INVERTED (v = the blend factor read above) — same shape,
+      corrected in-row; C46's census "blend twins 0x8EF870/0x8EF950 ·
+      READ, not ported" stands corrected on the writer side.
+    - **fn950 (0x8EF950..0x8EFA33) = the two-lane driver**: FIRST runs
+      fn870 unconditionally (its own +0x5c gate is AFTER that call)
+      with (src = ebx = this, dst = edx = the sibling, xs = [ebp+8],
+      ys = [ebp+0xc], v = [ebp+0x10]) — then, IFF [+0x5c] ≠ 0
+      (@0x8EF977 `cmpl $0,0x5c(%ebx)`), runs the BYTE stencil:
+      y in 0..[ebx+4]−1, x in 0..[ebx+0]−1 (the same [0]/[4] dims —
+      NOT the +0x40/+0x44 pair), dst-clip vs [ebx+0x40]/[ebx+0x44] AND
+      the sibling wrapper's 0x40/0x44 dims; src byte = [ebx+0x58 runtime
+      vec] (getter 0x949bb0); **IF src_byte > 0: copy it to the
+      sibling's byte grid** at W_b·(ys+y) + (xs+x)
+      (`mov (%esi),%cl; mov %cl,(%eax)` @0x8EFA11..16) — the
+      non-zero-byte copy, no blend.
+    - **fnB's record window (0x8F11B3..0x8F1746) = the caller**:
+      -0x114 = fnB's record list iterator ([fnB+0x7c base] + [+0x3c]
+      stride, [fnB+0] count — @0x8F1706..30); iter body: [rec+0x1c]
+      = LO count bound, [rec+0x20] = HI → -0x120/-0x100 (@0x8F11CF..DB);
+      count draw → [−0x120] (the trunc-mult span form @0x8F1243..7F,
+      scale 0x11E0578); the resolver call 0x668400
+      (@0x8F144D..52, arg2 = [−0x10C] = the +0x10C-slot FUNCTION
+      descriptor, edi = the record stream) — the (123) "1 draw per
+      well-formed group" law ✓ re-derived in-window; X slot [−0x108]
+      ([rec+0x28]/[rec+0x30] pair, draw scale 0x11E0578 @0x8F14FB..2E),
+      Y-or-side slot [−0x154] ([rec+0x24]/[rec+0x2c] pair
+      @0x8F1534..5F), strength slot: [rec+0x34]/[rec+0x38] f32 pair →
+      xmm4/xmm1 (@0x8F15FB..F) — **v = min + (u32 draw · 2⁻⁵³-scale
+      0x11DF988)·(max − min)** (@0x8F1686..B7: `subss %xmm4,%xmm1` =
+      hi−lo pre-loaded, `mulss` = ×draw, `addss %xmm4` = +lo, stored
+      to the fn950 call's stack slot) — **the strength draw IS
+      stream-consumed (NOT discarded) — (123)'s "X/Y/strength = 4–5
+      stream draws, all values discarded" holds for the VALUES' effect
+      on the WRITE-side only in the plain class; in the filled class
+      they arm the stamp** — then the fn950 call with
+      (edi = ebx?? — the record stream ptr, eax = [−0x108] = X,
+      ecx = [−0x154] = Y, v) @0x8F16C8; per-count `decl [−0x120]`,
+      `jne 0x8F1295` (@0x8F16E2..EB); per-record `incl [−0x148]` vs the
+      [fnB+0] record count (@0x8F16F7..30).
+      (**the fn950 arg1 note (the pushed edi) = the
+      "%x-source" (the stream/or-descriptor — not re-decoded this
+      window; the count/x/y/v positions are the PINNED ones above).
+  - **y=0 bump's placement piece = the OPEN part of the law**: the
+    record's X/Y pair (the [rec+0x24..0x30 slots]) feeding the stamp's
+    (xs,ys) — whether the seen [−0x108]/[−0x154] pairs are X/Y or
+    X/count — INSIDE the port's next dig (dig #136) along with the
+    port's grouped-record caveRecordStamp rewrite (writes for the
+    non-empty-template class only, replacing the draw-only stand-in
+    per §8 row 43's note), the y-count test-set, and the
+    C48-shape CHECK (the alpha = 1.0 − base-fraction law vs the
+    bell's pairwise symmetry at (19,0) — the α value byte-parent).
+  - Meter-class: E1 (the oracle pattern-census + the symmetry check)
+    only. **Tests 287/287 (286 + the count slot's 0-arm skip pin — the
+    `count 0 ⇒ only the count roll` test guards the plain-class
+    no-op shape the port keeps until dig #136's grouped-class port).**
+    No cache bump (no render change). Next free: entry **(136)**,
+    **C113** (C112 = used this entry for the record-window law below),
+    §8 row **46** (the row-43 amendment); I46? no — the no-op-cover
+    amendment never opens an issue: the I21/A4 lane's frontier
+    unchanged; **the dig's purification: started 4 active D-rows
+    (A2, A4, A5, A6), ended 4 — none touched (the read lane is the
+    record window, not the kind-0 r-eval); the law holds.**
 - **2026-10-13 (134) — dig #134: I32 p2d — the FILLER-vs-BIOME distinction
   audit + the bin-air backdrop law (C111) + the wang-biome art-crust blit.**
   - **NEW EVIDENCE:** the user's hint decoded — "our model makes no

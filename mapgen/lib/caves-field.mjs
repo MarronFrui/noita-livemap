@@ -147,6 +147,17 @@ export function toucherValue(w) {
 // skips (`cmpl $0,0x5c(%ebx); je 0x8efa2d` @0x8ef977 = the epilogue). The
 // lane's only observable effect = the draws above; the port mirrors the
 // draw budget and discards the values (entry (123)).
+//
+// SCOPE CORRECTION (dig #135, C112, §8 row 46): the no-op above holds
+// ONLY for the ctor-empty (plain) templates. The whole-binary census:
+// fn950 has exactly one caller (fnB's record window @0x8F16C8), fn870
+// exactly one (fn950 @0x8EF96F). For FILLED (image_file / `$[lo-hi]`
+// grouped) templates the two-lane stamp WRITES: fn870 =
+// dst' = dst + α·(v − dst) over the record template's own W×H at
+// (xs,ys) with dst-clip; fn950's +0x5c-gated byte stencil copies the
+// non-zero bytes. The y=0 bump in the C48 oracle = this stamp family.
+// The port here remains the PLAIN-class mirror (draws only); the
+// grouped-class write port + the X/Y anchors = dig #136.
 export function caveRecordStamp({ countMin, countMax, imageFile }, prng) {
   const lo = countMin ?? 0;
   const hi = countMax ?? 0;
