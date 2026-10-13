@@ -143,8 +143,11 @@ function runPreCommit(staged) {
     const addedAbout = sh("git diff --cached -U0 -- mapgen/ABOUT_MATH.md")
       .split("\n").filter((l) => l.startsWith("+")).map((l) => l.slice(1)).join(" ");
     const citesMeter = /\b(IoU|iouShift|dyOpt|profL1|fG|fR|meanAbs|meanAbsDiff|rms)\b|\bC79\b|\bC97\b/.test(addedAbout);
-    if (citesMeter && !addedAbout.includes("METER-CLASS:")) {
-      fail("ABOUT_MATH added text cites meter metrics (IoU/fG/rms/meanAbs/C79/C97 family) without a 'METER-CLASS:' tag — charter 'Measurement law', entry (128): tag the run E0/E1/E2/E3 and record its pre-registered 'PREDICTION:' line");
+    if (citesMeter) {
+      if (!addedAbout.includes("METER-CLASS:")) {
+        fail("ABOUT_MATH added text cites meter metrics (IoU/fG/rms/meanAbs/C79/C97 family) without a 'METER-CLASS:' tag — charter 'Measurement law', entry (128): tag the run E0/E1/E2/E3 and record its pre-registered 'PREDICTION:' line");
+      }
+      ok("meter-tag check: METER-CLASS present (entry (128) regime)");
     }
   }
   journal("pre-commit");
