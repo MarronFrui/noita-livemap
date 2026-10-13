@@ -98,7 +98,7 @@ import path from "node:path";
 import { readPng } from "./images.mjs";
 import { NollaPrng } from "./wang-js.mjs";
 
-export const CAVES_FIELD_VER = "caves-field v5 composition (2026-10-10, dig #120: loop-B top-band runs, blob y ∈ [25,h−5], L2 2-pass chains, L3 do_beginning_down chains, the t² blend + setterStamp carve arm; dig #122 I26: the walk stamp = setterStamp flag=1 (lower-only carve + the center-y q⁸ eave), the record stamp = the 0x8EF870 two-sided template lerp, carveCircle retired to the legacy model; 2026-10-11 dig #123 I28: the record lane = a draws-ONLY consumer (count up-from-min + the ctor-seed/resolver-iff-$[lo-hi]/X/Y/strength per-stamp budget; the engines no-op on the ctor-empty template); 2026-09-21 dig #55/#61/#64/#65/#68 byte-order swap; 2026-09-22 dig #81: phase 1 = mountain_count)";
+export const CAVES_FIELD_VER = "caves-field v6 walk-exit (2026-10-13, dig #127 I30: the walk's loop-top carve EXIT gate v_prev >= cursor @0x8ef109 (C105(b), comiss mapping byte-verified in dig #126) + the t<0.2 lane band's base = the carried v_prev (@0x8ef12b..0x8ef13d, not 0); the walk-length distribution = byte-BIMODAL (count-test census)); v5 composition (2026-10-10, dig #120: loop-B top-band runs, blob y ∈ [25,h−5], L2 2-pass chains, L3 do_beginning_down chains, the t² blend + setterStamp carve arm; dig #122 I26: the walk stamp = setterStamp flag=1 (lower-only carve + the center-y q⁸ eave), the record stamp = the 0x8EF870 two-sided template lerp, carveCircle retired to the legacy model; 2026-10-11 dig #123 I28: the record lane = a draws-ONLY consumer (count up-from-min + the ctor-seed/resolver-iff-$[lo-hi]/X/Y/strength per-stamp budget; the engines no-op on the ctor-empty template); 2026-09-21 dig #55/#61/#64/#65/#68 byte-order swap; 2026-09-22 dig #81: phase 1 = mountain_count)";
 
 // The C48-verified ×5 toucher: [P+0x94] = (w·0.5)/0.1
 export function toucherValue(w) {
@@ -282,7 +282,8 @@ export function stampBlendLerp(grid, gridW, gridH, cx, cy, radius, vArg) {
 // The byte-closed fnA walk (C82: the 6 prologue draws + the per-iteration
 // draw order; C81's caller supplies cursor/budget/d0sq/dy/growth/childCounter
 // — the entry (102) frozen design). Per iteration: the trunc pair → the
-// PLAIN box exit (no `& (gridW−1)` wrap) → the cursor gate → the 3-segment
+// PLAIN box exit (no `& (gridW−1)` wrap) → the cursor gate → the loop-top
+// carve EXIT gate (v_prev ≥ cursor @0x8ef109, C105(b), dig #127) → the 3-segment
 // lane/radius envelope → the UNCONDITIONAL roll draw → the coin-gated D2
 // arm (one draw) → clamp01 → the `push $1` stamp = setterStamp(value=
 // radius, scale=clamp01, flag=1) — LOWER-only carve (write iff cell >
@@ -311,14 +312,23 @@ export function walkChain(grid, gridW, gridH, prng, x0, y0, cursor, budget, walk
   let d0 = walk.d0sq; // [ebp+0x1c]: the re-jitter CLOBBERS this copy
   const { dy, growth } = walk;
   const cc = walk.cc; // SHARED with the in-walk recursion (decl per spawn)
+  let vPrev = 0; // xmm3 across iterations; iteration 1 = 0 (the gate never fires there)
   for (;;) {
     const tx = Math.trunc(x), ty = Math.trunc(y);
     if (tx < 0 || ty < 0 || tx >= gridW || ty >= gridH) return; // the plain box exit
     if (cursor <= 0) return; // the cursor gate
+    // carve EXIT gate @0x8ef109 (C105(b), dig #126; I30): `movss
+    // 0x10(%ebp),%xmm7; comiss %xmm7,%xmm3; jae exit` — AT&T comiss
+    // src,dst ⇒ Intel dst,src, jae = dst ≥ src ⇒ exit iff the PREVIOUS
+    // point's clamped value ≥ the cursor: carve continues while v <
+    // cursor (reaches cave_strength ⇒ stop). First iteration v_prev = 0.
+    if (vPrev >= cursor) return;
     const t = steps / budget;
-    // the 3-segment lane (t<0.2 | 0.2..0.6 | >0.6)
+    // the 3-segment lane (t<0.2 | 0.2..0.6 | >0.6); band-1's base = the
+    // carried v_prev, not 0 (lerp(v_prev, cursor, t/0.2)
+    // @0x8ef12b..0x8ef13d, dig #126; I30)
     let lane;
-    if (t < 0.2) lane = cursor * (t / 0.2);
+    if (t < 0.2) lane = vPrev + (cursor - vPrev) * (t / 0.2);
     else if (t <= 0.6) lane = cursor + (0.7 - cursor) * ((t - 0.2) / 0.4);
     else lane = 0.7 - 0.7 * ((t - 0.6) / 0.6);
     let slot = 1 - lane; // [−0x28] = 1 − lane, reset every iteration
@@ -330,6 +340,7 @@ export function walkChain(grid, gridW, gridH, prng, x0, y0, cursor, budget, walk
     slot += prng.next() * 0.35 - 0.25; // the UNCONDITIONAL roll draw
     if (flagD2 !== 0) slot = (prng.next() * 0.32 + 0.35) * slot; // the D2 arm
     const v = clamp01(slot);
+    vPrev = v; // carried to the next loop top (the exit gate) + band-1 base
     setterStamp(grid, gridW, gridH, tx, ty, radius, v, 1); // `push $1` (I26)
     y += dy;
     // the spawn gate omitted (spawn_percent = 0 port-side ⇒ byte-identical skip)

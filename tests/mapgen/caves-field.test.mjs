@@ -253,6 +253,83 @@ describe("walkChain — the byte-closed fnA walk (C82)", () => {
   });
 });
 
+// ── the carve EXIT-law + the lane-band-1 carry (I30, dig #127; C105(b)) ──────
+// The byte: exit the walk at the loop top when the PREVIOUS point's clamped
+// value v ≥ the cursor (comiss @0x8ef109, jae; AT&T comiss src,dst ⇒ Intel
+// dst,src ⇒ jae = dst ≥ src), and the t<0.2 lane band interpolates FROM the
+// carried v_prev, not from 0 (@0x8ef12b..0x8ef13d). Count-test rule: the
+// assertions here must FAIL under the old law (the no-exit, base-0 port) —
+// verified this dig: the pre-patch harness (git stash + run) gives the
+// low-cursor census median == the no-exit control median (32 == 32) and the
+// band-carry center value 0.8775 instead of 0.
+describe("walkChain carve exit-law + band carry (I30, dig #127)", () => {
+  const census = (N, cursor, budget) => {
+    const w = 220, h = 300;
+    const counts = [];
+    for (let i = 0; i < N; i++) {
+      const field = new Float32Array(w * h).fill(1.0);
+      walkChain(field, w, h, new NollaPrng(1000 + i), 60, 128, cursor, budget,
+        { d0sq: 0.5, dy: 0, growth: 0.5, cc: { n: 0 } });
+      let n = 0;
+      for (const v of field) if (v < 1.0) n++;
+      counts.push(n);
+    }
+    return counts;
+  };
+
+  test("walk-length census is BIMODAL byte-side: the low-cursor median collapses vs the no-exit control", () => {
+    // cursor 0.45 < ~0.75 ⇒ the byte's bulk of walks exit at ~1 stamp
+    // (~49.5% of runs have flagD2 = 0 ⇒ slot1 = 1 + 0.35u₁ − 0.25 ≥ 0.75
+    // ≥ cursor ⇒ the exit gate fires after the FIRST stamp); the control
+    // (cursor 8 > the walk's 1.0 value ceiling) can never exit and runs to
+    // budget = the old law's shape.
+    const w = 220, h = 512; // silence the outer w/h shadow
+    void w; void h;
+    const lo = census(150, 0.45, 60);
+    const ctrl = census(150, 8.0, 60);
+    const med = (a) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)];
+    expect(med(lo)).toBe(1); // FAILS under the old law (the pre-patch median = 32)
+    expect(med(lo)).toBeLessThan(Math.floor(med(ctrl) / 2));
+    const murmur = lo.filter((n) => n <= 10).length;
+    expect(murmur).toBeGreaterThanOrEqual(100); // 120/150 this dig; 8/150 pre-patch
+  });
+
+  test("band-1 carries v_prev: the 2nd stamp lerps FROM the previous clamped value, not 0", () => {
+    // deterministic scripted prng; cursor 0.95, budget 100, dy 0 —
+    // draws: coin 0.99 (flagD2=0), s 0.1 (s=0.4), rA/rC/rD 0, rB 0 (=0.4),
+    // then per iteration: roll 0.5, bias draws 0.99 + 0.99 (both skip),
+    // x-law 0.5 (step 0.25 → same tx), cc.n = 0 (no child draw).
+    // iter 1: lane = 0 (vPrev = 0, t = 0), slot = 1 − 0 + 0.35·0.5 − 0.25
+    //   = 0.925 → v1 = 0.925 (radius = rA = 0 → single-cell stamp).
+    // iter 2: t = 0.01 < 0.2: NEW lane = 0.925 + (0.95 − 0.925)·0.05
+    //   = 0.92625 ⇒ slot = 1 − 0.92625 − 0.075 → clamp01 = 0;
+    //   OLD lane = 0.95·0.05 = 0.0475 ⇒ slot = 1 − 0.0475 − 0.075 = 0.8775.
+    const w = 220, h = 512;
+    const seq = [0.99, 0.1, 0, 0, 0, 0, 0.5, 0.99, 0.99, 0.5, 0.5, 0.99, 0.99, 0.5];
+    let i = 0;
+    const prng = { next: () => seq[i++] };
+    const field = new Float32Array(w * h).fill(1.0);
+    walkChain(field, w, h, prng, 60, 128, 0.95, 100,
+      { d0sq: 0.5, dy: 0, growth: 0.5, cc: { n: 0 } });
+    // the center cell: stamp 1 wrote v1 = 0.925, stamp 2 is lower-only so it
+    // lands whenever its value < 0.925 — both laws write; the VALUE differs:
+    expect(field[128 * w + 60]).toBe(0); // FAILS under the old law (0.8775)
+  });
+
+  test("the exit gate reads the PREVIOUS point's value (the first iteration never fires)", () => {
+    // cursor 0.4 with budget 60: the first iter1 slot = 1 + 0.35u − 0.25 ≥ 0.75
+    // v1 ≥ 0.4 ⇒ iter 2 stops ⇒ the walk carves at most iter-1's stamp —
+    // but WITHOUT the gate the same run would carve the full 60-step path.
+    const w = 220, h = 512;
+    const field = new Float32Array(w * h).fill(1.0);
+    walkChain(field, w, h, new NollaPrng(42), 60, 128, 0.4, 60,
+      { d0sq: 0.5, dy: 0, growth: 0.5, cc: { n: 0 } });
+    let n = 0;
+    for (const v of field) if (v < 1.0) n++;
+    expect(n).toBeLessThanOrEqual(4); // one t=0 stamp's footprint (rA ≤ 0.2·s)
+  });
+});
+
 // ── the composed builder (fn C1 + the v5 fnB composition) ───────────────────
 describe("buildCavesField — fn C1 + the byte-cited composition order", () => {
   // hills.xml's declared knob spans (data-verified on disk 2026-10-10,

@@ -10331,6 +10331,94 @@ first use from now on):**
     (`7b-neighbouring commits` spirit), `tests/mapgen/const-verifier.test.mjs`.
     Tests **272/272**. **No cache bump** (no render change). Next
     free: entry **(125)**, **C104**, **I30**; §8 row **45** free.
+- **2026-10-13 (127) — dig #127: I30 — the walk's carve EXIT-law + the
+  lane-band-1 carry PORTED; the oracle count-tests + the C97 A/B +
+  the cache-bump review; I30 CLOSED, I31 opened**
+  - **NEW EVIDENCE:** the dig's count-test INSTRUMENT ran — the walk-length
+    census (fresh seeds, single-walk carved-cell count) + the git-stash
+    old-law differential (all three new tests FAIL under the old port)
+    + the field md5 move (dd8975f6.. → eb5bc9fc.., seed 78633191 hills)
+    + the C97 three-lane A/B rerun on the C79 56-tile set. The byte
+    facts themselves are entry (126)/C105 (no re-derivation; cited per
+    scope). Reproduction path: `node mapgen/experiments/2026-10-13-i30-exit-law-oracle.mjs` (census + the C48 oracle rows in one run; NollaPrng seeds 1000+i, walk origin (60,128), budget 60, dy 0) + the vitest suite `tests/mapgen/caves-field.test.mjs` (describe "walkChain carve exit-law + band carry (I30, dig #127)") + `SURFACE_V{2,3}=1 node --max-old-space-size=4096 mapgen/experiments/2026-10-10-surface-shape-iou.mjs`.
+  - **The port (both laws, `caves-field.mjs` walkChain, v6).** (a) The
+    exit gate at the loop top: `if (vPrev >= cursor) return;` after the
+    box/cursor gates — the byte `movss 0x10(%ebp),%xmm7;
+    comiss %xmm7,%xmm3; jae exit` (AT&T comiss src,dst ⇒ Intel dst,src,
+    jae = dst ≥ src; pre-verified against the setter's write-gate
+    @0x8ee7b2 + the clamp01 @0x8ef35f in (126) — not re-derived);
+    v_prev = the previous point's clamp01 value, first-iteration 0 ⇒ the
+    gate cannot fire there (the port's pre-existing `cursor <= 0`
+    gate keeps any gate contact inert at the start). (b) The t<0.2
+    lane band's base = the carried v_prev:
+    `lane = vPrev + (cursor − vPrev)·(t/0.2)` (byte lerp
+    @0x8ef12b..0x8ef13d), replacing the hard-coded `cursor·(t/0.2)`
+    base 0; `slot = 1 − lane` STANDS byte-side (C105's xmm3 := 1−lane
+    @0x8ef188) — only the band's base changed.
+  - **The count-tests (all 3 FAIL under the old law — verified by a
+    git-stash revert run, then green under the port).**
+    (1) The walk-length census (150 seeds, cursor 0.45 vs a cursor-8
+    never-exit control): low-cursor median = **1** (the ~1-stamp murmur;
+    pre-patch = 32 = the control median, ratio 1.0 = the old uniform
+    budget-length law), murmur (carve ≤ 10 cells) = **120/150** (pre-patch
+    8/150), p25/p75 = 1/1, max = 84 (the budget-length tail exists ⇒
+    bimodal). (2) The band-1 carry pin (scripted prng, two stamps): the
+    2nd stamp's center value = **0** under the carried base
+    (lerp(0.925, 0.95, 0.05) ⇒ slot −0.00125 → clamp01); pre-patch = 0.8775.
+    (3) The gate-pinned-to-previous-value: with cursor 0.4 the walk
+    carves ≤ 4 cells (one t=0 stamp: the gate fires at iter 2 because
+    the FIRST stamp's v ≥ 0.4); the old law ran the full 60-step path.
+    The phase-partition stream-trace invariant stays green (the trace
+    test ran in-suite; the walk exits draw nothing).
+  - **The C48 oracle compare (the byte-artifact meter).**
+    `out/oracle/caves-grid-2026-09-21.json`, grid_0x26599020 (512×256
+    bitmap_hills cache, seed 78633191); harness = the dig script above;
+    per sampled row meanAbs/maxΔ/rms (>0.25δ / gate-mismatch per 12):
+    y16 0.2915/0.3885 · y32 0.2297/0.8769 · y48 0.3974/1.0 ·
+    y64 0.4628/1.0 · y96 0.5737/1.0 · y128 0.4104/1.0 ·
+    y160 0.4120/0.8504 · y192 0.0769/0.9233 · **y224 0.0000/0.0000
+    (the standing byte bar HOLDS)** · y0(x0..31, the image-lane bump,
+    not in this port) 0.1910/0.4541. Pre-patch (git-stash run):
+    y32 0.2499 · y48 0.3729 · y64 0.4400 · y96 0.5021 · y128 0.3734
+    (y16/y160/y192/y224 unchanged) ⇒ the oracle rms ROSE on y48/y64/
+    y96/y128 despite the byte-cited law — the two meters read opposite
+    directions. Registered honestly: the oracle's verdict on the
+    sampled x-slice = the pre-patch port was CLOSER there. Attribution
+    OPEN → **I31** (the oracle pins only 12-sample rows; no full-grid
+    byte dump exists to separate the walk lane from the loop-B/C
+    engineers + registration). Per the charter: commit correctness, no
+    tuning — the law is a (126)-byte read with a triple-verified
+    comiss mapping; the C97 render meter agrees with it.
+  - **The C97 A/B (the render meter) + the cache-bump review.** On the
+    C79 56-tile set: **v2 0.23391 — bit-identical to the standing
+    number** (the V2 lane never attaches the caves field; also the fR
+    side identical) ⇒ no v2 change. **v3 0.45240 → 0.46508**
+    (iouShift 0.62533, dyOpt mean −154.5 / med −204; fG 0.71459 →
+    **0.78289** vs fR 0.48029; the hills family 0.0894 → 0.41972 with
+    the bty14-row tiles at 0.77–0.87). **v2v3 0.45521 → 0.46648.** A
+    real v3 delta ⇒ the standing cache-bump review: the r3i cache
+    (`mapgen/out/gen-cache/r3i`, genmap-server.mjs:34) stores ONLY the
+    wang-area display bins (`world-gen.mjs` ensureWorld: the .bin =
+    generateAreaExact/colorizeArea output; `attachNoiseTerrain` is a
+    live `world.noiseAt` memo probe, never serialized into the bins;
+    the caves-field lane is OPT-IN via SURFACE_V3 and the DEFAULT
+    render never attaches it) ⇒ **VERDICT: NO CACHE BUMP** — the cached
+    bytes cannot change; the v3 delta is observable only in the opt-in
+    render lane's live probes.
+  - **A-register (the purification law).** Started 5 active D-rows
+    (A2, A4, A5, A6, A7), ended 4 (A7 DEMOTED — the port landed + the
+    count-tests ran; A2/A4/A5/A6 unchanged, next drain = A4 via I21).
+  - **Tests.** The full battery at gate (== 276 expected: 273 + the 3
+    new count-tests); y224 byte bar rerun green (0.0000 row above); the
+    stream-trace partition invariant ran in-suite.
+  - **Landed:** ABOUT_MATH **(127)**, CONSTANTS **C105(e) extended (no
+    C106 — no new constant)**, ISSUES **I30 CLOSED / I31 opened** + §A
+    **A7 demoted**, `caves-field.mjs` v6 (the two laws + header/ver),
+    tests (the 3 count-tests), the oracle/census harness
+    (`mapgen/experiments/2026-10-13-i30-exit-law-oracle.mjs`), VERIFIED
+    §12 + **§8 row 45** (the (122)-swap cosmetic refutation note),
+    SESSION_CONTEXT refreshed pre-commit. **No cache bump.** Next free:
+    entry **(128)**, **C106**, **I32**; §8 row **46**.
 - **2026-10-12 (126) — dig #126: I29 Stage 2 — the fnB walk-call FRAME-SLOT law
   (the 10-arg map + the exit-gate law + the A1/A3 collapse); the port's walk
   value-exit = the NEW port divergence (I30/A7), the port FROZEN (no lib edits)**
