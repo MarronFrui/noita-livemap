@@ -1,5 +1,5 @@
 #!/bin/sh
 # Every executed commit gets journaled — /verify + /status detect bypasses
 # (--no-verify or hooksPath unset) as commits whose publish had no matching
-# gate-journal entries.
-exec node "$(git rev-parse --show-toplevel)/scripts/postcommit-journal.mjs"
+# gate-journal entries. Third mode of the shared gate script.
+exec node "$(git rev-parse --show-toplevel)/scripts/precommit-gates.mjs" post-commit

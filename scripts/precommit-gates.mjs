@@ -26,15 +26,17 @@ const sh = (cmd) => {
 const staged = sh("git diff --cached --name-only --diff-filter=ACM")
   .split("\n").filter(Boolean);
 
-const mode = process.argv[2] && fs.existsSync(process.argv[2]) ? "commit-msg" : "pre-commit";
+const mode = process.argv[2] === "post-commit"
+  ? "post-commit"
+  : process.argv[2] && fs.existsSync(process.argv[2]) ? "commit-msg" : "pre-commit";
 
 if (mode === "commit-msg") runCommitMsg(process.argv[2], staged);
+else if (mode === "post-commit") runPostCommit();
 else runPreCommit(staged);
 
 // ── commit-msg: dig-commit structure (the dig protocol, machine-enforced) ──
 function runCommitMsg(msgFile, staged) {
-  const msg = fs.readFileSync(msgFile, "utf8");
-  const m = /^dig #(\d+):/.exec(msg);
+  const msg = fs.readFileSync(msgFile, "utf8");  const m = /^dig #(\d+):/.exec(msg);
   if (!m) return ok("non-dig commit — no dig structure required");
 
   const n = Number(m[1]);
@@ -87,11 +89,28 @@ function runCommitMsg(msgFile, staged) {
 }
 
 // ---- the gate journal (bypass telemetry) ------------------------------------
+// Written by BOTH gated modes at gate-pass time. The post-commit hook
+// (`runPostCommit`, same script) writes the `commit <hash>` line per executed
+// commit — /verify + /status cross-reference the two line kinds: a commit
+// whose timestamp has no matching commit-msg gate entry = a --no-verify (or
+// hook-less) bypass → a registered process failure.
 function journal(mode) {
   try {
     fs.appendFileSync(path.join(process.cwd(), "mapgen/extractions/.gate-journal.log"),
       `${Math.floor(Date.now() / 1000)} ${mode} ok\n`);
   } catch {} // journal failure must not block a gated commit
+}
+
+// ── post-commit: the executed-commit journal (bypass telemetry; the hook ─────
+// passes the literal 'post-commit' arg — no commit tree work, always ok).
+function runPostCommit() {
+  const hash = execSync("git rev-parse HEAD", { encoding: "utf8" }).trim();
+  const isDig = /^dig #/.test(execSync("git log -1 --format=%s", { encoding: "utf8" }));
+  try {
+    fs.appendFileSync(path.join(process.cwd(), "mapgen/extractions/.gate-journal.log"),
+      `${Math.floor(Date.now() / 1000)} commit ${hash}${isDig ? " DIG" : ""}\n`);
+  } catch {}
+  process.exit(0);
 }
 
 // ── pre-commit: gate battery + citation resolvability ──────────────────────
