@@ -212,6 +212,7 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
   const def = at?.biome;
   if (!def || def.templateFile) return null; // wang/template chunks handled elsewhere
   const mask = new Uint8Array(52 * 52);
+  const matIdx = new Uint8Array(52 * 52); // 255 = air/unclassified; else the comp index (dig #130)
   const cfg = biomeCfg(def);
   if (!dataDirRef.dataDir) {
     try { dataDirRef.dataDir = findNoitaDataDir(); } catch { dataDirRef.dataDir = null; }
@@ -269,9 +270,30 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
           return null; // unread-core lane → whole chunk falls through
         }
         mask[52 * cy + cx] = v > 0.5 ? 1 : 0;
+        // dig #130 (the surface-lane compositor): the per-cell MATERIAL bands
+        // = classify(table, x, y, v) (0x8f5030 byte law; C76 frame: x = the
+        // canvas px (shift-invariant, no limit_x), y = canvas_py − 24576).
+        // Only the gate-solid cells classify; air cells stay idx 255.
+        // matNames = the per-comp material_name list (pre-resolved Once per
+        // chunk; the render maps name → materials.xml wang_color).
+        let mi = 255;
+        if (v > 0.5) {
+          const table = ensureSurfaceTable(dataDirRef.dataDir, def);
+          if (table) {
+            const rec = classify(table, gx, gy - 24576, v);
+            // classify returns comp.celldata (the per-comp record built at
+            // table build time = { i, name } via noise-terrain's records arg)
+            if (rec) mi = rec.i;
+          }
+        }
+        matIdx[52 * cy + cx] = mi;
       }
     }
-    return { mask, def, v2: true };
+    // dig #130: matNames = the classify table's component names in order
+    // (the render maps name → materials.xml wang_color).
+    const matTable = ensureSurfaceTable(dataDirRef.dataDir, def);
+    const matNames = matTable ? matTable.components.map((c) => c.material_name) : null;
+    return { mask, def, v2: true, matIdx, matNames };
   }
   // dig #97 (C76) — Phase 4 step 3: the sampler's classify chain wired
   // into the SURFACE_V3 lane (attach-gated @:235). Chain order mirrors
@@ -370,6 +392,7 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
       }
       let solid = 0;
       let v = null;
+      let mi = 255;
       // the sampler's own gate: process only when the FIELD > 0.5 —
       // comiss 0x11dfa94 @0x90dbc3 → jbe @0x90e02b (P/P-table null arm
       // stays the && below, @0x90dd01). dig #121: "the FIELD" = the
@@ -381,9 +404,18 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
         // origin-added counters classify receives after the floor-fix
         // (identity pinned C76) — NOT the wang-cell+config proxy
         v = evaluator2(x, y, field);
-        solid = classify(surfaceTable, x, y, v) ? 1 : 0;
+        const rec = classify(surfaceTable, x, y, v);
+        if (rec) {
+          solid = 1;
+          // dig #130 (the surface-lane compositor): the record index + the
+          // name list ride the chunk so worldColorAt can paint the material's
+          // materials.xml wang_color (the C76-lane values, not the flat
+          // band shade).
+          mi = rec.i;
+        }
       }
       mask[52 * cy + cx] = solid;
+      matIdx[52 * cy + cx] = mi;
       if (logPath) {
         logBuf.push(JSON.stringify({
           tx, ty, cx, cy, x, y, wx, wy, uid, gradKind,
@@ -393,7 +425,12 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
     }
   }
   flushLog();
-  return { mask, def };
+  // dig #130: the surface-lane compositor's output — per-cell classify
+  // record index (255 = air/unclassified) + the comp-name list; the
+  // caves-band chunk paints the material's materials.xml wang_color,
+  // unclassified solids keep the flat band shade.
+  const matNames = surfaceTable ? surfaceTable.components.map((c) => c.material_name) : null;
+  return { mask, def, matIdx, matNames };
 }
 
 // DEF_SEED: the per-cell seed draw for the OffsetBySeed path — the
@@ -426,6 +463,21 @@ export function attachNoiseTerrain(world, dataDir, seed = 0) {
   // dig #31: the world-level probe the worldColorAt actually calls —
   // without this the noise branch never runs (the pre-V3 wiring hole):
   world.noiseSolidAt = (wx, wy) => noiseSolidAt(world, wx, wy);
+  // dig #130 (the surface-lane compositor): the per-cell MATERIAL probe —
+  // the caves-band chunk's classify-record index (255 = air/unclassified),
+  // C76-frame side effects NOT needed here (noiseChunkMask already ran the
+  // classify at chunk build): the caller maps the index + matNames to color.
+  world.noiseMatAt = (wx, wy) => {
+    const tx = Math.floor(wx / CHUNK), ty = Math.floor(wy / CHUNK);
+    const ch = world.noiseAt?.(tx, ty);
+    if (!ch || !ch.matIdx) return { idx: 255, names: null };
+    const lx = (wx - tx * CHUNK) / 10, ly = (wy - ty * CHUNK) / 10;
+    if (lx < 0 || ly < 0 || lx >= 51 || ly >= 51) return { idx: 255, names: null };
+    return {
+      idx: ch.matIdx[52 * Math.floor(ly) + Math.floor(lx)],
+      names: ch.matNames ?? null,
+    };
+  };
   return world;
 }
 

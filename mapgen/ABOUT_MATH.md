@@ -10335,6 +10335,48 @@ METER-CLASS (this entry covers meter history, E1-only): every row below
   is a counted reading with its class; no new meter run this entry
   (the only instrument = the register grep + the already-run I31
   differential, cite in row 9).
+- **2026-10-13 (130) — dig #130: the ART-FIRST surface-band compositor
+  v1 — per-cell material classify + the materials.xml wang_color paint
+  (I32 p1; the caves-band mush's visual replacement).**
+  - **NEW EVIDENCE:** the compositor chain is entirely byte/data-backed
+    and already-ported pieces: the field value (per-cell, the C106 lanes)
+    → `classify(table, x, y, v)` (`surface-level.mjs:270`, the 0x8f5030
+    byte law; **C76 frame**: x = canvas px, y = canvas py − 24576) → the
+    matching `<Materials>` component → **`data/materials.xml`
+    `wang_color`** per material name (`colorize.mjs` already carried the
+    game's own materials palette for the wang band — the caves band never
+    consumed it). The wire: `noiseChunkMask` per-cell `matIdx` (255 = air)
+    + `matNames` ride the chunk cache; `world.noiseMatAt` and
+    `noiseColor(..., materialRgb)` paint the card. Layers: air (null =
+    transparent) where field ≤ 0.5; classified wang_color where solid;
+    the flat band shade remains only for unclassified solids (honest
+    fallback). Multi-material banding CONFIRMED on-screen: the hills
+    band sweep (seed 78633191, ty 60..64, tx 30..45) now renders
+    **857 distinct colors** (soil/sand/coal/rock families) vs the
+    2-shade flat slab (0x1b1b1b/0x6a5a44) pre-compositor; the crust
+    column shows classified bands with air above.
+  - **the count-tests** (`tests/mapgen/surface-compositor.test.mjs` 4
+    pins): the chunk (41,62 seed 78633191) carries
+    matNames == hills.xml's 6 components in order
+    (`coal, soil, sand_static, coal, copper, rock_static`), classified > 1000
+    cells AND air > 100 cells (both-sides pin — the flat-slab state fails
+    it), every classified name resolves a 3-tuple RGB from materials.xml.
+  - **not claimed this dig** (named, per the (128) regime): the cave-band
+    presence gap (I31) is UNCHANGED by v1 (the compositor colors the
+    shape the field already had — no meter run; no shape claim); the rare/polka
+    lanes ride `classify`'s existing port law (rec per the 0x8f5740
+    accept) — visuals for those follow the same wire automatically.
+    dig #131 candidates: the LoadPixelScene ART-CRUST placement
+    (spliced/xml placements from X63), the surface-decor pieces.
+  - **Landed:** `mapgen/lib/noise-terrain.mjs` (the V3-lane per-cell
+    matIdx/matNames + classify-at-chunk-build), `mapgen/lib/world-gen.mjs`
+    (noiseMatAt reads + world.dataDir), `mapgen/lib/colorize.mjs`
+    (`materialColorByName` name→wang_color), `world-gen`'s noiseColor
+    (rgb-first paint), tests. ABOUT_MATH **(130)**, ISSUES I32 p1 note,
+    VERIFIED §12 layer-fill note. Tests **281/281** at gate. No meter
+    runs; no cache bump (the caves field bytes unchanged — only the
+    in-render color of cells; the `.bin` lane untouched). Next free:
+    entry **(131)**, **C107**, **I33**; §8 row **46**.
 - **2026-10-13 (129) — dig #129: the ART-FIRST census — the LoadPixelScene
   lane's data table (I32 opened = the art-first compositor dig)** —
   *analysis discipline note: no meter run this dig (count census only).*

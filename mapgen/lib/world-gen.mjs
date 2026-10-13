@@ -12,6 +12,7 @@ import { generateAreaExact } from "./generate-exact.mjs";
 import { colorizeArea } from "./colorize.mjs";
 import { renderTemplateWorld } from "./template-render.mjs";
 import { readPng } from "./images.mjs";
+import { materialColorByName } from "./colorize.mjs"; // dig #130 surface-lane colors
 import { attachNoiseTerrain } from "./noise-terrain.mjs"; // F3 (2026-09-20)
 
 export const CHUNK = 512;
@@ -101,18 +102,28 @@ export function worldColorAt(world, wx, wy) {
   // the >0.5 gate value decides solidity, material naming is config-side).
   const nz = world.noiseSolidAt?.(gx, gy);
   if (nz != null) {
-    return noiseColor(world, tx, ty, nz);
+    // dig #130 (the surface-lane compositor): the art band's ground = the
+    // biome <Materials> classify per cell (C76 frame) → the material's
+    // materials.xml wang_color; unclassified solids keep the band shade.
+    const mat = world.noiseMatAt?.(gx, gy);
+    let rgb = null;
+    if (mat && mat.idx !== 255 && mat.names && mat.names[mat.idx] && world.dataDir) {
+      rgb = materialColorByName(world.dataDir, mat.names[mat.idx]);
+    }
+    return noiseColor(world, tx, ty, nz, rgb);
   }
   return null;
 }
 
 // Noise-terrain display color (shape-first, user mandate 2026-09-20):
-// solid cells get one baseline shade per band until the data-material
-// naming pass (0xb78e0/0x603fd0 config side, ABOUT_MATH (16)); air cells
-// return null so the renderer's own background rules apply.
-function noiseColor(world, tx, ty, solid) {
+// solid cells get their classified material's wang_color (dig #130) when
+// available, else one baseline shade per band (the pre-#130 shape-first
+// palette); air cells return null so the renderer's own background rules
+// apply.
+function noiseColor(world, tx, ty, solid, materialRgb = null) {
   if (!solid) return null;
   void tx; void ty; void world;
+  if (materialRgb) return materialRgb;
   const dark = ty - SKY_ROWS > 26 || ty - SKY_ROWS < -6;
   const hex = dark ? 0x1b1b1b : 0x6a5a44; // deep rock band vs provisional surface
   return [(hex >> 16) & 0xff, (hex >> 8) & 0xff, hex & 0xff];
@@ -154,6 +165,7 @@ function buildStaticTileArea(a, dataDir) {
 // + onProgress(done, total, key); await world.ready for completion.
 export function ensureWorld(seed, dataDir, { cacheDir = null, onProgress = () => {} } = {}) {
   const world = loadWangWorld(dataDir);
+  world.dataDir = dataDir; // dig #130: the noise band's material colors resolve from here
   world.maps = new Map();
   world.templates = renderTemplateWorld(dataDir, world.config, seed); // template biomes (sync, cached art)
   attachNoiseTerrain(world, dataDir, seed); // F3 noise terrain (2026-09-20) — the seed reaches the caves-field lane (dig #30)

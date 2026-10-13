@@ -45,6 +45,35 @@ export function loadMaterials(dataDir) {
   return byRgb;
 }
 
+// dig #130 (the surface-lane compositor): material NAME → its materials.xml
+// wang_color RGB (the same element pair extract uses above). One call builds
+// the byName map lazily on first use.
+let _materialsByName = null;
+export function materialColorByName(dataDir, name) {
+  if (!_materialsByName) {
+    _materialsByName = new Map();
+    const xml = fs.readFileSync(path.join(dataDir, "materials.xml"), "utf-8");
+    const tagRe = /<(\/?)(CellData|CellDataChild|VariableData)\b([^>]*?)(\/?)>/g;
+    let buf = null;
+    const add = (blk) => {
+      const n = (blk.match(/name="([^"]+)"/) ?? [])[1];
+      const wc = (blk.match(/wang_color="([0-9a-fA-F]{6,8})"/) ?? [])[1];
+      if (!n || !wc) return;
+      const rgb = Number.parseInt(wc.length === 8 ? wc.slice(-6) : wc, 16);
+      if (!_materialsByName.has(n)) _materialsByName.set(n, [(rgb >> 16) & 255, (rgb >> 8) & 255, rgb & 255]);
+    };
+    let m2;
+    while ((m2 = tagRe.exec(xml))) {
+      const [, closing, tag, attrs, selfClose] = m2;
+      if (closing) { if (tag === "CellData" || tag === "VariableData") { if (buf) { add(buf); buf = null; } } continue; }
+      if (selfClose) { add(attrs); continue; }
+      if (tag === "CellDataChild") { add(attrs); continue; }
+      buf = attrs;
+    }
+  }
+  return _materialsByName.get(name) ?? null;
+}
+
 // --- capture-calibrated display shades (frozen91 coalmine band) ------------
 // weights pick a shade per pixel via a deterministic hash (texture jitter)
 const S = (rgb, w = 1) => ({ rgb, w });
