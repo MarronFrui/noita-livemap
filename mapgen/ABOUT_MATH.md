@@ -10335,6 +10335,40 @@ METER-CLASS (this entry covers meter history, E1-only): every row below
   is a counted reading with its class; no new meter run this entry
   (the only instrument = the register grep + the already-run I31
   differential, cite in row 9).
+- **2026-10-13 (129) — dig #129: the ART-FIRST census — the LoadPixelScene
+  lane's data table (I32 opened = the art-first compositor dig)** —
+  *analysis discipline note: no meter run this dig (count census only).*
+  - **NEW EVIDENCE:** the per-call LoadPixelScene extraction over
+    `<unpak>/data/scripts/biomes/**/*.lua` (134 files): **256 callsites /
+    141 unique scenes**, per-call scene/visual/background/pos-expr table +
+    the **SHIPPED-FORM discovery: the game's surface art ships as
+    `biome_impl/spliced/<name>/` — folded `.plz` material buffers +
+    a placement XML WITH EXPLICIT `pos_x`/`pos_y`** (e.g. `mountain_lake.xml`:
+    `pos_x="2560" pos_y="0"`, `material_filename="data/biome_impl/spliced/mountain_lake/0.plz"`)
+    — the compositor's placement needs NO Lua x/y-expression resolution
+    for the spliced family. Resolution classes: **239 literal-path /
+    4 spliced-shipped / 2 Lua-concat (statically unresolvable, e.g.
+    `watercave_layout_..r` — not missing) / 11 unresolved calls over 10
+    unique scene paths** (the mountain hall_2–4 family + endgame2 +
+    mountain_lake_top + temple/altar_top_boss_arena — recorded as
+    UNRESOLVED UNDER THE UNPACK with per-file line receipts, never as
+    "missing files"; the completeness rule decides, never a bare stat).
+    Artifact: `mapgen/extractions/artlane-2026-10-13.json` (X63, count
+    tests `tests/mapgen/artlane-census.test.mjs` — 4 pins green).
+    Reproduction: `node mapgen/experiments/2026-10-13-artlane-census.mjs`.
+    Context: the SURFACE-band render's caves-field mush is the missing
+    art lane (the user's verdict: the crust = art + RNG, top = air) —
+    **I32 = the art-first compositor (dig #130)**: sky rows → art crust
+    (this census's table + the spliced placements) → caves field below
+    the crust line. GATE-FIX companion: the commit-msg entry-numbering
+    regex now counts every dated entry header (line-anchored) so
+    docs-only entries occupy slots (the (128) retrospective made dig
+    numbering drift; numbered this dig #129 accordingly).
+  - **Landed:** ABOUT_MATH **(129)**, the census instrument + test,
+    manifest **X63**, the gate's entry-numbering fix, ISSUES **I32
+    opened**, VERIFIED §12 layer-1 note. Tests **280/280** at gate
+    (276 + 4). Next free: entry **(130)**, **C106**, **I33**; §8 row **45**
+    stays landed (see (128)) — **46** free.
 - **2026-10-13 (128) — the MEASUREMENT-REGIME retrospective + the meter-law
   registration (non-dig, docs + gate; commissioned after dig #127's I31
   supervision round — "a meter that throws us off every change means the

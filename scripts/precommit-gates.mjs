@@ -42,11 +42,14 @@ function runCommitMsg(msgFile, staged) {
   const n = Number(m[1]);
   // Compare against the HEAD (committed) version, not the working tree —
   // the dig's own entry (N) + next-free (N+1) ARE part of the staged diff.
+  // Entry-numbering counts EVERY dated entry header (line-anchored `- **YYYY-MM-DD (N) —`):
+  // docs-only entries occupy slots too (the (128) retrospective), so dig #N = the
+  // entry axis, not "the last dig's number".
   const headDoc = (() => {
     try { return execSync(`git show HEAD:mapgen/ABOUT_MATH.md`, { encoding: "utf8" }); }
     catch { return ""; }
   })();
-  const prevHead = Math.max(...[...headDoc.matchAll(/\((\d+)\) — dig #\d+/g)].map((m) => Number(m[1])), 0);
+  const prevHead = Math.max(...[...headDoc.matchAll(/^- \*\*20\d\d-\d\d-\d\d \((\d+)\) — /gm)].map(m => Number(m[1])), 0);
   const nextFree = prevHead + 1;
   if (n !== nextFree) {
     fail(`dig #${n} ≠ head-entry+1 (${nextFree}) — fix the dig numbering or the skipped registry entry first`);

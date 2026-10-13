@@ -476,6 +476,14 @@ binary side unread) · ❌ unexplored.
    on the Linux data tree: **256** `LoadPixelScene` lines across
    `data/scripts/biomes/**` (= 196 top-level + 48 mountain/ +
    12 orbrooms/; the older "238" figure was not reproducible).
+   **Census dig #129 (X63):** the per-call ART-LANE table landed
+   (256 callsites / 141 unique scenes; **shipped form =
+   `biome_impl/spliced/<name>` `.plz` + placement XML with explicit
+   `pos_x`/`pos_y`** — the compositor's input; resolution 239 literal /
+   4 spliced / 2 lua-concat / 11 unresolved-with-line-receipts).
+   **The compositor law (I32, dig #130): the band renders sky →
+   art crust → caves field below the crust — today the caves field
+   paints the whole band (the mush), the art lane is not composited.**
 2. **The spliced-absolute scenes = already rendered pixel-exact vs
    capture** (ISSUES.md I9): `lib/template-render.mjs` `SPLICE_PNGS`,
    11 pieces (boss_arena @1536,12288, tree @−2048,−1324, moon family,
