@@ -10335,6 +10335,34 @@ METER-CLASS (this entry covers meter history, E1-only): every row below
   is a counted reading with its class; no new meter run this entry
   (the only instrument = the register grep + the already-run I31
   differential, cite in row 9).
+- **2026-10-13 (132) — dig #132: I32 p2b — the PER-AREA BACKGROUND law
+  (C109): the air backdrop = the chunk biome's Topology background_image.**
+  - **NEW EVIDENCE:** the per-biome bg declarations (this session, data):
+    hills.xml = `background_image="data/weather_gfx/background_cave_04_alt.png"`
+    (+ the 4 edge images), coalmine.xml = `background_coalmine.png`, the_sky.xml =
+    `""` (no bg art — its pale-blue fill = the biome_color, row-0 template lane
+    side). The user's in-game observation ("they change the background with
+    more layers depending on the area; this one is the cave background")
+    matches the data: the game composites the biome's own bg art behind its
+    air — per AREA, not global.
+  - **The wire:** `biomes.mjs` parses `backgroundImage` per def
+    (root-tag scan + Topology scan); `noiseChunkMask` carries
+    `backdrop = ensureBiomeBackdrop(...)` ({w,h,pixels} from the png, or
+    null when the def has no art); `world.bgImageAt(tx,ty,gx,gy)` tiles the
+    art in the CHUNK frame and `worldColorAt`'s air path composites it.
+    Defs with no bg art → transparent air (honest). The band mix probe
+    (sky band ty49..61, tx30..45): 58 distinct colors dominated by the
+    hills bg pixels (21,23,25 ×21482 …) = the per-area backdrop landed.
+  - **OPEN (tagged):** the game's true parallax/layering (bg scroll +
+    multi-layer + the in-game sky-blue source for the surface band) — the
+    prototype tiles the bg per chunk; the parallax law = a later dig.
+    The LoadPixelScene art-crust placement (X63/spliced) = p2c.
+  - **Landed:** `mapgen/lib/biomes.mjs` (backgroundImage parse),
+    `noise-terrain.mjs` (ensureBiomeBackdrop + backdrop on both chunk
+    branches + world.bgImageAt), `world-gen.mjs` (the air path composites
+    the backdrop), ABOUT_MATH **(132)**, CONSTANTS **C109**, ISSUES I32
+    p2b note. Tests **282/282**. No meter run (E1 probe only). No cache
+    bump. Next free: entry **(133)**, **C110**, **I33**; §8 row **46**.
 - **2026-10-13 (131) — dig #131: the READ-WINDOW law (I32 p2a) — the caves
   field's vertical read window pinned to the WORLD frame (C80): the sky
   band bty 1..13 reads OUT-OF-BOUNDS rows ⇒ AIR (the mountainside no

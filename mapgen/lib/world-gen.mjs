@@ -110,7 +110,17 @@ export function worldColorAt(world, wx, wy) {
     if (mat && mat.idx !== 255 && mat.names && mat.names[mat.idx] && world.dataDir) {
       rgb = materialColorByName(world.dataDir, mat.names[mat.idx]);
     }
-    return noiseColor(world, tx, ty, nz, rgb);
+    if (nz) return noiseColor(world, tx, ty, nz, rgb);
+    // dig #132 (I32 p2b, the per-area background law): an AIR cell in a
+    // procedural chunk composites the chunk's biome Topology
+    // `background_image` (the game's per-area backdrop; hills =
+    // weather_gfx/background_cave_04_alt, coalmine =
+    // weather_gfx/background_coalmine); a def with NO bg art (the_sky =
+    // "") fills its `biome_color` (the pale blue the byte map carries).
+    // The backdrop tiles in the CHUNK frame (per 512×512 cell region —
+    // the game's own per-area parallax is a later lane; tagged).
+    const bgr = world.bgImageAt?.(tx, ty, gx, gy);
+    return bgr ?? null;
   }
   return null;
 }

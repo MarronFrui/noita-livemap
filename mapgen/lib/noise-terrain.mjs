@@ -65,6 +65,23 @@ function ensureCavesField(dataDir, def, seed) {
 // unread (OPEN, C76) and buildMaterialsTable's extend-if-narrower rule
 // makes the real band = the comps' hull ∪ {0,0} = [0, 3.5] for hills.
 const surfaceTableCache = new Map(); // def.filename -> table | null
+// dig #132 (I32 p2b): the per-biome AIR backdrop — the Topology
+// background_image loaded once per def; {w,h,pixels} | {fill} | null.
+const backdropCache = new Map(); // def.filename -> backdrop | null
+function ensureBiomeBackdrop(dataDir, def) {
+  if (!def?.filename) return null;
+  if (backdropCache.has(def.filename)) return backdropCache.get(def.filename);
+  let bd = null;
+  const rel = def.backgroundImage;
+  if (rel) {
+    try {
+      const png = readPng(path.join((dataDir ?? dataDirRef.dataDir), rel.replace(/^data\//, "")));
+      bd = { w: png.width, h: png.height, pixels: png.data, fill: null };
+    } catch { bd = null; } // unreadable/missing bg art → transparent air (honest)
+  }
+  backdropCache.set(def.filename, bd);
+  return bd;
+}
 function ensureSurfaceTable(dataDir, def) {
   if (!def.filename) return null;
   if (surfaceTableCache.has(def.filename)) return surfaceTableCache.get(def.filename);
@@ -304,9 +321,12 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
     }
     // dig #130: matNames = the classify table's component names in order
     // (the render maps name → materials.xml wang_color).
+    // matNames = the classify table's component names in order
+    // (the render maps name → materials.xml wang_color).
     const matTable = ensureSurfaceTable(dataDirRef.dataDir, def);
     const matNames = matTable ? matTable.components.map((c) => c.material_name) : null;
-    return { mask, def, v2: true, matIdx, matNames };
+    const backdrop = ensureBiomeBackdrop(dataDirRef.dataDir, def);
+    return { mask, def, v2: true, matIdx, matNames, backdrop };
   }
   // dig #97 (C76) — Phase 4 step 3: the sampler's classify chain wired
   // into the SURFACE_V3 lane (attach-gated @:235). Chain order mirrors
@@ -449,7 +469,8 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
   // caves-band chunk paints the material's materials.xml wang_color,
   // unclassified solids keep the flat band shade.
   const matNames = surfaceTable ? surfaceTable.components.map((c) => c.material_name) : null;
-  return { mask, def, matIdx, matNames };
+  const backdrop = ensureBiomeBackdrop(dataDirRef.dataDir, def);
+  return { mask, def, matIdx, matNames, backdrop };
 }
 
 // DEF_SEED: the per-cell seed draw for the OffsetBySeed path — the
@@ -483,9 +504,7 @@ export function attachNoiseTerrain(world, dataDir, seed = 0) {
   // without this the noise branch never runs (the pre-V3 wiring hole):
   world.noiseSolidAt = (wx, wy) => noiseSolidAt(world, wx, wy);
   // dig #130 (the surface-lane compositor): the per-cell MATERIAL probe —
-  // the caves-band chunk's classify-record index (255 = air/unclassified),
-  // C76-frame side effects NOT needed here (noiseChunkMask already ran the
-  // classify at chunk build): the caller maps the index + matNames to color.
+  // the caves-band chunk's classify-record index (255 = air/unclassified).
   world.noiseMatAt = (wx, wy) => {
     const tx = Math.floor(wx / CHUNK), ty = Math.floor(wy / CHUNK);
     const ch = world.noiseAt?.(tx, ty);
@@ -496,6 +515,24 @@ export function attachNoiseTerrain(world, dataDir, seed = 0) {
       idx: ch.matIdx[52 * Math.floor(ly) + Math.floor(lx)],
       names: ch.matNames ?? null,
     };
+  };
+  // dig #132 (I32 p2b, the per-area background law): the AIR backdrop = the
+  // chunk biome's Topology background_image (hills =
+  // weather_gfx/background_cave_04_alt, coalmine = background_coalmine…),
+  // tiled in the chunk frame; defs with no bg art (the_sky = "") fall
+  // back to null = transparent air (the sky row's blue = the template
+  // lane's biome_color, landed later). The game's true parallax/layering
+  // = OPEN (tagged): this is the prototype tile law.
+  world.bgImageAt = (tx, ty, gx, gy) => {
+    const ch = world.noiseAt?.(tx, ty);
+    const bd = ch?.backdrop;
+    if (!bd) return null;
+    if (bd.fill) return bd.fill;
+    if (!bd.pixels) return null;
+    const lx = gx - tx * CHUNK, ly = gy - ty * CHUNK;
+    const bx = ((lx % bd.w) + bd.w) % bd.w, by = ((ly % bd.h) + bd.h) % bd.h;
+    const q = 4 * (by * bd.w + bx);
+    return [bd.pixels[q], bd.pixels[q + 1], bd.pixels[q + 2]];
   };
   return world;
 }

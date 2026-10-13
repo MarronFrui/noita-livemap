@@ -44,6 +44,17 @@ function parseBiomeDefinition(dataDir, filename) {
   const topo = xml.match(/<Topology\b([^>]*)>/);
   const attrs = topo ? topo[1] : xml.match(/<Biome\b([^>]*)>/)?.[1] ?? "";
   const templateFile = parseAttr(attrs, "wang_template_file");
+  // dig #132 (I32 p2b, the per-area background law): the Topology's
+  // background_image = the air backdrop art (the game composites it behind
+  // the band's terrain; e.g. hills = weather_gfx/background_cave_04_alt,
+  // coalmine = weather_gfx/background_coalmine; the_sky = "" ⇒ the
+  // biome_color pale-blue fill). Parsed on the ROOT Biome tag: some defs
+  // carry it outside <Topology> (the_sky.xml's is on the root with
+  // <Topology> present but background empty — both scans cover it).
+  const backgroundImage =
+    parseAttr(attrs, "background_image") ??
+    parseAttr(xml.match(/<Biome\b[^>]*>/)?.[1] ?? "", "background_image") ??
+    "";
   // static_tile="1" biomes (barren/darkness/boss_sky/potion_mimics/watchtower)
   // carry an artworks fg PNG + bg mask instead of a herringbone wang atlas —
   // their first-row wang header is all zeros, so the corner-type fill path
@@ -90,6 +101,7 @@ function parseBiomeDefinition(dataDir, filename) {
     name: name || path.basename(filename, ".xml"),
     templateFile,
     staticTile,
+    backgroundImage,
     luaScript: parseAttr(attrs, "lua_script"), // the per-chunk 0xffffeedd init lane
     randomMaterials: flatRandomMaterials,
 
