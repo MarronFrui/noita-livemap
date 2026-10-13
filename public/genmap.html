@@ -64,6 +64,25 @@
       seedInput.value = params.get("seed") ?? "78633191";
 
       let seed = null, z = 1, cam = { x: 35 * 512, y: 62 * 512 }; // start at spawn (world 0,0)
+      // dig: the smooth zoom — zF = the CONTINUOUS zoom (the wheel deltas
+      // accumulate; z = the nearest integer tile LEVEL actually fetched).
+      // The display scale interpolates between the levels (drawImage scales
+      // the tiles) → the trackpad bursts become buttery instead of the
+      // per-notch 2× jumps; the tile refetch only at the level crossings.
+      let zF = 1, zFtarget = 1, zFanim = null;
+      function setZoomTarget(t) {
+        zFtarget = Math.max(0, Math.min(MAXZ, t));
+        if (zFanim == null) zFanim = requestAnimationFrame(zoomStep);
+      }
+      function zoomStep() {
+        zF += (zFtarget - zF) * 0.25;
+        if (Math.abs(zFtarget - zF) < 0.002) zF = zFtarget;
+        const zL = Math.round(zF);
+        if (zL !== z) { z = zL; } // the fetch level flips at the .5 crossings
+        draw();
+        if (zF !== zFtarget) zFanim = requestAnimationFrame(zoomStep);
+        else zFanim = null;
+      }
       const tiles = new Map(); // key -> {img, ok}
       let zones = null, showZones = false; // per-chunk tags
       let epoch = 0; // server cache epoch (/gen/status) — busts the browser's immutable tile cache after a /gen/clear
@@ -171,11 +190,11 @@
       }
 
       function draw() {
-        document.getElementById("zlabel").textContent = z;
+        document.getElementById("zlabel").textContent = zF.toFixed(1);
         ctx.fillStyle = "#000";
         ctx.fillRect(0, 0, cv.width, cv.height);
         if (!seed) return;
-        const scale = 1 / 2 ** z;
+        const scale = 1 / 2 ** zF;
         const gw = Math.ceil(CHUNKS_W / 2 ** z), gh = Math.ceil(CHUNKS_H / 2 ** z);
         const w0 = cam.x - cv.width / 2 / scale, h0 = cam.y - cv.height / 2 / scale;
         const t0x = Math.floor(w0 / (TILE * 2 ** z)), t0y = Math.floor(h0 / (TILE * 2 ** z));
@@ -304,7 +323,7 @@
       addEventListener("mouseup", () => { dragging = false; cv.classList.remove("dragging"); });
       addEventListener("mousemove", (e) => {
         if (!dragging) return;
-        const scale = 1 / 2 ** z;
+        const scale = 1 / 2 ** zF;
         cam.x -= (e.clientX - last[0]) / scale;
         cam.y -= (e.clientY - last[1]) / scale;
         last = [e.clientX, e.clientY];
@@ -312,14 +331,15 @@
       });
       cv.addEventListener("wheel", (e) => {
         e.preventDefault();
-        const scale = 1 / 2 ** z;
-        const wx = cam.x + (e.clientX - cv.width / 2) / scale;
-        const wy = cam.y + (e.clientY - cv.height / 2) / scale;
-        z = Math.max(0, Math.min(MAXZ, z + (e.deltaY > 0 ? 1 : -1)));
-        const ns = 1 / 2 ** z;
-        cam.x = wx - (e.clientX - cv.width / 2) / ns;
-        cam.y = wy - (e.clientY - cv.height / 2) / ns;
-        draw();
+        // the wheel deltas: the line-mode multiply, the trackpad pixel-mode = tiny —
+        // accumulate into the eased target (the pinch = ctrl+wheel too)
+        const d = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+        const wx = cam.x + (e.clientX - cv.width / 2) * 2 ** zF;
+        const wy = cam.y + (e.clientY - cv.height / 2) * 2 ** zF;
+        setZoomTarget(zFtarget - (e.ctrlKey ? d * 2.4 : d) * 0.0022);
+        // anchor: keep the world point under the cursor stable at the target zoom
+        cam.x = wx - (e.clientX - cv.width / 2) * 2 ** zFtarget;
+        cam.y = wy - (e.clientY - cv.height / 2) * 2 ** zFtarget;
       }, { passive: false });
 
       resize();

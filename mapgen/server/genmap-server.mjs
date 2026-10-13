@@ -40,6 +40,9 @@ const worlds = new Map(); // seed -> { world, progress, ready }
 // within a session).
 let cacheEpoch = Date.now(); // bumped on every /gen/clear — the viewer appends it to tile URLs to bust the browser's immutable tile cache
 
+// the tile memory cache (LRU-ish; see the tile route)
+const tileCache = new Map();
+
 function getWorld(seed) {
   let entry = worlds.get(seed);
   if (entry) return entry;
@@ -141,10 +144,29 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(404).end("bad tile coords");
         return;
       }
+      // the tile memory cache (dig: the scroll UX — re-scrolling a visited
+      // area served from the RAM instead of the per-request re-render;
+      // LRU-capped at 512 tiles; cleared on /gen/clear via the epoch change
+      // (the epoch rides the viewer's tile urls)).
+      const tkey = `${seed}/${z}/${x}/${y}`;
+      const cached = tileCache.get(tkey);
+      if (cached && cached.epoch === cacheEpoch) {
+        res.writeHead(200, { "Content-Type": "image/png", "Cache-Control": "public, max-age=31536000, immutable" });
+        res.end(cached.buf);
+        return;
+      }
       const entry = getWorld(seed);
       if (!entry.progress.ready) await entry.ready;
       entry.progress.ready = true;
       const png = renderTile(entry.world, z, x, y);
+      tileCache.set(tkey, { buf: png, epoch: cacheEpoch });
+      if (tileCache.size > 512) {
+        // cheap eviction: drop the oldest inserted keys
+        for (const k of tileCache.keys()) {
+          tileCache.delete(k);
+          if (tileCache.size <= 384) break;
+        }
+      }
       res.writeHead(200, { "Content-Type": "image/png", "Cache-Control": "public, max-age=31536000, immutable" });
       res.end(png);
       return;
