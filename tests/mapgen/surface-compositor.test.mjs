@@ -14,6 +14,25 @@ process.env.SURFACE_V3 = "1";
 const DATA_DIR = "/mnt/c/Users/xan98/AppData/LocalLow/Nolla_Games_Noita/data";
 const hasData = fs.existsSync(DATA_DIR + "/scripts");
 
+test("the read-window law (dig #131): the sky band reads NOTHING (air); the mines band keeps the field", async () => {
+  const { noiseChunkMask } = await import("../../mapgen/lib/noise-terrain.mjs");
+  const { loadBiomeConfig } = await import("../../mapgen/lib/biomes.mjs");
+  const cfg = loadBiomeConfig(DATA_DIR);
+  // ty 49/55/60 = the hills-biome SKY rows (world rows < 0): the getter
+  // bounds-check ⇒ air. FAILS under the old mod-wrap (which painted the
+  // field's mass rows into the sky).
+  for (const ty of [49, 55, 60]) {
+    const r = noiseChunkMask(cfg, 41, ty, 78633191);
+    expect(r).not.toBeNull();
+    expect([...r.mask].filter((v) => v).length).toBe(0);
+    expect([...r.matIdx].filter((v) => v !== 255).length).toBe(0);
+  }
+  // ty 62 = the mines band's first chunk (world rows ≥ 0): unchanged
+  const r62 = noiseChunkMask(cfg, 41, 62, 78633191);
+  expect([...r62.mask].filter((v) => v).length).toBe(2409);
+  expect([...r62.matIdx].filter((v) => v !== 255).length).toBe(2409);
+});
+
 test("the surface band material-classify compositor (dig #130)", async () => {
   const { noiseChunkMask } = await import("../../mapgen/lib/noise-terrain.mjs");
   const { loadBiomeConfig, biomeAt } = await import("../../mapgen/lib/biomes.mjs");

@@ -65,7 +65,10 @@ const MIN_X = 159.0; // biomeCfg constants (noise-terrain.mjs:101)
 const MAX_X = 223.0;
 
 const SKY_ROW = 48; // canvas ty — biome row 0 (sky per PREDICTABLE_ZONES j=1..13)
-const SURF_ROW = 60; // canvas ty — biome row 12 (spawn surface band top, j=12)
+const SURF_ROW = 62; // canvas ty — biome row 14 = the C80 world-row origin (the
+// mines-band caves-field chunk, the C48 bty14 tiles). Dig #131: the caves
+// field reads the WORLD frame — the pre-#131 "surface top" row 12 is SKY
+// under the law (air), so the first field-reading chunk = row 14.
 
 // Lazy memos — describe bodies still run under vitest's skipIf, so no
 // data work may happen at collection time (mirror of the
@@ -120,15 +123,17 @@ function uidMirror(def) {
 
 // gradAt mirror — the lane's selection for hills (<BitmapCaves> ⇒ the
 // caves-field grid; noise-terrain.mjs dig-#101 selection, dig #121 VALUE
-// source). The grid is (seed, name)-deterministic (C49) and memoized
-// like the lane's cache. Since dig #121 this wrapper IS the lane's gate
-// value for hills (cell law: idx = (gy mod h)·w + (gx mod w)).
+// source; **dig #131 read-window law**: world-frame coords in, bounds-
+// check wy < 0 ⇒ 0 (the sky band reads nothing), mod-repeat below).
+// The grid is (seed, name)-deterministic (C49) and memoized
+// like the lane's cache.
 function gradAtMirror(def) {
   if (!_caves) _caves = buildCavesField(dataDir, def, CAPTURE_SEED);
   const { w: fw, h: fh, field } = _caves;
-  return (gx, gy) =>
-    field[(((Math.floor(gy) % fh) + fh) % fh) * fw
-        + (((Math.floor(gx) % fw) + fw) % fw)];
+  return (wx, wy) =>
+    (wy < 0) ? 0
+      : field[(((Math.floor(wy) % fh) + fh) % fh) * fw
+          + (((Math.floor(wx) % fw) + fw) % fw)];
 }
 
 // Exact mirror of the lane's default-branch math (noise-terrain.mjs,

@@ -487,7 +487,11 @@ binary side unread) · ❌ unexplored.
    **p1 landed dig #130:** the per-cell material bands (classify →
    materials.xml wang_color) are COMPOSITED (857-color banding vs the
    flat slab); the art crust placement = p2 (X63/spliced), the
-   carve-architecture = I31/I29-2/I21.
+   carve-architecture = I31/I29-2/I21. **p2a landed dig #131 (C108):**
+   the READ-WINDOW law — the caves field reads the world frame; the sky
+   band (negative world rows) reads OOB ⇒ the sky band renders AIR (the
+   mountainside no longer fills the sky; the old mod-wrap read constant
+   rows in every chunk).
 2. **The spliced-absolute scenes = already rendered pixel-exact vs
    capture** (ISSUES.md I9): `lib/template-render.mjs` `SPLICE_PNGS`,
    11 pieces (boss_arena @1536,12288, tree @−2048,−1324, moon family,

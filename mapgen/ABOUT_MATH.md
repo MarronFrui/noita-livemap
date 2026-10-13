@@ -10335,6 +10335,31 @@ METER-CLASS (this entry covers meter history, E1-only): every row below
   is a counted reading with its class; no new meter run this entry
   (the only instrument = the register grep + the already-run I31
   differential, cite in row 9).
+- **2026-10-13 (131) — dig #131: the READ-WINDOW law (I32 p2a) — the caves
+  field's vertical read window pinned to the WORLD frame (C80): the sky
+  band bty 1..13 reads OUT-OF-BOUNDS rows ⇒ AIR (the mountainside no
+  longer fills the sky).**
+  - **NEW EVIDENCE:** the chunk-window audit (this session): the old
+    wrapper's `gy % 256` reads CONSTANT rows 5/125/255 in EVERY chunk
+    (512 % 256 = 0) — the same mass column painted the sky band, the
+    hills band and the mines alike (the user's "goes way too much into
+    the air" + "no floor"). The byte law = the sampler's getter
+    (0x9499f0, dig #121) bounds-checks: the field lives in the WORLD
+    frame (C80: wy = canvas − 31744): the sky band (negative world rows)
+    reads NOTHING ⇒ nothing painted = air; at/below the origin the grid
+    repeats mod fh (mathematically identical to the old wrapper there —
+    the ty62 chunk's classified count unchanged at **2409**, the count
+    pin). Implementation: both caves wrappers (the V2 branch at
+    bandY0/bandX0, the #97 branch — its caller passes world coords
+    already: bounds-check only; the double-subtract mistake was caught
+    same-session by the ty62 collapse probe). Count-test: the read-window
+    pin in `tests/mapgen/surface-compositor.test.mjs` (ty 49/55/60 all-air
+    + the ty62 2409-stability) — FAILS under the old wrap. METER-CLASS:
+    E1 count-pins only (no meter run).
+  - **Landed:** `mapgen/lib/noise-terrain.mjs` (both wrappers), the
+    read-window pin test, ABOUT_MATH **(131)**, CONSTANTS **C108**
+    (the read-window law), VERIFIED §12 p2a note. Tests **282/282**
+    at gate. Next free: entry **(132)**, **C109**, **I33**; §8 row **46**.
 - **2026-10-13 (130) — dig #130: the ART-FIRST surface-band compositor
   v1 — per-cell material classify + the materials.xml wang_color paint
   (I32 p1; the caves-band mush's visual replacement).**

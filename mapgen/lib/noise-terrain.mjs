@@ -240,9 +240,22 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
     if (SURFACE_V3 && def.bitmapCaves && def.bitmapCaves.sizeX) {
       const caves = ensureCavesField(dataDirRef.dataDir, def, seed);
       const { w: fw, h: fh, field } = caves;
-      gradAt = (gx, gy) =>
-        field[(((Math.floor(gy) % fh) + fh) % fh) * fw
-            + (((Math.floor(gx) % fw) + fw) % fw)];
+      // dig #131 (the read-window law): the caves grid lives in the WORLD
+      // frame (C80 origin = canvas py 31744 = biome row 14; C49's name-
+      // keyed cache). The sampler's getter (0x9499f0, dig #121)
+      // bounds-checks: the surface band bty 1..13 reads NEGATIVE world
+      // rows ⇒ out of bounds ⇒ nothing read ⇒ AIR (the sky stays sky);
+      // the field repeats (row mod fh) only at/below the band origin.
+      // The old mod-wrap read constant rows 5/125/255 in EVERY chunk
+      // (512 % 256 = 0) — the terrain-fills-the-sky defect.
+      const bandY0 = 31744; // (SKY_ROWS+14)·512 = C80 worldY0
+      const bandX0 = 17920; // C80 worldX0
+      gradAt = (gx, gy) => {
+        const row = gy - bandY0;
+        if (row < 0) return 0; // above the band origin: OOB read ⇒ air
+        const col = gx - bandX0;
+        return field[(((row % fh) + fh) % fh) * fw + (((col % fw) + fw) % fw)];
+      };
       cavesSrc = true;
     } else {
       gradAt =
@@ -339,9 +352,15 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
   if (def.bitmapCaves && def.bitmapCaves.sizeX) {
     const caves = ensureCavesField(dataDirRef.dataDir, def, seed);
     const { w: fw, h: fh, field } = caves;
-    gradAt = (gx, gy) =>
-      field[(((Math.floor(gy) % fh) + fh) % fh) * fw
-          + (((Math.floor(gx) % fw) + fw) % fw)];
+    // dig #131 (the read-window law): this branch's caller passes WORLD
+    // coords (wx = canvas − 17920, wy = canvas − 31744, C80) — the getters
+    // bounds-check ⇒ wy < 0 (the sky band) reads NOTHING ⇒ air; below, the
+    // grid repeats mod fh/fw. (The V2 branch's wrapper above subtracts the
+    // origins itself — canvas args there.)
+    gradAt = (wx, wy) => {
+      if (wy < 0) return 0; // negative world row ⇒ OOB read ⇒ air
+      return field[(((wy % fh) + fh) % fh) * fw + (((wx % fw) + fw) % fw)];
+    };
     gradKind = "caves";
   } else {
     const topo = makeGradAtFromTopology(dataDirRef.dataDir, def);
