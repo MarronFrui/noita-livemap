@@ -556,8 +556,13 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   > desert 0.017–0.074 ≈ winter 0.056 — winter lane-invariant because
   noiseKind −1 → `noiseDispatch` default-arm throw → chunk falls
   through (§8 row 30, `noise-proto.mjs:530`). Residual named:
-  field/classify CONTENT = the fnB band-stack read (**I25**) — plus
-  the OPEN dyOpt −12 = L3-anchor-y observation (I21-adjacent).
+  field/classify CONTENT = the fnB band-stack read (**I25**).
+  *(Meter-regime note (128): the fG-vs-fR gap readings here were
+  pre-regime E2/E3 sentinel readings, and the "OPEN dyOpt −12 =
+  L3-anchor-y observation (I21-adjacent)" chase is SUPERSEDED —
+  (127)'s differential moved dyOpt med to −204/−216 and attributed
+  the surface divergence presence-type (I31); the register's
+  byte-cited fnB band-stack rows stand on the C-rows alone.)*
   ① (density re-census) and ②'s residuals stay as recorded above.
   Source: ABOUT_MATH §6 (118).]**
 
