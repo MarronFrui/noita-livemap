@@ -128,6 +128,32 @@ rules, with the incident that motivates each in one line:
   stream, shape metrics (C97 IoU) are noise — interpret them only after
   the stream trace is clean through the touched lane and everything
   upstream. Build the stream-trace instrument with dig #124 (fnA walk).
+- **Measurement law — meters are tagged, never a compass (entry (128), post-I31).**
+  Composed-output meters cannot steer a port: the one-stream generator
+  decorrelates 100% of downstream output on any draw-count change, so a
+  pointwise/scalar meter reads a coin flip, and while several
+  divergences coexist its deltas are error sums that re-cancel
+  ((121)–(123) + (127) regressions). Every meter run in an entry carries
+  a `METER-CLASS:` tag — **E0** bit-identity/golden/byte-bar (the only
+  composed-output pass/fail), **E1** count/distribution laws (presence
+  counts, census medians, per-phase draw counts, histograms = THE
+  incremental compass), **E2** shape/registration scores (C97-family
+  IoU/dyOpt/profL1, C79 line IoU), **E3** sampled pointwise meters (the
+  C48 12-sample rows). E2/E3 = regression SENTINELS ONLY; a delta with
+  no law-level explanation is logged `UNATTRIBUTED` and is evidence for
+  or against NOTHING in either direction — a meter never motivates a
+  port change, and a change is never claimed "confirmed" by a scalar it
+  cannot rule on. Every A/B pre-registers a `PREDICTION:` line (expected
+  class, direction, and the outcome that would FALSIFY the law) BEFORE
+  the run; an out-of-prediction result = a byte read, never
+  accommodation. The steering compass = the LANE-CLOSED ledger
+  (per-phase stream equality, the rng-probe methodology that scored
+  100% on 2,113,568 draws) + E1 count laws; composite attribution is
+  arbitrated only by a byte-side FULL-GRID dump (game-lab; I31). The
+  gate refuses any new ABOUT_MATH entry citing IoU/fG/rms/meanAbs/C79/
+  C97 numbers without `METER-CLASS:` in it. *(Full incident history +
+  ground rules: entry (128); the regime's first artifact = the I31
+  differential.)*
 - **No tuning; one dig = one commit.** Commit correctness even when the
   metric ticks down (precedents: digs #122/#123); port + tests + gates +
   the four registries land in one commit, tree ends clean.

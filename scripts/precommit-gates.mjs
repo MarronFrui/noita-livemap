@@ -131,6 +131,22 @@ function runPreCommit(staged) {
       if (!manifest.includes(m[1])) fail(`${f}: extraction cite ${m[1]} has no manifest row`);
     }
   }
+
+  // 4. The measurement-regime gate (charter 'Measurement law', entry (128)).
+  //    Per-entry tagging is the law (charter); the machine-checkable floor
+  //    is commit-level: text newly ADDED to the append-only evidence log
+  //    that cites an A/B scalar (IoU/fG/rms/meanAbs/C79/C97 family) must
+  //    carry 'METER-CLASS:' in the same added text — an untagged meter
+  //    reading is exactly the (121)–(127) misread class the regime exists
+  //    to stop.
+  if (staged.includes("mapgen/ABOUT_MATH.md")) {
+    const addedAbout = sh("git diff --cached -U0 -- mapgen/ABOUT_MATH.md")
+      .split("\n").filter((l) => l.startsWith("+")).map((l) => l.slice(1)).join(" ");
+    const citesMeter = /\b(IoU|iouShift|dyOpt|profL1|fG|fR|meanAbs|meanAbsDiff|rms)\b|\bC79\b|\bC97\b/.test(addedAbout);
+    if (citesMeter && !addedAbout.includes("METER-CLASS:")) {
+      fail("ABOUT_MATH added text cites meter metrics (IoU/fG/rms/meanAbs/C79/C97 family) without a 'METER-CLASS:' tag — charter 'Measurement law', entry (128): tag the run E0/E1/E2/E3 and record its pre-registered 'PREDICTION:' line");
+    }
+  }
   journal("pre-commit");
   return ok("citation hygiene");
 }

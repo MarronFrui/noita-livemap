@@ -10331,6 +10331,102 @@ first use from now on):**
     (`7b-neighbouring commits` spirit), `tests/mapgen/const-verifier.test.mjs`.
     Tests **272/272**. **No cache bump** (no render change). Next
     free: entry **(125)**, **C104**, **I30**; §8 row **45** free.
+METER-CLASS (this entry covers meter history, E1-only): every row below
+  is a counted reading with its class; no new meter run this entry
+  (the only instrument = the register grep + the already-run I31
+  differential, cite in row 9).
+- **2026-10-13 (128) — the MEASUREMENT-REGIME retrospective + the meter-law
+  registration (non-dig, docs + gate; commissioned after dig #127's I31
+  supervision round — "a meter that throws us off every change means the
+  compass is wrong"; the charter gains the Measurement law pointer =
+  this entry)**
+  - **NEW EVIDENCE:** the register-wide incident census (grep + full re-read
+    of entries (114)–(128), this session) — every composed-output scalar
+    reading ever recorded by a dig, classified by what it pushed. No
+    byte reads this entry; every row cites the landed entry it audited.
+  - **PREDICTION (retrospective, registered so future meter regimes can be
+    judged):** if the E2/E3 scalars were steering noise, the census
+    should show (a) scalar readings moving OPPOSITE the byte-truth on
+    byte-correct commits ≥ 2 times, (b) repeated support-claims from
+    deltas inside the meter's own noise band, and (c) no conflation
+    incident in the E0/count-law class. Verdict below: (a) confirmed ×2
+    ((122), (127)), (b) confirmed ×3 ((117), (120), (123)), (c)
+    confirmed (0 incidents in E0/count-law readings — (114)'s census
+    A/B, (125)'s metric-identical, the (126)→(127) census).
+  - **The incident list (E = audited entry; "push" = the direction the
+    meter steered, the register's own words; "verdict" = with current
+    knowledge).**
+    1. `(117)` — C79 line meanAbs **89.58 → 89.42** ("moves ~nothing ⇒
+       FAIL stands"). Push: away from the frame lane, toward the shape
+       instrument. Verdict: TABULATION-HAZARD — the Δ0.16px was inside a
+       metric's own blind band (C79 is a LINE metric; its own ④ probe
+       showed the mountain band +77 cells 0→1 was invisible to it) yet
+       it issued the "moves ~nothing" verdict; the conclusion (shape
+       residual) happened to be right and was later independently
+       anchored — the meter was not the reason to believe it.
+    2. `(118)` — fG 0.141–0.167 vs fR 0.480: the "under-solidity" NAMED
+       failure. Push: the fG-vs-fR gap became the de-facto residual
+       index for the caves lane. Verdict: hypothesis-grade OK, but it
+       installed the index that then flipped direction roadside (row 5)
+       — the first conflation link.
+    3. `(120)` — v3 **+0.0006** / v2v3 **+0.0021** recorded as
+       corroboration ("the byte-faithful lanes barely move the 56-tile
+       IoU"). Verdict: coin-flip decimals as support — the exact class
+       the law now forbids; consistent with the regime's diagnosis.
+    4. `(121)` — v3 0.24708 → **0.46464** ("the largest single-lane gain
+       on record") read as confirmatory + chased the "dyOpt med −12"
+       E2 artifact as the C78/L3 anchor hint. Verdict: the
+       BYTES were confirmed (the
+       direct-read fix) — but the scalar got the CREDIT; a +0.2 jump
+       cannot distinguish "closer" from "different" after a stream
+       re-roll. The dyOpt −12 hint = an E2 registration artifact chased
+       as a frontier row; superseded by (127)'s med −204/−216 shift.
+    5. `(122)` — v3 **−0.012** on the byte-correct carve law, read as
+       "the carve removing solid where the ref still has it — the
+       residual is the registration/model gap"; fG 0.840 → **0.71506**
+       read "as the uncarved-base prediction said" (post-hoc). Verdict:
+       **MISLEADING** — the down-move was equally consistent with
+       stream-cascade without any carve-direction statement; the
+       non-tuning rule (not the meter) saved the work.
+    6. `(123)` — v3 **−0.0004** / fG **−0.0005** ("essentially
+       unchanged... near mask-neutral") recorded as corroboration.
+       Verdict: decimal-as-support again.
+    7. `(125)` — "v2 bit-identical / v3 metric-identical" used as the
+       no-change proof for a comments-only edit. Verdict: the LEGITIMATE
+       composite use (E0-class) — a meter can prove "nothing changed";
+       it can never prove "the change was toward truth". Listed as the
+       positive control.
+    8. `(127)` + the I31 amend — rms worsened / IoU bettered / fG
+       worsened on ONE commit (three readings, three directions); the
+       interim verdict "the pre-patch port was closer on the slice"
+       WRONG, superseded same-session by the E1 differential (presence
+       ref 49 / pre-law 26 / post-law **0**; the shift window recovers
+       nothing). Verdict: the regime's namesake incident.
+  - **Tally ≠ zero incident and ≠ the user's estimate either:** the
+    register holds **9 scalar readings since (114)**: 2 outright
+    misleading verdicts ((122), (127)), 3 decimal-as-support readings
+    ((117), (120), (123)), 1 chased registration artifact ((121)'s
+    dyOpt), 3 legitimate readings ((118) hypothesis-grade, (125) E0,
+    (114)'s bounded elimination). Note: the register counts only
+    COMMITTED interpretations — in-chat steering never landed here and
+    is invisible; the census is a FLOOR, not the truth of how often the
+    meters misled. Under the regime, every future reading of rows 3/6/5
+    class is mechanically refused (the gate).
+  - **The regime registered (full law = AGENTS.md charter, "Measurement
+    law"):** tag every meter run `METER-CLASS:` E0/E1/E2/E3 · E2/E3 =
+    sentinels, `UNATTRIBUTED` deltas are evidence of nothing ·
+    pre-register `PREDICTION:` before every A/B · meters never motivate
+    a port change · the compass = the LANE-CLOSED ledger (per-phase
+    stream equality, the rng-probe methodology — the fill ladder's
+    2,113,568-draw 100% match is the precedent) + E1 count laws ·
+    composite attribution = a byte-side FULL-GRID dump (queued game-lab
+    work, ISSUES I31 carries the instrument plan).
+  - **Landed:** AGENTS.md (the charter's Measurement law bullet),
+    `scripts/precommit-gates.mjs` (the METER-CLASS mechanical check on
+    new ABOUT_MATH text), this entry **(128)**, SESSION_CONTEXT
+    refreshed. Tests unchanged (no battery edit; the gate fires on
+    ABOUT_MATH adds only). Next free: entry **(129)**, **C106**, **I32**;
+    §8 row **46**.
 - **2026-10-13 (127) — dig #127: I30 — the walk's carve EXIT-law + the
   lane-band-1 carry PORTED; the oracle count-tests + the C97 A/B +
   the cache-bump review; I30 CLOSED, I31 opened**
