@@ -157,6 +157,22 @@ rules, with the incident that motivates each in one line:
 - **No tuning; one dig = one commit.** Commit correctness even when the
   metric ticks down (precedents: digs #122/#123); port + tests + gates +
   the four registries land in one commit, tree ends clean.
+- **Document laws (user mandate, post-entry-(128)).** The .md set is
+  CLOSED — AGENTS.md (method) · VERIFIED.md (canon) · ABOUT_MATH.md §6
+  (evidence log) · CONSTANTS.md (numbers) · ISSUES.md (defects/debt) ·
+  `mapgen/extractions/MANIFEST.md` (extraction cites) · README.md files
+  (usage only). **NO new .md files, ever** — a fact's home is the
+  registry that already owns its kind (amend in place, one home per
+  fact, no per-site stamps); the pre-commit gate refuses any added .md
+  outside that set. And an existence claim ("no X exists", either
+  written or acted on) requires a NAMED artifact sweep performed this
+  session — grep `src/ public/ mapgen/server` + `git log --all --oneline
+  -- <pattern>` + the registers — before it may move work. *(The
+  genmap.html duplication: an un-swept "no viewer exists" claim
+  rebuilt over a 29-commit-old product.)*
+- **Dead-code honesty:** a replaced viewer/instrument page is deleted
+  in the same session it is superseded; parallel copies of a product
+  are divergence, not safety.
 - **Numbers are claims.** Every reported number carries its unit, range
   and reproduction path; an unqualified number is a non-claim. The
   shorthand decodes as follows — each row is verifiable at its named

@@ -132,7 +132,25 @@ function runPreCommit(staged) {
     }
   }
 
-  // 4. The measurement-regime gate (charter 'Measurement law', entry (128)).
+  // 4. The document-set law (charter 'Document laws'): the .md set is
+  //    CLOSED — a newly added .md outside the allowlist is refused. A
+  //    fact's home is the registry that already owns its kind.
+  const addedFiles = sh("git diff --cached --name-status --diff-filter=A")
+    .split("\n").filter((l) => l.startsWith("A\t")).map((l) => l.slice(2));
+  const mdAllow = new Set([
+    "AGENTS.md", "README.md", "mapgen/README.md", "mapgen/ABOUT_MATH.md",
+    "mapgen/VERIFIED.md", "mapgen/CONSTANTS.md", "mapgen/ISSUES.md",
+    "mapgen/extractions/MANIFEST.md", "mapcap/README.md",
+  ]);
+  const badMd = addedFiles.filter((f) => f.endsWith(".md") && !mdAllow.has(f));
+  if (badMd.length) {
+    fail(`new .md file(s) refused — the document set is CLOSED (charter 'Document laws'): ${badMd.join(", ")}. A fact's home is the registry that already owns its kind`);
+  }
+  if (addedFiles.some((f) => f.endsWith(".md"))) {
+    ok("document-set law: no new .md outside the closed set");
+  }
+
+  // 5. The measurement-regime gate (charter 'Measurement law', entry (128)).
   //    Per-entry tagging is the law (charter); the machine-checkable floor
   //    is commit-level: text newly ADDED to the append-only evidence log
   //    that cites an A/B scalar (IoU/fG/rms/meanAbs/C79/C97 family) must
