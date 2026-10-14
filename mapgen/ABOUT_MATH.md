@@ -10335,6 +10335,46 @@ METER-CLASS (this entry covers meter history, E1-only): every row below
   is a counted reading with its class; no new meter run this entry
   (the only instrument = the register grep + the already-run I31
   differential, cite in row 9).
+- **2026-10-14 (139) — dig #139: the kind-0's band-block DATA PARSE —
+  the [uid+0x270..+0x274/+0x288+] slots = the mGradient-HIGH-NOISE
+  family's per-biome XML parse (the 0x9C4560 parse-in, the keys
+  "mGradientHighNoise"/"coarse_map_force_terrain"); the band blocks =
+  data-parsed (the dig-137 prediction RECOVERS); the DRIVER-frame
+  producer = partially cut (dig #140's first read, before the PORT).
+  - **NEW EVIDENCE:** the fresh parse-window X71
+    (`dig139-parse-49c600.asm`, md5 `5dbfd768…`, 0x49C600..0x49CA00 —
+    the file = true VA − 0x400C00) + the rdata key bytes at
+    0x1179FF4..0x117A040 read this session ("mGradientHighNoise",
+    the GRID_mArray2DSize assert tail, "coarse_map_force_terrain",
+    "mGeneration == mOwner->_GetGeneration()");
+    exe md5 = C13.
+  - **PREDICTION (pre-read):** the 0x49C6XX family = the per-biome
+    Gradient-family attribute walk binding keys into the band slots.
+    **OUTCOME: agree — the lea-form writes target the +0x270/+0x274/
+    +0x288 slots (the C114/C116 band-struct field addresses) via the
+    0x9C4560 parse-in with the keys "mGradientHighNoise" + the
+    coarse-map family; the `test $0x44,%ah` jnp template and the
+    0x41CEB0 string ctor + the 0x8A25B0/0x9C56A0 probe pair = the
+    standard parse-walk shape (the C58 bind-table family)** ⇒ the
+    band blocks = DATA-PARSED per biome (the dig-137 part-refuted
+    prediction recovers: the values are per-biome config data).
+  - **The port-side consequence:** the kind-0 PORT's loader =
+    `bandStruct → the C114/C116 defaults + the XML-override parse
+    (the mGradient-family keys — the exact key-per-slot map = the C90/
+    C58-style sweep = the small remaining micro-read)` — no runtime
+    band-matrix producer needed for the DEFAULT class (the empty.xml
+    = the ctor defaults + any explicit overrides).
+  - **THE DRIVER-FRAME PRODUCER = cut** (the window sweep attempt
+    yielded no single producer; the r-ebx = the -0x30-driver = a
+    per-tile frame object — its [+0x38]/[+0x48]/[+0x50]/[+0x54]
+    + [+0x68]-matrix producer = ONE more targeted read, dig #140's
+    first half; the band-block data side = settled this dig).
+  - **A4 status:** started 4 active D-rows (A2, A4, A5, A6), ended 4 —
+    the A4's remaining decomposition = the DRIVER-frame read + the
+    PORT (dig #140). The law holds.
+  - Meter-class: E1 only. Tests **287/287** (no port, no test
+    delta). Next free: entry **(140)**, **C119** (C118 = used this
+    entry for the parse family below); §8 row **47** free.
 - **2026-10-14 (138) — dig #138: the kind-0's VALUE-SOURCE map — the
   config's ctor default block (the band pair ±512/±100 + the mode-1 +
   the +0x224 = 5 SIN_CAPPED-default) + the [uid+0x1d4]-P chain

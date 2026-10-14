@@ -529,6 +529,14 @@ binary side unread) · ❌ unexplored.
    disabled at scale 0 until the per-biome +0x290 override. The
    DRIVER-frame producer + the band-block parse family = dig #139,
    then the PORT.
+   **dig #139 (2026-10-14, C118): the band-block DATA PARSE law
+   landed** — the 0x49C6XX parse family (the 0x9C4560 parse-in, the
+   C58 bind-table shape) wires the mGradient-HIGH-NOISE family keys
+   onto the +0x270/+0x274/+0x288 slot addresses ⇒ **the band blocks =
+   per-biome XML-override-parsed onto the C116 ctor defaults** (the
+   empty.xml = the defaults only); the kind-0 PORT's loader shape =
+   the C114/C116 law + the C118 key map; the DRIVER-frame producer =
+   dig #140's first read, then the PORT.
    **p2d landed dig #134 (C111):** the FILLER law — the "meaningless
    chunks" (the noodly walls) = the KIND-0 noise chain (the filler def
    empty.xml = NO BitmapCaves, SIN_CAPPED_SIMPLEX); the real biomes =
