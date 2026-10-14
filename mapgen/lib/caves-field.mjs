@@ -131,11 +131,26 @@ export function toucherValue(w) {
 //        102 CaveStructure records, on disk 2026-10-11): 94 plain, 7
 //        `$[0-999]`, 1 `$[1-4]` ⇒ 1 resolver draw for those 8, 0 for the
 //        rest).
-//     3. the X roll @0x8f14b6 (state store @0x8f1518): [rec+0x28] + trunc(u·([rec+0x30] − [rec+0x28] + 1)).
-//     4. the Y roll @0x8f157f (state store @0x8f15d9): [rec+0x24] + trunc(u·([rec+0x2c] − [rec+0x24] + 1)).
+//     3. the Y roll @0x8f14b6 (state store @0x8f1518): [rec+0x28] (aabb_min_y)
+//        + trunc(u·([rec+0x30] (aabb_max_y) − [rec+0x28] + 1)).
+//     4. the X roll @0x8f157f (state store @0x8f15d9): [rec+0x24] (aabb_min_x)
+//        + trunc(u·([rec+0x2c] (aabb_max_x) − [rec+0x24] + 1)).
 //     5. the strength roll @0x8f164d (state store @0x8f16a3): f32
 //        [rec+0x34] + u·([rec+0x38] − [rec+0x34]).
-//   then fn950 (ecx = the temp, edx = the field, stack: Y/X/strength — the
+//   dig #141 (slot-map): the aabb slot-ORDER per the record-class XML
+//   dispatcher 0x4ABD60's own-mount rows = {+0x24 aabb_min_x, +0x28
+//   aabb_min_y, +0x2c aabb_max_x, +0x30 aabb_max_y} ⇒ [−0x108] (from
+//   [rec+0x28]/[rec+0x30]) = the Y-anchor roll (NOT X = the digs #102-#135
+//   era-labeled-X-slot is WRONG) and [−0x154] (from [rec+0x24]/[rec+0x2c])
+//   = the Y/anchor's-X-slot (= the fnB's fn950 call site: the [−0x108] push
+//   @0x8f16c0 arrives as the fn950's [ebp+0xc] and the [−0x154] push
+//   @0x8f16c7 as the fn950's [ebp+8] = xs): the fn950's (xs, ys, v) = the
+//   fnB's ([−0x154] X-anchor, [−0x108] Y-anchor, strength) — swapped vs
+//   the dig-#102-era "X @8f14b6/Y @8f157f" label pairing, now matching the
+//   record-XML aabb field order. The sign law stands (a tiny negative
+//   trunc-mult-span): both rolls' output = min + trunc(u·(max − min + 1)).
+//   then fn950 (ecx = the temp, edx = the field, stack: X-then-Y (the
+//   [−0x154]/[−0x108] values as xs/ys) then strength — the
 //   values are DISCARDED) + the temp dtor (0x64cad0); record stride 0x3c,
 //   back-edge `jb 0x8f11b3`.
 // The no-write proof (I28 CLOSED): the ctor zero-inits every dim/container
