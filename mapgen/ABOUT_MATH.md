@@ -10335,6 +10335,83 @@ METER-CLASS (this entry covers meter history, E1-only): every row below
   is a counted reading with its class; no new meter run this entry
   (the only instrument = the register grep + the already-run I31
   differential, cite in row 9).
+- **2026-10-14 (136) — dig #136 (the user's re-order: the kind-0 lane
+  first, the record-stamp port behind it): the r-evaluator's RETURN
+  LAW (the (105) OPEN ①/③ settled) + the case-5 skew consts DEMOTED
+  (A4 half-closed).**
+  - **NEW EVIDENCE:** fresh full-window extractions dated 2026-10-14:
+    `dig136-r-eval-90b280-90b67f.asm` (0x90B280..0x90B67F, md5
+    `a8217b22…`, X66) + `dig136-core-8FC020-8FC27F.asm` (0x8FC020..0x8FC27F,
+    md5 `db491530…`, X67); exe md5 re-verified = C13. The lower-text
+    skew-writer windows re-read from the X1 bank this session
+    (0x4070D5..0x407142 + the normalizer's call-pattern sites 0x41BBC7/
+    0x41BBD0..F8, 138 callsites).
+  - **PREDICTION (pre-read):** r = a per-tile mode-formula output, NOT
+    the noiseDispatch surrogate the port runs; for the filler family I
+    expect a piecewise/capped shape saturating in the tile interiors
+    with variation only at the edges (the (105)-census's 42-px seam).
+    **OUTCOME: agree on the class — r = the per-tile VERTICAL BAND
+    RAMP (a y-threshold pair per band id, zero noise core inside);
+    REFUTED on the mechanism: no mode-switch saturator, a closed-form
+    fraction — and the >380 arm runs WITHOUT any table index.**
+  - **The r-eval law (0x90B280, ebx = the per-tile config):** frame =
+    `col = trunc([+0x38] + arg-x) >> 9 (and $0x1ff on the copy for the
+    512-local x), mod [+0x50] with the negative add-back` +
+    `row = clamp(trunc([+0x40] + arg-y) >> 9, 0, [+0x54]−1)`; band id =
+    `GetAt([+0x68] matrix, [+0x50]·row + col)` (CSafeArray::GetAt
+    0x94C700, the +0x68-eax arg) — **one 0x90B680 call per band id
+    (ecx = the config, stack: the band id, an out-reveal ptr) fills the
+    TWO-f64 out pair**: out[−0x2C] = **A (the UPPER bound: y ≤ A ⇒ r
+    returns 0.0 @0x90B2C3/0x90B5C9)**, out[−0x24] = **B (the LOWER
+    bound: y ≥ B ⇒ r returns 1.0 @0x90B2DE/0x90B5D3)** — settles
+    (105) OPEN ③ (lane0 = the upper bound, lane1 = the lower bound;
+    the (105)'s "which band bound" ambiguity dies).
+  - **The FINAL (settles (105) OPEN ①, the XMM0 return):**
+    `t = (y − A) / (B − A)` (the f64 division at 0x90B5E3..EF /
+    0x90B651..59), then `f32(f64(f32(t)) + [0x11DF878])` (cvtpd2ps/
+    cvtps2pd/addsd/cvtpd2ps) — **[0x11DF878] = f64 0.0 (byte-read,
+    rdata = VA − 0x400E00): the add is a NO-OP round carrier** — the
+    r = the per-tile vertical band ramp, ZERO noise core inside (the
+    "sin-capped" value path lives BELOW this fn, in 0x90B680's mode
+    arms — the (105)-census's const/linear/core-noise/fbm modes).
+    No noiseDispatch reach in this fn — **the port's
+    `noiseDispatch(uid.noiseKind)` SURROGATE is the WRONG CLASS** (a
+    noise core vs the byte's band-ramp frame); the replacement port =
+    dig #137 (the band-vector + 0x90B680 params port, incl. the
+    (105)② 6.86e-07 item which rides that read).
+  - **The 42-px seam (already-censused (105), now byte-cited in-window):**
+    local x ≤ 41 (`cmp $0x29` @0x90B527) with the LEFT tile's band ≠
+    ours (0x909C70's x-wrap/y-clamp fetch) ⇒ `f = 1 − lx/41.0`
+    (41.0 @0x11E0274, 1.0 @0x11DFBF0) and a SECOND 0x90B680 call fills
+    the LEFT band's params; both params pairs lerp by f
+    (@0x90B594..AB / 0x90B5A8..BD) before the gates.
+  - **The case-5 core's skew consts DEMOTE (A4①):** the BSS doubles
+    0x132AB68 (skew) / 0x132AC70 (unskew) have static WRITER sites in
+    the lower text (0x407103 / 0x407137): skew = `(3.0 − f(3.0))·0.5`,
+    unskew = `(3.0 − f(3.0)) / 6.0` (consts 3.0 @0x11DFEA0, 1.0
+    @0x11DFE30, 0.5 @0x11DFDD8, 6.0 @0x11DFEF0 — all byte-read this
+    session) where f = the normalizer helper 0x1033A3A (NOT in the
+    text.bin range — 138 callsites, the 0x41BBC7/0x41BBD0..F8 pattern
+    computes a²+b² then divides (a,b) by the result ⇒ **f = sqrt**)
+    ⇒ **skew = (√3−1)·0.5 = 0.36602540378443864, unskew =
+    (3−√3)/6 = 0.2113248654051871 — byte-exact F2/G2; the port's
+    "standard widened" values ARE the bytes; the UNPINNED/BSS flag =
+    dead** (C35/C39 amended in-row).
+  - **A4 status:** item ① (the F2/G2 consts) = B-DEMOTED this dig;
+    item ② (the MOD12 corner-hash orientation) = CONFIRMED (the byte's
+    corner chain = perm12[perm[i&0xff] + j&0xff]-shape, the X67 window
+    rows 108..135 — the port's existing form matches); item ③ (the
+    noiseKind dispatch table) + the r PORT remain — the row stays D
+    with this entry as the decomposition receipt (the demote = dig
+    #137's port, see below). The dig's purification: started 4 active
+    D-rows (A2, A4, A5, A6), ended 4 (A4 demoted-in-row on ① and ②
+    planned-remaining ③ + the port) — the law holds.
+  - Meter-class: E1 only (the const byte-reads + the window-shape
+    census; no composed-output meter ran). Tests **287/287** (the
+    dig-135 baseline; the dig = docs+manifest only, no port, no test
+    delta — the port lands dig #137 with its count tests). Next free:
+    entry **(137)**, **C114** (C113 = used this entry for the r-eval
+    law below); §8 row **47** free.
 - **2026-10-14 (135) — dig #135: the 0x8EF870 ADD-BLEND WINDOW READ —
   the record-lane image stamp = the y=0 bump's writer family
   (C48's "named identify target"); the fn870/fn950 write laws + the

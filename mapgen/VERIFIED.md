@@ -497,7 +497,17 @@ binary side unread) · ❌ unexplored.
    the y16/y32 shoulder flanks) = the record lane's image stamps — the
    "record lane writes nothing" verdict is now scoped to the
    ctor-empty plain class only (§8 row 46); the grouped-class port +
-   the X/Y anchors = dig #136. **p2d landed dig #134 (C111):** the FILLER law — the "meaningless
+   the X/Y anchors = dig #137.
+   **dig #136 (2026-10-14, C113): the kind-0 lane's r-eval law
+   landed** — the r-evaluator (0x90B280) = the per-tile VERTICAL
+   BAND RAMP (the [+0x68] band matrix → 0x90B680's two-f64 A/B edge
+   pair; r = 0 for y ≤ A, 1 for y ≥ B, the (y−A)/(B−A) fraction
+   between, + the [0x11DF878] = f64 0.0 round-carrier add), NOT a
+   noise core — the port's noiseDispatch surrogate = the wrong
+   class; the case-5 skew consts = byte-settled canonical F2/G2
+   (the static writers + the sqrt normalizer; the port's flagged
+   approximations die — A4 ① demoted, ② confirmed). The kind-0
+   PORT = dig #137. **p2d landed dig #134 (C111):** the FILLER law — the "meaningless
    chunks" (the noodly walls) = the KIND-0 noise chain (the filler def
    empty.xml = NO BitmapCaves, SIN_CAPPED_SIMPLEX); the real biomes =
    the BitmapCaves fields with their own knobs; the bin-air backdrop +
