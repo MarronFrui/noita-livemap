@@ -10335,6 +10335,27 @@ METER-CLASS (this entry covers meter history, E1-only): every row below
   is a counted reading with its class; no new meter run this entry
   (the only instrument = the register grep + the already-run I31
   differential, cite in row 9).
+- **2026-10-14 (140) — correction ENTRY (not a dig, the (128)-style
+  docs slot): the dig-139 key-strings = read with the WRONG PE rule
+  (the .data mapping on the rdata).** The correct rdata rule
+  (VA − 0x400E00, C104) byte-reads the real attrs this session:
+  **mGradientStartY → [+0x270]** (the C114's A-base; the −512
+  ctor default), **mGradientEndY → [+0x274]** (the B-base; +512),
+  **mGradientSlopeStartX → [+0x278]**, **mGradientSlopeDelta →
+  [+0x280]** (the linear span), **mGradientAddNoise → [+0x288]**
+  (the C114 MODE; the C93 "∉{1,2,3}" clause names this attr),
+  **mGradientNoiseScale → [+0x290]** (the core-coord scale),
+  **mGradientLowNoise → [+0x298]** (−100 amp), **mGradientHighNoise
+  → [+0x29C]** (+100 amp) — pushed consts 0x117A008/034/064/094/
+  108/13C/1CC/1FC. The WRONG-rule keys ("hNoise"/"ap_force_terrain"/
+  the mArray2DSize family) = DELETED as evidence (the C118 amended
+  in-row; the (139)-entry's OUTCOME stays valid in its class claim —
+  the family = the per-biome mGradient-scale overrides — and the
+  specific key names now carry THIS rule). The driver-side hunt and
+  the PORT = unchanged cuts (dig #141's opener = the DRIVER-frame
+  read, then the kind-0 PORT). No test delta; no cache bump.
+  Meter-class: n/a (no meter ran). Next free: entry **(141)**,
+  **C119**; §8 row **47** free.
 - **2026-10-14 (139) — dig #139: the kind-0's band-block DATA PARSE —
   the [uid+0x270..+0x274/+0x288+] slots = the mGradient-HIGH-NOISE
   family's per-biome XML parse (the 0x9C4560 parse-in, the keys

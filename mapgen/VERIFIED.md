@@ -531,12 +531,19 @@ binary side unread) · ❌ unexplored.
    then the PORT.
    **dig #139 (2026-10-14, C118): the band-block DATA PARSE law
    landed** — the 0x49C6XX parse family (the 0x9C4560 parse-in, the
-   C58 bind-table shape) wires the mGradient-HIGH-NOISE family keys
-   onto the +0x270/+0x274/+0x288 slot addresses ⇒ **the band blocks =
+   C58 bind-table shape) wires the mGradient-family keys onto the
+   +0x270/+0x274/+0x288 slot addresses ⇒ **the band blocks =
    per-biome XML-override-parsed onto the C116 ctor defaults** (the
    empty.xml = the defaults only); the kind-0 PORT's loader shape =
    the C114/C116 law + the C118 key map; the DRIVER-frame producer =
-   dig #140's first read, then the PORT.
+   dig #141's first read, then the PORT.
+   **(140) key correction (an entry, not a dig): the dig-139's
+   key names were a wrong-PE-rule read; the correct rdata-rule keys =
+   mGradientStartY/EndY (the +0x270/0x274 pair) + SlopeStartX/
+   SlopeDelta (+0x278/0x280) + AddNoise (+0x288 = the C114 MODE) +
+   NoiseScale (+0x290) + LowNoise/HighNoise (+0x298/0x29C) — the
+   C118 row amended in-row; the class claim (per-biome XML overrides)
+   stands.
    **p2d landed dig #134 (C111):** the FILLER law — the "meaningless
    chunks" (the noodly walls) = the KIND-0 noise chain (the filler def
    empty.xml = NO BitmapCaves, SIN_CAPPED_SIMPLEX); the real biomes =
