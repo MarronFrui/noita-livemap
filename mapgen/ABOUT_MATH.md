@@ -10335,6 +10335,69 @@ METER-CLASS (this entry covers meter history, E1-only): every row below
   is a counted reading with its class; no new meter run this entry
   (the only instrument = the register grep + the already-run I31
   differential, cite in row 9).
+- **2026-10-14 (138) — dig #138: the kind-0's VALUE-SOURCE map — the
+  config's ctor default block (the band pair ±512/±100 + the mode-1 +
+  the +0x224 = 5 SIN_CAPPED-default) + the [uid+0x1d4]-P chain
+  CONFIRMED (0x7EC4E0 = the P's builder) + the port cut retained
+  (the DRIVER-frame producer = dig #139).**
+  - **NEW EVIDENCE:** fresh windows dated 2026-10-14: the 0x8EE230
+    memo wrapper + the 0x933D80 lazy-singleton helper + the ctor
+    default-block ([X70: dig138-ctor-495c10-496220.asm, md5
+    `7a8c6277…`, 0x495C10..0x496220 incl. the full slot-default
+    sweep; file = true VA − 0x400C00 = 0x95010, byte-checked against
+    the X1 bank's same-region rows) + the 0x8EE230/0x933D80 X1-row
+    reads this session; the
+    ramp-slot WRITER-census grep (slots +0x270/+0x274/+0x288:
+    the ctor 0x496149/53/65 + the lea-form parse family 0x49C668/E0/
+    886 + the error-cleanup writers 0x4778xx); exe md5 = C13.
+  - **PREDICTION (pre-read):** the band blocks/driver frame parse
+    from per-biome DATA at config-load time; 0x7EC4E0 only memoizes.
+    **OUTCOME: the [uid+0x1d4]-P CHAIN CONFIRMED** (the .bss
+    0x132A528 map keyed &config+0xa8 → the miss builds the P: the
+    0x933D80 = the 0x2C-Global-thing ensure (ctor 0x7EB3B0) →
+    **0x7EC4E0(global, config-key) = the P's raw BITMAPNOISE ctor
+    input** (the 0x8EE230 continues: new 0xB8 → ctor **0x8F9470** =
+    the C48-caves-grid class ✓, the resolver slot [+0xB0] =
+    **0x8EE1B0** = the Phase-2 A-resolver ✓, the vtable 0x119A2A0,
+    count = 1) → memo-insert (0x943170)) — the C37 row CONFIRMED
+    in-window; PART-REFUTED: no config-load-time XML parse found in
+    these windows ⇒ the band blocks' XML-source question moves to
+    the parse family (0x49C668/E0/886's lea-forms = the attr-walk
+    candidates) = dig #139's read bundle with the DRIVER-frame
+    producer.
+  - **THE UID-CONFIG CTOR DEFAULTS (the Noodle-chunk LAW, X70):**
+    [+0x214] = 0.5 · [+0x218]/[+0x21C] = 1.0/1.0 · **[+0x220] = 0**
+    (the mGradientAddNoise switch = the case paths 1/2/3, C83 — 0
+    = the default arm) · **[+0x224] = 5** (= the kind: the
+    SIN_CAPPED_SIMPLEX noiseType = the DLL default — the empty.xml
+    carries no override, C111's SIN_CAPPED claim consistent) ·
+    [+0x228] = 1 (mInsideNoiseFBM) · [+0x264]/[+0x268] = 1.0/1.0
+    (the C43 multipliers ✓) · **[+0x270] = f32 −512.0,
+    [+0x274] = f32 +512.0** = the band pair's base (the ±512 = the
+    terrain's y-span; the band A/B = ±(512 + 100·core) around the
+    y-center) · [+0x278] = f64 0.0, [+0x280] = f64 [0x11DFC00]
+    · **[+0x288] = 1** (the MODE default = the CORE arm — the
+    else-branch, the 0x8FC020 = the ??? wait — **mode 1 = the CORE
+    arm = SIN_CAPPED_SIMPLEX's own core family** — the C111's
+    "kind-0 noise chain" backbone) · **[+0x290] = f64 0.0** (the
+    core-coord scale default = the CORE disabled at scale 0) ·
+    **[+0x298] = f32 −100.0, [+0x29C] = f32 +100.0** = the OUT0/
+    OUT1 lane amps.
+  - **The noodly-chunk shape law (the kind-0's default field):**
+    the ±512-base-band with the ±100 core-noise wobble — the value
+    = the (−512..512)-y-ramp with the per-pixel (512 ± 100·core(x,y))
+    band edges; the [+0x290] = the per-biome core-coord scale (the
+    empty.xml's = beyond the ±512 = the XML-override = the 0x49C6XX
+    parse family = the dig-139's read).
+  - **A4 status:** started 4 active D-rows (A2, A4, A5, A6), ended 4 —
+    A4 decomposed further (the value-source map settled; the PORT =
+    the DRIVER-frame producer + the band-block parse = dig #139's
+    bundle). The law holds.
+  - Meter-class: E1 only (the ctor-sweep slot census + the chain
+    windows; no composed-output meter ran). Tests **287/287** (no
+    port, no test delta). Next free: entry **(139)**, **C118**
+    (C116 = the uid-ctor default block below, C117 = the [uid+0x1d4]-
+    P chain confirm.); §8 row **47** free.
 - **2026-10-14 (137) — dig #137: the kind-0 PORT's read phase — the
   0x90B680 BAND-PARAMS LAW (the ramp slots = the Phase-1 parked block
   RESOLVED as the band-struct layout) + the kind-0 ARM frame (the

@@ -518,6 +518,17 @@ binary side unread) · ❌ unexplored.
    owner; the +0.5 pixel centers land BEFORE the r). A4 ③ demoted;
    the PORT's remaining values (the DRIVER frame + the band-matrix
    producer = the C37-flagged 0x7EC4E0 chain) = dig #138.
+   **dig #138 (2026-10-14, C116/C117): the kind-0's VALUE-SOURCE map
+   landed** — the uid-ctor default sweep = the band pair ±512 with
+   the ±100 core amps, the mode = 1 (the CORE arm), the noiseType
+   default = 5 (SIN_CAPPED_SIMPLEX — empty.xml = no override, C111
+   consistent), the +0x290 = 0.0 core scale; the [uid+0x1d4] chain
+   CONFIRMED (0x7EC4E0 = the P-builder, the 0x8F9470 ctor + the
+   0x8EE1B0 resolver). The noodly-terrain default law: the per-pixel
+   band pair ±(512 + 100·core) around the y-center, the core
+   disabled at scale 0 until the per-biome +0x290 override. The
+   DRIVER-frame producer + the band-block parse family = dig #139,
+   then the PORT.
    **p2d landed dig #134 (C111):** the FILLER law — the "meaningless
    chunks" (the noodly walls) = the KIND-0 noise chain (the filler def
    empty.xml = NO BitmapCaves, SIN_CAPPED_SIMPLEX); the real biomes =
