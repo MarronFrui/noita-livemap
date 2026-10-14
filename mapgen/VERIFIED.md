@@ -507,7 +507,18 @@ binary side unread) · ❌ unexplored.
    class; the case-5 skew consts = byte-settled canonical F2/G2
    (the static writers + the sqrt normalizer; the port's flagged
    approximations die — A4 ① demoted, ② confirmed). The kind-0
-   PORT = dig #137. **p2d landed dig #134 (C111):** the FILLER law — the "meaningless
+   PORT = dig #137.
+   **dig #137 (2026-10-14, C114/C115): the 0x90B680 BAND-PARAMS law +
+   the kind-0 ARM frame landed** — the band struct = the
+   [+0x270..+0x29C] ramp-slot block (the Phase-1 parked "consumers
+   unknown" item RESOLVES: the modes 0/3/2/else = const/linear/
+   fbm(0x9FAD90)/core(0x8FC020) with the +0x298/+0x29C amps); the
+   kind-0 arm = the config/driver split (the config = the 0x909DA0
+   fetch riding the r's stack arg, the DRIVER = the per-tile frame
+   owner; the +0.5 pixel centers land BEFORE the r). A4 ③ demoted;
+   the PORT's remaining values (the DRIVER frame + the band-matrix
+   producer = the C37-flagged 0x7EC4E0 chain) = dig #138.
+   **p2d landed dig #134 (C111):** the FILLER law — the "meaningless
    chunks" (the noodly walls) = the KIND-0 noise chain (the filler def
    empty.xml = NO BitmapCaves, SIN_CAPPED_SIMPLEX); the real biomes =
    the BitmapCaves fields with their own knobs; the bin-air backdrop +

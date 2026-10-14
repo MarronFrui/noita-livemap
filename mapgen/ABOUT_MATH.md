@@ -10335,6 +10335,90 @@ METER-CLASS (this entry covers meter history, E1-only): every row below
   is a counted reading with its class; no new meter run this entry
   (the only instrument = the register grep + the already-run I31
   differential, cite in row 9).
+- **2026-10-14 (137) — dig #137: the kind-0 PORT's read phase — the
+  0x90B680 BAND-PARAMS LAW (the ramp slots = the Phase-1 parked block
+  RESOLVED as the band-struct layout) + the kind-0 ARM frame (the
+  config/driver split) + the port cut: the band/driver VALUE
+  producers = dig #138 (the C37-flagged 0x7EC4E0 chain).**
+  - **NEW EVIDENCE:** fresh full-window extractions dated 2026-10-14:
+    `dig137-params-90b680-90b7c3.asm` (0x90B680..0x90B7C3, md5
+    `904953a3…`, X68) + `dig137-karm-908f40.asm`
+    (0x908F40..0x90936F, md5 `20d59509…`, X69) + the surfaceField
+    call-site rows re-read from X1 this session (0x90A860..0x90AAE5);
+    exe md5 re-verified = C13.
+  - **PREDICTION (pre-read):** the config = a per-biome parse-time
+    band object; its `[+0x68]` = a Gradient-string-parsed band matrix
+    whose entries point at per-band blocks sharing the ramp-slot
+    layout — so the values come from game DATA and the port is
+    feasible without reading 0x7EC4E0. **OUTCOME: the entry-shape
+    agreed (the matrix entries = POINTERS to per-band blocks with the
+    same [+0x270..+0x29C] slot set as the uid's own — the >380 arm
+    reads the uid's own slots); PART-REFUTED on the data source — no
+    evidence the blocks are XML-owned; the producer hunt (the
+    config+0x68 fill + the driver's [+0x38..+0x54] frame baselines)
+    = not closed this dig ⇒ the PORT stays cut to dig #138.**
+  - **The 0x90B680 law (X68, complete prologue→ret):** (edi = the
+    band STRUCT, esi = the OUT pair, ecx = the per-tile driver,
+    xmm1-in = the base y-f64, xmm3 = `[driver+0x48] −(f64) + xmm1`
+    = the y-request): out := {0.0, 0.0}; the band struct (or the
+    config's own slots on the >380 arm) carries
+    **{+0x270 f32, +0x274 f32 = the pair's BASE values; +0x278/+0x280
+    f64 = the linear-mode span; +0x288 dword = the MODE; +0x290
+    f64 = the CORE-NOISE coord scale; +0x298/+0x29C f32 = the OUT0/
+    OUT1 lanes' amps}** — **the [+0x270..+0x29C] ramp slots of the
+    Phase-1 parked "consumers unknown" block ARE this layout** (the
+    Current_work parked item 1 resolves into the 0x90B680 reader).
+    The MODES ([+0x288], the (105)-census's four confirmed):
+    0 = const (out = f64(+0x270), f64(+0x274));
+    3 = linear: `y′ = (y_req − [+0x278])·[+0x280]`, out0 += y′,
+    out1 += y′ (the +0x27E0-span f64s @0x90B6E0..FE);
+    2 = fbm: `core = 0x9FAD90([+0x290]·f64(+0x270), [+0x290]·y_req)`
+    (the f32→f64 convert after the call), out0 += [+0x298]·core,
+    then out1 += [+0x29C]·`0x8FC020([+0x290]·y_req, [+0x290]·f64(+0x274))`
+    (@0x90B710..B4);
+    else (1 / ≥4) = core: out0 += [+0x298]·`0x8FC020([+0x290]·y_req,
+    [+0x290]·f64(+0x270))`, out1 += [+0x29C]·`0x8FC020([+0x290]·y_req,
+    [+0x290]·f64(+0x274))` (@0x90B750..B4).
+    ⇒ **the kind-0's PARTIAL value lane = the C72/C54 noise family
+    (0x9FAD90 = the noise, 0x8FC020 = the case-5 core) — consistent
+    with C36's 9-case table (the dispatch confirm: the noise engine
+    fed by (+0x290·coord, +0x290·y_req), amps +0x298/+0x29C).**
+  - **The kind-0 ARM frame (X69 + the X1 call-site rows, the 0x90AADD
+    call):** `[ebx+4] == 0` gates the arm; config = `0x909DA0`
+    (the C74 biome config, [config+0x2A4] = mBiomeMaterials); the
+    r-call frame = `xmm2 = [−0x44] + 0.5` and `xmm3 = [−0x3C] + 0.5`
+    = **the +0.5 pixel centers BEFORE the r** (the raw-pixel
+    guarantee, C96's note confirmed in-frame), ecx = `esi` = the
+    0x908F40's incoming THIS = **the per-tile DRIVER**, and the r's
+    stack arg = `push %ebx` = **the CONFIG itself** — ⇒ decoded
+    object split in surfaceField's -0x30/-stack_arg:
+    **-0x30 = the DRIVER (its [+0x38]/[+0x40] = the x/y world-frame
+    bases, [+0x48] = the y-request BASE value, [+0x50] = the x-stride
+    (mod), [+0x54] = the y-row count, [+0x68] = the band matrix), and
+    the stack arg = the CONFIG (the 0x90B680 band-struct slot owner
+    on the >380 arm)**. The band matrix's entries = POINTERS to
+    per-band blocks sharing the same slot layout.
+  - **THE PORT CUT (the dig's boundary):** the kind-0 PORT =
+    `gradAt → bilinear4 → (the r-eval band-ramp × the field) → the
+    0.51/0.85 arms` — the r-eval's FRAME + the 0x90B680 LAW are now
+    byte-complete, but the PORT needs the VALUES: the DRIVER's
+    frame/band-matrix PRODUCER and the CONFIG's band blocks + the
+    (105)② 6.86e-07 item — the C37-flagged **0x7EC4E0 chain (the
+    "[uid+0x1d4]-fill / BiomeHelper::Serialize" ramp-generator
+    candidate, "keyed &config+0xa8") = the leading producer
+    candidate = dig #138's read**. The dispatch census (A4 ③) = DONE
+    at C36 + this dig's engine-consistency confirm (the 0x9FAD90/
+    0x8FC020 pair + C36's table) — A4 ③ demoted; A4's LAST item =
+    the PORT itself (dig #138).
+  - **A4 status:** started 4 active D-rows (A2, A4, A5, A6), ended 4 —
+    A4's decomposition updated (③ demoted = the C36 + the engine
+    confirm; the row = "the PORT = dig #138's read bundle"). The law
+    holds.
+  - Meter-class: E1 only (the window byte-reads + the slot-map
+    census; no composed-output meter ran). Tests **287/287** (no
+    port, no test delta). Next free: entry **(138)**, **C116**
+    (C114/C115 = used this entry: C114 = the 0x90B680 law below,
+    C115 = the kind-0 arm frame); §8 row **47** free.
 - **2026-10-14 (136) — dig #136 (the user's re-order: the kind-0 lane
   first, the record-stamp port behind it): the r-evaluator's RETURN
   LAW (the (105) OPEN ①/③ settled) + the case-5 skew consts DEMOTED
