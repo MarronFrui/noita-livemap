@@ -142,6 +142,7 @@ All 🔬 (decompiled + byte-verified); details in `ghidra-ledger.md`.
 | Source tree | 330 assert-leaked paths | `source/procedural_utils/{world_seed,procedural_terrain,biome,biome_materials,noise_utils}.cpp`, `source/grid/`, `poro/source/` |
 | Classes | 1,958 RTTI names | no wang/generator class — the fill is free functions; Biome = plain struct, no vtable |
 | File→VA | .text file+0x400c00 · .rdata file+0x400e00 | imageBase 0x400000; 32-bit x86, string literals referenced by absolute `push imm32` |
+| Driver frame writer | `ProceduralTerrain::Init` FUN_00905fb0 (dig #141) | writes the eval driver's frame: dims +0x50/+0x54/+0x58; band matrix +0x68/+0x6c (**+0x6c = the element count**, malloc(4·w·h)+memset0, realloc-gated); the NEW cell-index table +0x70..+0x90 (malloc(8·w·h)); f64 bases **[+0x38] = w·256** (w·0.5·512) and **[+0x40] = 7168.0** (14·512, cross-checked against the seeded constant 0x11E00E0); **[+0x48] = the seeded f32(u·200000−100000)** (C114's baseline, the only Init writer); the Area tail new(0x154)+0x904b10+0x8f95c0 — **C119, entry (141)** |
 
 ## 8. Eliminated — do not re-test
 

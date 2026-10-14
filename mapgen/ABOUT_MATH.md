@@ -10335,6 +10335,94 @@ METER-CLASS (this entry covers meter history, E1-only): every row below
   is a counted reading with its class; no new meter run this entry
   (the only instrument = the register grep + the already-run I31
   differential, cite in row 9).
+- **2026-10-14 (141) — dig #141: THE DRIVER-FRAME PRODUCER READ
+  (`ProceduralTerrain::Init` 0x905FB0) + the REA extraction-sweep
+  verdict.**
+  **NEW EVIDENCE:** (all B-level, full-window fresh reads this session;
+  bundle = `mapgen/extractions/rea-dig141.json` = 96 REA 6.4.0 records
+  = 46 byte-windows + 50 pseudo/asm/info/caller records; every
+  window's VA/md5/ev-id = the MANIFEST X72..X102 rows; md5s computed
+  Node-side over the bundle's `bytes_hex`)
+  - **The producer = `ProceduralTerrain::Init` @0x905FB0** — C119 =
+    the full slot-store law. One instance (`this = [ebp−0x248]`, the
+    single prologue writer @0x905fdd), **three byte-pinned phases**:
+    **Phase G** (geometry: dims `+0x50/+0x54/+0x58`, the two
+    realloc-gated tables — the band matrix `+0x68/+0x6c` =
+    malloc(4·w·h)+memset0 with **`+0x6c` = the element COUNT**
+    (supersedes C84's "tiling flag" label — 0 = absent = the r-eval
+    no-band gate), and the NEW cell-index table `+0x70..+0x90` =
+    malloc(8·w·h) — plus the f64 bases
+    **`f64[+0x38] := w·0.5·512 = w·256`** and
+    **`f64[+0x40] := 14·512 = 7168.0`**), **Phase S** (seeded: the
+    stack RNG ← GetSeed 0x9119D0 → diddle {0.0, 2³²} → mix 0x8ED3A0 →
+    LCG draws `call 0x10098C0` → the f32 affine pairs; **`+0x48 :=
+    f64(f32(u·200000.0 − 100000.0))` = C114's y-baseline slot, the
+    ONLY +0x48 writer in Init**, `+0x38 :=` the same ±100000 law
+    (overwritten by Phase G on the linear path), `+0x40 := 7168.0`),
+    **Phase R** (the region probe 0x9FEE40 → the Table-B `{inner,
+    outer}` fill gated `[this+0x20c]` → the signed-÷10
+    `floor((v<<9)/10)` extents → the Area tail `new(0x154)` +
+    ctor 0x904B10 + grid ctor 0x8F95C0). **Cross-validation:** Phase
+    G's computed `14·512 = 7168.0` == Phase S's constant
+    `[0x11E00E0] = 7168.0` — the y-base is double-derived and exact.
+  - Constants decoded fresh (X102): **`[0x11DFDD8] = 0.5`,
+    `[0x11E0060] = 512.0`, `[0x11E00E0] = 7168.0`,
+    `[0x11E0504] = f32 200000.0`, `[0x11E04EC] = f32 100000.0`,
+    `[0x11E0820] = 16-B {0,0,0,14}`**; the sign bank re-read (X101):
+    `±1/(2³¹−1)` + the `{0.0, 2³²}` diddle pair.
+  - **The slot-map verification (the staged `caves-field.mjs` comment
+    committed in 98183fc — verified fresh this session, NO code
+    change):** the dispatcher's 7 rdata keys re-read (X100 =
+    image_file/count_min/count_max/aabb_min_x/aabb_min_y/aabb_max_x/
+    aabb_max_y = the dig-#81 map ✓); fnB's two pushes → fn950's args:
+    **the `[−0x108]` roll = the Y-roll (the aabb_y pair +0x28/+0x30)
+    → `[ebp+0xc]` = ys; `[−0x154]` = the X-roll (the aabb_x pair
+    +0x24/+0x2c) → `[ebp+8]` = xs** — the comment stands; **C102's
+    (iii)/(iv) X/Y LABELS were swapped → amended in-row** (the
+    formulas always cited the correct slots).
+  - The sweep also landed: the world-creation FULL body (X73 — C90's
+    parked tail 0x7930d3.. is now in hand; the ceiling-arm decode
+    unstarted), the parse-family full function (X74 — the 0x49C668/
+    6E0/886 entries alias-proven = ONE fn 0x49A010..0x49CCCC), the
+    SetRandomSeed mixer (X95), the builder slab through REA (X75),
+    and fresh re-reads of the kind-0 chain, noise lanes and RNG side
+    (X83..X89, X96..X99).
+  - **PREDICTION:** (pre-registered in the session plan, before any
+    window) 20–35 windows; blockers = decompiler nulls + unresolved
+    externals; falsified if <10 windows or the caller hunt dead-ends.
+    **OUTCOME: 46 read_bytes windows (29 .text + 17 data) = 74,574 B,
+    plus 50 non-read records — CONFIRMED in all three clauses: the
+    caller hunt succeeded on the first query (0x792580 = the frame
+    chain's caller); NO decompiler null and NO unresolved external
+    blocked a window (the only limitation note = 0x792580's terminal
+    `_Xout_of_range` external — cosmetic); the window count landed 31%
+    above the band's ceiling because the f64-base arithmetic pulled in
+    the constant banks (an explained over-prediction, not an
+    accommodation).**
+  - **METER-CLASS:** n/a (no meter ran — extraction dig; no
+    IoU/fG/rms/meanAbs/C79/C97 number is produced, steered, or cited
+    in this entry).
+  - **VERDICT (the dig's product — is REA-scale extraction viable for
+    the campaign?): YES.** 96 evidence records (46 of them
+    byte-windows, 74,574 B) were produced in ONE session with zero
+    tool failure; per-record latency is seconds; the only material
+    cost is the one-time DB import (1225 s, ephemeral DB ⇒ re-import
+    per session ≈ 20 min of the budget). A PORT dig's remaining reads
+    (the items below) = ≤10 windows = comfortably one sitting. **No
+    structural blocker exists; the only risks are the ephemeral DB
+    and the (real) analysis time per window.**
+  - OPEN for **#142 (the kind-0 PORT's opener)**: (a) the live final
+    value of `f64[+0x38]` (Phase G's w·256 vs Phase S's seeded
+    ±100000 — both phases provably hit the same instance; no
+    skip-branch found in the sweep, the full path audit pending);
+    (b) `+0x48`'s reading (the seeded ±100000 value stands unless an
+    out-of-Init setter exists — C114 consumes it as the band
+    baseline); (c) `[0x11E0494]` + `[0x11DFBF0]` (the +0x30 affine
+    pair, unread); (d) 0x9FEE40's region-probe semantics (in_ECX[0]
+    = the caller-set bound; the flood-fill shape); (e) the Table-B
+    consumer; (f) `[ebp−0x249]`'s dims-path flag; (g) the ceiling-arm
+    decode (X73's parked region 0x7930d3..0x793338).
+  - **Next free: entry **(142)**, **C120**; §8 row **47** free.**
 - **2026-10-14 (140) — correction ENTRY (not a dig, the (128)-style
   docs slot): the dig-139 key-strings = read with the WRONG PE rule
   (the .data mapping on the rdata).** The correct rdata rule
