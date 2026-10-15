@@ -10404,11 +10404,19 @@ METER-CLASS (this entry covers meter history, E1-only): every row below
     measured the FIXED TEST SEED **78633191**, while the user's live game
     seed is **500412504** (telemetry read; the user stood in
     `$biome_holymountain`); (ii) "COLORED" (<5% black px) cannot distinguish
-    NOISE TEXTURE from the BACKGROUND IMAGE through an EMPTY lane — the real
+    NOISE TEXTURE from any other colored content — the real
     `noiseChunkMask` for kind-0 filler (`empty.xml`/`mountain_lake.xml`,
     seed 78633191) returns **0/2704 solids (0.0%)** post-#142 (C93's
-    pre-#142 baseline: mean density 0.0183 = the sparse "noodles"), so the
-    audit's "colored" rows were bg-through-empty, not noise; (iii) it
+    pre-#142 baseline: mean density 0.0183 = the sparse "noodles"),
+    **a measurement of the RAW FIELD LAYER AT THOSE CELLS ONLY — and the
+    inference drawn from it ("the visible noise = the background through an
+    empty lane") was RETRACTED the same day on the user's live inspection
+    (ISSUES I34): the surface/noodle chunks DO render generated pixels — a
+    per-biome-consistent pattern (frozen/plain palettes region-appropriate),
+    confined to its chunk, but IDENTICAL IN EVERY CHUNK of the biome
+    (repetition instead of cross-seam continuity = I34 Defect A) and the
+    desert painted with the plains' dirt/mud palette (= I34 Defect B); the
+    lane composing those pixels is unmeasured (I34 open)**; (iii) it
     sampled only z0+z1 on guessed cells, never the viewer
     (`genmap.html:195-204`: black canvas fill + tiles drawn only once
     loaded, no onerror/retry) nor the `renderTile` z>0 strict-majority
