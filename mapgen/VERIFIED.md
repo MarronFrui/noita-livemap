@@ -55,6 +55,7 @@ data containers (e.g. the overlay bytes), never as authority.
 | Capture (DZI) | level 17 native, TileSize 512, overlap 2; `imagePx = worldPx + (17920, 31744)`; tile `i_j` = biome px `(i, j−48)` | ✅ | ABOUT_MATH §1 |
 | Wang lattice | **GLOBAL and continuous across chunk boundaries** — no per-chunk re-anchoring (v-tile phase mod 4 = 3 in every chunk/seed; tiles straddle boundaries at fractional 51.2 edges) | ✅ | ABOUT_MATH §7septies (lab) |
 | Chunk seams | The game does NOT blend across chunk boundaries — real hard material seams measured (x=2048 4.6×, y=1536 3.6× interior baseline) | ✅ | mapcap/README "Verified facts" |
+| BitmapCaves filler shape (our caves lane: desert/winter/hills) | the 52×52 shape+material grid **re-anchors PER CHUNK** — the 512/256 mod-wrap: mask sha256 identical across adjacent H/V AND distant pairs (17/17 adjacent + far, seeds 78633191/500412504) ⇒ per-chunk shape repetition is THIS lane's measured law — do NOT "fix" it to world-continuous (count pins: `tests/mapgen/composed-content.test.mjs`); the COMPOSED color is world-continuous (air cells = the world-tiled backdrop; display seams pixel-exact eq=512/512). The GAME-side BitmapCaves periodicity comparison = a mapcap follow-up (OPEN) | ✅ port-side; game-side 🔬 | ABOUT_MATH §6 (144) |
 
 ## 2. RNG machinery
 

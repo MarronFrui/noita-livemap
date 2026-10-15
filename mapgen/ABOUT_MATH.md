@@ -10335,6 +10335,115 @@ METER-CLASS (this entry covers meter history, E1-only): every row below
   is a counted reading with its class; no new meter run this entry
   (the only instrument = the register grep + the already-run I31
   differential, cite in row 9).
+- **2026-10-15 (144) — dig #144: THE COMPOSED-CONTENT LAW (I34 (a)(b)(c) +
+  I33's field facts re-counted) — the branch-tagged lane trace: every visible
+  z0 pixel attributed; the caves filler re-anchors its SHAPE per chunk (the
+  512/256 mod-wrap) while color composes continuous; the desert wears
+  rock_static because its rock/sand comps carry limit_y="0" (inert caps).**
+  **NEW EVIDENCE:** the branch-tagged end-to-end pixel trace — never built
+  before: `mapgen/experiments/2026-10-15-dig144-composed-trace.mjs` mirrors
+  worldColorAt's branch order (fresh 2026-10-15 read of world-gen.mjs:85-223)
+  and asserts rgb identity against the REAL renderer per pixel
+  (mirrorMismatch = 0 in ALL 16 rollup groups × 2 seeds ⇒ the mirror valid),
+  PLUS the mask/mat sha256 discriminator that hashes the raw 52×52
+  shape+material grids SEPARATELY from the rgb tile (run-2 addendum after
+  run 1 falsified the full-tile arms). In-process (r3i disk cache; the
+  user's :8082 untouched). Artifacts: `mapgen/out/dig144-trace-dig144-
+  {78633191,500412504}.json` + the `dig144-*.png` tile record. Seeds:
+  fixtures 78633191 + the user's live 500412504; flags SURFACE_V2=1
+  SURFACE_V3=1; z0 renderTile semantics; bands sky 44-47 / surface 48-61 /
+  ground 62-95.
+  - **METER-CLASS: E1** (per-chunk lane pixel counts, tile/mask/mat
+    hash-equality counts, seam-column/row diff counts, material-cell
+    counts). **PREDICTIONS P-A..P-G pre-registered in the instrument
+    header BEFORE the first run; verdicts:** **P-A** kind-0 ground ≥90%
+    bg lane — FALSIFIED as stated (78.18%) but the mechanism confirmed:
+    noise-air-bg dominates (78.18% group; the pure lake/empty chunks
+    95.6-100%), template art overlays 20.4% (lake_statue 60.7%), noise-
+    solid contamination 0.57% ≪10%. **P-B** caves ground ≥80% noise-solid
+    — CONFIRMED (83.24% / 86.70%; solidFrac 0.9245 / 0.9614). **P-C**
+    surface band sky/template ≥95%, "any noise px falsifies" — the ≥95%
+    holds everywhere (92.4-99.7% sky+template-sky) but noise px exist
+    (0.17-0.19%) ⇒ strict FALSIFIED; mechanism = the L3 anchor's 12-row
+    bleed at the ty61/62 display boundary (12/(512·14) = 0.165% ≈ observed;
+    real render path — those pixels genuinely sample the ground band);
+    below the anchored boundary the noise branch is unreachable. **P-D**
+    caves pairs identical tiles — FALSIFIED (0/7 H, 1/4 V) while the
+    discriminator shows mask identical 17/17, mat identical 15-16/17,
+    seams pixel-exact eq=512/512 (H pairs, no template overlay). **P-E**
+    kind-0 pairs identical — FALSIFIED (0/8; masks trivially all-air per
+    I33). **P-F** surface pairs differ — FALSIFIED by flat-sky tiles
+    (7/10 caves-surface H pairs hash-identical = uniform-color triviality,
+    no structural signal — the control expectation was miscalibrated).
+    **P-G** desert: limit-rejected names paint exactly 0 cells —
+    CONFIRMED; ≥40% idx-255 band shade — FALSIFIED (idx255 = 7-11 of 2704
+    ≈ 0.3%; rock_static = 2617-2651 cells = 96.8-98.0% of solids).
+  - **(a) LANE ATTRIBUTION (the composed law, z0 flags-ON):** wang areas
+    compose via the bin lane (surface: 61.2% binpx + 26.4% wang-bin;
+    ground: ~50/50 wang-bin/wang-airbg); the filler caves chunks compose
+    via the noise lane (ground 83.2-86.7% noise-solid-mat); the filler
+    kind-0 chunks via the noise lane's AIR→bgImageAt branch (78.2%) +
+    template overlays (20.4%); the kind-1 pockets via template art (73.8%)
+    + noise-chunk-null (13.5%, rgb null = black) + noise-air-bg (12.2%);
+    the ENTIRE surface band rows 48-61 composes via the sky/template
+    lanes — the noise branch never runs there (fresh worldColorAt read).
+  - **(b) ANCHOR LAW (I34 Defect A resolved):** the BitmapCaves filler's
+    52×52 shape+material grids re-anchor PER CHUNK — byte-identical mask
+    hashes across adjacent H AND V pairs AND distant pairs (17/17
+    adjacent, both seeds; distant winter (11,62)-(23,86), desert
+    (45,62)-(62,88) likewise) = the 512/256 mod-wrap of dig #121's
+    direct cell read. The composed rgb tiles nonetheless DIFFER (P-D's
+    falsifier) — the air-cell pixels are painted by the world-tiled
+    backdrop lane, which is continuous; the display seams are pixel-exact
+    (eq=512/512) where no template overlays. So the user's "same noise in
+    every chunk" = SHAPE-level repetition (real, measured) and NOT a
+    color-continuity defect; full-tile hashing was the wrong repetition
+    test (flat-sky tiles hash-match trivially, desert V pairs tile-match
+    by flat shade + wrap). The kind-0 anchor law is UNMEASURABLE right
+    now — I33's r-site collapse makes every kind-0 mask all-air (0/2704,
+    re-counted) — it must be re-measured after I33's noise restoration,
+    where the law to satisfy = world-continuous (the game's field is a
+    pure function of world position for the noise chain).
+  - **(c) DESERT PALETTE (I34 Defect B mechanism decoded, fresh reads
+    this session):** desert.xml's `<Materials>` has 8 comps; the SURFACE
+    sand family (sand_surface/sandstone_surface/sand_static_bright) +
+    copper carry limit_y="1" — the classify gate is LIVE and their
+    y-windows (≤700) never reach the mines band (y = canvas_py−24576 ≥
+    7168 at rows ≥62); the sand_static×2 + rock_static×2 comps carry
+    limit_y="0" — the limit caps are INERT (the port correctly reads the
+    flag, surface-level.mjs:307) and their wide v-windows ([0.9,3.5) for
+    rock_static) accept at ANY depth ⇒ rock_static [53,57,35] paints
+    96.8-98.0% of the desert's solids — the SAME color the hills/plains
+    filler resolves (rock_static 2328-2521 there) ⇒ the desert wears the
+    plains' palette by the DATA's flag split, not by a colorize fallback;
+    the idx-255 band shade is a 0.3% minority. The game's desert
+    distinguishes itself via its SURFACE sand band (y ≤ 700 = canvas rows
+    ~48-49), which in our composed map renders as sky for filler chunks
+    (the sky branch) while wang areas carry their captured bins — the
+    game-side comparison (BitmapCaves periodicity + the desert surface in
+    the capture) = a mapcap follow-up, tagged OPEN below.
+  - **(d) I33 FIELD FACTS re-counted fresh (E1):** kind-0 ground filler
+    = 0/2704 solids for empty (15,62), lake (4,62), lake_statue (6,62) at
+    BOTH seeds (the NOISE→AIR collapse re-confirmed at the composed lane
+    level); kind-1 pockets (solid_wall_hidden_cavern/teleroom/friend_1/
+    friend_4) = noiseChunkNull + template art; caves solids 2426-2664/2704
+    (consistent with the audit #143 meanSolid 0.897-0.985).
+  - **Tests:** `tests/mapgen/composed-content.test.mjs` — 4 count tests,
+    each naming its old-arithmetic failure mode (world-anchored re-frame
+    → the mask-identity count breaks; limit-caps-always-gate → the
+    census turns idx-255-heavy; limit_y cap-by-default → classify returns
+    null; I33 fix → the 0/2704 tripwire flips). Battery **330/330**.
+  - **Landed:** entry (144); ISSUES **I34 CLOSED** (measured; the residual
+    mapcap check + the kind-0 re-measure named in the closing block) +
+    **I33 addendum** (the field-fact re-count; row stays open on its fix
+    plan); CONSTANTS **C76 amended in place** (the flag split's composed-
+    lane consequence — no new C-row: the limit windows are data values,
+    not byte-pinned laws); VERIFIED **§1 new canon row** (the BitmapCaves
+    filler's per-chunk shape re-anchor = the lane's law — do not "fix" it)
+    — no §8 row (no canon claim died; the wang-lattice continuity law at
+    VERIFIED:56 is the wang lane, a different lane from the caves filler
+    measured here). No port change, no cache bump. Next free:
+    entry **(145)**, **C121**, **I35**, **X104**; §8 row **49** free.
 - **2026-10-15 (143) — AUDIT #143 (no dig — audit-only, no port, no code
   change): THE "NOODLY CHUNKS" ATTRIBUTION — the BLACK = the §12 flags-OFF
   gate (by design, commit-invariant since f55dfab); the CONTENT regression
