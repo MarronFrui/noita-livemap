@@ -10395,6 +10395,32 @@ METER-CLASS (this entry covers meter history, E1-only): every row below
   - **Landed:** this entry + ISSUES **I33** (the r-site-swap content
     regression + its fix plan). No code change (audit-only; no cache
     bump). Next free: entry **(144)**, **C121**; §8 row **49** free.
+  - **2026-10-15 CORRECTION (same day, the user's zoom report — measured,
+    METER-CLASS E1; the full corrected fix scope lives in ISSUES I33's
+    2026-10-15 addendum):** the "flags-ON = 23/23 COLORED" verdict above
+    was OVER-SCOPED three ways, each exposed by the user's follow-up
+    ("surface + noodles = noise only when zoomed in close, black past a
+    distance; the plains/holy-mountain surface stays black"): (i) it
+    measured the FIXED TEST SEED **78633191**, while the user's live game
+    seed is **500412504** (telemetry read; the user stood in
+    `$biome_holymountain`); (ii) "COLORED" (<5% black px) cannot distinguish
+    NOISE TEXTURE from the BACKGROUND IMAGE through an EMPTY lane — the real
+    `noiseChunkMask` for kind-0 filler (`empty.xml`/`mountain_lake.xml`,
+    seed 78633191) returns **0/2704 solids (0.0%)** post-#142 (C93's
+    pre-#142 baseline: mean density 0.0183 = the sparse "noodles"), so the
+    audit's "colored" rows were bg-through-empty, not noise; (iii) it
+    sampled only z0+z1 on guessed cells, never the viewer
+    (`genmap.html:195-204`: black canvas fill + tiles drawn only once
+    loaded, no onerror/retry) nor the `renderTile` z>0 strict-majority
+    downsample (`genmap-server.mjs:120`, `solid*2>=total`) that turns any
+    >50%-air tile solid black at zoom-out (surface stays solid ⇒ survives;
+    sparse noodles ⇒ vanish). Consequence: I33's fix-plan item (a) (the
+    kind=-1→5 default) is **INSUFFICIENT alone** (forcing kind=5 still
+    yields all-air — the r-site bypasses `noiseKind`); the dominant
+    regression is the r-site swap itself ⇒ **dig #144's real content =
+    restoring the kind-0 noise law respecting I21's parked V2 canvas-px
+    frame flip**, with (a) riding along. Instruments:
+    `2026-10-15-{zoom-black-probe,sweep-black,kind-default-probe}.mjs`.
 - **2026-10-15 (142) — dig #142: THE KIND-0 BAND-RAMP PORT — bandRampEval
   (0x90B280 full law) + bandParams (0x90B680) + the driver frame
   (makeBandDriver/phaseSXBase) land with the count battery; two canon
