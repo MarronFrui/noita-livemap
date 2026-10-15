@@ -627,6 +627,155 @@ export function fbm4(x, y, kind) {
   return f(acc / K2.fbmNorm);                    // divss 0.9375 @0x4fd474
 }
 
+// ---- THE BAND-RAMP LANE (dig #142) — r-eval 0x90B280 + params 0x90B680 +
+// fbm 0x9FAD90. Byte source: X82 (0x90B280..0x90B678) / X98 (0x9FAD90..
+// 0x9FAF5F) full windows fresh-dumped this session (prologue→ret), params
+// from mapgen/extractions/dig137-params-90b680-90b7c3.asm (fresh re-read).
+// This replaces the FLAGGED noiseDispatch r-site surrogate (the wrong
+// class: a core vs the band-ramp frame, C113).
+const BAND_K = {
+  y380: 380.0,        // f64 0x11e0050 — the prologue's >380 config-arm compare
+  seam: 41,           // f32 0x11e0274 = 41.0 — the left-seam blend width
+  one: 1.0,           // f32 0x11dfbf0 — the seam weight's 1 − lx/41
+  // rotation quad, f32×4 @0x11e0c70 = (sin 1, cos 1, cos 1, −sin 1):
+  T: [0.8414700031280518, 0.5403000116348267, 0.5403000116348267, -0.8414700031280518],
+  lac: [2.02, 2.33, 2.01],   // f32 0x11dfe7c / 0x11dfee8 / 0x11dfe78
+  amp: [0.25, 0.125, 0.0625], // the 3 tail octave weights (w0 = K2.fbmAmps[0] = 0.5)
+  norm: 0.9375,              // f32 0x11dfba8 — the final divss
+};
+
+// fbmGradient — true 0x9FAD90 (X98), full window fresh-read dig #142: the
+// band-params mode-2 octave stack. Both args arrive f32 (the params call
+// site does cvtpd2ps first). 4 core (0x8fc020) calls; 3 rotations, each
+// x′ = f32((f32(T0·x) + f32(T2·y))·lac) and y′ = f32((f32(T1·x) +
+// f32(T3·y))·lac) — x-first operand order, verified in bytes 9fae05..9faf33
+// this session (fbm4's "(v0·y + v2·x)" comment describes 0x8FDAD0, NOT this
+// window); per-octave acc = f32(acc + f32(n·w)) with power-of-2 weights
+// (no double-rounding: the f32 product is exact, so f(f(n)·w) = mulss);
+// final = f32(acc / 0.9375) (the ÷15/16 quotient is never an f32 tie, so
+// fround(f64-div) = divss here).
+export function fbmGradient(a, b) {
+  const T = BAND_K.T;
+  let x = f(a), y = f(b);
+  let acc = f(f(simplex2DDeriv(x, y)) * K2.fbmAmps[0]);   // mulss 0.5 @0x9fadfd
+  for (let k = 0; k < 3; k++) {
+    const nx = f(f(f(T[0] * x) + f(T[2] * y)) * BAND_K.lac[k]);
+    const ny = f(f(f(T[1] * x) + f(T[3] * y)) * BAND_K.lac[k]);
+    x = nx;
+    y = ny;
+    acc = f(acc + f(simplex2DDeriv(x, y) * BAND_K.amp[k]));
+  }
+  return f(acc / BAND_K.norm);
+}
+
+// bandParams — true 0x90B680 (AT&T window, fresh full re-read this
+// session): out := {0,0}; NULL band → {0,0} (the out-pair zero + je);
+// A = f64(f32[band+0x270]), B = f64(f32[+0x274]); xr = f64[driver+0x48]
+// + coord (saved, computed before the mode dispatch); mode = i32[+0x288]:
+//   0 → return (A, B)                        (const arm)
+//   3 → s = (coord − f64[+0x278])·f64[+0x280] on the RAW coord
+//       (0x90b6e0 subsd on the xmm1-in copy — NOT xr; C114's "y_req"
+//       wording corrected, dig #142), both outs += s
+//   2 → out0 += f64(fbmGradient(f32(scale·xr), f32(scale·A)))·f64(f32[+0x298]),
+//       then the SHARED TAIL
+//   else (1/≥4) → out0 += f64(core(scale·xr, scale·A))·f64(f32[+0x298]),
+//       then the SHARED TAIL
+//   shared tail: B reloaded from [+0x274]; out1 = B + core(scale·xr,
+//   scale·B) · f64(f32[+0x29C]) — BOTH args scaled (f64), B reloaded from
+//   the slot. THE TAIL ENGINE IS ALWAYS 0x8FC020 (mode 2's fbm is
+//   OUT0-ONLY: the jmp @0x90b74e skips from the fbm arm to the tail head
+//   @0x90b77f, whose single call @0x90b79b = 0x8fc020 — modes 1, 2 and
+//   ≥4 all land there; C114/C83's "lane1 core" = byte-correct, the
+//   "(mode 2: fbm)" tail reading was the dig-#142 port bug caught on the
+//   re-read).
+// scale = f64[+0x290]; core = simplex2DDeriv (0x8fc020, f64 args).
+export function bandParams(driver, band, coord) {
+  const out = [0, 0];                 // movups zero @0x90b695
+  if (!band) return out;              // NULL band arm @0x90b69a → ret
+  const A = band.gradStartY;          // f64 widened f32 [+0x270]
+  const B = band.gradEndY;            // f64 widened f32 [+0x274]
+  out[0] = A;
+  out[1] = B;
+  const mode = band.mode | 0;         // i32 [+0x288] = mGradientAddNoise
+  if (mode === 0) return out;
+  if (mode === 3) {
+    const s = (coord - band.gradSlopeStartX) * band.gradSlopeDelta;
+    out[0] = A + s;
+    out[1] = B + s;
+    return out;
+  }
+  const xr = driver.xBase + coord;    // f64 [+0x48] + coord @0x90b6b0/bb
+  const scale = band.gradNoiseScale;  // f64 [+0x290]
+  if (mode === 2) {
+    out[0] = A + fbmGradient(f(scale * xr), f(scale * A)) * band.gradLowNoise;
+  } else {
+    out[0] = A + simplex2DDeriv(scale * xr, scale * A) * band.gradLowNoise;
+  }
+  const Bv = band.gradEndY;           // the tail's reload from [+0x274]
+  // the SHARED TAIL: engine ALWAYS the simplex core (0x90b79b → 0x8fc020,
+  // f64 args) — mode 2's fbm is out0-only (jmp @0x90b74e → tail @0x90b77f)
+  out[1] = Bv + simplex2DDeriv(scale * xr, scale * Bv) * band.gradHighNoise;
+  return out;
+}
+
+// rampGate — the 0x90B280 gate tail (fresh dig #142): ordered A ≥ y → 0.0;
+// y ≥ B → 1.0; B === A → 1.0 (the ucomisd+lahf idiom @0x90b63d — only
+// reachable when a compare was unordered, i.e. y = NaN with A === B); else
+// t = one final f32 rounding of the f64 chain (y−A)/(B−A) (divsd +
+// cvtpd2ps = Math.fround of the f64 quotient; the trailing +0.0 addsd is a
+// no-op: at this point y > A strictly, so the quotient is never −0).
+function rampGate(A, B, y) {
+  if (A >= y) return 0;               // comisd A,y; jae → 0 @0x90b2c3
+  if (y >= B) return 1;               // comisd y,B; jae → 1.0 @0x90b2de
+  if (B === A) return 1;              // equal idiom @0x90b63d
+  return f((y - A) / (B - A));        // t
+}
+
+// bandRampEval — true 0x90B280 THE FULL LAW (X82; prologue→ret
+// fresh-dumped this session). The kind-0 r-site (dig #142 — replaces the
+// noiseDispatch surrogate). Arguments: driver = the frame (C119: baseX/
+// baseY/w/h/bandCount/xBase/bandAt/cellAt), config = the uid — the two
+// fallback arms pass it AS the band (bandParams reads its +0x270 slots),
+// x/y = the caller frame (V3 = world px, C80; V2 = canvas px, I21).
+// Returns f64. Domain: finite x/y within i32 reach (cvttsd2si's
+// indefinite-value behavior for NaN/huge inputs is not mirrored — the
+// callers feed world/canvas px only).
+export function bandRampEval(driver, config, x, y) {
+  if (y > BAND_K.y380) {              // comisd y,380; jbe → count path (unordered → count path)
+    const p = bandParams(driver, config, x);   // out [ebp−0x3c]
+    return rampGate(p[0], p[1], y);
+  }
+  if (driver.bandCount === 0) {       // [+0x6c] == 0 @0x90b2ef (config fallback)
+    const p = bandParams(driver, config, x);   // out [ebp−0x4c]
+    return rampGate(p[0], p[1], y);
+  }
+  // the 512-tile table path
+  const ox = Math.trunc(driver.baseX + x) | 0; // cvttsd2si → i32
+  const col0 = ox >> 9;                        // sar 9 (signed)
+  const lx = ox & 511;                         // and 0x1ff → [ebp−0x14]
+  const oy = Math.trunc(driver.baseY + y) | 0;
+  const row0 = oy >> 9;
+  const ly = oy & 511;                 // → [ebp−0x10] (only feeds the dead [0,512) assert)
+  let col = col0 % driver.w;           // idiv W → signed remainder
+  if (col < 0) col += driver.w;        // rem + W if <0 @0x90b341
+  let row = Math.min(row0, driver.h - 1);  // cmovl min(row0, H−1)
+  if (row < 0) row = 0;                // cmovg → 0
+  const band = driver.bandAt(driver.w * row + col);   // GetAt @0x90b367 (NULL allowed)
+  const p = bandParams(driver, band, x);              // out [ebp−0x2c]
+  let A = p[0], B = p[1];
+  void ly;
+  if (lx <= BAND_K.seam) {             // cmp esi,0x29; jg → no seam @0x90b52a
+    const nb = driver.cellAt(col - 1, row);  // 0x909C70(col−1, row): col mod-w, row clamp
+    if (nb !== band) {                 // pointer identity → skip @0x90b544
+      const fl = f(BAND_K.one - f(lx / BAND_K.seam));  // 1.0f − f32(lx/41) @0x90b55b..581
+      const nl = bandParams(driver, nb, x);            // out [ebp−0x4c]
+      A = p[0] + fl * (nl[0] - p[0]);   // f64 mulsd/addsd blend per lane
+      B = p[1] + fl * (nl[1] - p[1]);
+    }
+  }
+  return rampGate(A, B, y);
+}
+
 // ============ SURFACE evaluator — true 0x90a860 = slab 0x50a060 (P1) =======
 // (x,y) = f64; gradAt = the per-biome gradient-grid sampler (four 0x9fe620
 // reads + smooth-corner bilinear INSIDE the binary — the caller passes a
@@ -644,10 +793,16 @@ export function fbm4(x, y, kind) {
 // Hence gradWCoef = [+0x268] = XML mMultiplierPerlin, perlinCoef = [+0x264]
 // = XML mMultiplierGradient (C43's earlier (23)-map had the pair swapped).
 export function surfaceField(uid, x, y, gradAt, valueOfP94, seedInt) {
+  // dig #142: fail loud if the driver frame is missing — every lane that
+  // reaches the r-site below must have run noise-terrain's
+  // `uid.driver = makeBandDriver(...)` attach (V2 :266 / V3 :394);
+  // a silent undefined would fall into bandRampEval's config arms.
+  if (!uid.driver) throw new Error("surfaceField: uid.driver missing (band-ramp lane, dig #142)");
   // BYTE-MODEL (dig #22, 2026-09-21 (40); supersedes the (23)/(26) shape):
   //   field0 = gradAt bilinear, lower-capped at 0.5        (0x50a0d2..0x50a257)
-  //   r  = the r-evaluator true 0x90AA80 (slab 0x50aa80)   [surrogate:
-  //        noiseDispatch(uid.noiseKind) — FLAGGED, see below]
+  //   r  = the r-evaluator true 0x90AA80 (slab 0x50aa80) → ported as the
+  //        band-ramp lane bandRampEval (true 0x90B280, dig #142 — the
+  //        class-0 r-eval, replacing the noiseDispatch surrogate)
   //   r' = r·field0, and the FIELD SLOT := r' (0x50a2fe) — every gate and
   //        lane from here on reads r', NOT field0.
   //   add := 0 ALWAYS at 0x50a2ed; = [uid+0x260] only when the case-switch
@@ -690,7 +845,8 @@ export function surfaceField(uid, x, y, gradAt, valueOfP94, seedInt) {
     f(f(y * K2.f64_049162514) + valueOfP94 * K2.f64_6p86e07) * K2.f32_0p1);
   if (field < K.KERNEL) field = K.KERNEL;                        // 0x50a5b6
   // 2) r-eval + r' (the field slot := r·field, 0x50a2e2..0x50a2fe):
-  const rRaw = noiseDispatch(uid.noiseKind, x, y);               // 0x90AA80 surrogate (flagged)
+  // const rRaw = noiseDispatch(uid.noiseKind, x, y);              // 0x90AA80 surrogate (flagged) — SUPERSEDED dig #142
+  const rRaw = bandRampEval(uid.driver, uid, x, y);              // true 0x90B280 @0x90aadd (X82, dig #142)
   field = f(rRaw * field);                                       // FIELD SLOT := r' @0x50a2fe
   const rp = field;                                              // r'
   let gradW = 0, per = 0, add = 0;                               // zeroed @0x50a2ed/0x50a2f2

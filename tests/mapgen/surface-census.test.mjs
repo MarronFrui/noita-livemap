@@ -21,12 +21,21 @@
 // exported — the consequence is pinned two-sided below).
 //
 // Layer 2 (port-only, always runs): frame pins at (xd, yd) = (−7.5, 3.5)
-// with gradAt ≡ 10 ⇒ field0 = 10 (≥ KERNEL 0.5) ⇒ rp = f(s·10) ≈
-// 0.9005438 > 0.85 (the comiss precondition is asserted in-test):
-//   - origin identity: rp = 0 ⇒ every addNoise lane, incl. the live
-//     default arm (0), returns 0 with NO throw (switch never entered);
-//   - winter consequence: census attr null → uidFrom:114 noiseKind −1 →
-//     dispatch throws kind=-1 (two-sided pin);
+// with gradAt ≡ 10 ⇒ field0 = 10 (≥ KERNEL 0.5) ⇒ rp = f(s·10), where s
+// is the BAND-RAMP r (true 0x90B280, dig #142 — replaces the
+// noiseDispatch surrogate): fixture band (−100,100), mode 1,
+// gradNoiseScale 0 ⇒ params exactly (−100,100) (core(0,0)=0), no seam
+// at this frame (lx = 504 > 41) ⇒ t = f(103.5/200) = 0.5175 ⇒ rp ≈
+// 5.1749997 > 0.85 (the comiss precondition is asserted in-test):
+//   - origin identity: band (100,200) ⇒ A ≥ y = 0 ⇒ r = 0.0 DIRECT (the
+//     gate's first return) ⇒ every addNoise lane, incl. the live default
+//     arm (0), returns 0 with NO throw (switch never entered);
+//   - winter consequence: census attr null → uidFrom noiseKind −1 →
+//     insidePerlin dispatch throws kind=-1 (two-sided pin; reachable now
+//     only with gradWCoef ≠ 0 — the rp gate passes with rp ≈ 5);
+//   - old-law discriminators: the surrogate f(noiseDispatch(5,x,y)·10)
+//     is 0.9005438 at the probe frame and ≠ 0 at (0,−5000), while the
+//     band law gives 5.1749997 and exactly 0 (band (−1024,1024), A ≥ y);
 //   - default arm byte-tail pin (I20②, dig #113): live addNoise 0 +
 //     stale 4 both COMPUTE the byte chain a = parityLattice2d(x·0.025,
 //     y·0.025), g = a·0.05+0.05, n = simplex2d(x·0.5·0.02·g, y·0.5·0.02·g)
@@ -45,6 +54,9 @@
 // @0x90ab48..0x90b0fb), /tmp/opencode/rdata.bin (PE consts), census98b
 // literals; code: noise-proto.mjs surfaceField :596.., evaluator2 :341,
 // FINAL :703; uidFrom (noise-terrain.mjs) :111-132; biomes.mjs :88-132.
+// dig #142: the r-site source = bandRampEval (true 0x90B280 full window
+// fresh-dumped this session, X82); the band fixtures below mirror
+// bandBlockOf (noise-terrain.mjs) field-for-field.
 
 import { describe, test, expect } from "vitest";
 import fs from "node:fs";
@@ -60,6 +72,7 @@ import {
   simplex2DDeriv,
   noiseDispatch,
   surfaceField,
+  bandRampEval,
 } from "../../mapgen/lib/noise-proto.mjs";
 import {
   componentFromXml,
@@ -219,14 +232,45 @@ describe.skipIf(!hasNoitaData())("P1 Topology census (dig #98, data-gated)", () 
 
 // ---------------------------------------------------------------------------
 // Layer 2 — port-only frame pins (C77). Frame: (−7.5, 3.5), gradAt ≡ 10.
-// uid mirror = uidFrom (noise-terrain.mjs:111-132); gradWCoef 0 is a legal
-// byte state (+0x268 guard skips the insidePerlin lane) and isolates the
-// FINAL to f(P·rpost) so the tail is pinned cleanly.
+// uid mirror = uidFrom (noise-terrain.mjs) incl. the dig-#142 band-block
+// spread + driver attach; gradWCoef 0 is a legal byte state (+0x268 guard
+// skips the insidePerlin lane) and isolates the FINAL to f(P·rpost) so the
+// tail is pinned cleanly.
 // ---------------------------------------------------------------------------
 const XD = -7.5;
 const YD = 3.5;
 const G10 = () => 10; // field0 = 10 ≥ KERNEL ⇒ rp = f(s·10)
+
+// band fixture = bandBlockOf's field set (noise-terrain.mjs, dig #142);
+// gradNoiseScale 0 ⇒ mode-1 core(0·xr, 0·A) = core(0,0) = 0 exactly
+// (verified: all four zero-sign variants return 0), so params are the
+// (A, B) pair bit-exactly.
+const BAND = (A, B, over = {}) => ({
+  gradStartY: A,
+  gradEndY: B,
+  gradSlopeStartX: 0,
+  gradSlopeDelta: 0.01,
+  mode: 1,
+  gradNoiseScale: 0,
+  gradLowNoise: -100,
+  gradHighNoise: 100,
+  ...over,
+});
+// driver fixture = makeBandDriver's frame (all indexes hit the one band
+// so the seam's cellAt reads pointer-identity-equal → the blend skips)
+const drvOf = (band) => ({
+  baseX: 17920,
+  baseY: 7168,
+  w: 70,
+  h: 48,
+  bandCount: 3360,
+  xBase: 0,
+  bandAt: () => band,
+  cellAt: () => band,
+});
 const uidOf = (over = {}) => ({
+  ...BAND(-100, 100), // the band-block spread uidFrom now carries (dig #142)
+  driver: drvOf(BAND(-100, 100)), // the r-site frame (dig #142)
   noiseKind: 5,
   gradient: 0,
   sx: 1,
@@ -249,7 +293,11 @@ const uidOf = (over = {}) => ({
   maxX: 0,
   ...over,
 });
-const rpAt = (x, y) => f(noiseDispatch(5, x, y) * 10);
+// rp = f(r·10) with r = the band-ramp law (true 0x90B280, dig #142):
+// at the probe frame the table path resolves the fixture band with no
+// seam (lx = 504 > 41) ⇒ r = f(103.5/200), rp = 5.1749997.
+const RAMP_UID = uidOf();
+const rpAt = (x, y) => f(bandRampEval(RAMP_UID.driver, RAMP_UID, x, y) * 10);
 const rpPre = (x, y) => {
   const rp = rpAt(x, y);
   expect(rp).toBeGreaterThan(0.85); // comiss 0x11dfb84 @0x90ab48 precondition
@@ -275,17 +323,40 @@ describe("surfaceField switch/tail frame pins (dig #98, port-only)", () => {
     }
   });
 
-  test("origin identity: rp = 0 ⇒ lanes 1/2/3 + live default arm all return 0, no throw", () => {
-    expect(noiseDispatch(5, 0, 0)).toBeCloseTo(0, 7);
-    expect(rpAt(0, 0)).toBe(0);
+  test("origin identity: band (100,200) ⇒ A ≥ y=0 ⇒ r = 0.0 DIRECT ⇒ lanes 1/2/3 + live default arm all return 0, no throw", () => {
+    // dig #142: the origin's zero now comes from the ramp gate's FIRST
+    // return (A ≥ y, ordered) — no table arithmetic, no surrogate needed
+    const O = () => uidOf({ ...BAND(100, 200), driver: drvOf(BAND(100, 200)) });
+    const o = O();
+    expect(bandRampEval(o.driver, o, 0, 0)).toBe(0);
+    expect(f(bandRampEval(o.driver, o, 0, 0) * 10)).toBe(0);
     for (const an of [0, 1, 2, 3, 4]) {
-      expect(surfaceField(uidOf({ addNoise: an }), 0, 0, G10, 0, 0), `lane ${an}`).toBe(0);
+      expect(surfaceField(uidOf({ ...BAND(100, 200), addNoise: an, driver: drvOf(BAND(100, 200)) }), 0, 0, G10, 0, 0), `lane ${an}`).toBe(0);
     }
+  });
+
+  test("old-r surrogate discriminator (dig #142): the band law replaces noiseDispatch", () => {
+    // probe frame: the band law gives rp = 5.1749997; the pre-dig-#142
+    // surrogate f(noiseDispatch(5,x,y)·10) gives 0.9005438 — same test
+    // inputs, different law ⇒ a replacement test that FAILS under the
+    // old arithmetic (rpAt's value would be the surrogate's)
+    expect(rpAt(XD, YD)).not.toBe(f(noiseDispatch(5, XD, YD) * 10));
+    expect(rpAt(XD, YD)).toBe(5.174999713897705);
+    // (0,−5000): band (−1024,1024) ⇒ A ≥ y ⇒ r = 0 EXACTLY (the gate's
+    // first return) while the surrogate is ≈ −2.941 there — the count
+    // law on the 0-arm at an out-of-range y
+    const H = uidOf({ ...BAND(-1024, 1024), driver: drvOf(BAND(-1024, 1024)) });
+    expect(bandRampEval(H.driver, H, 0, -5000)).toBe(0);
+    expect(f(noiseDispatch(5, 0, -5000) * 10)).not.toBe(0);
   });
 
   test("winter consequence: census noise_type null ⇒ noiseKind −1 ⇒ kind=-1 throw (two-sided)", () => {
     expect(() => noiseDispatch(-1, 0, 0)).toThrow(/kind=-1/);
-    expect(() => surfaceField(uidOf({ noiseKind: -1 }), 0, 0, G10, 0, 0)).toThrow(/kind=-1/);
+    // gradWCoef 1 makes the rp > 0.51 lane REACH insidePerlin (with the
+    // default 0 the +0x268 guard skips it — rp ≈ 5 passes the gate)
+    expect(() => surfaceField(uidOf({ noiseKind: -1, gradWCoef: 1 }), 0, 0, G10, 0, 0)).toThrow(/kind=-1/);
+    // guarded-off side: gradWCoef 0 ⇒ no dispatch ⇒ no throw (two-sided)
+    expect(() => surfaceField(uidOf({ noiseKind: -1, gradWCoef: 0 }), 0, 0, G10, 0, 0)).not.toThrow();
   });
 
   test("default arm byte-tail pin (I20②): live 0 + stale 4 compute, no throw", () => {

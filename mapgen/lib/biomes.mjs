@@ -119,6 +119,12 @@ function parseBiomeDefinition(dataDir, filename) {
   mGradientMaxY: parseAttr(attrs, "mGradientMaxY"),
   mGradientMinY: parseAttr(attrs, "mGradientMinY"),
   mGradientNoiseScale: parseAttr(attrs, "mGradientNoiseScale"),
+  // dig #142: the two slope keys (C118: → [+0x278]/[+0x280], the band
+  // params mode-3 linear span; defaults 0 / 0.01 per C116). Present only
+  // in the lake family (lake/lake_blood/lake_deep/lake_statue carry
+  // -12000 / -0.37); every other biome falls to the ctor defaults.
+  mGradientSlopeDelta: parseAttr(attrs, "mGradientSlopeDelta"),
+  mGradientSlopeStartX: parseAttr(attrs, "mGradientSlopeStartX"),
   mGradientSinMultipleMax: parseAttr(attrs, "mGradientSinMultipleMax"),
   mGradientSinMultipleMin: parseAttr(attrs, "mGradientSinMultipleMin"),
   mGradientType: parseAttr(attrs, "mGradientType"),

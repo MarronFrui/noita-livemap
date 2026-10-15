@@ -98,9 +98,24 @@ function table() {
 // probe's cell() no longer consumes it — the caves lane bypasses
 // surfaceField entirely (direct cell read); kept as the kind-0 mirror
 // for a future non-caves probe (MIN_X/MAX_X ride along with it).
+// dig #142: uidFrom now spreads bandBlockOf (the r-eval band slots,
+// C118) — mirrored below field-for-field (f32 slots f32-rounded). The
+// driver itself is NOT mirrored here: it attaches in the lane
+// (makeBandDriver(config, seed)); a future kind-0 probe must attach one
+// or surfaceField throws (the dig-#142 guard).
 function uidMirror(def) {
   const n = (v, d) => { const p = parseFloat(v); return Number.isFinite(p) ? p : d; };
+  const f = Math.fround;
   return {
+    // bandBlockOf(def) (noise-terrain.mjs, dig #142):
+    gradStartY: f(n(def.mGradientStartY, -512)),      // f32 [+0x270]
+    gradEndY: f(n(def.mGradientEndY, 512)),           // f32 [+0x274]
+    gradSlopeStartX: n(def.mGradientSlopeStartX, 0),  // f64 [+0x278]
+    gradSlopeDelta: n(def.mGradientSlopeDelta, 0.01), // f64 [+0x280]
+    mode: n(def.mGradientAddNoise, 1) | 0,            // i32 [+0x288]
+    gradNoiseScale: n(def.mGradientNoiseScale, 0),    // f64 [+0x290]
+    gradLowNoise: f(n(def.mGradientLowNoise, -100)),  // f32 [+0x298]
+    gradHighNoise: f(n(def.mGradientHighNoise, 100)), // f32 [+0x29C]
     noiseKind: def.noiseType === "SIN_CAPPED_SIMPLEX" ? 5 : -1,
     gradient: 0,
     sx: n(def.mInsidePerlinScaleX, 1), sy: n(def.mInsidePerlinScaleY, 1),

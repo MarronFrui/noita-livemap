@@ -10335,6 +10335,150 @@ METER-CLASS (this entry covers meter history, E1-only): every row below
   is a counted reading with its class; no new meter run this entry
   (the only instrument = the register grep + the already-run I31
   differential, cite in row 9).
+- **2026-10-15 (142) — dig #142: THE KIND-0 BAND-RAMP PORT — bandRampEval
+  (0x90B280 full law) + bandParams (0x90B680) + the driver frame
+  (makeBandDriver/phaseSXBase) land with the count battery; two canon
+  corrections (§8 rows 47/48) + a caught mode-2 tail port bug.**
+  - **NEW EVIDENCE:** (a) **the Phase-G skip branch EXISTS @0x906844** —
+    `[ebp+0x28]` = arg5's std::string `_Mysize` (the biome-map name):
+    empty ⇒ jump into the FATAL arm @0x90665c ⇒ the skip is OFF the
+    observable path ⇒ Phase G runs on EVERY completed Init ⇒ live
+    `f64[+0x38] = w·0.5·512 = 17920.0`, `f64[+0x40] = 14·512 = 7168.0`
+    — **C119's +0x38 OPEN closes** (the #141 sweep's "no skip-branch"
+    was WRONG — the branch was there; the "0.0 contradiction" was an
+    8-byte read artifact: 0x11E0820 = the 16-B constant `{0,0,0,14}`,
+    dword #3 = `[ebp−0x34]` = 14, X102); live `+0x48` = Phase S's
+    seeded ±100000 (the ONLY +0x48 writer — C114's baseline);
+    `[0x11E0494]` = f32 **9999.0**, `[0x11DFBF0]` = f32 **1.0**.
+    (b) **r-eval table path FRESH prologue→ret re-read (X82):**
+    `col0 = trunc(baseX+x) >> 9` — **SAR BEFORE the mask**; `& 0x1ff`
+    lands on the SEPARATE lx copy → [ebp−0x14] (feeding only the seam
+    compare + the log-only asserts) ⇒ **C84's mask-first col law AS
+    WRITTEN (col = (ox&511)>>9 ≡ 0) PROVEN WRONG → §8 row 47**;
+    re-pinned: signed idiv + ONE `+= W` wrap, the min/max cmov double
+    row clamp, the `cmp $0x29; jg` seam (lx ≤ 41), the pointer-identity
+    neighbor skip; **corollary: row0 > 47 can NEVER fire through
+    bandRampEval** (the table arm sees only y ≤ 380 ⇒ row0 ≤ 14; the
+    y > 380 arm steals every larger sample) = a cellAt-only law, tested
+    with a bandAt call counter (0 table reads). (c) **params FRESH
+    re-read (X68/X83):** mode 3's slope runs on the **RAW xmm1-in
+    coord** (subsd @0x90B6E0 on the xmm1 copy; xr is computed into
+    [ebp−8] and never read in the arm ⇒ **C114's "y_req" wording
+    PROVEN WRONG → §8 row 48**) and **the shared tail's engine is
+    ALWAYS 0x8FC020** (mode 2's `jmp @0x90b74e` lands on the tail head
+    @0x90b77f whose single `call @0x90b79b` = 0x8fc020; the mode-2 fbm
+    is out0-only with f32-rounded args; both tail args scale· f64, B
+    reloaded from [+0x274]) — this re-read **CAUGHT a port bug**: the
+    port had encoded the old "(mode 2: fbm)" tail reading; fixed
+    pre-commit per the re-read law (re-read the bytes, never
+    accommodate). (d) **NEW extraction X103: ctor 0x452BA0 full
+    prologue→ret** (`mapgen/extractions/dig142-ctor-452ba0-452bcf.asm`,
+    exe slice file 0x51FA0..0x51FCF): `comisd` vs 2147483647.0 → `jb`
+    else ×0.5 → `movsd` store state → **WARM `call 0x10098C0` with the
+    xmm0 return discarded** ⇒ phaseSXBase = 1 warm + 3 live draws
+    (u₁/u₂/u₃ @0x906145/0x906173/0x90619b); the draw = Lehmer/MINSTD
+    (C94/X94: `r = (16807·trunc(state)) mod 2147483647`, + if ≤ 0;
+    `u = r·4.656612875e-10`), NOT wang-js's LCG; state 0 → throw.
+    (e) hills2.xml = the ONLY `mGradientAddNoise="2"` band in the
+    biome set (12 cells: cols 60-62 × rows 1-4).
+  - **The port.** `noise-proto.mjs`: `bandRampEval` (the gate order
+    A≥y→0 / y≥B→1 / B===A-NaN→1 / t = `Math.fround((y−A)/(B−A))` — the
+    divsd+cvtpd2ps = single final rounding; the y > 380 + count == 0
+    config arms; the table arm; the ≤41 seam with `fl = f(1 − f(lx/41))`
+    and the identity skip) + `bandParams` (const / raw-coord slope /
+    fbm-out0 + shared core tail / else core) + `fbmGradient` (0x9FAD90:
+    4 core + 3 rotations, lac 2.02/2.33/2.01, weights ½,¼,⅛,¹⁄₁₆, ÷0.9375)
+    + the surfaceField guard (throws on a missing `uid.driver`) with
+    the old `noiseDispatch` r-site line kept commented SUPERSEDED.
+    `noise-terrain.mjs`: `phaseSXBase` (BigInt Lehmer mirror, warm +
+    3 draws, f32 store chains) + `makeBandDriver` (WeakMap<config,
+    Map<seed>>; bandAt decodes W·row+col → biomeAt → bandBlockOf memo —
+    **FLAGGED: the value path = the image, the Table-B/0x9FEE40
+    producer equivalence unproven = the A4 residual**) + cellAt (signed
+    single-add wrap, double row clamp) + the two driver attaches (V2
+    `:379` rides canvas coords — registered in I21, no flip; V3 `:508`
+    world px). `biomes.mjs`: the two slope keys parsed (C118 →
+    [+0x278]/[+0x280]; only the lake family carries them).
+  - **Tests — the count battery (0/1/N + skip path + old-law failure).**
+    NEW `tests/mapgen/band-ramp.test.mjs`, **35 tests, all green**
+    (data-gated blocks ran): the gate arms (0-arm: 2 boundaries + N
+    below → exactly 0.0; 1-arm likewise → 1.0; t-arm N samples vs the
+    single-rounding restatement; B===A only via NaN → 1.0; NaN y with
+    A ≠ B → NaN = 0-count of the 0/1 arms); the config arms counted by
+    the bandAt counter (y = 380 exact → TABLE 1-count, y > 380 → config
+    0-count, count == 0 → skip 0-count, count > 0 → table); the seam
+    (fl blend N samples incl. fl(0) = 1, lx 42 → 0 cellAt calls,
+    identity skip → params read once); table index (col0 −1 → col 69
+    equals the direct col-69 read, low clamp, the y > 380 steal +
+    y = 380 boundary); **old-law-failure discriminators**: the mode-2
+    tail must equal the CORE restatement and differ from fbm (the
+    pre-fix port FAILS this — the caught bug is pinned), mode1/mode2
+    shared-tail bit-identity, mode-3 raw-vs-via-xr slope at nonzero
+    xBase, the fbm 3-rotation + ÷0.9375 pins (4-call count), the census
+    rp 5.174999713897705 vs the surrogate's 0.9005438 / (0,−5000) 0-vs-−2.94;
+    `phaseSXBase` goldens (78633191 → s1 188.77249145507812, xBase
+    24155.7109375, u3slot −14857.640625; −12345 → 1488.5670166015625,
+    −19209.71875; seed 0 throws) + BigInt-mirror agreement over N seeds
+    + the 4-step count; the guard throw; the driver cache identity; the
+    data-gated real-config block (frame/xBase/bandAt resolution +
+    cellAt clamp counts: rows [47,48,60,999,1e6] → 47 non-vacuous,
+    rows < 0 → 0, in-range 0-clamp). Restructured: `surface-census`
+    (the rp now = the band law, with the surrogate 0.9005438
+    discriminator kept as the old-law pin) + `surface-wiring` (the
+    uidMirror spreads the band block field-for-field). **Full battery
+    323/323 green** (`NODE_OPTIONS="--max-old-space-size=8192" npm test`).
+  - **METER-CLASS: E0** — the y224 byte bar (in caves-field.test.mjs)
+    ran GREEN post-port: 0/12 rows differ, rms 0.0000 ⇒ bit-identity
+    holds through the r-site swap.
+  - **METER-CLASS: E2 — the C97 56-tile surface-shape sentinels
+    (`2026-10-10-surface-shape-iou.mjs`; runs this session; E2 =
+    sentinels, UNATTRIBUTED — none of the below steered the port; the
+    byte laws + the count battery did):**
+    - PREDICTION #1 (pre-registered before run 1): both lanes' overall
+      IoU move non-zero vs the handover's carried baseline
+      (v2 0.23391 / v3 0.46508); falsifier = both deltas 0.00000.
+      Run 1 (post-port, the tail bug still in): v2 **0.37335**
+      (Δ +0.13944), v3 **0.45099** (Δ −0.01409) — non-zero.
+    - PREDICTION #2 (before run 2, after the mode-2 tail fix): a delta
+      vs run 1 ONLY in hills2-resolving tiles; falsifier = any delta
+      outside that coverage. Run 2 (fixed tail): v2 **0.37335**, v3
+      **0.45099** — **Δ = 0.00000 on every aggregate** (byte
+      explanation: hills2's 12 cells intersect **0 of the 56 sampled
+      tiles** — coverage scan, not the meter, explains the null).
+    - PREDICTION #3 (before run 3): the stash-pure HEAD re-run
+      reproduces the carried 0.23391/0.46508; falsifier = either
+      differs. Run 3 (the 3 lib files stashed → HEAD code → both lanes
+      rc=0 → pop → post-state JSONs restored): **BOTH FALSIFIED —
+      measured pre-port baseline v2 0.37508 / v3 0.44327.** Byte read
+      (never accommodation): `git log bffd633..HEAD -- mapgen/lib` =
+      digs #130–#135 (the art-first surface compositor chain) between
+      the doc record (entry (127)) and HEAD ⇒ the doc-era values were
+      era-stale for any post-#129 run, so prediction #1's baseline was
+      invalid and its "met" verdict VOID. **TRUE port deltas (E2,
+      UNATTRIBUTED): v2 0.37508 → 0.37335 (−0.00173), v3 0.44327 →
+      0.45099 (+0.00772)** — direction and magnitude are NOT evidence
+      for or against the class swap (the measurement law, entry (128)).
+      Run logs (path-stable, gitignored):
+      `mapgen/out/c97-v{2,3}-{PREPORT,post,postfix,restore}-2026-10-15.log`;
+      JSONs `mapgen/out/surface-shape-2026-10-10-{v2,v3}.json` left at
+      post state (gitignored, as usual).
+  - **A-register / the purification law.** A4 amended: the PORT demoted
+    D→B (the C113/C114/C115 contract implemented + counted); the
+    RESIDUAL and why = the band-matrix VALUE-producer equivalence
+    (0x9FEE40's region semantics + the Table-B consumer unread — a
+    separate Init-phase producer investigation, outside this dig's
+    scope; bandAt resolves through biomeAt's map image, FLAGGED in
+    buildBandDriver). A2/A5/A6 untouched (byte-honest out-of-scope),
+    A7 already demoted (#127). I21 gains the V2 canvas-px mixing note
+    (the flip stays parked there). Net: the lane's D-coverage shrank;
+    the two residuals are NAMED here rather than re-opened.
+  - **Landed:** ABOUT_MATH **(142)**; CONSTANTS **C120** (new) +
+    in-row amendments C83/C84/C113/C114/C119; VERIFIED **§8 rows 47
+    and 48**; ISSUES A4 + I21; MANIFEST **X103**; the port (biomes /
+    noise-proto / noise-terrain) + 3 test files; full battery
+    **323/323**. One dig = one commit. **Next free: entry **(143)**,
+    **C121**; §8 row **49** free.**
+
 - **2026-10-14 (141) — dig #141: THE DRIVER-FRAME PRODUCER READ
   (`ProceduralTerrain::Init` 0x905FB0) + the REA extraction-sweep
   verdict.**

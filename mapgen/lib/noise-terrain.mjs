@@ -144,6 +144,116 @@ function biomeCfg(_biome) {
   return { minX: 159.0, maxX: 223.0 };
 }
 
+// ============ THE BAND-RAMP DRIVER FRAME (dig #142, C119/C113) ============
+// The kind-0 r-site (true 0x90B280, dig #142) reads its bands through a
+// frame object: baseX/baseY (Phase G's world origin), the 70x48 tile
+// grid dims, bandCount, the Phase-S x-seed slot, and the two accessors
+// (GetAt on the biome matrix / the 0x909C70 cell accessor).
+const f = Math.fround;
+
+// bandBlockOf — the per-biome band block = the slots bandParams
+// (true 0x90B680) reads off the band pointer (C118 key map; f32 slots
+// stored f32-rounded, C116 defaults — dig #142). Also spread into uid
+// (uidFrom below) because the two r-eval config arms pass the uid itself
+// as the band.
+export function bandBlockOf(def) {
+  if (!def) return null;
+  const n = (v, d) => { const p = parseFloat(v); return Number.isFinite(p) ? p : d; };
+  return {
+    gradStartY: f(n(def.mGradientStartY, -512)),      // f32 [+0x270]
+    gradEndY: f(n(def.mGradientEndY, 512)),           // f32 [+0x274]
+    gradSlopeStartX: n(def.mGradientSlopeStartX, 0),  // f64 [+0x278]
+    gradSlopeDelta: n(def.mGradientSlopeDelta, 0.01), // f64 [+0x280]
+    mode: n(def.mGradientAddNoise, 1) | 0,            // i32 [+0x288] (ctor default 1)
+    gradNoiseScale: n(def.mGradientNoiseScale, 0),    // f64 [+0x290] (ctor default 0)
+    gradLowNoise: f(n(def.mGradientLowNoise, -100)),  // f32 [+0x298]
+    gradHighNoise: f(n(def.mGradientHighNoise, 100)), // f32 [+0x29C]
+  };
+}
+
+// phaseSXBase — Init Phase S (x72.dis 0x9060fd..0x9061d0; X72 window)
+// computed LOCALLY: GetSeed's diddled f64 seed ({0.0, 2^32} by sign bit,
+// [eax*8+0x11E0BA0]) → the 0x452BA0 ctor clamp (>= 2147483647.0 → x0.5)
+// → the ctor's WARM draw → three live draws u1/u2/u3. Every draw is
+// 0x10098C0 = the LEHMER/MINSTD law (NOT wang-js's tile LCG — that is a
+// different RNG class; dig #142): state' = 16807*trunc(state) mod
+// 2147483647 with the <=0 → +=2147483647 fixup, draw = f64(state') x
+// [0x11DF988] = 4.656612875e-10 (truncated decimal, byte-read); state 0
+// = the debug assert (log + crash) → seed 0 is invalid. Returns the
+// three f32-chained stores: [+0x30] = f(f(f(u1)*9999)+1), [+0x48] xBase
+// = f(f(f(u2)*200000)-100000), [+0x38] = the same of u3 (Phase S value;
+// Phase G overwrites it with 17920 on every completed Init, so it is
+// dead there and only informational here).
+export function phaseSXBase(seedInt) {
+  let st = seedInt < 0 ? seedInt + 4294967296 : seedInt; // the diddle add
+  if (st >= 2147483647) st *= 0.5;                       // ctor clamp
+  const draw = () => {
+    if (st === 0) throw new Error("phaseSXBase: rng state 0 (the 0x10098C0 debug assert)");
+    const s = Math.trunc(st) | 0;                // cvttsd2si (i32 range incl. INT_MIN wrap)
+    let r = (16807 * s) % 2147483647;            // Lehmer step (exact in f64: |16807*s| < 2^53)
+    if (r <= 0) r += 2147483647;
+    st = r;
+    return r * 4.656612875e-10;                  // f64 [0x11DF988]
+  };
+  draw();                                        // the ctor's warm draw (0x452BA0)
+  const u1 = draw(), u2 = draw(), u3 = draw();
+  return {
+    s1: f(f(f(u1) * 9999) + 1),                  // [+0x30] (mulss 9999/addss 1)
+    xBase: f(f(f(u2) * 200000) - 100000),        // [+0x48] (mulss 200000/subss 100000)
+    u3slot: f(f(f(u3) * 200000) - 100000),       // [+0x38] (Phase G overwrites)
+  };
+}
+
+// makeBandDriver — the frame object (config, seed)-cached. The driver
+// resolves bands LAZILY through closures (bandAt/cellAt) so a driver
+// stays tiny under JSON.stringify (the SURFACE_LOG logs uid wholesale).
+const driverCache = new WeakMap();   // config -> Map<seed, driver>
+export function makeBandDriver(config, seed) {
+  let perSeed = driverCache.get(config);
+  if (!perSeed) driverCache.set(config, perSeed = new Map());
+  let d = perSeed.get(seed);
+  if (!d) perSeed.set(seed, d = buildBandDriver(config, seed));
+  return d;
+}
+
+function buildBandDriver(config, seed) {
+  const w = 70, h = 48;                      // C119: driver[+0x50]/[+0x54] = the Phase-G dims
+  const { xBase } = phaseSXBase(seed);       // C119: driver[+0x48] = Phase-S u2 (live)
+  const bandMemo = new Map();                // biome def -> band block | null (per driver)
+  // FLAGGED (ISSUES §A A4 residual, dig #142): the band-matrix VALUE
+  // producer (Init's fill via 0x9FEE40 + the Table-B consumer) was never
+  // read; this resolves cells through the biome-map image instead —
+  // same image C119 pins (TopLeft world x -17920 / row0 y -7168), but
+  // the exact equivalence to the game's matrix fill is unproven (D).
+  const bandAtIdx = (idx) => {
+    const col = idx % w, row = (idx / w) | 0;   // GetAt decodes W*row+col
+    const def = biomeAt(config, col, row)?.biome;
+    if (!def) return null;                       // unmapped color/area -> NULL band -> params {0,0}
+    let band = bandMemo.get(def);
+    if (band === undefined) bandMemo.set(def, band = bandBlockOf(def));
+    return band;
+  };
+  // cellAt — true 0x909C70: single signed col mod-w (idiv + one add if
+  // <0), row clamp [0, h-1], then the same W*row+col GetAt.
+  const cellAt = (col, row) => {
+    let c = col % w;
+    if (c < 0) c += w;
+    let r = row;
+    if (r > h - 1) r = h - 1;
+    if (r < 0) r = 0;
+    return bandAtIdx(w * r + c);
+  };
+  return {
+    baseX: w * 256,          // 17920.0 = f64(w)*0.5*512 (C119 @0x906c27: x-base Phase G)
+    baseY: 14 * 512,         // 7168.0  (C119 @0x906c45 = [0x11E00E0]: y-base)
+    w, h,
+    bandCount: w * h,        // driver[+0x6c] = 3360 (element count)
+    xBase,                   // driver[+0x48]
+    bandAt: bandAtIdx,       // (idx) -> band | null
+    cellAt,                  // (col, row) -> band | null
+  };
+}
+
 // uid-config adapter (C37 offset map) ← the extracted XML attrs (dig #8
 // extraction in biomes.mjs, ABOUT_MATH (22)). MISSING surfaces (the
 // mGradientSinMultiple*/mGradientType/mInsidePerlinFunc pair of the
@@ -159,6 +269,8 @@ function biomeCfg(_biome) {
 function uidFrom(def, cfg) {
   const n = (v, d) => { const p = parseFloat(v); return Number.isFinite(p) ? p : d; };
   return {
+    ...bandBlockOf(def),   // the band block (C118 slots; f32-rounded) — the r-eval
+                           // config arms pass THIS as the band (dig #142)
     noiseKind: def.noiseType === "SIN_CAPPED_SIMPLEX" ? 5 : -1, // CE (35): 5
     gradient: 0,           // unused until the field-source read (see C44)
     sx: n(def.mInsidePerlinScaleX, 1), sy: n(def.mInsidePerlinScaleY, 1),
@@ -264,6 +376,7 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
     // gradAt; the mGradientAddNoise=1..3 inner-core lanes THROW until W3/W4
     // land — those biomes yield null (caller falls through), honestly.
     const uid = uidFrom(def, cfg);
+    uid.driver = makeBandDriver(config, seed);  // dig #142: the kind-0 r-site frame (I21: rides the canvas coords here)
     // dig #30: the caves-field source when the biome carries <BitmapCaves>
     // (the hills/desert/pyramid family); otherwise the C39 IMAGE-LANE
     // gradAt when a bitmap_noise_file exists (the lake family), else the
@@ -392,6 +505,7 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
   // value below is therefore the DIRECT cell read, not the combine.
   const surfaceTable = ensureSurfaceTable(dataDirRef.dataDir, def);
   const uid = uidFrom(def, cfg);
+  uid.driver = makeBandDriver(config, seed);  // dig #142: the kind-0 r-site frame (world-px coords, C80)
   let gradAt = null;
   let gradKind = "ramp"; // which source fed gradAt — logged by SURFACE_LOG below
   if (def.bitmapCaves && def.bitmapCaves.sizeX) {
