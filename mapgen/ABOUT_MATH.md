@@ -10335,6 +10335,66 @@ METER-CLASS (this entry covers meter history, E1-only): every row below
   is a counted reading with its class; no new meter run this entry
   (the only instrument = the register grep + the already-run I31
   differential, cite in row 9).
+- **2026-10-15 (143) — AUDIT #143 (no dig — audit-only, no port, no code
+  change): THE "NOODLY CHUNKS" ATTRIBUTION — the BLACK = the §12 flags-OFF
+  gate (by design, commit-invariant since f55dfab); the CONTENT regression
+  = dig #142's r-site swap (kind-0 filler NOISE→AIR).**
+  **NEW EVIDENCE:** the post-(141) user report ("the noodly chunks render
+  empty/black instead of noise") was measured, not read: a 4-way lane×commit
+  differential (surf-flags-ON vs flags-OFF × HEAD aefd3fa vs baseline
+  98183fc) over the 23 filler-cell audit of
+  `mapgen/experiments/2026-10-15-noodle-audit.mjs` (+ the kind-count
+  instrument `2026-10-15-noodle-maskcount.mjs`, the throw tracer
+  `2026-10-15-noodle-throw.mjs`, the blackfrac scorer
+  `2026-10-15-noodle-blackfrac.mjs`; servers on :8093/:8094 and a
+  scratch worktree checked out at 98183fc (removed after the run) —
+  the user's live :8082 untouched).
+  - **METER-CLASS: E1** (counted cell-kind classifications + black-pixel
+    fractions; thresholds OPAQUE-BLACK ≥95% black, MIXED 5–95%, COLORED
+    <5%). **PREDICTION (pre-registered before any run):** flags-ON HEAD
+    kind-0 filler = 200+ OPAQUE-BLACK vs 98183fc colored — **FALSIFIED**
+    (HEAD flags-ON = 23/23 COLORED, 0% black); falsifier f1 (black byte-
+    invariant across the two commits in the flags-OFF lane) **half-
+    triggered** ⇒ the black lives ONLY in the flags-OFF lane.
+  - **The lane×commit matrix (E1):** flags-ON: HEAD 23/23 COLORED (band
+    blackfrac 0.788%), 98183fc 23/23 COLORED (1.447%) — HEAD strictly
+    less black (fb6d28b's backdrop move). Flags-OFF: HEAD 12 BLACK / 2
+    MIXED / 9 COLORED and 98183fc 12/2/9 — 24/25 rows class-IDENTICAL
+    across commits; the 1 delta = the sky control (98183fc BLACK → HEAD
+    COLORED = fb6d28b's fix, live-confirmed). `solid_wall_temple` 97.67%
+    black at BOTH (no template there).
+  - **Root cause A — the black (flags-OFF; by design, NOT a regression):**
+    the §12 opt-in gate `if (!SURFACE_V2 && !SURFACE_V3) return world`
+    (noise-terrain.mjs:707, commit f55dfab 2026-09-21 — an ANCESTOR of
+    98183fc, so present at both measured commits) leaves
+    `world.noiseSolidAt` unattached; the default-lane chain
+    (world-gen.mjs:200-222) then reads `world.noiseSolidAt?.()` →
+    undefined → `nz != null` false → line 222 `return null` → opaque
+    black (`bgImageAt` at :219 sits INSIDE the nz-branch, unreachable).
+    `package.json`'s `gen:server` has NEVER carried SURFACE_* env flags ⇒
+    if the user ever saw noise, their server had the flags set manually;
+    env loss on restart is the leading explanation (fb6d28b's own commit
+    message that day recorded "the user's own server :8082, no SURFACE_*
+    in its env").
+  - **Root cause B — the content delta (flags-ON; real, opened as I33):**
+    dig #142's deliberate r-site swap (noise-proto.mjs:848-849,
+    `noiseDispatch(uid.noiseKind,…)` → `bandRampEval(uid.driver,uid,…)`,
+    old line commented SUPERSEDED) makes kind-0 NOISE read the band ramp
+    at the driver origin — lake 0.040–0.051 → 0.000, empty/solid_wall
+    stubs 0.002–0.003 → 0.000 (NOISE→AIR) — and turns the DEAD reads null
+    → 0 (lava/temple/boss_arena → AIR). kind=-1 defs (solid_wall/lava/
+    temple_wall — no `noise_type` attr) now throw at `insidePerlin`
+    (:552/:542 via surfaceField :856; at 98183fc they threw at the OLD
+    r-site) — caught at noise-terrain.mjs:437/:567 → chunk null → DEAD at
+    BOTH commits (template art covers). The BitmapCaves caves-lane cells
+    (desert/winter/hills) are identical at both commits (meanSolid
+    0.897–0.985) — never touch surfaceField.
+  - **Artifacts:** `mapgen/out/noodle-{audit,maskcount,blackfrac}-*.json`
+    (+ the 98183fc-full copies) + `noodle-throw-HEAD.txt`. The §12 gate
+    law itself is unchanged canon (VERIFIED §12) — no C-row.
+  - **Landed:** this entry + ISSUES **I33** (the r-site-swap content
+    regression + its fix plan). No code change (audit-only; no cache
+    bump). Next free: entry **(144)**, **C121**; §8 row **49** free.
 - **2026-10-15 (142) — dig #142: THE KIND-0 BAND-RAMP PORT — bandRampEval
   (0x90B280 full law) + bandParams (0x90B680) + the driver frame
   (makeBandDriver/phaseSXBase) land with the count battery; two canon
@@ -10476,7 +10536,7 @@ METER-CLASS (this entry covers meter history, E1-only): every row below
     in-row amendments C83/C84/C113/C114/C119; VERIFIED **§8 rows 47
     and 48**; ISSUES A4 + I21; MANIFEST **X103**; the port (biomes /
     noise-proto / noise-terrain) + 3 test files; full battery
-    **323/323**. One dig = one commit. **Next free: entry **(143)**,
+    **323/323**. One dig = one commit. **Next free: entry **(144)**,
     **C121**; §8 row **49** free.**
 
 - **2026-10-14 (141) — dig #141: THE DRIVER-FRAME PRODUCER READ
