@@ -622,39 +622,20 @@ const DEF_SEED = 0;
 // deterministic per the binary's ctor chain — the C49 proof), so the
 // ensureWorld caller passes the run's worldseed here.
 export function attachNoiseTerrain(world, dataDir, seed = 0) {
-  // OPT-IN (VERIFIED.md §12): with neither lane flag set the noise branch
-  // never attaches and the procedural band renders as honest air (the
-  // art-scenes + wang areas carry the whole visible band).
-  if (!SURFACE_V2 && !SURFACE_V3) return world;
-  const cache = new Map(); // "tx,ty" -> {mask, def} | null
-  world.noiseAt = (tx, ty) => {
-    const key = `${tx},${ty}`;
-    if (cache.has(key)) return cache.get(key);
-    let r = null;
-    try {
-      r = noiseChunkMask(world.config, tx, ty, seed);
-    } catch {
-      r = null;
-    }
-    cache.set(key, r);
-    return r;
-  };
-  // dig #31: the world-level probe the worldColorAt actually calls —
-  // without this the noise branch never runs (the pre-V3 wiring hole):
-  world.noiseSolidAt = (wx, wy) => noiseSolidAt(world, wx, wy);
-  // dig #130 (the surface-lane compositor): the per-cell MATERIAL probe —
-  // the caves-band chunk's classify-record index (255 = air/unclassified).
-  world.noiseMatAt = (wx, wy) => {
-    const tx = Math.floor(wx / CHUNK), ty = Math.floor(wy / CHUNK);
-    const ch = world.noiseAt?.(tx, ty);
-    if (!ch || !ch.matIdx) return { idx: 255, names: null };
-    const lx = (wx - tx * CHUNK) / 10, ly = (wy - ty * CHUNK) / 10;
-    if (lx < 0 || ly < 0 || lx >= 51 || ly >= 51) return { idx: 255, names: null };
-    return {
-      idx: ch.matIdx[52 * Math.floor(ly) + Math.floor(lx)],
-      names: ch.matNames ?? null,
-    };
-  };
+  // sky/backdrop attach — UNCONDITIONAL (default-lane fix, the user's
+  // 2026-10-15 report "no more sky background"): worldColorAt's sky band
+  // (ty < 62) falls through to `world.skyAt?.() ?? null`, and C110's sky
+  // law (VERIFIED §12 p2c) is written unconditionally — placing these
+  // below the SURFACE_* gate made every default-lane sky / void /
+  // bin-less px null → the tile renderer's opaque black (their viewer's
+  // black sky rows). The data-image backdrop carries zero D (it reads
+  // the game's own parallax PNG), so it ships with the honest default
+  // render; the NOISE band stays OPT-IN below (VERIFIED.md §12's D-law:
+  // the placeholder ramp + the un-carve'd filler shape must not ship as
+  // default). Tests: the default-lane attach contract in
+  // tests/mapgen/world-gen.test.mjs (this thread runs the child with the
+  // SURFACE_* env stripped — the singleFork worker env is polluted by
+  // other suites).
   // dig #132 (I32 p2b, the per-area background law): the AIR backdrop = the
   // chunk biome's Topology background_image (hills =
   // weather_gfx/background_cave_04_alt, coalmine = background_coalmine…),
@@ -718,6 +699,41 @@ export function attachNoiseTerrain(world, dataDir, seed = 0) {
   };
   world.skyAt = skyAt;
   world.bgImageAt = (tx, ty, gx, gy) => bgImageAtInner(tx, ty, gx, gy, false);
+
+  // OPT-IN (VERIFIED.md §12): with neither lane flag set the NOISE band
+  // never attaches and the procedural band renders as honest air (the
+  // art-scenes + wang areas carry the whole visible band) — the sky/
+  // backdrop attach above is unconditional (see the function head).
+  if (!SURFACE_V2 && !SURFACE_V3) return world;
+  const cache = new Map(); // "tx,ty" -> {mask, def} | null
+  world.noiseAt = (tx, ty) => {
+    const key = `${tx},${ty}`;
+    if (cache.has(key)) return cache.get(key);
+    let r = null;
+    try {
+      r = noiseChunkMask(world.config, tx, ty, seed);
+    } catch {
+      r = null;
+    }
+    cache.set(key, r);
+    return r;
+  };
+  // dig #31: the world-level probe the worldColorAt actually calls —
+  // without this the noise branch never runs (the pre-V3 wiring hole):
+  world.noiseSolidAt = (wx, wy) => noiseSolidAt(world, wx, wy);
+  // dig #130 (the surface-lane compositor): the per-cell MATERIAL probe —
+  // the caves-band chunk's classify-record index (255 = air/unclassified).
+  world.noiseMatAt = (wx, wy) => {
+    const tx = Math.floor(wx / CHUNK), ty = Math.floor(wy / CHUNK);
+    const ch = world.noiseAt?.(tx, ty);
+    if (!ch || !ch.matIdx) return { idx: 255, names: null };
+    const lx = (wx - tx * CHUNK) / 10, ly = (wy - ty * CHUNK) / 10;
+    if (lx < 0 || ly < 0 || lx >= 51 || ly >= 51) return { idx: 255, names: null };
+    return {
+      idx: ch.matIdx[52 * Math.floor(ly) + Math.floor(lx)],
+      names: ch.matNames ?? null,
+    };
+  };
   return world;
 }
 

@@ -4,6 +4,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { describe, test, expect } from "vitest";
 import {
   CHUNK, WORLD_CHUNKS_W, WORLD_CHUNKS_H, SKY_ROWS, WORLD_W, WORLD_H,
@@ -154,5 +155,72 @@ describe.skipIf(!hasNoitaData())("ensureWorld — cached generation (repo gen-ca
     expect(buf.readUInt32LE(4)).toBe(m.h);
     expect(buf.readUInt32LE(8)).toBe(m.attempt);
     expect(buf.length).toBe(12 + m.rgb.length);
+  });
+});
+
+// default-lane attach contract (user report 2026-10-15, "no more sky
+// background"): worldColorAt's sky band (ty < 62) falls through to
+// `world.skyAt?.() ?? null`, and C110's sky law (VERIFIED §12 p2c) is
+// written unconditionally — so skyAt/bgImageAt must attach WITHOUT the
+// SURFACE_* flags. Under the pre-fix law both were undefined in the
+// default lane (every sky/void/bin-less px = null → the tile renderer's
+// opaque black; seed 78633191 tiles z0(34,14)/z1(17,28..29) measured
+// 100% black / 512×512 px). The NOISE band must stay gated (§12's D-law:
+// placeholder ramp + un-carve'd filler). The probe runs as a child
+// process with SURFACE_* stripped: noise-terrain.mjs captures the flags
+// at module load and the singleFork worker's env is set by other
+// suites (surface-compositor.test.mjs:13 sets SURFACE_V3).
+describe("default lane (no SURFACE_* flags) — attach noise-terrain contract", () => {
+  const probe = `
+    const { attachNoiseTerrain } = await import(process.env.PROBE_REPO + "/mapgen/lib/noise-terrain.mjs");
+    const w = attachNoiseTerrain({ config: null }, null, 0);
+    process.stdout.write(JSON.stringify({
+      sky: typeof w.skyAt, bg: typeof w.bgImageAt,
+      solid: typeof w.noiseSolidAt, mask: typeof w.noiseAt, mat: typeof w.noiseMatAt,
+    }));
+  `;
+  const run = () => {
+    const env = { ...process.env, PROBE_REPO: repoRoot };
+    delete env.SURFACE_V2;
+    delete env.SURFACE_V3;
+    const r = spawnSync(process.execPath, ["--input-type=module", "-e", probe], {
+      env, encoding: "utf8", cwd: repoRoot,
+    });
+    expect(r.status, r.stderr).toBe(0);
+    return JSON.parse(r.stdout);
+  };
+
+  test("skyAt + bgImageAt attach unconditionally (the pre-fix law left them undefined → null → black sky)", () => {
+    const s = run();
+    expect(s.sky).toBe("function");
+    expect(s.bg).toBe("function");
+  });
+
+  test("the noise band stays opt-in (§12 D-law: placeholder ramp + un-carve'd filler must not ship by default)", () => {
+    const s = run();
+    expect(s.solid).toBe("undefined");
+    expect(s.mask).toBe("undefined");
+    expect(s.mat).toBe("undefined");
+  });
+});
+
+describe.skipIf(!hasNoitaData())("default lane sky color (data-gated)", () => {
+  test("skyAt returns the parallax gradient px without flags (3×uint8)", () => {
+    const env = { ...process.env, PROBE_REPO: repoRoot, PROBE_DATA: dataDir };
+    delete env.SURFACE_V2;
+    delete env.SURFACE_V3;
+    const r = spawnSync(process.execPath, ["--input-type=module", "-e", `
+      const { attachNoiseTerrain } = await import(process.env.PROBE_REPO + "/mapgen/lib/noise-terrain.mjs");
+      const w = attachNoiseTerrain({ config: null }, process.env.PROBE_DATA, 0);
+      // canvas px near the datum (gy/31744 → t≈0.97 = the horizon rows)
+      process.stdout.write(JSON.stringify(w.skyAt(17, 60, 8800, 31000)));
+    `], { env, encoding: "utf8", cwd: repoRoot });
+    expect(r.status, r.stderr).toBe(0);
+    const px = JSON.parse(r.stdout);
+    expect(px).toHaveLength(3);
+    for (const v of px) {
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThanOrEqual(255);
+    }
   });
 });
