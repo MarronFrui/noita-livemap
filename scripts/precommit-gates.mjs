@@ -9,6 +9,7 @@
 import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { parseVitestSummary, parseVitestFiles, decideBattery } from "./precommit-gates-lib.mjs";
 
 const fail = (m) => {
   console.error(`\n[precommit-gates] FAIL: ${m}`);
@@ -104,6 +105,23 @@ function journal(mode) {
   } catch {} // journal failure must not block a gated commit
 }
 
+// dig #156 (I36): every battery attempt gets a structured journal line — the
+// I36 row's own unmeasured-state complaint (the truncated runs' exit codes
+// were piped away) is closed by recording exit code + parsed totals PER RUN.
+function journalBattery({ exitCode, summary, files, retries }) {
+  const line = [
+    Math.floor(Date.now() / 1000),
+    "battery",
+    `exit=${exitCode}`,
+    files ? `files=${files.total}/pass=${files.passed}/skip=${files.skipped}` : "files=unparsed",
+    summary ? `tests=${summary.total}/pass=${summary.passed}/skip=${summary.skipped}/fail=${summary.failed}` : "tests=unparsed",
+    `retry=${retries}`,
+  ].join(" ");
+  try {
+    fs.appendFileSync(path.join(process.cwd(), "mapgen/extractions/.gate-journal.log"), `${line}\n`);
+  } catch {}
+}
+
 // ── post-commit: the executed-commit journal (bypass telemetry; the hook ─────
 // passes the literal 'post-commit' arg — no commit tree work, always ok).
 function runPostCommit() {
@@ -120,16 +138,57 @@ function runPostCommit() {
 function runPreCommit(staged) {
   // 1. Full test battery when any mapgen/tests code is staged. The suite
   //    includes the data-dependent oracle bars; a hard-skip also fails (2).
+  //    **dig #156 (I36's registered fix): the battery is CAPTURED and its
+  //    vitest summary totals are parsed and pinned against
+  //    scripts/precommit-baseline.json — the I36 truncation class (two of
+  //    three 2026-10-16 runs aborted mid-run at 9/22 files / 205 tests with
+  //    the exit code piped away) is now REFUSED regardless of the exit code,
+  //    with ONE retry whose trigger = the `Timeout calling "onTaskUpdate"`
+  //    watchdog stall class (I36 form (b)). The decision core lives in
+  //    scripts/precommit-gates-lib.mjs and is unit-tested
+  //    (tests/precommit-gates.test.mjs). The baseline pins BOTH the total
+  //    and the skip count (charter: counts RUN, not skip).**
   const codeChanged = staged.some(
     (f) => /^mapgen\/(lib|server|pipeline|experiments)\/.*\.(mjs|js)$/.test(f) || /^tests\/.*\.mjs$/.test(f)
   );
   if (codeChanged) {
     console.log("[precommit-gates] mapgen/tests code staged — running the FULL gate battery (npm test)…");
+    const baselinePath = path.join(process.cwd(), "scripts/precommit-baseline.json");
+    let baseline = null;
     try {
-      execSync("npm test", { stdio: "inherit", cwd: process.cwd() });
-      ok("npm test (full battery incl. oracle bars)");
+      baseline = JSON.parse(fs.readFileSync(baselinePath, "utf8"));
     } catch {
-      fail("npm test — fix the gates before committing (this is charter, not courtesy)");
+      fail(`${baselinePath} unreadable — the I36 count law has no reference`);
+    }
+    let retries = 0;
+    for (;;) {
+      let output = "";
+      let exitCode = 0;
+      try {
+        output = execSync("npm test", { encoding: "utf8", cwd: process.cwd(), maxBuffer: 268435456 });
+      } catch (e) {
+        output = `${e.stdout ?? ""}${e.stderr ?? ""}`;
+        exitCode = e.status ?? 1;
+      }
+      // visibility: the operator sees the vitest tail (the captured variant
+      // replaced the stdio:inherit so the summary is parseable AND shown)
+      const tail = output.split("\n").filter(Boolean).slice(-40);
+      console.log(tail.join("\n"));
+      const summary = parseVitestSummary(output);
+      const files = parseVitestFiles(output);
+      journalBattery({ exitCode, summary, files, retries });
+      const d = decideBattery({ exitCode, output, summary, files }, baseline, { retries });
+      if (d.verdict === "ok") {
+        ok(`npm test (full battery incl. oracle bars)${retries ? ` — retried ${retries}× past the watchdog stall, totals verified` : ""}`);
+        break;
+      }
+      if (d.verdict === "retry") {
+        retries += 1;
+        console.log(`[precommit-gates] RETRY ${retries}/1: ${d.reason}`);
+        journal(`pre-commit battery retry ${retries}`);
+        continue;
+      }
+      fail(`npm test — ${d.reason}`);
     }
   } else ok("no mapgen/tests code staged — test battery not required");
 
