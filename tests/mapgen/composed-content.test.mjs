@@ -287,6 +287,7 @@ describe.skipIf(!hasData)("composed-content laws (dig #144, I34/I33)", () => {
     };
     expect(solids(41, 66), "lavalake kind-0 — THE FIELD0 discrimination").toBe(414);
     expect(solids(1, 70), "solid_wall deep — byte-stable through the change").toBe(1367);
-    expect(solids(31, 67), "temple_wall polygon — honest fall-through").toBe("NULL");
+    expect(solids(31, 67),
+           "temple_wall polygon — dig #147 ported (was honest-fall NULL under #146)").toBe(398);
   });
 });

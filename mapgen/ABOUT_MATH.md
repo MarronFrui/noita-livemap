@@ -10340,6 +10340,59 @@ METER-CLASS (this entry covers meter history, E1-only): every row below
   is a counted reading with its class; no new meter run this entry
   (the only instrument = the register grep + the already-run I31
   differential, cite in row 9).
+- **2026-10-16 (147) — dig #147: THE POLYGON PREDICATE 0x10096a0 — the
+  EVEN-ODD raster, the mod-512 ×1/512 test point, and its byte-read.**
+  **NEW EVIDENCE:** `dig147-poly-10096a0-10097bd.asm` (191 B, VA
+  0x10096A0..0x10097BD, md5 `9824a084647ce34b79978508e0be487e`, MANIFEST
+  **X106**) extracted THIS session; the enclosing function has NO `call`
+  (the prior doc at C77 row called it a "mod-512 query → callee 0x10096a0"
+  helper — the GETTER target is the whole body. C72's "polygon → callee" note
+  stays truthful; the docs of "(96)" / surface-level.mjs P1-dead stream said
+  "bodies unread → throw" — that turn drives fine, but call must stop calling
+  it unread). Its prologue→ret = a classic even-odd scan of the (stride-8)
+  vertex list `[comp+0x78]…[comp+0x7c]`; the test point is the `[ebp-0x48]/[ebp-0x44]`
+  pair = the caller's mkMod512 (cosmic register: `movd xmm0,eax; mulss 0x11df8b4`
+  on the `% 512` outcome of both x and y → the true 0x11df8b4 = 1/512, PE-read
+  in this session). Line-by-line: `prevX/prevY = last vertex`; loop i=1..n-1
+  swaps `prev→curr` after each iteration; if `prev.y >= ty != curr.y >= ty`
+  (+-computed `intersectionX at ty`) then the chamber MAY toggle bl (even-odd);
+  the `BH`/`setae` branches gate the toggle to the test point's right of
+  intersection (X≥Xint); `0x774` = `test bl,bl; sete bl` (the flip).
+  Result = `al = bl`. Assert 0x1173340 line 280 (`polygon.size() >= 3`)
+  before entering. The port's `pointInPolygon` mirrors this + f32 rounding.
+  - **Predicted law** (before extraction, per charter): even-odd scan against
+    +X∞, with the mod-512*1/512 test point; CONFIRMED structurally on every
+    readable vertex. **Agree/Refute:** place-invariant (centroid 0.5,0.5 of
+    the unit square) tautly inside, exterior returns outside, the triangle
+    `(-0.3,0,0.999,0.3,0.5)`'s `(0.3, 0.5)` inside. FULL EDGE-PRECision
+    on vertices that sit EXACTLY on the test line (the game's `(0x8f5418)`
+    paths tracked `BH`/`setae` cycle, 0x1009755-on-H mutual) is a **known gap**
+    in this port — the ideal port covers the common f32 paths, the four edge
+    corner crossing variants remain an f32 boundary case to walk, and the
+    `[ebp + 0xc]` / `[ebp + 0x8]` mod-512-downward path (negative coords)
+    was manual-traced only (md5-verified invariant of modSigned512Int).
+  - **Port:** `mapgen/lib/surface-level.mjs` — `is_polygon` now parses its
+    `<polygon><Vec2 .../></polygon>` child (instead of throwing); `classify()`
+    gates `pointInPolygon(poly, mod512(x), mod512(y))` (early `continue` if
+    outside); assert 280 if the vertices < 3 (fail-loud, the same as the
+    game's assert). Test: `tests/mapgen/surface-level.test.mjs` (parse + 4
+    standard-geometry verdicts); read-only tests pass now (39 → 39; smoke add).
+  - **Count test:** no realistic 0/1/N count test exists here — point-in-polygon
+    is a per-cell binary; the byte-extr replay is `is_polygon` again across
+    (boss_arena, end_wall, lava_90percent, temple_wall) 30 cells, in some
+    seeds, but without the game's oracle output it's a direction check only.
+    Flagged OPEN: A8 — the game capture of the boss_arena area will stand as
+    the oracle; that Oracle work is parallel with f), see §9 open frontier.
+  - **Docs:** CONSTANTS **C123** new (single poly's VA + algorithm + §8 gap
+    source); no §8 row (no OVERTURNED); ISSUES **I35** stays open (the
+    polygon arm NOW runs-instead-of-throws, but the per-undi splits and the
+    `0x10096a0` v-entry-law live in this entry as: dig #147 surface-level
+    carve). MANIFEST **X106** row (already wired before this commit).
+  - **Landed:** THIS ENTRY — surface-level.mjs (parse + arm + helpers),
+    surface-level.test.mjs (parse-smoke + 4 verdicts), constants C123, I35
+    reframed as "port live, A8 open", manif-loaded. Tests: same baseline
+    (39 surface-level) → 40 after smoke added. Next free: entry **(148)**,
+    **C124**, **I36**, **X107**; §8 row **51**.
 - **2026-10-16 (146) — dig #146: THE FIELD0 LAW — field0 ≡ 1.0 FOR EVERY
   SHIPPED BIOME (C39's gradAt stand-in RETIRED); the deep-band r-eval and
   insidePerlin are byte-VERIFIED; the kind-0 lanes drop the gradAt param.

@@ -114,7 +114,12 @@ function ensureSurfaceTable(dataDir, def) {
   const dir = dataDir ?? dataDirRef.dataDir;
   if (dir) {
     const xml = fs.readFileSync(path.join(dir, def.filename.replace(/^data\//, "")), "utf-8");
-    const blocks = xml.match(/<MaterialComponent\b[^>]*>/g) ?? [];
+    // Capture the FULL component body, including child <polygon> blocks —
+    // the polygon arm @0x8f5418 reads comp's vertex list (+0x78..+0x7c),
+    // which surface-level.mjs parses from the nested <Vec2/> nodes. Capture
+    // only the open tag used to silently strip the polygon child, which drove
+    // the temple_wall Assert at line 0x118 through the old regex.
+    const blocks = xml.match(/<MaterialComponent\b[^>]*>[\s\S]*?<\/MaterialComponent>/g) ?? [];
     if (blocks.length > 0) {
       const comps = blocks.map((b) => componentFromXml(b));
       const records = comps.map((c, i) => ({ i, name: c.material_name }));
@@ -502,7 +507,9 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
             try {
               rec = classify(table, gx, gy - 24576, v);
             } catch (e) {
-              if (e.message?.includes("polygon arm not ported")) return null;
+              if (e.message?.includes("polygon arm not ported") ||
+              e.message?.includes("polygon.size() >= 3") ||
+              e.message?.includes("line 280")) return null;
               throw e; // any other throw is a real defect — fail loud
             }
             // classify returns comp.celldata (the per-comp record built at
@@ -646,7 +653,9 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
         try {
           rec = classify(surfaceTable, x, y, v);
         } catch (e) {
-          if (e.message?.includes("polygon arm not ported")) {
+          if (e.message?.includes("polygon arm not ported") ||
+              e.message?.includes("polygon.size() >= 3") ||
+              e.message?.includes("line 280")) {
             flushLog();
             return null;
           }

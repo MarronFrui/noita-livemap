@@ -17,6 +17,8 @@ import {
   buildMaterialsTable,
   classify,
   rarePolka,
+  pointInPolygon,
+  modSigned512Float,
 } from "../../mapgen/lib/surface-level.mjs";
 import { simplex2DDeriv } from "../../mapgen/lib/noise-proto.mjs";
 import { dataDir, hasNoitaData } from "../helpers/data.mjs";
@@ -362,8 +364,10 @@ describe("classify (0x8f5030 gate order, byte-cited)", () => {
       'is_polygon="1"',
     ];
     const { table } = build([poly], { min: 0, max: 1 }, [{ id: "p" }]);
-    expect(() => classify(table, 0, 0, 0.5)).toThrow(/polygon arm not ported/);
-    expect(() => classify(table, 0, 0, 0.5)).toThrow(/0x10096a0/);
+    // dig #147 port: an empty polygon component (is_polygon=1 but no
+    // <Vec2> children) raises the line-280 assert in the game itself.
+    expect(() => classify(table, 0, 0, 0.5)).toThrow(/polygon\.size\(\) >= 3/);
+    expect(() => classify(table, 0, 0, 0.5)).toThrow(/line 280/);
     const { table: named } = build([poly], { min: 0, max: 1 }, null);
     expect(() => classify(named, 0, 0, 0.5)).toThrow(/at line 271/); // 0x10f @8f52e9 first
   });
@@ -777,5 +781,37 @@ describe.skipIf(!hasNoitaData())("hills.xml fixture (data-gated)", () => {
     const { table, records } = withRecords();
     const ramp = rampRef(0, 0, 0.357143, 0.771429, false, 0.160871); // px=py=0 at (0,0)
     expect(classify(table, 0, 0, f32(0.53))).toBe(ramp > 0 ? records[0] : records[2]);
+  });
+});
+
+describe("dig #147 — 0x10096a0 point-in-polygon smoke (even-odd raster)", () => {
+  const poly = {
+    is_polygon: true,
+    polygon: [
+      { x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 },
+    ],
+  };
+  test("pointInPolygon sanity verdicts", () => {
+    const c = poly;
+    // unit poly square [0,1]x[0,1]
+    expect(pointInPolygon(c.polygon, 0.5, 0.5)).toBe(true);
+    expect(pointInPolygon(c.polygon, 2.0, 0.5)).toBe(false);
+    expect(pointInPolygon(c.polygon, -0.5, 0.5)).toBe(false);
+    expect(pointInPolygon(c.polygon, 0.5, 2.0)).toBe(false);
+  });
+  test("componentFromXml parses <polygon><Vec2/> child into comp.polygon", () => {
+    const raw = `<MaterialComponent material_name="p" material_min="-100" material_max="100" is_polygon="1">
+      <polygon>
+        <Vec2 x="0" y="0" />
+        <Vec2 x="1" y="0" />
+        <Vec2 x="1" y="1" />
+        <Vec2 x="0" y="1" />
+      </polygon>
+    </MaterialComponent>`;
+    const comp = componentFromXml(raw);
+    expect(comp.is_polygon).toBe(true);
+    expect(comp.polygon.length).toBe(4);
+    expect(comp.polygon[0]).toEqual({ x: 0, y: 0 });
+    expect(comp.polygon[3]).toEqual({ x: 0, y: 1 });
   });
 });

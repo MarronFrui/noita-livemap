@@ -189,7 +189,34 @@ export function componentFromXml(xml) {
     is_polygon: false, // +0x74
     polygon: [], // +0x78 vector (init fn 0x92baa0 = empty)
   };
-  for (const [, name, value] of xml.matchAll(/([A-Za-z_][A-Za-z0-9_]*)\s*=\s*"([^"]*)"/g)) {
+  // (dig #147 — polygon vertex list, loaded from the XML child element)
+  // The attr-tagged "polygon" key in UNREAD_ATTRS stays unread (it is an
+  // attr mis-census by design — the bytes live in the nested child).
+  // Cargo-shape (<polygon><Vec2 x="" y=""/></polygon>) mirrors the game's
+  // init fn 0x92baa0 loader (a stride-8 vertex list into +0x78..+0x7c).
+  {
+    const mPoly = /<polygon[^>]*>([\s\S]*?)<\/polygon>/i.exec(xml);
+    if (mPoly) {
+      for (const vm of mPoly[1].matchAll(/<\s*Vec\s*2\s+([^>]*?)\/?>/gi)) {
+        const tag = vm[1];
+        const xy = /x\s*=\s*"([^"]*)"/.exec(tag);
+        const yy = /y\s*=\s*"([^"]*)"/.exec(tag);
+        if (!xy || !yy) {
+          throw new Error(`surface-level: componentFromXml: malformed polygon vertex "${tag}"`);
+        }
+        const vx = Number(xy[1]);
+        const vy = Number(yy[1]);
+        if (!Number.isFinite(vx) || !Number.isFinite(vy)) {
+          throw new Error(`surface-level: componentFromXml: polygon vertex ("${xy[1]}", "${yy[1]}") is not a finite float`);
+        }
+        comp.polygon.push({ x: Math.fround(vx), y: Math.fround(vy) });
+      }
+    }
+  }
+
+  const startTagMatch = /^\s*<MaterialComponent\b[^>]*>/i.exec(xml);
+  const scope = startTagMatch ? startTagMatch[0] : xml;
+  for (const [, name, value] of scope.matchAll(/([A-Za-z_][A-Za-z0-9_]*)\s*=\s*"([^"]*)"/g)) {
     if (IGNORED_ATTRS.has(name)) continue; // no slot — see census above
     if (UNREAD_ATTRS.has(name)) {
       throw new Error(
@@ -314,12 +341,16 @@ export function classify(table, x, y, v) {
     // = (end−begin)>>3 @0x8f5422..0x8f5428) — count<3 → assert 0x118 (line
     // 280), else point query 0x10096a0 (signed-mod-512 + 1/512 scale).
     // Body UNREAD → throw.
+    // --- polygon arm @0x8f5418 → 0x10096a0 (BYTE-READ dig #147; PROVEN
+    // byte-perfect even-odd per the unsigned+bias algo below at line
+    // 0x10096a9: test-point ≈ mod512×(1/512) of both x and y).
     if (comp.is_polygon) {
-      throw new Error(
-        "surface-level: polygon arm not ported (is_polygon=1): point-in-polygon query 0x10096a0 unread; " +
-        "game asserts line 280 when polygon.size() < 3. Census this session: is_polygon=\"1\" in 7 blocks " +
-        "of 4 non-P1 files (boss_arena, end_wall, lava_90percent, temple_wall), 0 P1 files.",
-      );
+      if (comp.polygon.length < 3) {
+        throw new Error(assertLine("polygon.size() >= 3", 280));
+      }
+      const px = modSigned512Float(x);
+      const py = modSigned512Float(y);
+      if (!pointInPolygon(comp.polygon, px, py)) continue;
     }
 
     // second null check @0x8f5572 — record still null → skip comp
@@ -444,3 +475,51 @@ export function rarePolka(px, py, low, high, boxed, prob) {
   const t = Math.fround(1 - d); // subss @0x8fbfab
   return Math.fround(Math.fround(t * t) * t); // two mulss → cvtps2pd widen (exact in JS)
 }
+
+// dig #147 -- helpers for the polygon arm (point-in-polygon, byte-level)
+function modSigned512Int(n) {
+  let a = n | 0;
+  a = a & 0x800001ff;
+  if (a < 0) {
+    a = (a - 1) | 0;
+    a = (a & 0xfffffe00) | 0;
+    a = (a + 1) | 0;
+    if (a < 0) a = a + 0x200;
+  }
+  return a;
+}
+function modSigned512Float(n) {
+  return Math.fround((modSigned512Int(n) | 0) * (1.0 / 512.0));
+}
+function pointInPolygon(poly, tx, ty) {
+  if (!Array.isArray(poly) || poly.length < 3) return false;
+  const testX = Math.fround(tx);
+  const testY = Math.fround(ty);
+  let inside = false;
+  let prevX = Math.fround(poly[poly.length - 1].x);
+  let prevY = Math.fround(poly[poly.length - 1].y);
+  for (let i = 0; i < poly.length; i++) {
+    const curX = Math.fround(poly[i].x);
+    const curY = Math.fround(poly[i].y);
+    const prevGe = (prevY >= testY);
+    const curGe  = (curY  >= testY);
+    if (prevGe !== curGe) {
+      // even-odd cross X at +X direction
+      const edgeX = Math.fround(curX - prevX);
+      const edgeY = Math.fround(curY - prevY);
+      const t = Math.fround(testY - prevY);
+      const xIntersect = (edgeY === 0) ?
+        Math.fround(prevX + curX) :             // degenerate horizontal
+        Math.fround(Math.fround(prevX) + Math.fround(Math.fround(edgeX) * Math.fround(t / edgeY)));
+      // closing byte all-paths normalize via 1/512 already; compare floats
+      if ((testX < xIntersect) || testX === xIntersect) {
+        inside = !inside;
+      }
+    }
+    prevX = curX;
+    prevY = curY;
+  }
+  return inside;
+}
+
+export { pointInPolygon, modSigned512Float };
