@@ -10340,6 +10340,56 @@ METER-CLASS (this entry covers meter history, E1-only): every row below
   is a counted reading with its class; no new meter run this entry
   (the only instrument = the register grep + the already-run I31
   differential, cite in row 9).
+- **2026-10-16 (151) — dig #151: INSIDEPERLIN = DORMANT ON SHIPPED DATA (the draw-slot
+  D resolved to bytes) + THE I37 CAUSE SWAP: the deep-band residual re-aims at the
+  caves under-carve (I31).** The dig opened as I37's fix (the insidePerlin port per
+  the (150) promise); the reads killed that plan — the honest outcome = a reframe.
+  **NEW EVIDENCE:** MANIFEST **X114** = `dig151-insideperlin-90b110-90b280.asm`
+  (106 ln, md5 `5281ef9adfac2b437ae80f3ac11a4b26`, insidePerlin FULL) +
+  `dig151-getseed-9119d0-911aa4.asm` (md5 `c1b453d75d3ab333d5f90ddf324c7c6a`,
+  the 0x9119d0 fn). **Byte law (C126):** `[$+0x24d]` → 2× `call 0x9119d0` —
+  **0x9119d0 = a PURE worldseed getter** (fast path `mov eax,ds:0x1327ffc; ret`
+  @0x911a9a; NO state advance — VERIFIED §7's g_worldseed); each int32 → the
+  C101 diddle pair {0.0, 2³²} = the UNSIGNED value as f64; **`u += s·1.312e-05`
+  (0x11dfa68), `v += s·2.331e-05` (0x11dfa80)** — the SAME s, both axes,
+  deterministic per world, ZERO RNG consumption (the port's C27 per-cell
+  stand-in = WRONG SHAPE as designed: per-cell + an LSB axis-flip — but see
+  DORMANT); `[+0x228]` je 0x8fd920 plain / else 0x8fdad0 (fbm4, C121) with
+  `ecx = [esi+0x224]`; the out-block `[+0x240..242]` squared/clamp/scaled over
+  `[+0x244]/[+0x248]` (empty.xml's ship pair 0.057143/2 — the XML read).
+  **DORMANT (the kill):** ctor `movw $0x0,0x24c` @0x496118 clears bytes
+  0x24c+24d together ⇒ the ctor default = OFF; **0 shipped XMLs bind the attr**
+  (swept this dig; the port's biomes.mjs never reads it either) ⇒ **the port's
+  `uid.offsetBySeed` is false in practice** — its C27 stand-in code path never
+  runs. **C125 ERRATA (in-row, both fatal to the (150) reading):** (i) the
+  epilogue combine = `[0x268]·gradW`**`·per`** — the `·per` multiply is IN the
+  bytes (@0x90b0f2 `mulss xmm0,[ebp-0x8]`, per = `[ebp-0x8]` = insidePerlin's
+  return per C104) — the (150) row omitted it; (ii) the third addend
+  ([ebp−0x1c]) = seeded @0x90ab5b from **[uid+0x260] = f32 0.0 (ctor @0x496121)**
+  — the "base = 1.0" gloss retracted. **I37 CORRECTED (the cause swap):** with
+  the seed slot C24/25) DORMANT and the deep-band bty10–13 tiles largely the
+  CAVES-KIND land (the direct gradAt>0.5 cell read, C100's law), the
+  fG≈1.0-exact residual = **the caves under-carve = I31's registered presence
+  divergence** ((127): the port carves 14.4% of the caves grid vs the byte
+  side ~58%) — the insidePerlin "draw-values D" was NEVER the mover; the
+  I37 lane read stands as D→B knowledge for modded-XML data.
+  - **The [70]-era label claim stands corrected:** the C83-family "rng 0x9119d0
+    ×2" wording — 0x9119d0 is an address-bearing GETTER (the worldseed), not a
+    poro-Random draw; the "rng" label of the x-time reads = an over-reach now
+    recorded (the C104 sweep carried the mislabel; the fresh X114 read is the
+    correction's source-of-truth).
+  - **Count test:** none — no port code changed (the dormant law's gate stays
+    CLOSED on shipped data; the C27 stand-in = dormant-code, no gate can reach
+    it per the dormant-D rule). The 336/3/339 battery stands. **METER-CLASS:
+    no new meter run this dig** (the byte reads only; the (150) triage's E1/E2
+    figures remain the running reference; no E0 bar; no new predictions to
+    register — the falsifier chain moved to I31's (127) numbers, already
+    registered).
+  - **Next**: the shape-lane dig #152 = the caves-kinds land vs the noise-kind
+    land in the 56-tile set (the bty-family boundary), then the I31 walk-chain
+    byte read (the shape objectives' next big read — the user's explicit focus).
+    No registry slots consumed beyond X114/C126 (I37 numbered). Next free:
+    entry **(152)**, C127, I38, X115; §8 row 52.
 - **2026-10-16 (150) — dig #150: THE SURFACE-SHAPE RESIDUAL TRIAGE — the deep-band
   over-solidity isolated to C125's return combine; the insidePerlin D-stand-in is
   the mover (I37).** The pivot the user called: the shape lane over the loader.
