@@ -878,6 +878,29 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   port's uid field map vs the byte's slot law). The (149)-era 0x1150f04-as-type
   mislabel = retracted on disk (the .rdata = the `%d`/`%u` fmt strings; the
   C119 `type` arm = the region class' own law, standing). **I37 still [~].**
+- [~] **I37's noise-side VERDICT (dig #155 — the (154) read target executed and
+  CLOSED VACUOUS as a mover):** the uid-pipe read landed BOTH ways: (a) the
+  port's census defect was REAL and is FIXED — `biomes.mjs` dropped the whole
+  non-Perlin mInside* family; the parse now carries `mInsideAddValue` (live: 4
+  files = exactly the lake family, all "5.0"), `mInsideNoiseFBM`+`mInsideNoiseType`
+  (live: 6 files = the mountain/pyramid family, "1"/"SimplexNoise1234" ⇒ kind 8),
+  `mInsideOffsetBySeed` (0 files) — count-tested 2/2 FAIL pre-fix → 2/2 PASS
+  (`tests/mapgen/lake-pipe.test.mjs`); (b) the fix is RENDER-INERT on the lake
+  band — the A/B (`mapgen/out/dig155-lake-pipe-ab.json`, seed 78633191):
+  uid.addValue 0→5 on all four lake tiles with FIELD distributions BIT-IDENTICAL
+  (solids 7/0/428/1239, fG 0.00259/0/0.15828/0.45821) because the byte's
+  `[uid+0x260]` read sits INSIDE the r′>0.85 arm (X116/X117 fresh) and the lake's
+  mode-3 slope caps its own r′ ∈ [0.36, 0.61] ⇒ the addend never engages on any
+  shipped lake cell ⇒ **C129's "lake deep band v ∈ [4.9, 8] = all-solid"
+  = RETRACTED (§8 row 52)** — the byte's lake v = gradW·per + 0.871·r^post ∈
+  ~[0, 1.4] == the port's family. (c) the noise-kind closures are therefore
+  COMPLETE on the byte side: the 2 all-solid NOISE tiles = the mode-1
+  empty-def band (r′ = 1, the byte-matching law ✓ per (152)) and the lake
+  family's (150) under-solidity = the capture-vs-compose gap (I34's
+  already-registered air-bg/template lanes), NOT a noise-lane defect — NO
+  further noise-lane dig exists for the lake family; I37's remaining content =
+  the deep-band over-solidity sentence stands AS RE-AIMED at I31 by (151) /
+  re-affirmed by (152) — **I37 still [~] (its caves-kind half = I31's gate).**
 - [~] **I31's state receipt (dig #153):** the walk-chain byte model = CLOSED
   (C128's fresh start-span laws + the C105/C99/C101 stack — the port is
   byte-equal, no change); the I31 presence divergence is **GAME-LAB-GATED** —

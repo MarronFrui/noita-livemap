@@ -136,6 +136,18 @@ function parseBiomeDefinition(dataDir, filename) {
   mInsidePerlinScaleY: parseAttr(attrs, "mInsidePerlinScaleY"),
   mInsidePerlinScaled: parseAttr(attrs, "mInsidePerlinScaled"),
   mInsidePerlinSquared: parseAttr(attrs, "mInsidePerlinSquared"),
+  // dig #155 (the lake pipe fix, C130): complete the mInside* slot family —
+  //   mInsideNoiseType → [+0x224], mInsideNoiseFBM → [+0x228] (live: 6 files
+  //   = mountain_top/mountain_floating_island + the pyramid family, both
+  //   attrs "SimplexNoise1234"/"1", sweep-verified this dig),
+  //   mInsideAddValue → [+0x260] (live: 4 files = exactly the lake family,
+  //   all "5.0" — the uidFrom (151)-era "no live attr" census was swept on
+  //   the wrong slot family), mInsideOffsetBySeed → [+0x24d] (0 live files;
+  //   ctor clears 0x24c+24d per C126 — parse completes the map, no arm).
+  mInsideAddValue: parseAttr(attrs, "mInsideAddValue"),
+  mInsideNoiseFBM: parseAttr(attrs, "mInsideNoiseFBM"),
+  mInsideNoiseType: parseAttr(attrs, "mInsideNoiseType"),
+  mInsideOffsetBySeed: parseAttr(attrs, "mInsideOffsetBySeed"),
   mMultiplierGradient: parseAttr(attrs, "mMultiplierGradient"),
   mMultiplierPerlin: parseAttr(attrs, "mMultiplierPerlin"), // winter.xml only in the current set (CE (35) slot value for +0x268)
     // dig #24 (2026-09-21): the C39 IMAGE-LANE source = the `bitmap_noise_file`

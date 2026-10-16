@@ -305,7 +305,7 @@ function uidFrom(def, cfg) {
     gradient: 0,           // unused until the field-source read (see C44)
     sx: n(def.mInsidePerlinScaleX, 1), sy: n(def.mInsidePerlinScaleY, 1), // ctor {1,1}
     ox: 0, oy: 0,          // mInsidePerlinOffsetX/Y not present in current XMLs (census)
-    offsetBySeed: false,   // attr absent → false (byte: [+0x24d] gate)
+    offsetBySeed: def.mInsideOffsetBySeed === "1", // [+0x24d] gate — 0 live files (dig #155 sweep; ctor clears the slot per C126), parse wired for map completion
     fbm: n(def.mInsideNoiseFBM, 1) === 1, // [+0x228] ctor default 1 (movb $1 @0x4960e6) — the 6 live files all carry "1"
     squared: n(def.mInsidePerlinSquared, 0) === 1,
     clamped: n(def.mInsidePerlinClamped, 0) === 1,
@@ -314,7 +314,7 @@ function uidFrom(def, cfg) {
     scaleMax: n(def.mInsidePerlinScaleMax, 0),   // ctor [+0x248] = 0
     gradWCoef: n(def.mMultiplierPerlin, 1.0),   // [+0x268] (CE hills=1.0)
     perlinCoef: n(def.mMultiplierGradient, 1.0), // [+0x264] ctor default 1.0f (dig #145; CE hills=0.871429 attr value)
-    addValue: n(def.mInsideAddValue, 0),         // [+0x260] ctor default 0 (no live attr)
+    addValue: n(def.mInsideAddValue, 0),         // [+0x260] ctor default 0; LIVE on 4 files = exactly the lake family (all "5.0", dig #155 sweep — the (151)-era "no live attr" line was swept on the wrong slot family)
     addNoise: NOISE_TYPE_KIND[def.noiseType] ?? 0, // [+0x220] = the noise_type enum (X104) — NOT mGradientAddNoise (that is [+0x288] mode)
     minX: cfg.minX, maxX: cfg.maxX,         // C24 lane (passed through)
   };
