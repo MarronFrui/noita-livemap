@@ -10340,6 +10340,51 @@ METER-CLASS (this entry covers meter history, E1-only): every row below
   is a counted reading with its class; no new meter run this entry
   (the only instrument = the register grep + the already-run I31
   differential, cite in row 9).
+- **2026-10-16 (153) — dig #153: THE WALK-CHAIN START-LAW READ (I31 state): the
+  byte-side start-x/spans are already byte-modeled; the I31 presence divergence
+  is GAME-LAB-GATED (the full-grid caves dump), the walk side = CLOSED for the
+  port.** The dig opened as the walk-chain presence read per (152)'s queue;
+  the reads close it for the registered chain (no port change needed, the
+  honest outcome).
+  **NEW EVIDENCE:** the fnB start-anchor zone re-read in the on-disk builder
+  window (`builder-8EE000-8F3700.asm`, slab = true−0x400800, md5
+  `5c141eb7c71c7c59ef229c50b411c811`): the walk's START-POINT law = fnB's case
+  A (case-A at 0x8f0040..0x8f0095: `[−0x118] = base + trunc(f32Slerp(
+  [−0x140], [−0x10c], u))` with `[−0x140] = f32(scale0·caseA-lo
+  0.05000000074505806 (0x11df948, const-read this dig))`, `[−0x10c] =
+  f32(scale0·0.25 (0x11df9d0))` = **the span = [0.05, 0.25]·scale0 always,
+  x-based = x + span·u**); and case-B (0x8f00d9..0x8f015a: `x = [−0x118] ·
+  scale1 + trunc(spanSlerp([0x11df958] = 0.07000000029802322 (0x11df958,
+  const-read), [0x11dfa10] = 0.33000001311302185 (0x11dfa10, const-read)))` +
+  `subss [0x11e00a0] = 5 (C101's 5.0)` loads = **the case-B = a smaller span
+  [0.07, 0.33]·scale1 pinned by 5.0-x-bias for the non-INIT-walk case**; and
+  the second `[−0x134]`-write lands via the SAME slot at [−0x130] = y =
+  [−0x108] (the C105 arg2 = the {x,y} pair ✓ re-confirmed).
+  - **The walk's START-x diamond:** the case's span is byte-small (≤ 0.33 of
+    the case's own scale factor) — the walks start with a narrow and local x,
+    i.e. the byte-side's nose the x0..11 carve = rare but non-zero ((127)'s
+    own data: the byte edge carve = ~0.3% = 9-of-3072; the port = 0 — the
+    registered divergence) — the START LAW = byte-equal per C105's
+    arg-wiring; the I31 divergence, hence, is NOT in the walk's start law but
+    downstream: (b)'s own text "the downstream carve composition under-carves
+    byte-side massively" holds: **I31's fabric = "the walk's + L2/L3's blobs
+    don't reach the byte side's carve coverage" = CANNOT be settled by binary
+    reading since the byte side only has the C48 one-shot sampled dump (see
+    (127)'s arbiter note "until the full-grid dump"). The registered path
+    = the GAME-LAB full-grid caves dump = a CE capture, user-side; I31 ==
+    blocker by state, not by effort.**
+  - **METER-CLASS:** no meter run this dig (byte-read only; the I31 differential
+    = the (127)-era register, re-affirmed — 49/84 presence + the C97-IoU "the
+    byte truth carves 58%" = the already-registered E1; no new bars). **No
+    port code change; the 336/3/339 battery stands.**
+  - **The dig's iterated outcome:** **I31 stays [ ]** as the state — the dig's
+    state note: the walk-chain byte model = CLOSED (the C99/C101/C105 stack +
+    this dig's fresh start-laws); the caves-kind shape residual = the port's
+    = no port change possible without the byte truth; the gate = the
+    GAME-LAB full-grid dump (`the 512×256 cave-grid byte-side full capture`,
+    user-side CE game-lab) = **the front task that unblocks both I31 and the
+    shape objective** (the dig-152's 18 all-solid caves tiles live on this
+    fork). **Next free: entry **(154)**, C128, I38, X115; §8 row 52.**
 - **2026-10-16 (152) — dig #152: THE 56-TILE KIND-SPLIT — the shape residual is
   caves-kind land (43/56 tiles, 18 all-solid, mean raw IoU 0.4548), not the noise
   chain (13/56, mean 0.4941, 2 all-solid).** The user's focus holds (the shape lane).

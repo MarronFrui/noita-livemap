@@ -867,6 +867,12 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   gradW·per ≥ 0 + eased 1 ⇒ v ≥ 1.057 × the wide [−100,100) window ⇒ solid
   always (the same shape the (150) band measured) — registered as the NOISE-kind
   residual sub-item, queued behind I31. **I37 still [~].**
+- [~] **I31's state receipt (dig #153):** the walk-chain byte model = CLOSED
+  (C128's fresh start-span laws + the C105/C99/C101 stack — the port is
+  byte-equal, no change); the I31 presence divergence is **GAME-LAB-GATED** —
+  its arbiter = the full-grid caves dump (the 512×256 CE capture, user-side,
+  the (127) row's own note); the dig-152 kind split's caves-kind loss (18
+  all-solid deep tiles) lives behind that gate. **I31 still [ ].**
 
 - [~] **I35's correction (#148):** the #147 framing above was built on PHANTOM data. The component census (`mapgen/experiments/2026-10-16-dig148-xml-comp-census.mjs`: 128 files, **647 raw → 640 active**: boss_arena 2→0, end_wall 2→0, temple_wall 2→0, wandcave 4→3) shows the four "polygon chunks" ship **all but one of their polygon comps commented out** — the game's XML loader (a real parser) sees an EMPTY Materials list for temple_wall/boss_arena/end_wall, so the #147 raw-text regex built phantom tables whose rock_hard_border diamonds painted **155 matIdx cells on temple_wall (31,67, seed 500412504)** that the game never paints (A/B probe: committed #147 vs #148 — solids 398 → 398, i.e. the mask was classify-INDEPENDENT field content all along; matHits rock_hard_border 155 → **0**). The "0 → 398" delta of the (147) entry was the THROW removal (an un-parseable phantom comp asserting), not polygon painting. ensureSurfaceTable now comment-strips (self-closing `<MaterialComponent/>` fail-loud: zero shipped, swept). The ONLY active polygon comp = lava_90percent's band (exercised: lavalake (41,66) rock_hard_border ×50, solid_wall (1,70) ×686 — unchanged through the fix). The remaining verification = the same oracle as before, now scoped to lava_90percent and REGISTERED as A8 (the (147) "Flagged OPEN: A8" never landed a §A row). **I35 still [~].**
 
