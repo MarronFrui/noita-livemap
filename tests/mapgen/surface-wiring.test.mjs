@@ -47,7 +47,7 @@
 import { describe, test, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { noiseChunkMask } from "../../mapgen/lib/noise-terrain.mjs";
+import { noiseChunkMask, NOISE_NAME_KIND, NOISE_TYPE_KIND } from "../../mapgen/lib/noise-terrain.mjs";
 import { loadBiomeConfig } from "../../mapgen/lib/biomes.mjs";
 import { evaluator2 } from "../../mapgen/lib/noise-proto.mjs";
 import { buildCavesField } from "../../mapgen/lib/caves-field.mjs";
@@ -107,31 +107,33 @@ function uidMirror(def) {
   const n = (v, d) => { const p = parseFloat(v); return Number.isFinite(p) ? p : d; };
   const f = Math.fround;
   return {
-    // bandBlockOf(def) (noise-terrain.mjs, dig #142):
+    // bandBlockOf(def) (noise-terrain.mjs, dig #142; gradSlopeDelta ctor
+    // default 1.0 since dig #145):
     gradStartY: f(n(def.mGradientStartY, -512)),      // f32 [+0x270]
     gradEndY: f(n(def.mGradientEndY, 512)),           // f32 [+0x274]
     gradSlopeStartX: n(def.mGradientSlopeStartX, 0),  // f64 [+0x278]
-    gradSlopeDelta: n(def.mGradientSlopeDelta, 0.01), // f64 [+0x280]
+    gradSlopeDelta: n(def.mGradientSlopeDelta, 1.0),  // f64 [+0x280] (ctor default)
     mode: n(def.mGradientAddNoise, 1) | 0,            // i32 [+0x288]
     gradNoiseScale: n(def.mGradientNoiseScale, 0),    // f64 [+0x290]
     gradLowNoise: f(n(def.mGradientLowNoise, -100)),  // f32 [+0x298]
     gradHighNoise: f(n(def.mGradientHighNoise, 100)), // f32 [+0x29C]
-    noiseKind: def.noiseType === "SIN_CAPPED_SIMPLEX" ? 5 : -1,
+    // dig #145 attr law (X104): mInsideNoiseType → [+0x224] kind (ctor
+    // default 5), noise_type → [+0x220] enum, fbm ctor default 1
+    noiseKind: def.mInsideNoiseType !== undefined ? (NOISE_NAME_KIND[def.mInsideNoiseType] ?? 0) : 5,
     gradient: 0,
     sx: n(def.mInsidePerlinScaleX, 1), sy: n(def.mInsidePerlinScaleY, 1),
     ox: 0, oy: 0,
     offsetBySeed: false,
-    fbm: false,
-    noiseTypeInt: def.noiseType === "SIN_CAPPED_SIMPLEX" ? 5 : -1,
+    fbm: n(def.mInsideNoiseFBM, 1) === 1,
     squared: n(def.mInsidePerlinSquared, 0) === 1,
     clamped: n(def.mInsidePerlinClamped, 0) === 1,
     scaled: n(def.mInsidePerlinScaled, 0) === 1,
-    scaleMin: n(def.mInsidePerlinScaleMin, 0.057143),
-    scaleMax: n(def.mInsidePerlinScaleMax, 2),
+    scaleMin: n(def.mInsidePerlinScaleMin, 0),   // ctor defaults (dig #145)
+    scaleMax: n(def.mInsidePerlinScaleMax, 0),
     gradWCoef: n(def.mMultiplierPerlin, 1.0),
-    perlinCoef: n(def.mMultiplierGradient, 0),
-    addValue: 0,
-    addNoise: n(def.mGradientAddNoise, 1),
+    perlinCoef: n(def.mMultiplierGradient, 1.0),
+    addValue: n(def.mInsideAddValue, 0),
+    addNoise: NOISE_TYPE_KIND[def.noiseType] ?? 0,
     minX: MIN_X, maxX: MAX_X,
   };
 }

@@ -278,8 +278,7 @@ const uidOf = (over = {}) => ({
   ox: 0,
   oy: 0,
   offsetBySeed: false,
-  fbm: false,
-  noiseTypeInt: 5,
+  fbm: false, // explicit probe value — the attr law defaults fbm ON (dig #145), but gradWCoef 0 below guards the insidePerlin lane off
   squared: false,
   clamped: false,
   scaled: false,

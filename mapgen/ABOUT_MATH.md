@@ -2740,8 +2740,13 @@ first use from now on):**
        (−0x18 slot) and r2 = call **true 0x90b110** (the inside-perlin
        evaluator, below); else the gradW slot is set in the default-lane.
     4. if field > 0.85 (@0x11dfb84): switch [uid+0x220] — **[uid+0x220] =
-       mGradientAddNoise (1/2/3)** per the .rdata docstrings ("fake enum
-       1=standard noise, 2=fbm noise, 3=slope"):
+       the noise_type enum int (1/2/3)** per the type-parser table @0x490650
+       (IQ2_SIMPLEX1234 0 / IQ_SIMPLEX 1 / SIN_CAPPED_EVERYTHING 2 /
+       SIN_CAPPED_SIMPLEX 3; unknown → error log → 0; ctor default 0) —
+       **AMENDED dig #145 (the old label "mGradientAddNoise (1/2/3)" was
+       wrong: `mGradientAddNoise` binds [+0x288]; the .rdata docstring
+       "fake enum 1=standard noise, 2=fbm noise, 3=slope" describes the
+       switch's case arms, not the attr)**:
        case 1 → x·0.025(0x11df914) → core slab 0x4fab50; r =
        core·0.05(0x11df948!)+0.05; two math helpers slab 0xc33234/0xc33222
        (true 0x1033a34/0x1033a22 — the same helper family as C15's
@@ -10335,6 +10340,140 @@ METER-CLASS (this entry covers meter history, E1-only): every row below
   is a counted reading with its class; no new meter run this entry
   (the only instrument = the register grep + the already-run I31
   differential, cite in row 9).
+- **2026-10-16 (145) — dig #145: I33 (a)(b)(c) — THE KIND-0 R-SITE FRAME
+  RESTORATION. The r-site reads the band ramp at WORLD px (V2's parked frame
+  flip), not the driver origin; the noise_type name→enum + the noiseKind
+  name→enum + the ctor defaults are byte-closed; the makeGradAt ramp lane is
+  clamped to the bytes' domain (C45). Texture returns: kind-0 filler
+  solid 0 → 0.20, kind-1 pockets null 13.5% → 0, the census 2288 COMPUTES /
+  0 falls. The caves lane is byte-identical; the one changed pair row = the
+  L3-ANCHOR (11,12 px) sliver painting a fixed kind-0 neighbour through the
+  trace tile's right edge.**
+  **NEW EVIDENCE:** the attr-chain / ctor / enum-sink / fbm4 / r-eval-switch
+  byte reads — all extracted THIS session (24 dumps named + md5'd in MANIFEST
+  X104; the representative windows: the type parser
+  `mapgen/extractions/dig145-typeparse-490650-4909b0.asm`, the NoiseType ctor
+  `mapgen/extractions/dig145-ctor-495c10-496220.asm`, the r-eval switch arms
+  `mapgen/extractions/dig145-switch-arms-90ac40-90b0c0.asm`): the noise_type
+  name→int sink (0x4909B0 → the type parser
+  0x490650), the noiseKind name→int sink (0x490F27..0x4910F0), the NoiseType
+  ctor full window (0x495C10..0x496220), the attr loader (0x496220..0x496B00),
+  the fbm4 chain (0x8FDAD0..0x8FDC70), insidePerlin (0x90B110..0x90B280), the
+  r-eval switch arms (0x90AC40..0x90B0C0) + the ramp arm (0x90B280..0x90B680).
+  Prior cites were hints; every window below was re-read fresh (the charter's
+  full-window law).
+  - **The kind/name maps (B, fresh).** `noise_type` strings → int: IQ2_SIMPLEX1234
+    → 0, IQ_SIMPLEX → 1, SIN_CAPPED_EVERYTHING → 2, SIN_CAPPED_SIMPLEX → 3
+    (the parser table @0x490650; an unknown name logs `tag NOISE_TYPE`
+    [0x11788A8] and returns **0**; the ctor default [+0x220] = **0**). Live
+    census: **all 36** ground-band defs that carry `noise_type` carry
+    SIN_CAPPED_SIMPLEX → case 3; absent → 0 → the default arm. The engine-name
+    map (the [uid+0x224] sink 0x490F27): IQNoise 0, DirtyPeeNoise 1, QemNoise 2,
+    WhiteNoise 3, MixNoise 4, SimplexNoise 5, STB_Perlin 6, FastBlockNoise 7,
+    SimplexNoise1234 8; unknown → 0; **absent → the ctor default 5**
+    (SimplexNoise) — so `noiseKind` is **never −1** ⇒ I33(a)'s `core kind=-1
+    UNREAD` throw arm is unreachable for absent attrs: (a) is resolved
+    STRUCTURALLY (the throw arm stays byte-faithful, untouched).
+  - **The ctor defaults (B, fresh full-window read).** [+0x220]=0 (noise_type),
+    [+0x224]=5 (noiseKind), [+0x228]=1 (fbm ON — the fbm4 chain is LIVE),
+    [+0x264]/[+0x268]/[+0x26c]=1.0f, **[+0x280]=1.0f** (gradSlopeDelta — the
+    port's invented 0.01 default is a D-row GONE: byte cite movsd %xmm1,
+    [0x11E0B40] @0x49615D), [+0x288]=1, scaleMin/Max = 0/0; no memset. The
+    `mGradientAddNoise` attr binds **[+0x288]** (bandBlockOf `mode`) — NOT
+    [+0x220] (the old docstring-based label in the §7 surfacefield notes was
+    wrong; amended in place below the (136)/(143) notes).
+  - **The fbm4 law (B).** S quad = BAND_K.T (involutory); octaves 2-4 rotate
+    `f(f(T·x)+f(T·y))·lac` with lacs {2.02, 2.33, 2.01} (K2.fbmLacs); per-step
+    fround; tail `f(acc / K2.fbmNorm)`; f32 boundary at the dispatch. LIVE via
+    the ctor fbm default 1.
+  - **Port (the fix order).** (b) `surfaceField`'s V2 lane feeds
+    `wx = gx − 17920, wy = gy − 31744` (V3-template frame, I21's parked flip) —
+    the r-site now evaluates the ramp at the WORLD px for every kind-0 read;
+    this is a frame flip, NOT a revert of dig #142's bandRampEval swap. (a)
+    rides the kind map above (the default arm; noiseDispatch's throw arm
+    untouched). (c) the §12 flags-OFF path now `console.warn`s once (surfacing;
+    previously silent black). `makeGradAt` clamped to [−1,1] — byte-anchored to
+    C45's rp∈[−1,1] domain, not a tune (below). The band-block default
+    gradSlopeDelta 0.01 → 1.0 (byte). `uidFrom` rewritten to the byte law
+    (NOISE_TYPE_KIND/NOISE_NAME_KIND; the C42-era kind-8 proxy is a D-row GONE).
+  - **Meters (E1 count laws; every PREDICTION pre-registered).**
+    P-1a `empty(15,62)` M1: 0/2704 → **2059** (78633191) / **1996**
+    (500412504) solids ✓ predicted "textured, world-continuous". P-1b
+    `lake(4,62)`: the seam branch (lx ≤ 41, fl = 1−lx/41) **7/13** textured ✓.
+    P-2 M2: **0 throws** over 841 non-template cells (rows 62..100; pre-fix
+    2288 fall-throughs) ✓. P-3 M3: every texture-bearing same-def pair differs
+    (the anchor law = world-continuous; BitmapCaves per-chunk shape re-anchor
+    untouched — M4 caves pairs **identical** 2642/2642 with matching texture);
+    all-air pairs (2 lake + 3 lake_statue) hash identical VACUOUSLY ⇒ the pin
+    skips air-air pairs and requires ≥2 informative pairs/seed. P-4 M5 census
+    {0: 24, 3: 34} ✓ CE-35's {3, 0}. P-5 M6 fbm4 varies ✓. **P-7** (the
+    dig-#144 trace re-run, both seeds): kind0|ground solid **0 → 0.2035 /
+    0.2017**, the new noise-solid-band lane 0 → 13.61/13.4%, noise-solid-mat
+    0.57 → 5.28%, noise-air-bg 78.18 → 59.86/60.07%; kind-1|ground
+    **noise-chunk-null 13.49% → 0**, solid 0 → 0.1944/0.1942, noise-solid-mat
+    0.04 → 5.65/5.74%; wang|ground nulls 0.16 → 0.14; caves pair rows
+    **40 identical / 1 changed** per seed (the sliver, below); mirrorMismatch 0.
+    **P-8** (the census, `2026-10-06-v2-chunk-census.mjs`): **2288 procedural |
+    COMPUTES 2288 | falls 0** (pre-fix 663 + 1625) ✓ exact; the density report
+    (E1) mean 0.1918, all-air 1190, textured 1098, all-solid 0.
+  - **The P-1a falsifier → a byte read (never accommodation).** Run 1 (the
+    pre-clamp probe) FALSIFIED "the ramp lane textures": the raw makeGradAt
+    (A)-debt ramp is unbounded (C39; the game's mGradientAt clamps), so rp ≫
+    0.85 on the ramp lane ⇒ the switch's case-3 `acos(x/1024)` argument leaves
+    |x| ≤ 1024 ⇒ NaN ⇒ air (BYTE-FAITHFUL: the comiss-unordered idiom → jbe ⇒
+    NaN takes the "≤" branch). The byte read: the game's r-eval reads rp from a
+    value the game itself bounds (the mGradientAt family); the port's
+    makeGradAt stand-in must carry the same domain ⇒ clamp [−1,1] (C45's
+    domain; the clamp does not move the 0.5-crossing). Run 2 (post-clamp):
+    rp ≤ 0.81 ⇒ **case-3 unreachable on the ramp lane**; all M1-M6 pass.
+    `lake_statue(6,62)` all-air = a BYTE LAW, pinned as documentation: mode 3,
+    wx ≈ −14.8k ⇒ the slope offset drives A′ down (the band matrix:
+    band[row14, col4] = {A −1024, B 1024, mode 3, slopeX −12000, slopeDelta
+    −0.37}; driver w70 h48 bandCount 3360 baseX 17920 baseY 7168) ⇒ field ≤ 0.2
+    through rows 62-63; the 0.5 crossing lands at rows 64+ = lake_deep.
+  - **P-7's out-of-prediction row → the byte read (the L3-ANCHOR sliver).**
+    PREDICTION said "the caves pair rows unchanged"; ONE row changed per seed:
+    the `caves|hills|far` row (33,62) hashA c54fe6bf → c8fbebac. The
+    investigation (byte read, never accommodated): render determinism first
+    (d145 == d145b identical; the HEAD headcheck run reproduced the dig-#144
+    baseline hash exactly ⇒ P-7's baseline is NOT stale) — then bisect via a
+    1-chunk harness (`worldColorAt` tile hash): the caves lane is BYTE-IDENTICAL
+    HEAD↔d145 (maskHash 7e7c6aec629f5d66 + matHash e015ffbf793b3fb7 /
+    92d0769149cb742d identical; census rock_static 2328 + sand_static 97 +
+    idx255 11 = 2436 both). All 4290 differing tile pixels sit at cols 501-511 ×
+    rows 108-497 — the **L3_ANCHOR (11,12 px) sliver**: each trace tile clips
+    the +x/+y neighbour chunk, and the neighbour (34,62) = `mountain_left_stub`
+    (kind-0) was **0/2704 solids at HEAD (the I33 collapse) → 1916/2704
+    post-fix** — the fix painting through the instrument's anchor sliver.
+    INSTRUMENT NOTE recorded: `renderTraceTile` tiles are NOT pure chunks
+    (cols ≥ 501 / rows ≥ 500 sample the neighbour); future pair diffs must
+    exclude the sliver or expect kind-fix deltas there. Coinciding check: the
+    template-bearing coalmine (34,63) returns noiseAt NULL (no throw) in BOTH
+    states — pre-existing, render-irrelevant (the wang lane paints it).
+  - **Test/incident record.** `band-ramp.test.mjs` gradSlopeDelta pin 0.01 →
+    1.0 (the byte ctor default). `surface-compositor.test.mjs` measured
+    2409 → 2436 under the FULL battery only — root cause: an **env leak**
+    (`composed-content.test.mjs` sets SURFACE_V2 ??= "1"; same-worker file
+    order re-routes its hills (41,62) from the suite's V3-only caves lane
+    (2409, byte-identical HEAD↔d145 — verified by direct V3-only bisect) to
+    the V2 lane (2436)); fixed by `delete process.env.SURFACE_V2` at the
+    suite's module top (the leak is infrastructure, not law). Battery
+    **329/329** green (332 incl. 3 skips); composed-content 6/6 (the dig's
+    three count tests). Caveat: the trace's `writePng` ignores `--label` ⇒
+    the headcheck run overwrote the dig-#144 PNGs (the JSON baselines are
+    intact; PNG artifacts are disposable).
+  - **A-register (the purification law).** Fewer D-rows than we started with:
+    the invented gradSlopeDelta 0.01 default → byte 1.0; the C42 kind-8 proxy
+    → the byte kind map; the makeGradAt clamp range → byte-anchored (C45).
+    Still-D and registered: A4 (the band-matrix VALUE path) + the makeGradAt
+    (A)-debt ramp SHAPE (C39, now domain-corrected).
+  - **Landed:** entry (145); CONSTANTS **C121** (+ C43 amended: the noiseKind
+    name map + the ctor defaults); MANIFEST **X104** (the 24 dig-145 dumps);
+    VERIFIED **§8 row 49** (the +0x220 "mGradientAddNoise" label = wrong);
+    ISSUES **I33 CLOSED** (a structural via the kind map, b via the frame flip,
+    c via the §12 warn) + I34's residual (the kind-0 anchor re-measure) DONE
+    (M3: world-continuous). Tests **329/329**. One dig = one commit. **Next
+    free: entry **(146)**, C122, I35, X105; §8 row 50.**
 - **2026-10-15 (144) — dig #144: THE COMPOSED-CONTENT LAW (I34 (a)(b)(c) +
   I33's field facts re-counted) — the branch-tagged lane trace: every visible
   z0 pixel attributed; the caves filler re-anchors its SHAPE per chunk (the

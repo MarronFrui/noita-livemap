@@ -163,7 +163,7 @@ export function bandBlockOf(def) {
     gradStartY: f(n(def.mGradientStartY, -512)),      // f32 [+0x270]
     gradEndY: f(n(def.mGradientEndY, 512)),           // f32 [+0x274]
     gradSlopeStartX: n(def.mGradientSlopeStartX, 0),  // f64 [+0x278]
-    gradSlopeDelta: n(def.mGradientSlopeDelta, 0.01), // f64 [+0x280]
+    gradSlopeDelta: n(def.mGradientSlopeDelta, 1.0),  // f64 [+0x280] (ctor default 1.0 — movsd %xmm1 @0x49615d, [0x11e0b40] f64 1.0; dig #145 — the port's old 0.01 was invented)
     mode: n(def.mGradientAddNoise, 1) | 0,            // i32 [+0x288] (ctor default 1)
     gradNoiseScale: n(def.mGradientNoiseScale, 0),    // f64 [+0x290] (ctor default 0)
     gradLowNoise: f(n(def.mGradientLowNoise, -100)),  // f32 [+0x298]
@@ -261,32 +261,44 @@ function buildBandDriver(config, seed) {
 // SLOT BINDING (CE-verified 2026-09-20 (35), CONSTANTS.md C43; term offsets
 // C37): gradWCoef = [+0x268] = XML mMultiplierPerlin (CE: hills 1.0 with
 // the attr ABSENT; winter.xml 0.642857); perlinCoef = [+0x264] =
-// XML mMultiplierGradient (hills 0.871429 ✓). noiseType census (extracted
-// data, 2026-09-21): ALL 36 live noise_type attrs = "SIN_CAPPED_SIMPLEX"
-// and the CE read [uid+0x224] = 5 ⇒ kind 5 (= the 0x8fc020 core,
-// simplex2DDeriv) — replaces the old kind-8 proxy (still the honest
-// default -1 for any other name; the name-blob has NO static table, C42).
+// XML mMultiplierGradient (hills 0.871429 ✓).
+// dig #145 (I33 fix): THE TWO NOISE ATTRS ARE DISTINCT SLOTS — the old
+// adapter derived noiseKind FROM noise_type (the C42-era proxy) and
+// sourced addNoise from mGradientAddNoise; both are byte-wrong:
+//   noise_type      → [+0x220] (sink 0x4909b0 → strcmp enum parser
+//                     0x490650; the enum feeds the r-eval case switch)
+//   mInsideNoiseType → [+0x224] (sink 0x4911a0 → name→kind parser 0x490dc0;
+//                     the noiseDispatch arg; ctor default 5)
+//   mGradientAddNoise → [+0x288] = bandParams' mode (read at :699 of
+//                     noise-proto — DEAD in the r-eval uid switch)
+// Both parsers' name tables are now fully extracted (X104):
+export const NOISE_TYPE_KIND = { // noise_type name → [+0x220] enum (@0x490650; .rdata names 0x117880c/0x1178834/0x1178850/0x1178878)
+  IQ2_SIMPLEX1234: 0, IQ_SIMPLEX: 1, SIN_CAPPED_EVERYTHING: 2, SIN_CAPPED_SIMPLEX: 3,
+}; // unknown name → the parser's error arm returns 0 (game logs NOISE_TYPE); absent attr → the ctor default 0 (movl $0 @0x4960d2). Live census: all 36 noise_type attrs = SIN_CAPPED_SIMPLEX ⇒ 3 ⇒ case 3
+export const NOISE_NAME_KIND = { // mInsideNoiseType name → [+0x224] kind (parser @0x490dc0; getter table @0x490d9c)
+  IQNoise: 0, DirtyPeeNoise: 1, QemNoise: 2, WhiteNoise: 3, MixNoise: 4,
+  SimplexNoise: 5, STB_Perlin: 6, FastBlockNoise: 7, SimplexNoise1234: 8,
+}; // unknown name → error + return 0; absent attr → the ctor default 5 (movl $5 @0x4960dc). Live: 6 files carry SimplexNoise1234 ⇒ 8 (0x8fca60 simplex2d)
 function uidFrom(def, cfg) {
   const n = (v, d) => { const p = parseFloat(v); return Number.isFinite(p) ? p : d; };
   return {
     ...bandBlockOf(def),   // the band block (C118 slots; f32-rounded) — the r-eval
                            // config arms pass THIS as the band (dig #142)
-    noiseKind: def.noiseType === "SIN_CAPPED_SIMPLEX" ? 5 : -1, // CE (35): 5
+    noiseKind: def.mInsideNoiseType !== undefined ? (NOISE_NAME_KIND[def.mInsideNoiseType] ?? 0) : 5, // [+0x224] (X104); never -1 ⇒ the kind-default arm (I33a) rides along
     gradient: 0,           // unused until the field-source read (see C44)
-    sx: n(def.mInsidePerlinScaleX, 1), sy: n(def.mInsidePerlinScaleY, 1),
-    ox: 0, oy: 0,          // mInsidePerlinOffsetX/Y not present in current XMLs
+    sx: n(def.mInsidePerlinScaleX, 1), sy: n(def.mInsidePerlinScaleY, 1), // ctor {1,1}
+    ox: 0, oy: 0,          // mInsidePerlinOffsetX/Y not present in current XMLs (census)
     offsetBySeed: false,   // attr absent → false (byte: [+0x24d] gate)
-    fbm: false,            // [uid+0x228]
-    noiseTypeInt: def.noiseType === "SIN_CAPPED_SIMPLEX" ? 5 : -1, // CE (35); else -1 (C42)
+    fbm: n(def.mInsideNoiseFBM, 1) === 1, // [+0x228] ctor default 1 (movb $1 @0x4960e6) — the 6 live files all carry "1"
     squared: n(def.mInsidePerlinSquared, 0) === 1,
     clamped: n(def.mInsidePerlinClamped, 0) === 1,
     scaled: n(def.mInsidePerlinScaled, 0) === 1,
-    scaleMin: n(def.mInsidePerlinScaleMin, 0.057143),
-    scaleMax: n(def.mInsidePerlinScaleMax, 2),
+    scaleMin: n(def.mInsidePerlinScaleMin, 0),   // ctor [+0x244] = 0 (the port's old 0.057143 was invented)
+    scaleMax: n(def.mInsidePerlinScaleMax, 0),   // ctor [+0x248] = 0
     gradWCoef: n(def.mMultiplierPerlin, 1.0),   // [+0x268] (CE hills=1.0)
-    perlinCoef: n(def.mMultiplierGradient, 0),  // [+0x264] (CE hills=0.871429)
-    addValue: 0,
-    addNoise: n(def.mGradientAddNoise, 1),
+    perlinCoef: n(def.mMultiplierGradient, 1.0), // [+0x264] ctor default 1.0f (dig #145; CE hills=0.871429 attr value)
+    addValue: n(def.mInsideAddValue, 0),         // [+0x260] ctor default 0 (no live attr)
+    addNoise: NOISE_TYPE_KIND[def.noiseType] ?? 0, // [+0x220] = the noise_type enum (X104) — NOT mGradientAddNoise (that is [+0x288] mode)
     minX: cfg.minX, maxX: cfg.maxX,         // C24 lane (passed through)
   };
 }
@@ -309,10 +321,19 @@ function makeGradAt(def) {
   // degenerate clamped-flat; the bitmap/topology gradAts stay grid-indexed
   // (byte law) — only the invented ramp converts. (A) debt, C39.
   const gridToPx = 1 / (K2.f64_049162514 * K2.f32_0p1); // ≈ 20.34 px/texel
+  // dig #145 (C45 byte-law range): this instrument stands in for the
+  // game's BitmapNoise FLOAT GRID, whose per-cell values are ±1.0 (lane A)
+  // or the fallback grey (R+2G)/3 ∈ [0,1] (lane B) — the ramp must live in
+  // THAT range. Unclamped, empty.xml's LowNoise/HighNoise (−292.6/+234.1)
+  // fed field0 up to ~102 ⇒ rp ≫ 0.85 ⇒ the case-3 acos arm went out of
+  // domain (NaN ⇒ air) — measured falsifier, dig #145 probe P-1a. The
+  // clamp does not move the 0.5-crossing (raw ramp hits ±1 within wy
+  // 110..118); it caps the extremes the way the grid bake does. (A) debt
+  // C39 unchanged — only the range is now byte-anchored.
   return (gx, gy) => {
     const wy = gy * gridToPx;
     const t = Math.max(0, Math.min(1, (wy - y0) / Math.max(1e-6, y1 - y0)));
-    return lo + (hi - lo) * t;
+    return Math.max(-1, Math.min(1, lo + (hi - lo) * t));
   };
 }
 
@@ -373,10 +394,12 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
   }
   if (SURFACE_V2) {
     // dig #9c lane (true 0x90a860): surfaceField with the ramp-prototype
-    // gradAt; the mGradientAddNoise=1..3 inner-core lanes THROW until W3/W4
-    // land — those biomes yield null (caller falls through), honestly.
+    // gradAt; noise cores below kind 3 THROW until W3/W4 land — those
+    // biomes yield null (caller falls through), honestly. (dig #145, I33a:
+    // the kind-1 throw path is CLOSED — uidFrom's [+0x224] ctor default 5
+    // never yields -1; only UNREAD cores 0/1/2/4 can still throw.)
     const uid = uidFrom(def, cfg);
-    uid.driver = makeBandDriver(config, seed);  // dig #142: the kind-0 r-site frame (I21: rides the canvas coords here)
+    uid.driver = makeBandDriver(config, seed);  // dig #142: the kind-0 r-site frame; dig #145 (I21 flip landed): the lane feeds it WORLD px below
     // dig #30: the caves-field source when the biome carries <BitmapCaves>
     // (the hills/desert/pyramid family); otherwise the C39 IMAGE-LANE
     // gradAt when a bitmap_noise_file exists (the lake family), else the
@@ -423,6 +446,17 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
     // 0.1·(0.49162514·10·c)) but STARVED every noise/r-eval consumer 10×
     // (I23②). Same canvas registration as before (tx·512+cx·10+5 =
     // 10·(tx·51.2+cx+0.5)).
+    // dig #145 (I33(b) fix, I21's frame flip landed): the FIELD build feeds
+    // WORLD px (C80: wx = canvas − 17920, wy = canvas − 31744) — the binary's
+    // kind-0 lane reads world coords everywhere. The old canvas feed put the
+    // ground band at wy ≈ 31745+, far above the band window (B ≤ ~1258), so
+    // rampGate saturated r ≡ 1.0 with the 0.5-capped field0 ⇒ a CONSTANT
+    // field below the 0.5 gate ⇒ the all-air NOISE→AIR collapse (I33).
+    // The BitmapCaves wrapper above keeps its CANVAS args (it subtracts the
+    // origins itself — dig #131), and classify keeps the parked C76 frame
+    // (canvas x, canvas y − 24576 — I21's classify flip stays parked).
+    const worldX0 = 35 * CHUNK; // 17920 — C80 world x origin (biome px 35)
+    const worldY0 = (SKY_ROWS + 14) * CHUNK; // 31744 — C80 world y origin (biome row 14)
     for (let cy = 0; cy < 52; cy++) {
       for (let cx = 0; cx < 52; cx++) {
         const gx = tx * CHUNK + cx * 10 + 5;
@@ -431,9 +465,9 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
         try {
           // dig #121: the caves-lane value = the direct cell read
           // (gradAt above is the cell-law wrapper); the noise combine
-          // stays for every other grad source.
+          // stays for every other grad source (world px, dig #145).
           v = cavesSrc ? gradAt(gx, gy)
-            : surfaceField(uid, gx, gy, gradAt, 0, DEF_SEED);
+            : surfaceField(uid, gx - worldX0, gy - worldY0, gradAt, 0, DEF_SEED);
         } catch {
           return null; // unread-core lane → whole chunk falls through
         }
@@ -704,7 +738,13 @@ export function attachNoiseTerrain(world, dataDir, seed = 0) {
   // never attaches and the procedural band renders as honest air (the
   // art-scenes + wang areas carry the whole visible band) — the sky/
   // backdrop attach above is unconditional (see the function head).
-  if (!SURFACE_V2 && !SURFACE_V3) return world;
+  // dig #145 (I33c): surface the state ONCE to the operator — before this
+  // the opt-in gate was silent and env loss manifested as black chunks
+  // (I33's flags-OFF black).
+  if (!SURFACE_V2 && !SURFACE_V3) {
+    console.warn("[noita-livemap] NOISE band detached (VERIFIED §12 opt-in): set SURFACE_V2=1 and/or SURFACE_V3=1 to render the procedural band");
+    return world;
+  }
   const cache = new Map(); // "tx,ty" -> {mask, def} | null
   world.noiseAt = (tx, ty) => {
     const key = `${tx},${ty}`;

@@ -6,8 +6,12 @@
 // arithmetic that would paint idx-255 band shade everywhere); (3) the
 // limit_y FLAG law (the desert's ungated rock_static/sand_static comps
 // paint at ANY depth; FAILS if limit_y parsing ever regresses to
-// cap-by-default); (4) I33's kind-0 NOISE→AIR field facts re-counted
-// (0/2704 solids — the tripwire for I33's planned noise-texture fix).
+// cap-by-default); (4) I33's kind-0 restoration (dig #145): the filler
+// chunks are TEXTURED (0 < solids < 2704 — FAILS under the dig-#142
+// all-air arithmetic that pinned 0), the kind-1 pockets stop throwing
+// (FAILS under the kind=-1 throw law), and the kind-0 field is WORLD-
+// anchored (same-def pairs differ — FAILS under the all-air/pre-fix
+// identity and under any per-chunk re-anchor).
 // Data-dependent: skips without the game data. Lane flags are module-load
 // consts — set the env BEFORE the dynamic imports (surface-compositor
 // convention).
@@ -116,22 +120,143 @@ describe.skipIf(!hasData)("composed-content laws (dig #144, I34/I33)", () => {
     expect(rec08.name).toBe("sand_static");
   });
 
-  test("I33 field facts re-counted: kind-0 filler ground chunks are 0/2704 solids (the NOISE→AIR collapse)", async () => {
+  test("I33 fix (dig #145): kind-0 filler ground chunks are TEXTURED — the NOISE→AIR collapse is gone", async () => {
     const { noiseChunkMask } = await import("../../mapgen/lib/noise-terrain.mjs");
-    const { loadBiomeConfig } = await import("../../mapgen/lib/biomes.mjs");
+    const { loadBiomeConfig, biomeAt } = await import("../../mapgen/lib/biomes.mjs");
     const cfg = loadBiomeConfig(DATA_DIR);
-    // empty.xml + lake.xml kind-0 ground filler chunks (seed 78633191 and
-    // 500412504 both): every read collapses to air (I33's r-site swap) —
-    // 0 solid cells. Tripwire: I33's planned noise-texture restoration
-    // flips this count (re-measure the (b) anchor law for kind-0 then).
-    for (const [tx, ty, fn] of [[15, 62, "empty.xml"], [4, 62, "lake.xml"], [6, 62, "lake_statue.xml"]]) {
+    // empty(15,62): mode 1's noise arm jitters the band window per column
+    // ⇒ r ∈ ~0.64..0.81 across the row; with the C45-range-clamped grad
+    // (field0 ∈ [−1,1] ⇒ floor 0.5 ⇒ rp ≤ 0.81 < 0.85, the case-3 acos arm
+    // unreachable ⇒ no NaN) the field = gradW·per + 0.871429·rp crosses the
+    // 0.5 gate. Measured post-fix: 2059 (seed A) / 1996 (seed B) of 2704.
+    // Pre-fix (the dig-#142 canvas frame): 0/2704 at both seeds (I33) —
+    // this pin FAILS under that arithmetic.
+    for (const seed of [SEED, SEED_B]) {
+      const r = noiseChunkMask(cfg, 15, 62, seed);
+      expect(r).not.toBeNull();
+      expect(r.def.filename).toContain("empty.xml");
+      const solids = [...r.mask].filter((v) => v).length;
+      expect(solids).toBeGreaterThan(0);
+      expect(solids).toBeLessThan(2704);
+    }
+    // lake/lake_statue (the run-1 amendment — see the probe header): the
+    // SEAM branch (lx ≤ 41 ⇒ blend with the left neighbor) carries texture
+    // at lake(4,62) cx0 (7/13 solids measured). Pin: lake(4,62) is
+    // TEXTURED (0 < s < 2704 — fails the pre-fix 0), and lake_statue(6,62)
+    // = 0 air is the BYTE LAW of its slope window (mode 3 at wx ≈ −14.8k:
+    // s ≈ +1052 ⇒ A' = 28 ⇒ r ≤ 0.236 ⇒ field ≤ 0.2 — its crossing lands
+    // at wy > 1.2k = rows 64+, which this world maps to lake_deep; pinned
+    // so a future change that floods it is caught).
+    {
+      const rL = noiseChunkMask(cfg, 4, 62, SEED);
+      expect(rL).not.toBeNull();
+      expect(rL.def.filename).toContain("lake.xml");
+      const sL = [...rL.mask].filter((v) => v).length;
+      expect(sL).toBeGreaterThan(0);
+      expect(sL).toBeLessThan(2704);
+      const rS = noiseChunkMask(cfg, 6, 62, SEED);
+      expect(rS).not.toBeNull();
+      expect(rS.def.filename).toContain("lake_statue.xml");
+      expect([...rS.mask].filter((v) => v).length).toBe(0);
+    }
+    // the lake FAMILY's texture census (the M3 instrument's law): across
+    // every lake ground cell (tx 4..10, rows 62/63) at least one chunk is
+    // textured — pre-fix ALL were 0 (the NOISE→AIR collapse).
+    {
+      const at = (tx, ty) => biomeAt(cfg, tx, ty - 48);
+      let textured = 0;
       for (const seed of [SEED, SEED_B]) {
-        const r = noiseChunkMask(cfg, tx, ty, seed);
-        expect(r).not.toBeNull();
-        expect(r.def.filename).toContain(fn);
-        const solids = [...r.mask].filter((v) => v).length;
-        expect(solids).toBe(0);
+        for (let tx = 4; tx <= 10; tx++) {
+          for (const ty of [62, 63]) {
+            const a = at(tx, ty);
+            if (!a?.biome || a.biome.templateFile || !a.biome.filename.endsWith("lake.xml")) continue;
+            const r = noiseChunkMask(cfg, tx, ty, seed);
+            if (!r) continue;
+            const s = [...r.mask].filter((v) => v).length;
+            if (s > 0 && s < 2704) textured++;
+          }
+        }
       }
+      expect(textured).toBeGreaterThan(0);
+    }
+  });
+
+  test("I33a (dig #145): the kind-1 pockets stop throwing — every non-template ground cell computes (never -1)", async () => {
+    const { noiseChunkMask } = await import("../../mapgen/lib/noise-terrain.mjs");
+    const { loadBiomeConfig, biomeAt } = await import("../../mapgen/lib/biomes.mjs");
+    const cfg = loadBiomeConfig(DATA_DIR);
+    // Pre-fix every non-template cell of these defs fell through (threw
+    // `noiseDispatch: core kind=-1 UNREAD` — noiseKind sourced from the
+    // noise_type presence). Post-fix noiseKind = the [+0x224] ctor default
+    // 5 ⇒ no throw ⇒ non-null. FAILS under the kind=-1 law.
+    // Scan window: rows 62..100 (the pockets live underground — layout read
+    // this session: solid_wall 834 cells, hidden_cavern 4, friend_1/friend_4/
+    // teleroom 1 each); solid_wall capped at 12 samples (the probe measures
+    // all 841). Anti-vacuity: EVERY one of the 5 defs must be found.
+    for (const seed of [SEED, SEED_B]) {
+      const defCells = new Map();
+      for (const fn of ["solid_wall_hidden_cavern.xml", "teleroom.xml", "friend_1.xml", "friend_4.xml", "solid_wall.xml"]) {
+        defCells.set(fn, []);
+        for (let ty = 62; ty <= 100 && defCells.get(fn).length < (fn === "solid_wall.xml" ? 12 : 100); ty++) {
+          for (let tx = 0; tx <= 70; tx++) {
+            const at = biomeAt(cfg, tx, ty - 48);
+            if (!at?.biome || at.biome.templateFile || !at.biome.filename.endsWith(fn)) continue;
+            defCells.get(fn).push([tx, ty]);
+          }
+        }
+      }
+      for (const [fn, cells] of defCells) {
+        expect(cells.length, `${fn} not found by the row 62..100 scan (vacuous pin)`).toBeGreaterThan(0);
+        for (const [tx, ty] of cells) {
+          const r = noiseChunkMask(cfg, tx, ty, seed);
+          expect(r, `${fn} (${tx},${ty}) seed ${seed} fell through (throw)`).not.toBeNull();
+        }
+      }
+    }
+  });
+
+  test("I34 anchor re-measure (dig #145): the kind-0 field is WORLD-anchored — same-def pairs differ", async () => {
+    const { noiseChunkMask } = await import("../../mapgen/lib/noise-terrain.mjs");
+    const { loadBiomeConfig, biomeAt } = await import("../../mapgen/lib/biomes.mjs");
+    const cfg = loadBiomeConfig(DATA_DIR);
+    // Dig #144 could not measure the kind-0 anchor law (all-air masks ⇒
+    // every pair identical). Post-fix the field is a pure function of
+    // world px ⇒ same-def pairs with ≥1 TEXTURED member DIFFER. Pairs where
+    // BOTH masks are all-air are skipped — a constant-0 mask hashes equal by
+    // construction and carries no anchor information (run 2: lake_statue's
+    // 3 row-62 cells + 2 lake air rows; the 12 informative lake pairs all
+    // differ). FAILS under any per-chunk re-anchor (identical textured hashes).
+    // Anti-vacuity: ≥2 informative pairs must exist per seed.
+    for (const seed of [SEED, SEED_B]) {
+      let informative = 0;
+      for (const fn of ["empty.xml", "lake.xml", "lake_statue.xml"]) {
+        const cells = [];
+        for (let tx = 0; tx <= 70; tx++) {
+          for (const ty of [62, 63]) {
+            const at = biomeAt(cfg, tx, ty - 48);
+            if (!at?.biome || at.biome.templateFile || !at.biome.filename.endsWith(fn)) continue;
+            const r = noiseChunkMask(cfg, tx, ty, seed);
+            if (!r) continue;
+            const s = [...r.mask].filter((v) => v).length;
+            cells.push({ tx, ty, h: maskHash(r.mask), s });
+          }
+        }
+        if (cells.length < 2) continue; // not enough same-def cells to pair
+        const pairs = [];
+        for (const c of cells) {
+          const h = cells.find((o) => o.tx === c.tx + 1 && o.ty === c.ty);
+          const v = cells.find((o) => o.tx === c.tx && o.ty === c.ty + 1);
+          if (h) pairs.push([c, h]);
+          if (v) pairs.push([c, v]);
+        }
+        pairs.push([cells[0], cells[cells.length - 1]]); // the far pair
+        for (const [a, b] of pairs) {
+          if (a.s === 0 && b.s === 0) continue; // vacuous: all-air ⇒ equal by construction
+          informative++;
+          expect(a.h, `${fn} (${a.tx},${a.ty})≡(${b.tx},${b.ty}) seed ${seed} [${a.s}/${b.s} solids]`).not.toBe(b.h);
+        }
+      }
+      expect(informative, `seed ${seed}: fewer than 2 texture-bearing kind-0 pairs — the anchor law is unmeasured`).toBeGreaterThanOrEqual(2);
     }
   });
 });

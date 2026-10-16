@@ -414,10 +414,9 @@ export function getGradientTable() { return GRADIENTS.slice(); }
 export const K2 = {
   // IQ-simplex (case-5 core true 0x8fc020):
   sc70: 70.0,                // f64 0x11dffd0 (final ×70)
-  // fbm (true 0x8fdad0):
+  // fbm (true 0x8fdad0 — the FULL law landed dig #145, C121):
   fbmAmps: [0.5, 0.25, 0.125, 0.0625],       // 0x11dfa94/0x11df9d0/0x11df984/0x11df950
-  fbmLacX: 2.02,             // f32 0x11dfe7c
-  fbmLacY: 2.33,             // f32 0x11dfee8
+  fbmLacs: [2.02, 2.33, 2.01],  // f32 0x11dfe7c / 0x11dfee8 / 0x11dfe78 — the 3 rotation lacs (the old fbmLacX/fbmLacY pair was a misread of this triple)
   fbmNorm: 0.9375,           // f32 0x11dfba8 (Σ amps, compute-checked)
   // ladder (C38):
   h02: 0.02,                 // f32 0x11df908
@@ -521,12 +520,19 @@ export const NOISE_CASES = {
 };
 
 export function noiseDispatch(kind, x, y) {
+  // dig #145 (C121): THE DISPATCHER BOUNDARY IS f32 — entry cvtsd2ss on
+  // both args (@0x8fd92b region) and each arm's core returns f64 →
+  // cvtsd2ss (kind 5's 0x8fc020 tail) or native f32 (kind 8's 0x8fca60)
+  // ⇒ f32 out. The throw arm is byte-faithful (cmp $8,%ecx; ja throw —
+  // kind 0/1/2/4 = UNREAD cores, kind −1 > 8 unsigned) and the source
+  // never yields −1 since uidFrom's [+0x224] ctor default is 5 (I33a).
+  x = f(x); y = f(y);
   switch (kind) {
-    case 8: return simplex2d(x, y);
-    case 7: return latticeVal2d(x, y);
-    case 6: return latticeGrad2d(x, y);
-    case 5: return simplex2DDeriv(x, y);
-    case 3: return fnvLattice2d(x, y);   // true 0x8fc940 — READ+ported 2026-09-21 (W4)
+    case 8: return f(simplex2d(x, y));
+    case 7: return f(latticeVal2d(x, y));
+    case 6: return f(latticeGrad2d(x, y));
+    case 5: return f(simplex2DDeriv(x, y));
+    case 3: return f(fnvLattice2d(x, y));   // true 0x8fc940 — READ+ported 2026-09-21 (W4)
     default: throw new Error(`noiseDispatch: core kind=${kind} UNREAD (${NOISE_CASES[kind]})`);
   }
 }
@@ -540,8 +546,12 @@ export function noiseDispatch(kind, x, y) {
 // seedInt: the C27 one-draw (per-cell generator's +0x94-producer draw);
 // we take it as an argument so callers keep a single draw per cell.
 export function insidePerlin(uid, x, y, seedInt) {
-  const XI = f(x * K2.f64_05243442) * uid.sx + 0.1 + uid.ox;   // mulsd chain
-  const YI = f(y * K2.f64_05243442) * uid.sy + 0.1 + uid.oy;
+  // dig #145 (C121): the XI/YI chain is PURE f64 (mulsd) — the f32
+  // boundary is the dispatcher ENTRY (noiseDispatch rounds its args;
+  // fbm4 rounds at its wrapper entry), not a mid-chain fround. The
+  // return is f32 (xmm0).
+  const XI = (x * K2.f64_05243442) * uid.sx + 0.1 + uid.ox;   // mulsd chain
+  const YI = (y * K2.f64_05243442) * uid.sy + 0.1 + uid.oy;
   let xi = +XI, yi = +YI;
   if (uid.offsetBySeed) {                                     // [+0x24d]
     // draws: one DIDDLed int per axis (0x5111d0; diddle 0x11e0ba0[hi], then
@@ -553,7 +563,7 @@ export function insidePerlin(uid, x, y, seedInt) {
   if (uid.squared) r = r * r;                                 // [+0x240]
   if (uid.clamped) r = Math.min(uid.scaleMax, Math.max(uid.scaleMin, r)); // 0x50aa1b..2e
   if (uid.scaled) r = (r * K.KERNEL + K.KERNEL) * (uid.scaleMax - uid.scaleMin) + uid.scaleMin; // 0x50aa3c..0x50aa68
-  return r;
+  return f(r);
 }
 
 // The C41-OPEN "index map walks via true 0xc31cea" = RESOLVED (2026-09-21):
@@ -600,29 +610,33 @@ export function fnvLattice2d(xin, yin) {
   return f((rowT - rowB) * wy + rowB);
 }
 
-// fbm — true 0x8fdad0 REWRITE (2026-09-21): the "BSS state" = a CONSTANT
-// 4-f32 quad copied once from .rdata 0x11e0c70 =
+// fbm — true 0x8fdad0 THE FULL LAW (dig #145, C121 — the 2026-09-21
+// rotation residual is CLOSED by the fresh full-window read): the "BSS
+// state" = a CONSTANT 4-f32 quad copied once from .rdata 0x11e0c70 =
 //   { sin(1)=0.8414700031, cos(1)=0.5403000124, 0.5403000124, −0.8414700031 }
-// (never written back — an accumulator misread; it is the basis-vector
-// set). Octaves: the dispatcher is called 4× with
-//   oct1 args = the RAW (x, y)
-//   oct2/3/4 args = rotate the state-vector pairs (v0·y + v2·x)·lac /
-//                   (v1·y + v3·x)·lac with lac = 2.02 / 2.33 / 2.01
-//                   (@0x11dfe7c / 0x11dfee8 / 0x11dfe78 — 2.01 pinned
-//                   2026-09-21, NEW pin), amplitudes 0.5/0.25/0.125/0.0625
-//                   (@0x11dfa94/0x11df9d0/0x11df984/0x11df950), ÷0.9375.
-// The exact (x↔y) lane assignment inside the dot-pairs = the one residual
-// byte item (flagged; does not affect kind-5 biomes — fbm = opt-in via
-// [uid+0x228] which no live XML sets).
-// fbm wrapper — structure per the 2026-09-21 byte-settled state quad; the
-// per-octave arg rotation = the flagged residual (see the comment above).
+// — the SAME quad as BAND_K.T (S = (sin1, cos1, cos1, −sin1)); S is
+// involutory (S² = I). Wrapper entry stores both args in f32 slots.
+// Octaves: the dispatcher is called 4× with
+//   oct1 args = the RAW f32 (x, y)
+//   oct2/3/4 args = the rotation x′ = f32((f32(S0·x) + f32(S2·y))·lac),
+//                   y′ = f32((f32(S1·x) + f32(S3·y))·lac) with lac =
+//                   2.02 / 2.33 / 2.01 (@0x11dfe7c / 0x11dfee8 / 0x11dfe78),
+//                   amplitudes 0.5/0.25/0.125/0.0625
+//                   (@0x11dfa94/0x11df9d0/0x11df984/0x11df950), per-step
+//                   Math.fround; tail f32(acc / 0.9375).
+// (S involutory ⇒ octave-3 lands back on the input direction × lac1·lac2.)
+// LIVE since dig #145: [uid+0x228] fbm ctor-defaults to 1 (movb $1
+// @0x4960e6) — every def that reaches insidePerlin runs this.
 export function fbm4(x, y, kind) {
-  let acc = 0, px = x, py = y;
-  const amps = K2.fbmAmps;
-  for (let o = 0; o < 4; o++) {
-    acc += amps[o] * noiseDispatch(kind, px, py);
-    px = f(px * K2.fbmLacX);
-    py = f(py * K2.fbmLacY);
+  const S = BAND_K.T;        // @0x11e0c70 — the shared rotation quad
+  const amps = K2.fbmAmps, lacs = K2.fbmLacs;
+  let px = f(x), py = f(y);  // the wrapper entry's f32 slots
+  let acc = f(f(noiseDispatch(kind, px, py)) * amps[0]); // oct1 = the raw args
+  for (let k = 0; k < 3; k++) {
+    const nx = f(f(f(S[0] * px) + f(S[2] * py)) * lacs[k]);
+    const ny = f(f(f(S[1] * px) + f(S[3] * py)) * lacs[k]);
+    px = nx; py = ny;
+    acc = f(acc + f(noiseDispatch(kind, px, py) * amps[k + 1]));
   }
   return f(acc / K2.fbmNorm);                    // divss 0.9375 @0x4fd474
 }
@@ -815,8 +829,15 @@ export function surfaceField(uid, x, y, gradAt, valueOfP94, seedInt) {
   //       switch [uid+0x220]: cases 1/2/3 blend tails operate on r' —
   //       post-tail xmm2 = rpost. Gate = `comiss 0x11dfb84` @0x90ab48 →
   //       `jbe 0x90b0a2`; dec/je 1→0x90afeb 2→0x90aeba 3→0x90ae03
-  //       (@0x90ab74). Default arm (addNoise ∉ {1,2,3}) @0x90ab7d is
-  //       LIVE via the world value 0 (hills_flat/mountain_lake): call
+  //       (@0x90ab74). dig #145 attribution fix (X104): [+0x220] = the
+  //       noise_type ENUM (sink 0x4909b0 → parser 0x490650) — NOT
+  //       mGradientAddNoise (that slot is [+0x288] = mode, read only
+  //       INSIDE bandParams). Live routing (CE-35's {3,0}):
+  //       noise_type=SIN_CAPPED_SIMPLEX → 3 ⇒ case 3 (all 36 defs);
+  //       noise_type absent → the ctor default 0 ⇒ the default arm
+  //       (the kind-1 pockets etc.); enum 1 (IQ_SIMPLEX) / 2
+  //       (SIN_CAPPED_EVERYTHING) = LIVE-DEAD (no live file carries them).
+  //       Default arm (addNoise ∉ {1,2,3}) @0x90ab7d: call
   //       0x8fb570 @0x90ab9f (parity lattice = C83 — I20 ① READ) →
   //       g = a·0.05+0.05 → simplex2d 0x8fca60 @0x90abee → C77 tail →
   //       jmp 0x90b0a2 — ported as the else-arm (I20②, dig #113). Tails: r2 = f(n·r') cases 1/3
@@ -846,7 +867,7 @@ export function surfaceField(uid, x, y, gradAt, valueOfP94, seedInt) {
   if (field < K.KERNEL) field = K.KERNEL;                        // 0x50a5b6
   // 2) r-eval + r' (the field slot := r·field, 0x50a2e2..0x50a2fe):
   // const rRaw = noiseDispatch(uid.noiseKind, x, y);              // 0x90AA80 surrogate (flagged) — SUPERSEDED dig #142
-  const rRaw = bandRampEval(uid.driver, uid, x, y);              // true 0x90B280 @0x90aadd (X82, dig #142)
+  const rRaw = bandRampEval(uid.driver, uid, x, y);              // true 0x90B280 @0x90aadd (X82, dig #142; dig #145 I33(b) fixed the caller FRAME — world px — NOT this swap)
   field = f(rRaw * field);                                       // FIELD SLOT := r' @0x50a2fe
   const rp = field;                                              // r'
   let gradW = 0, per = 0, add = 0;                               // zeroed @0x50a2ed/0x50a2f2
@@ -858,7 +879,8 @@ export function surfaceField(uid, x, y, gradAt, valueOfP94, seedInt) {
     if (rp > K2.h085) {                                           // comiss 0.85 @0x50a348
       add = uid.addValue;                                         // [uid+0x260] @0x50a35b/63
       if (uid.addNoise === 1) {
-        // CASE-1 lane — slab 0x50a7eb..0x50a89f (dig #11 / (26)), unchanged:
+        // CASE-1 lane (live-dead: enum 1 = IQ_SIMPLEX — no live file) —
+        // slab 0x50a7eb..0x50a89f (dig #11 / (26)), unchanged:
         //   a = whiteLattice2d(x·0.025, y·0.025); g = a·0.05+0.05;
         //   0x8fc020 args (arg0/xmm0 = x-chain, arg1/xmm1 = y-chain);
         //   tail = r' += (n·r' − r')·((r'−0.85)/0.1)   — the base = r'.
@@ -871,7 +893,9 @@ export function surfaceField(uid, x, y, gradAt, valueOfP94, seedInt) {
         const r2 = f(n * rp);                                    // r·n·field
         field = f(f(f(r2 - rp) * f((rp - K2.h085) / K.wBias)) + rp);  // rpost — byte tail @0x90b072..0x90b09f (C77, dig #98)
       } else if (uid.addNoise === 3) {
-        // CASE-3 (lake ×4) — slab 0x50a603..0x50a6b9. AXIS RETRACE
+        // CASE-3 (the 36 SIN_CAPPED_SIMPLEX defs — noise_type enum 3,
+        // the LIVE lane since dig #145; the old "lake ×4" label tracked
+        // the wrong slot, mGradientAddNoise) — slab 0x50a603..0x50a6b9. AXIS RETRACE
         // (2026-09-21; supersedes the dig #22 #3 note): judged by the
         // case-1 anchor (0x50a7eb) under the C37 pin xmm2=x/xmm3=y ⇒
         // [ebp-0x44] = x, [ebp-0x3c] = y; arg0 = the x-side in the fn:
@@ -892,7 +916,8 @@ export function surfaceField(uid, x, y, gradAt, valueOfP94, seedInt) {
         const r2 = f(n * rp);
         field = f(f(f(r2 - rp) * f((rp - K2.h085) / K.wBias)) + rp);  // rpost — byte tail @0x90b072..0x90b09f (C77, dig #98)
       } else if (uid.addNoise === 2) {
-        // CASE-2 (hills2) — slab 0x50a6ba..0x50a7e6. AXIS RETRACE
+        // CASE-2 (live-dead: enum 2 = SIN_CAPPED_EVERYTHING) —
+        // slab 0x50a6ba..0x50a7e6. AXIS RETRACE
         // (2026-09-21; supersedes the dig #22 #4 note): arg0 = x-side
         // everywhere; the trig axes = acos on x·0.01313 / sin on y·0.01123:
         //   wl  = whiteLattice2d(x/100·0.025, y/100·0.025)
@@ -918,7 +943,8 @@ export function surfaceField(uid, x, y, gradAt, valueOfP94, seedInt) {
         field = f(f(f(r2 - rp) * f((rp - K2.h085) / K.wBias)) + rp);
       } else {
         // DEFAULT ARM (I20②, dig #113) — addNoise ∉ {1,2,3}: the LIVE
-        // world value 0 (hills_flat/mountain_lake/laboratory); stale 4
+        // value 0 = noise_type ABSENT (the kind-1 pockets; CE-35 measured
+        // [uid+0x220] = 0 there — dig #145 attribution); stale 4
         // falls through the dec/je chain too (@0x90ab68..77). Bytes
         // re-read this session:
         //   a = 0x8fb570(x·0.025, y·0.025)  @0x90ab7d..9f (cvtpd2ps +

@@ -581,7 +581,10 @@ describe("driver frame contract (C119) + the surfaceField guard", () => {
       gradStartY: -512,
       gradEndY: 512,
       gradSlopeStartX: 0,
-      gradSlopeDelta: 0.01,
+      // dig #145 (fresh ctor read): [+0x280] gradSlopeDelta default = f64
+      // 1.0 (movsd %xmm1,[0x11e0b40] @0x49615d) — the port's old invented
+      // 0.01 default is gone (C121).
+      gradSlopeDelta: 1.0,
       mode: 1,
       gradNoiseScale: 0,
       gradLowNoise: -100,

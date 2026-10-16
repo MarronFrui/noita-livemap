@@ -10,6 +10,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, test } from "vitest";
 
+// dig #145 (measured leak): composed-content.test.mjs sets SURFACE_V2=1 at
+// module load; when both files land in the same vitest worker the leak
+// re-routes hills (41,62) from THIS suite's V3-only caves lane (2409 solids,
+// byte-identical pre/post dig #145) to the V2 lane (2436) — the pin fails
+// for infrastructure, not law. Clear the leak: this suite pins the V3-ONLY
+// lane (the dig-#131 read-window law).
+delete process.env.SURFACE_V2;
 process.env.SURFACE_V3 = "1";
 
 const DATA_DIR = "/mnt/c/Users/xan98/AppData/LocalLow/Nolla_Games_Noita/data";
