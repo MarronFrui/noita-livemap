@@ -867,6 +867,17 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   gradW·per ≥ 0 + eased 1 ⇒ v ≥ 1.057 × the wide [−100,100) window ⇒ solid
   always (the same shape the (150) band measured) — registered as the NOISE-kind
   residual sub-item, queued behind I31. **I37 still [~].**
+- [~] **I37's noise-sub-item re-scope (dig #154):** the noise-kind's own residual
+  shape = (i) the deep-band v ≥ 1.057 ⇒ the wide window = solid always; (ii) the
+  LAKE's data map byte-read (C129: the mode-3 SLOPE arm StartX −12000/Δ −0.37,
+  the mInsideAddValue 5.0 addend, the 0.009999 lattice scale, mMultiplierPerlin
+  1) ⇒ the byte's lake deep-band v ∈ ~[4.9, 8] = all-solid TOO ⇒ the (150)
+  lake-family's 4 under-solid tiles (the port's fG 0.03..19 vs fR 0.55–0.58) =
+  **the port's `uidFrom` population missing the lake's own data map** (the
+  mode-3 arm + the addend + the scale) — **dig #155 = the read target** (the
+  port's uid field map vs the byte's slot law). The (149)-era 0x1150f04-as-type
+  mislabel = retracted on disk (the .rdata = the `%d`/`%u` fmt strings; the
+  C119 `type` arm = the region class' own law, standing). **I37 still [~].**
 - [~] **I31's state receipt (dig #153):** the walk-chain byte model = CLOSED
   (C128's fresh start-span laws + the C105/C99/C101 stack — the port is
   byte-equal, no change); the I31 presence divergence is **GAME-LAB-GATED** —

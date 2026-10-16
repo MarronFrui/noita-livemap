@@ -10340,6 +10340,56 @@ METER-CLASS (this entry covers meter history, E1-only): every row below
   is a counted reading with its class; no new meter run this entry
   (the only instrument = the register grep + the already-run I31
   differential, cite in row 9).
+- **2026-10-16 (154) — dig #154: THE NOISE-KIND DATA-SEMANTICS SPLIT — the lake's
+  own noise block re-scopes the noise-kind residual (C129); the (149)-era
+  0x1150f04-as-"type" misread corrected on disk (the .rdata = `%d`/`%u` strings,
+  NOT the attr — the C119 `type' arm is the region-class' own parse; the
+  0x1150f04 mislabel retracted in the dig's entry).** The dig opened as the
+  noise-kind residual discriminator (the (152) noise-side sub-item's dig → the
+  I37 noise-kind state); the read: (a) the .rdata string re-check — **`0x1150f04`
+  = `%d/%u`, NOT "type"** — the dig-#153 land's 0x1150f04 claim retracted, the
+  dig-#139 C119 `type` arm stands (the kind = the region class' own attr LAW;
+  the CROWN the class needs = the sampled map-pixel's **type attr parsed
+  bytes — not the port's own `def.bitmapCaves` test** — the port's kind-split
+  table (the #152 artifact) hence = the PORT-side measure vs the BYTESide one;
+  **NEW EVIDENCE:** the lake.xml noise-param block's byte reads (the 4 laws,
+  C129: mGradientAddNoise = 3 = the SLOPE arm; mGradientSlopeStartX = −12000 /
+  SlopeDelta = −0.37 at [+0x278]/[+0x280]; mInsideAddValue = f32 5.0 at the
+  combine's addend slot [+0x260] (the no-ctor-zero law); mInsidePerlinScaleX/Y
+  = 0.009999, ScaleMin/Max = 0.057143/2, mMultiplierPerlin = "1"); and the
+  .rdata string re-check — `0x1150f04` = the `%d`/`%u` fmt strings, NOT the
+  "type" attr (the (149)-era mislabel retracted; the C119 `type` arm = the
+  region class' own law, standing). (b) **the lake.xml's own noise-param block
+  read byte-for-byte (C129 — the
+  4 laws): mGradientAddNoise = 3 (the SLOPE arm), mGradientSlopeStartX = −12000
+  /SlopeDelta = −0.37 ([+0x278]/[+0x280]); mInsideAddValue = "5.0" (the
+  combine's addend slot +0x260 = f32 5.0 = the lake's base!! no-ctor-zero law);
+  mInsidePerlinScaleX/Y = 0.009999, ScaleMin/Max = 0.057143/2, mMultiplierPerlin
+  = 1** ⇒ the lake's deep-band v = `gradW·per + 0.871429·eased + 5.0` ∈ ~ [4.9,
+  8] ⇒ **the lake's [−100,100) windows ALWAYS admit ⇒ the lake's deep band =
+  ALL-SOLID per the byte law too** — the (150) lake family's 4 under-solid
+  tiles (fG 0.03..19 vs fR 0.55+57) = the byte vs the port = the **noise-kind
+  per-BIOME data map** — the port's noise path (the `surfaceField` chain) needs
+  the LAKE's own mGradient-slope-arm mode-3 (the case-3 [+0x278]/[+0x280]
+  SPANS = the megative_band y-slope) — the port's surfaceField = no lake-range
+  special-case ⇒ the port's lake = the noise chain's own carve shape, vs the
+  byte's = the SLOPE-arm + 5.0 addend...
+  - **The re-scope (the dig's outcome):** the noise-kind's own residual shape =
+    (i) **the deep-band v ≥ 1.057 ⇒ the wide [−100,100)-window = all-solid
+    always** (the (152) noise-sub-item, registered); (ii) **the lake's data
+    set (C129's LAKE map)** — the lake's noise-chain shape = the port's noise
+    paints ~nothing (the (150) lake family's fG 0.03..19 vs fR 0.55–0.58) =
+    **the port's lake = the per-lane numerical drop**; the port's lake path =
+    the r-band's mGradient arm(s) under the
+    LAKE's own data (the mode-3 slope arm with StartX −12000 / Δ −0.37, the
+    mInsideAddValue(5.0)-shaped addend, the 0.009999 lattice scale) —
+    **the port's `uidFrom` population family for the lake-family defs = dig
+    #155's read target** (the port's uid field map vs the byte's slot law;
+    the (150) triage's yardsticks = the committed files).
+  - **METER-CLASS:** no meter run this dig (the byte-read + the XML reads;
+    the #150 triage E2 + the #152 kind-split E1 = the running refs; no E0).
+    No code change; the 336/3/339 battery stands.
+  - **Next free: entry **(155)**, C130, I38, X115; §8 row 52.
 - **2026-10-16 (153) — dig #153: THE WALK-CHAIN START-LAW READ (I31 state): the
   byte-side start-x/spans are already byte-modeled; the I31 presence divergence
   is GAME-LAB-GATED (the full-grid caves dump), the walk side = CLOSED for the
