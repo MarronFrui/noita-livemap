@@ -44,7 +44,9 @@ for (const [fn, p] of found) {
     for (let cy = 0; cy < 52; cy++) for (let cx = 0; cx < 52; cx++) {
       const gx = p.tx * CHUNK + cx * 10 + 5, gy = p.ty * CHUNK + cy * 10 + 5;
       let v; n++;
-      try { v = proto.surfaceField(uid, gx, gy, gradAt, 0, DEF_SEED); }
+      // dig #146: surfaceField no longer takes gradAt/valueOfP94 (field0
+      // ≡ 1.0) — the gradAt built above no longer reaches this call.
+      try { v = proto.surfaceField(uid, gx, gy, DEF_SEED); }
       catch (e) { thr++; firstErr = firstErr ?? e.message; break outer; }
       if (v > 0.5) solid++; else air++;
     }

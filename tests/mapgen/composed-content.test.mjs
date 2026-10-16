@@ -259,4 +259,34 @@ describe.skipIf(!hasData)("composed-content laws (dig #144, I34/I33)", () => {
       expect(informative, `seed ${seed}: fewer than 2 texture-bearing kind-0 pairs — the anchor law is unmeasured`).toBeGreaterThanOrEqual(2);
     }
   });
+
+  // dig #146 — THE FIELD0 LAW (C122, entry (146)): count-pinned chunks on the
+  // live server's seed (500412504), gates:
+  // (1) lavalake (41,66): 0/2704 (old floor-0.5 law) → 414/2704 (field≡1)
+  //     — FAILS under the old law's arithmetic (the floor kept rp ≤ 0.5 in
+  //     every cell ⇒ ALL-AIR); (2) solid_wall (1,70): 1367/2704 → 1367/2704
+  //     (byte-stable — the deep-row ramp-saturation byte argument holds
+  //     exactly); (3) temple_wall (31,67): 0/2704 → NULL (honest
+  //     fall-through — the kind-0 lane now reaches classify for an
+  //     previously ALL-AIR chunk and the un-ported is_polygon=1 arm
+  //     declines the whole chunk instead of killing the process — FAILS
+  //     under the old arithmetic, which returned 0, not null).
+  test("THE FIELD0 LAW count (dig #146): lavalake 0→414 (FAILS old law: 0), solid_wall 1367→1367 (byte-stable), temple_wall 0→NULL (fails old law: 0)", async () => {
+    const { noiseChunkMask } = await import("../../mapgen/lib/noise-terrain.mjs");
+    const { loadBiomeConfig } = await import("../../mapgen/lib/biomes.mjs");
+    const cfg = loadBiomeConfig(DATA_DIR);
+    const LIVE_SEED = 500412504;
+    const solids = (tx, ty) => {
+      let r;
+      try { r = noiseChunkMask(cfg, tx, ty, LIVE_SEED); }
+      catch (e) { return `THROW:${e.message.slice(0, 24)}`; }
+      if (!r) return "NULL";
+      let s = 0;
+      for (const v of r.mask) s += v;
+      return s;
+    };
+    expect(solids(41, 66), "lavalake kind-0 — THE FIELD0 discrimination").toBe(414);
+    expect(solids(1, 70), "solid_wall deep — byte-stable through the change").toBe(1367);
+    expect(solids(31, 67), "temple_wall polygon — honest fall-through").toBe("NULL");
+  });
 });

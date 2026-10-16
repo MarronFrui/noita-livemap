@@ -20,22 +20,28 @@
 // for the def fields uidFrom actually reads (uidFrom itself is not
 // exported — the consequence is pinned two-sided below).
 //
-// Layer 2 (port-only, always runs): frame pins at (xd, yd) = (−7.5, 3.5)
-// with gradAt ≡ 10 ⇒ field0 = 10 (≥ KERNEL 0.5) ⇒ rp = f(s·10), where s
+// Layer 2 (port-only, always runs): frame pins at (xd, yd) = (−7.5, 75)
+// under THE FIELD0 LAW (dig #146): field0 ≡ 1.0 ⇒ rp = f(s·1) = s, where s
 // is the BAND-RAMP r (true 0x90B280, dig #142 — replaces the
 // noiseDispatch surrogate): fixture band (−100,100), mode 1,
 // gradNoiseScale 0 ⇒ params exactly (−100,100) (core(0,0)=0), no seam
-// at this frame (lx = 504 > 41) ⇒ t = f(103.5/200) = 0.5175 ⇒ rp ≈
-// 5.1749997 > 0.85 (the comiss precondition is asserted in-test):
+// at this frame (lx = 504 > 41, ly = 75 > 41) ⇒ t = f(175/200) = 0.875 >
+// 0.85 (the comiss precondition is asserted in-test). The frame MOVED
+// from (−7.5, 3.5): with field ≡ 1 that frame gives s = 0.5175 ≤ 0.85,
+// no case arm is reachable and the pins below go vacuous. G10 = a
+// SENTINEL in the argument slot that WAS gradAt — under the old
+// signature/arithmetic rp = f(s·10) and every pin below FAILS (the #146
+// signature binds it as seedInt: unused here — no offsetBySeed, and
+// gradWCoef 0 keeps insidePerlin off the lane):
 //   - origin identity: band (100,200) ⇒ A ≥ y = 0 ⇒ r = 0.0 DIRECT (the
 //     gate's first return) ⇒ every addNoise lane, incl. the live default
 //     arm (0), returns 0 with NO throw (switch never entered);
 //   - winter consequence: census attr null → uidFrom noiseKind −1 →
-//     insidePerlin dispatch throws kind=-1 (two-sided pin; reachable now
-//     only with gradWCoef ≠ 0 — the rp gate passes with rp ≈ 5);
-//   - old-law discriminators: the surrogate f(noiseDispatch(5,x,y)·10)
-//     is 0.9005438 at the probe frame and ≠ 0 at (0,−5000), while the
-//     band law gives 5.1749997 and exactly 0 (band (−1024,1024), A ≥ y);
+//     insidePerlin dispatch throws kind=-1 (two-sided pin; reachable with
+//     gradWCoef ≠ 0 — the rp gate passes with rp = 0.875 > 0.51);
+//   - old-law discriminators: the surrogate noiseDispatch(5,x,y) ≠ rp at
+//     the probe frame, and at (0,−5000) the band law gives exactly 0
+//     (band (−1024,1024), A ≥ y) while the surrogate ≠ 0;
 //   - default arm byte-tail pin (I20②, dig #113): live addNoise 0 +
 //     stale 4 both COMPUTE the byte chain a = parityLattice2d(x·0.025,
 //     y·0.025), g = a·0.05+0.05, n = simplex2d(x·0.5·0.02·g, y·0.5·0.02·g)
@@ -231,15 +237,18 @@ describe.skipIf(!hasNoitaData())("P1 Topology census (dig #98, data-gated)", () 
 });
 
 // ---------------------------------------------------------------------------
-// Layer 2 — port-only frame pins (C77). Frame: (−7.5, 3.5), gradAt ≡ 10.
+// Layer 2 — port-only frame pins (C77), rebased for THE FIELD0 LAW
+// (dig #146): rp = f(r·1) so the probe frame moved to y = 75 (t = 0.875
+// > 0.85 — the case-arm precondition; the old y = 3.5 gives 0.5175 and
+// no case arm is reachable).
 // uid mirror = uidFrom (noise-terrain.mjs) incl. the dig-#142 band-block
 // spread + driver attach; gradWCoef 0 is a legal byte state (+0x268 guard
 // skips the insidePerlin lane) and isolates the FINAL to f(P·rpost) so the
 // tail is pinned cleanly.
 // ---------------------------------------------------------------------------
 const XD = -7.5;
-const YD = 3.5;
-const G10 = () => 10; // field0 = 10 ≥ KERNEL ⇒ rp = f(s·10)
+const YD = 75;
+const G10 = () => 10; // SENTINEL in the pre-#146 gradAt slot (see header) — field ≡ 1 must IGNORE it
 
 // band fixture = bandBlockOf's field set (noise-terrain.mjs, dig #142);
 // gradNoiseScale 0 ⇒ mode-1 core(0·xr, 0·A) = core(0,0) = 0 exactly
@@ -292,11 +301,12 @@ const uidOf = (over = {}) => ({
   maxX: 0,
   ...over,
 });
-// rp = f(r·10) with r = the band-ramp law (true 0x90B280, dig #142):
-// at the probe frame the table path resolves the fixture band with no
-// seam (lx = 504 > 41) ⇒ r = f(103.5/200), rp = 5.1749997.
+// rp = f(r·field0), field0 ≡ 1.0 (dig #146) with r = the band-ramp law
+// (true 0x90B280, dig #142): at the probe frame the table path resolves
+// the fixture band with no seam (lx = 504 > 41, ly = 75 > 41) ⇒
+// r = f(175/200) = 0.875 ⇒ rp = 0.875.
 const RAMP_UID = uidOf();
-const rpAt = (x, y) => f(bandRampEval(RAMP_UID.driver, RAMP_UID, x, y) * 10);
+const rpAt = (x, y) => f(bandRampEval(RAMP_UID.driver, RAMP_UID, x, y) * 1);
 const rpPre = (x, y) => {
   const rp = rpAt(x, y);
   expect(rp).toBeGreaterThan(0.85); // comiss 0x11dfb84 @0x90ab48 precondition
@@ -328,34 +338,36 @@ describe("surfaceField switch/tail frame pins (dig #98, port-only)", () => {
     const O = () => uidOf({ ...BAND(100, 200), driver: drvOf(BAND(100, 200)) });
     const o = O();
     expect(bandRampEval(o.driver, o, 0, 0)).toBe(0);
-    expect(f(bandRampEval(o.driver, o, 0, 0) * 10)).toBe(0);
+    expect(f(bandRampEval(o.driver, o, 0, 0) * 1)).toBe(0); // rp = r·field0, field0 ≡ 1 (dig #146)
     for (const an of [0, 1, 2, 3, 4]) {
       expect(surfaceField(uidOf({ ...BAND(100, 200), addNoise: an, driver: drvOf(BAND(100, 200)) }), 0, 0, G10, 0, 0), `lane ${an}`).toBe(0);
     }
   });
 
   test("old-r surrogate discriminator (dig #142): the band law replaces noiseDispatch", () => {
-    // probe frame: the band law gives rp = 5.1749997; the pre-dig-#142
-    // surrogate f(noiseDispatch(5,x,y)·10) gives 0.9005438 — same test
-    // inputs, different law ⇒ a replacement test that FAILS under the
-    // old arithmetic (rpAt's value would be the surrogate's)
-    expect(rpAt(XD, YD)).not.toBe(f(noiseDispatch(5, XD, YD) * 10));
-    expect(rpAt(XD, YD)).toBe(5.174999713897705);
+    // probe frame: the band law gives rp = 0.875 (field0 ≡ 1, dig #146);
+    // the pre-dig-#142 surrogate noiseDispatch(5,x,y) gives a different
+    // value — same test inputs, different law ⇒ a replacement test that
+    // FAILS under the old arithmetic (rpAt's value would be the surrogate's)
+    expect(rpAt(XD, YD)).not.toBe(noiseDispatch(5, XD, YD));
+    expect(rpAt(XD, YD)).toBe(0.875);
     // (0,−5000): band (−1024,1024) ⇒ A ≥ y ⇒ r = 0 EXACTLY (the gate's
-    // first return) while the surrogate is ≈ −2.941 there — the count
+    // first return) while the surrogate ≈ −0.294 there — the count
     // law on the 0-arm at an out-of-range y
     const H = uidOf({ ...BAND(-1024, 1024), driver: drvOf(BAND(-1024, 1024)) });
     expect(bandRampEval(H.driver, H, 0, -5000)).toBe(0);
-    expect(f(noiseDispatch(5, 0, -5000) * 10)).not.toBe(0);
+    expect(noiseDispatch(5, 0, -5000)).not.toBe(0);
   });
 
   test("winter consequence: census noise_type null ⇒ noiseKind −1 ⇒ kind=-1 throw (two-sided)", () => {
     expect(() => noiseDispatch(-1, 0, 0)).toThrow(/kind=-1/);
     // gradWCoef 1 makes the rp > 0.51 lane REACH insidePerlin (with the
-    // default 0 the +0x268 guard skips it — rp ≈ 5 passes the gate)
-    expect(() => surfaceField(uidOf({ noiseKind: -1, gradWCoef: 1 }), 0, 0, G10, 0, 0)).toThrow(/kind=-1/);
+    // default 0 the +0x268 guard skips it — rp = 0.875 at the probe frame
+    // passes the gate; at (0,0) the field-≡1 law gives r = 0.5 ≤ 0.51 and
+    // the lane would NOT be reached, hence the probe frame here)
+    expect(() => surfaceField(uidOf({ noiseKind: -1, gradWCoef: 1 }), XD, YD, G10, 0, 0)).toThrow(/kind=-1/);
     // guarded-off side: gradWCoef 0 ⇒ no dispatch ⇒ no throw (two-sided)
-    expect(() => surfaceField(uidOf({ noiseKind: -1, gradWCoef: 0 }), 0, 0, G10, 0, 0)).not.toThrow();
+    expect(() => surfaceField(uidOf({ noiseKind: -1, gradWCoef: 0 }), XD, YD, G10, 0, 0)).not.toThrow();
   });
 
   test("default arm byte-tail pin (I20②): live 0 + stale 4 compute, no throw", () => {
@@ -372,14 +384,15 @@ describe("surfaceField switch/tail frame pins (dig #98, port-only)", () => {
     }
     // sensitivity: the arm's lattice is parityLattice2d (C83), NOT the
     // plain-smoothstep whiteLattice2d (C40). The substitution moves the
-    // LATTICE input by ≈1.28e-2 at this frame and the pinned output by
-    // ≈9.2e-5 (the g → simplex → tail chain compresses it), so both
-    // asserts are stated at their own measured scale.
+    // lattice value by 7.23e-4 at the rebased frame and the pinned output
+    // by 2.48e-5 (the g → simplex → tail chain; both MEASURED this dig at
+    // (−7.5, 75) — the old (−7.5, 3.5) frame measured 1.28e-2 / 9.2e-5),
+    // so both asserts are stated at their own measured scale.
     const aPlain = whiteLattice2d(f(XD * K2.h025), f(YD * K2.h025));
-    expect(Math.abs(a - aPlain)).toBeGreaterThan(1e-3);
+    expect(Math.abs(a - aPlain)).toBeGreaterThan(1e-4);
     const gPlain = f(aPlain * K2.h05 + K2.h05);
     const nPlain = simplex2d(f(XD * K.KERNEL) * K2.h02 * gPlain, f(YD * K.KERNEL) * K2.h02 * gPlain);
-    expect(Math.abs(exp - expOut(tail(f(nPlain * rp), rp)))).toBeGreaterThan(1e-5);
+    expect(Math.abs(exp - expOut(tail(f(nPlain * rp), rp)))).toBeGreaterThan(1e-6);
   });
 
   test("lane 1 byte-tail pin (+ old-sign discriminator)", () => {
@@ -433,6 +446,58 @@ describe("surfaceField switch/tail frame pins (dig #98, port-only)", () => {
     expect(Math.abs(outs[0] - outs[1])).toBeGreaterThan(1e-6);
     expect(Math.abs(outs[1] - outs[2])).toBeGreaterThan(1e-6);
     expect(Math.abs(outs[0] - outs[2])).toBeGreaterThan(1e-6);
+  });
+
+  test("THE FIELD0 LAW count (dig #146): rp ≡ r at all 33 row-spectrum frames, sentinel gradAt ignored (0 violations + skip path)", () => {
+    // COUNT LAW (entry (146), C122): over 33 frames spanning sky (y ≤ A ⇒
+    // r = 0), the ramp window (0 < r ≤ 0.85), the case-arm band
+    // (r > 0.85) and the deep rows (y ≥ B ⇒ r ≡ 1.0 — the dig-#146
+    // scope-(b) byte read), surfaceField must equal the byte chain with
+    // field0 ≡ 1.0 — i.e. rp = f(r·1) = r. The 4th arg carries the
+    // SENTINEL fn where the pre-#146 signature read gradAt: that old law
+    // floors it at 0.5 ⇒ rp = f(0.5·r) at every r > 0 frame ⇒ 24 of the
+    // 33 frames mismatch ⇒ this replacement test FAILS under the old
+    // law's arithmetic. Regime counts (9 zero / 15 window / 9 arm) are
+    // pinned so the sweep cannot go vacuous under a band-fixture tweak.
+    const B = BAND(-1024, 1024);
+    const uid = uidOf({ ...B, driver: drvOf(B), addNoise: 42 /* stale ⇒ default arm */, addValue: 0 });
+    const sentinel = () => 0.25; // pre-#146 gradAt ⇒ KERNEL floor 0.5 ⇒ rp = f(0.5r)
+    const ys = [-5000, -2048, -1024, -1, 0, 75, 117, 512, 800, 1536, 5000];
+    const xs = [-7.5, 0, 1200.5];
+    const mismatches = [];
+    let nZero = 0, nArm = 0, nWindow = 0;
+    for (const y of ys) {
+      for (const x of xs) {
+        const r = bandRampEval(uid.driver, uid, x, y); // the r law is unchanged by #146
+        const rp = f(r * 1); // field0 ≡ 1.0 ⇒ the field slot = r exactly
+        if (rp === 0) nZero++;
+        else if (rp > 0.85) nArm++;
+        else nWindow++;
+        let exp;
+        if (rp > 0.85) {
+          // default arm (I20②): parity lattice → g → simplex → C77 tail
+          const a = parityLattice2d(f(x * K2.h025), f(y * K2.h025));
+          const g = f(a * K2.h05 + K2.h05);
+          const n = simplex2d(f(x * K.KERNEL) * K2.h02 * g, f(y * K.KERNEL) * K2.h02 * g);
+          exp = expOut(tail(f(n * rp), rp));
+        } else {
+          // rp ≤ 0.85 ⇒ no case arm; gradWCoef 0 ⇒ no per lane ⇒
+          // out = f(0·gradW·per) + f(perlinCoef·rp) + 0
+          exp = expOut(rp);
+        }
+        const got = surfaceField(uid, x, y, sentinel);
+        if (got !== exp) mismatches.push({ x, y, r, rp, got, exp });
+      }
+    }
+    expect(mismatches).toEqual([]);            // 0 violations of the field≡1 chain
+    expect(nZero + nWindow + nArm).toBe(33);   // the count under test
+    expect([nZero, nWindow, nArm]).toEqual([9, 15, 9]); // regime coverage pin
+    // deep byte law (scope b): y ≥ B ⇒ r ≡ 1.0 exactly (mode-1 noise at
+    // gradNoiseScale 0 ⇒ params are the (A,B) pair bit-exactly)
+    expect(bandRampEval(uid.driver, uid, 0, 1536)).toBe(1);
+    expect(bandRampEval(uid.driver, uid, 1200.5, 5000)).toBe(1);
+    // skip path: the driver-missing guard (the charter's 0/1/N + skip)
+    expect(() => surfaceField({ ...uid, driver: undefined }, 0, 0, sentinel)).toThrow(/driver missing/);
   });
 });
 

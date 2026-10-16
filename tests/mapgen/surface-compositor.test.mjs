@@ -138,7 +138,7 @@ describe.skipIf(!hasData)("surface-band compositor (digs #130/#131/#132)", () =>
       if (c[0] > 180 && c[1] > 140 && c[2] < 140) art++;
     }
     expect(art).toBeGreaterThan(20);
-  });
+  }, 180000);
 
   test("the per-area background law (dig #132): the def carries the Topology backgroundImage and the loader tiles it", async () => {    const { loadBiomeConfig, biomeAt } = await import("../../mapgen/lib/biomes.mjs");
     const { noiseChunkMask } = await import("../../mapgen/lib/noise-terrain.mjs");

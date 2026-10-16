@@ -633,12 +633,13 @@ describe("driver frame contract (C119) + the surfaceField guard", () => {
       noiseKind: 5, gradWCoef: 0, perlinCoef: 0.871429, addNoise: 1,
       addValue: 0, ...cfgOf(),
     };
-    expect(() => surfaceField({ ...base, driver: undefined }, 0, 0, () => 1, 0, 0))
+    expect(() => surfaceField({ ...base, driver: undefined }, 0, 0, 0))
       .toThrow(/driver missing/);
     // with a driver attached the lane runs: band (100,200) at (0,0) →
-    // r = 0 → rp = 0 → the gates are skipped → FINAL = 0, no throw
+    // r = 0 → rp = r·field0 = 0 (field0 ≡ 1.0, dig #146) → the gates are
+    // skipped → FINAL = 0, no throw
     const ok = { ...base, driver: drvOf(BAND(100, 200, { mode: 0 })) };
-    expect(surfaceField(ok, 0, 0, () => 1, 0, 0)).toBe(0);
+    expect(surfaceField(ok, 0, 0, 0)).toBe(0);
   });
 });
 

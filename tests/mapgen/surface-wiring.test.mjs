@@ -5,15 +5,17 @@
 // (121), I25 index half): for <BitmapCaves> biomes the gate value is the
 // caves grid read DIRECTLY at cell coords — the game's sampler reads it
 // via getter 0x9499f0 on &owner+0xb4, idx = W·y + x (stride [0x9c] =
-// grid[0]), writer 0x8EE750 same law — NOT surfaceField's u-law grad
-// chain (kind-0 only). Non-caves grads still take the kind-0 combine at
-// WORLD px (C80: wx = x − 17920, wy = canvas py − 31744). evaluator2
+// grid[0]), writer 0x8EE750 same law — NOT surfaceField (the kind-0
+// combine never touches the caves grid; its u-law grad chain died with
+// the P==NULL law, dig #146). Non-caves biomes take the kind-0 combine at
+// WORLD px (C80: wx = x − 17920, wy = canvas py − 31744) with field0 ≡
+// 1.0 — no gradAt argument exists any more (dig #146). evaluator2
 // takes the classifier's own lane coords (the evaluator2 ≡ classify
 // floor-fix identity). Chain pinned by C76/C80 + dig #121:
 //   caves:    field = gradAt(wx, wy)          (world frame, cell law —
 //                                              the wrapper mod-wraps the
 //                                              tile, dig #121)
-//   kind-0:   field = surfaceField(uid, wx, wy, gradAt, 0, 0)  (C80)
+//   kind-0:   field = surfaceField(uid, wx, wy, seed)  (C80; field0 ≡ 1.0)
 //   gate:  field > 0.5 (@0x90dbc3 comiss 0x11dfa94 → jbe) ∧ table ≠ null
 //   v = evaluator2(x, y, field)                        (@0x90dd24)
 //   solid = classify(table, x, y, v) ≠ null            (@0x90dd7e → accept

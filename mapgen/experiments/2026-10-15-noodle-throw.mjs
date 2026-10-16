@@ -85,7 +85,9 @@ for (const p of probes) {
       const gx = p.tx * CHUNK + cx * 10 + 5;
       const gy = p.ty * CHUNK + cy * 10 + 5;
       let v;
-      try { v = proto.surfaceField(uid, gx, gy, gradAt, 0, DEF_SEED); }
+      // dig #146: surfaceField no longer takes gradAt/valueOfP94 (field0
+      // ≡ 1.0) — the gradAt build above is this probe's stage telemetry only.
+      try { v = proto.surfaceField(uid, gx, gy, DEF_SEED); }
       catch (e) { nThrowSF++; firstErr = firstErr ?? { stage: `surfaceField`, e, gx, gy, cx, cy }; n++; break outer; }
       n++;
       if (vs.length < 5) vs.push(v);

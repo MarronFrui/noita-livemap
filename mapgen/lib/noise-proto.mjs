@@ -791,14 +791,14 @@ export function bandRampEval(driver, config, x, y) {
 }
 
 // ============ SURFACE evaluator — true 0x90a860 = slab 0x50a060 (P1) =======
-// (x,y) = f64; gradAt = the per-biome gradient-grid sampler (four 0x9fe620
-// reads + smooth-corner bilinear INSIDE the binary — the caller passes a
-// function; in-binary the grid is the image-baked BitmapNoise [uid+0x1d4],
-// C39); uid = config (see C37 offsets). Returns the FIELD.
-// gradBiasScale = the +0.49162514 gradient-arg scale, P[+0x94] = the
-// per-biome [P+0x94] float (bitmap origin).
-// NOT byte-settled inside the grad* ramp: the per-area field build (the
-// BitmapCaves band-stack family, C44) — til then gradAt is injected.
+// (x,y) = f64; uid = config (see C37 offsets). Returns the FIELD.
+// field0 ≡ 1.0 (const 0x11dfbf0) — the dig-#146 P==NULL law, documented at
+// the field site below: the in-binary gradient-grid sampler (the four
+// 0x9fe620 reads + smooth-corner bilinear over the image-baked BitmapNoise
+// [uid+0x1d4], C39) runs ONLY when a P exists, and NO shipped biome has
+// one (C122), so gradAt/valueOfP94 are not parameters any more. The
+// per-area field build (BitmapCaves band-stack, C44) belongs to the caves
+// LANE, never to this function (dig #121).
 // SLOT BINDING (CE-verified 2026-09-20 (35)/(21 dig), CONSTANTS.md C43/C44):
 // the FINAL combine's TERM offsets are byte-fixed ints ([+0x268] for the
 // gradW term, [+0x264] for the per term) — the CE run only re-LABELED the
@@ -806,14 +806,14 @@ export function bandRampEval(driver, config, x, y) {
 // 0.642857), +0x264 holds the mMultiplierGradient value (hills 0.871429).
 // Hence gradWCoef = [+0x268] = XML mMultiplierPerlin, perlinCoef = [+0x264]
 // = XML mMultiplierGradient (C43's earlier (23)-map had the pair swapped).
-export function surfaceField(uid, x, y, gradAt, valueOfP94, seedInt) {
+export function surfaceField(uid, x, y, seedInt) {
   // dig #142: fail loud if the driver frame is missing — every lane that
   // reaches the r-site below must have run noise-terrain's
   // `uid.driver = makeBandDriver(...)` attach (V2 :266 / V3 :394);
   // a silent undefined would fall into bandRampEval's config arms.
   if (!uid.driver) throw new Error("surfaceField: uid.driver missing (band-ramp lane, dig #142)");
-  // BYTE-MODEL (dig #22, 2026-09-21 (40); supersedes the (23)/(26) shape):
-  //   field0 = gradAt bilinear, lower-capped at 0.5        (0x50a0d2..0x50a257)
+  // BYTE-MODEL (dig #22, 2026-09-21 (40); field0 lane REVISED dig #146):
+  //   field0 = 1.0 — the const f32 0x11dfbf0, see THE FIELD0 LAW below
   //   r  = the r-evaluator true 0x90AA80 (slab 0x50aa80) → ported as the
   //        band-ramp lane bandRampEval (true 0x90B280, dig #142 — the
   //        class-0 r-eval, replacing the noiseDispatch surrogate)
@@ -851,24 +851,28 @@ export function surfaceField(uid, x, y, gradAt, valueOfP94, seedInt) {
   //       out = [+0x268]·gradW·per + [+0x264]·rpost + add
   //  (naming: gradWCoef = [+0x268] = the CE mMultiplierPerlin VALUE;
   //           perlinCoef = [+0x264] = the CE mMultiplierGradient VALUE.)
-  // dig #117 (I23② action, entry (117)): THE ×0.1 LANDS — byte law
-  // re-verified 2026-10-09 in true 0x90a860 (the call-site frame is
-  // PIXELS+0.5, C95):
-  //   u = mulss( cvtpd2ps(0.49162514·x + a), f32 0.1@0x11df974 )  @0x90a8f9..0x90a90c
-  //   v = mulss( cvtpd2ps(0.49162514·y + a·6.86e-07@0x11dfa08), the same 0.1 )
-  //                                                          @0x90a904..0x90a924
-  // (a = P[+0x94] = the per-biome bitmap origin; = 0 here = I24 residual.
-  //  The y-arm's a·6.86e-07 bias meaning is OPEN (C95).) gradAt therefore
-  // indexes a GRID at texel = ~20.34 world px (1/0.049162514); the r-eval
-  // below keeps RAW PIXELS (call 0x90b280 @0x90aadd).
-  let field = gradAt(
-    f(f(x * K2.f64_049162514) + valueOfP94) * K2.f32_0p1,
-    f(f(y * K2.f64_049162514) + valueOfP94 * K2.f64_6p86e07) * K2.f32_0p1);
-  if (field < K.KERNEL) field = K.KERNEL;                        // 0x50a5b6
+  // THE FIELD0 LAW (dig #146, entry (146), C122 — this replaced the
+  // dig-#117 u-law gradAt model above):
+  //   field0 inits to the const f32 1.0 (0x11dfbf0). The P grid — the
+  //   mBitmapNoise object at [uid+0x1d4] — is NULL for EVERY shipped
+  //   biome: `mBitmapNoise` has ZERO hits across the whole extracted
+  //   data/ tree, `bitmap_noise_file` only stores its path string at
+  //   config[+0xa8] (never a P build), and every ptr/int-typed 0x1d4
+  //   write site in the exe is class-evidence-excluded (ctor zero
+  //   0x49604d + the two name-equality attach arms 0x49d6ce/0x49e524
+  //   only — all other writers belong to trigger/timer/freelist
+  //   structs). So BOTH [uid+0x4] paths converge on the no-P early-out
+  //   → field0 ≡ 1.0, and the `if (field0 ≤ 0) return 0` early-zero
+  //   @0x90b100 never trips. The u-law below (@0x90a8f9..0x90a924,
+  //   dig #117: u = f32(0.49162514·x+a)·0.1, C95) and the gradAt +
+  //   KERNEL-0.5-floor model are the P≠NULL arm — DEAD FOR SHIPPED
+  //   DATA (P-1a: mGradientType/MinY/... absent from the exe too).
+  //   The port therefore no longer takes gradAt/valueOfP94 params.
+  const field0 = 1.0;                                            // const 0x11dfbf0
   // 2) r-eval + r' (the field slot := r·field, 0x50a2e2..0x50a2fe):
   // const rRaw = noiseDispatch(uid.noiseKind, x, y);              // 0x90AA80 surrogate (flagged) — SUPERSEDED dig #142
   const rRaw = bandRampEval(uid.driver, uid, x, y);              // true 0x90B280 @0x90aadd (X82, dig #142; dig #145 I33(b) fixed the caller FRAME — world px — NOT this swap)
-  field = f(rRaw * field);                                       // FIELD SLOT := r' @0x50a2fe
+  let field = f(rRaw * field0);                                  // FIELD SLOT := r' @0x50a2fe (field0 ≡ 1.0 ⇒ r' = r, exact; the case tails below reassign this slot — byte law)
   const rp = field;                                              // r'
   let gradW = 0, per = 0, add = 0;                               // zeroed @0x50a2ed/0x50a2f2
   if (rp > K2.h051) {                                             // comiss 0.51 @0x50a2f7

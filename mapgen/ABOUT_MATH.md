@@ -10340,6 +10340,147 @@ METER-CLASS (this entry covers meter history, E1-only): every row below
   is a counted reading with its class; no new meter run this entry
   (the only instrument = the register grep + the already-run I31
   differential, cite in row 9).
+- **2026-10-16 (146) — dig #146: THE FIELD0 LAW — field0 ≡ 1.0 FOR EVERY
+  SHIPPED BIOME (C39's gradAt stand-in RETIRED); the deep-band r-eval and
+  insidePerlin are byte-VERIFIED; the kind-0 lanes drop the gradAt param.
+  The noise-lane chunks' wrongness had three suspected sources: the C39
+  gradAt ramp (a D-stand-in that never had byte backing), the deep-band
+  r-eval past the band window, and the insidePerlin constants. Byte reads
+  closed (a) and (b) and (c) structurally; (d) lands as count tests.**
+  **NEW EVIDENCE:** the field0-write census / the parse-fn vtable /
+  insidePerlin's full window — all extracted THIS session (dumps named +
+  md5'd in MANIFEST **X105**; representatives:
+  `mapgen/extractions/dig146-fulltext.asm` md5 `108be24c8e255b25d373981c5bbb8d7b`
+  (the whole .text write-site sweep: every `0x1d4`-offset write classified
+  by struct type) and `mapgen/extractions/dig146-attrsweep.txt` md5
+  `993b4b0120578eb9512110230663b6ac` (the P-1a attr-string sweep: all four
+  suspect mGradient* attrs ABSENT from the exe — falsifies P-1a).
+  - **THE FIELD0 LAW (B, fresh full-window).** `[uid+0x1d4]` (the P /
+    BitmapNoise pointer) writes = ctor-zero (0x49604d) + the two
+    mBitmapNoise name-equality attach arms (0x49d6ce / 0x49e524) only;
+    every other ptr/int-typed 0x1d4 write site in .text is
+    class-evidence-excluded (trigger/timer/freelist structs). `mBitmapNoise`
+    has **0 hits across the whole extracted `data/` tree** (the XML files
+    never construct one), `bitmap_noise_file` stores only its path string at
+    config[+0xa8] (never a P build). Both [uid+0x4] paths therefore converge
+    on the no-P early-out ⇒ **field0 ≡ 1.0** (the const f32 0x11dfbf0), and
+    the `if (field0 ≤ 0) return 0` early-zero @0x90b100 never trips. The
+    port's pre-#146 model (the C39 gradAt ramp floored at 0.5) was wrong at
+    three levels: the u-law GRID index (the P[+0x94] origin is
+    garbage-collected), the floor (the KERNEL 0.5 floor only exists in the
+    P≠NULL arm), and the whole ramp SHAPE (C39 demoted to experiment-only).
+  - **The r-eval past the window (B, fresh).** `bandparams` /
+    `bandRampEval` / `rampGate` byte-VERIFIED against the port (no change):
+    deep rows y ≥ B ⇒ **r ≡ 1.0** (the gate's second return), the seam
+    `fl = 1 − lx/41` at lx ≤ 41, the 41.0 f32 (0x11e0274), the config-path
+    `y > 380.0` (0x11e0050). The count test below pins r ≡ 1.0 at y = 1536
+    and 5000 for the (−1024,1024) band (mode-1 noise, gradNoiseScale 0 ⇒
+    params = (A,B) bit-exactly, core(0,0) = 0).
+  - **insidePerlin (B, fresh full window 0x90b110..0x90b280).** Structure
+    + all constants byte-confirmed: 0.05243442 (0x11dfcc8), 0.1 (0x11dfd08),
+    1.312e-05 (0x11dfa68), 2.331e-05 (0x11dfa80), the bias table
+    (0x11e0ba0: 0.0 / 4294967296.0); slots +0x230/+0x238 = sx/sy,
+    +0x250/+0x258 = ox/oy, +0x24d = offsetBySeed (two 0x9119d0 draws),
+    +0x228 = fbm select (je → 0x8fd920, else → 0x8fdad0), +0x240/+0x241/
+    +0x242 = squared/clamped/scaled, +0x224 = noiseKind (in ecx). The
+    port's seed-draw VALUES remain a D-stand-in (C27 shape, unchanged).
+  - **Parse fns = virtual methods of the biome-config class (B, fresh).**
+    rdata vtable 0x117ef90 (RTTI COL 0x117ef8c), ctor vptr write 0x495c53;
+    the parse prologue takes (name@[ebp+8], value@[ebp+0xc]), the first arm
+    key 0x117915c = `'type'` → [config+0x4] = 0x9c81a0(value), the second
+    key 0x116a8fc = `'name'`. P-3 (a pre/post render JSON check) FALSIFIED
+    (identical output both sides — the lane changes don't alter the
+    composed map at the probe tiles).
+  - **The port (fix order).** `surfaceField`'s signature drops
+    gradAt/valueOfP94 → `(uid, x, y, seedInt)`; the u-law + KERNEL-floor
+    block is replaced by `field0 = 1.0` (the const cite above) + the FIELD0
+    LAW comment. The V2/V3 lanes in `noise-terrain.mjs` stop building
+    gradAt for kind-0 biomes (the else-arms are gone; `gradKind` defaults
+    to `"field0"`); `makeGradAt`/`makeGradAtFromTopology` stay exported but
+    RETIRED FROM THE LANES (C39 demoted) for the two dated probes that still
+    construct them (kind-default-probe, noodle-throw — I35's instrument,
+    its call sites updated to the 4-arg signature with DEF_SEED).
+  - **Count tests (d, scope).** `surface-census` Layer 2 rebased: the probe
+    frame moves (−7.5, 3.5) → **(−7.5, 75)** (t = 0.875 > 0.85 keeps the
+    case arms reachable under field ≡ 1; the old frame gives rp = 0.5175 ≤
+    0.85 ⇒ every pin would go vacuous); G10 = a SENTINEL in the old gradAt
+    slot (under the old signature/arithmetic rp = f(s·10) ⇒ every pin FAILS
+    — the replacement test fails under the old law's arithmetic). NEW count
+    test: **THE FIELD0 LAW count** — 33 row-spectrum frames (9 zero /
+    15 window / 9 arm; regime pin [9,15,9]), 0 violations of the
+    field≡1 chain, sentinel ignored, the r ≡ 1.0 deep-byte pins, and the
+    driver-missing skip path. The lattice-sensitivity thresholds re-measured
+    at the new frame (lattice 7.23e-4, output 2.48e-5 — both MEASURED this
+    dig; METER-CLASS: E1, count/pin class).
+  - **PREDICTIONS (pre-registered BEFORE the meter runs).**
+    - **P-1 (METER-CLASS: E1 — the triage146 family stats, A/B
+      pre(13:45)/post).** The byte argument: field_old = the ramp clamped
+      (−1,1] floored at 0.5; for solid_wall (Low/High −292.571/234.057,
+      Start/End −1024/1024) the ramp saturates to 1.0 at wy ≳ +118 px ⇒ at
+      DEEP rows (ty ≥ 64) field_old ≡ 1.0 ≡ field_new. PREDICTION: the
+      deep-band family stats (solid_wall rows 64-85 meanDens/meanRun) are
+      **unchanged** (±0.01 dens / ±0.10 run); at least one surface-row
+      (ty 60-62) kind-0 family's meanDens **moves** (the rp doubling at the
+      floor). FALSIFIED if the deep stats move materially (⇒ the
+      ramp-saturation read is wrong and the field law DOES drive region A)
+      or if no surface family moves (⇒ the field path is dead in the lane).
+    - **P-2 (METER-CLASS: E2 — the C97 shape meter v2v3 vs the PREDIG145
+      baseline).** Sentinel-only: any Δ (fG/IoU/dyOpt/profL1) without a
+      law-level explanation is logged UNATTRIBUTED; no direction steered.
+      The one EXPECTED structural move: bty12-14 (the ramp-window rows) fG
+      may rise where the surface lane now passes the >0.5 gate with
+      field ≡ 1 (the old floor 0.5 kept rp ≤ 0.5r ≤ r).
+    - **P-3 (METER-CLASS: E1 — the SURFACE_LOG deep run).** gradKind ==
+      `"field0"` for 100% of kind-0 records (the caves branch keeps
+      `"caves"`); the lane value = surfaceField's return (the field≡1
+      chain) at every sampled cell.
+  - **Meters (METER-CLASS tagged, A/B pre-registered above).**
+    - **M-1 (E1 — triage146 family stats, seed 500412504; runs 13:45 pre / 17:20
+      post, V2+V3).** P-1 CONFIRMED both directions: solid_wall meanDens
+      0.3855→0.3870 (Δ+0.0015, <=±0.01) and meanRun 2.30→2.31 (<=±0.10) —
+      the deep rows are field-invariant (the ramp-saturation byte argument —
+      region A's salt-pepper survives, attributed to C76 cell-vs-pixel aliasing
+      of insidePerlin octaves, NOT this dig's lane); and the previously
+      ALL-AIR kind-0 families PAINT: watercave 0.0→0.2034, lavalake 0.0→0.1015
+      (8 chunks), temple_altar* 0.0→0.08-0.16, lavalake_pit/racing, snowcave_tunnel,
+      dragoncave, water all 0.0→painted. winter/hills/desert/bit-for-bit
+      UNCHANGED (BitmapCaves lane, byte-untouched) — P-1b + the caves-control
+      holds. temple_wall 0.0→NULL-FALL (34 chunks): the honest-fall opened by
+      the field≡1 fix un-masking (see ISSUES I35 + the polygon arm 0x8f5418).
+    - **M-2 (E2 — C97 surface-shape v2v3, seed 78633191; center, 56 scorable
+      P1 tiles).** UNATTRIBUTED-scale deltas = very small: overall fG
+      0.91164→0.91214, iou 0.46424→0.46457, dyOpt -168.88→-168.68, profL1
+      0.50032→0.50023; byFamily ≤0.002 moves except mountain_left_stub
+      (+0.020). Only 2 of 56 tiles moved >0.002. The sky-band bty10-12 rows
+      (fG ≡ 1.000 — both pre and post, confirmed with the noise lane DETACHED)
+      are the C79/P1 bin-level sky backdrop counted solid by the lum>=24 rule,
+      NOT the kind-0 noise lane — region B's "overshoot" is attributed to that
+      instrument artifact + the sky branch, not the surfaceField law. The
+      the volatile PREDIG145 baseline turned out to be PRE-dig-145 (sky fG
+      0.32-0.93 vs HEAD's 1.000) and is NOT a valid A/B partner for this dig —
+      the honest partner is the HEAD rerun (saved before the diff)
+      (saved). The pre-fix A/B partner is the 13:45 triage146
+      run (the valid E1 partner; cited via the manifest convention).
+    - **M-3 (E1 — caves-lane attribution, answer to the entry-(146) scope(c)).**
+      caves families (BitmapCaves) = winter/hills/desert fG delta = +0.0003 at
+      most on the capture seed and bit-identical on 500412504 — the dig-146
+      fix does NOT touch the caves cell-read lane (field0 ≡ 1.0 is the kind-0
+      law; the caves branch reads the grid directly, no surfaceField). The
+      winter +0.112 / desert +0.020 / hills +0.073 creep reported on seed
+      500412504 is therefore NOT field-law-driven; it lives in the caves
+      cell-read lane itself (>0.5 gate on the caves field / the C44 band-stack)
+      — left open for a future dig (out of this dig's scope).
+    - **M-4 (E1 — SURFACE_LOG countholds).** gradKind = "field0" on 100% of
+      kind-0 records; the BitmapCaves branch keeps "caves". (One deep-run
+      recorded; the lane value = surfaceField's return where it ran.)
+  - **Landed:** entry (146); CONSTANTS **C122** (the field0 ≡ 1.0 law);
+    ISSUES **I35** updated (noodle-throw survives as I35's instrument —
+    the signature change is call-site compatible); VERIFIED **§8 row 50**
+    (the C39 "the grid is the image-baked BitmapNoise [uid+0x1d4]" gloss =
+    wrong for shipped data: there is no P); ISSUES **§A** ramp-D retired
+    (the makeGradAt ramp SHAPE D-row is no longer load-bearing: the lanes
+    never build it). Tests **330/330** (333 incl. 3 skips). One dig = one
+    commit. **Next free: entry (147), C123, I36, X106; §8 row 51.**
 - **2026-10-16 (145) — dig #145: I33 (a)(b)(c) — THE KIND-0 R-SITE FRAME
   RESTORATION. The r-site reads the band ramp at WORLD px (V2's parked frame
   flip), not the driver origin; the noise_type name→enum + the noiseKind

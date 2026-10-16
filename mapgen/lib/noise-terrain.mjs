@@ -308,6 +308,13 @@ function uidFrom(def, cfg) {
 // hills/winter"; registered in CONSTANTS.md C39 / VERIFIED.md §12). Shape model: linear
 // ramp StartY→EndY mapping to LowNoise→HighNoise on world-y. Isolated here
 // so the instrument can swap it once the rasterize read lands.
+// **dig #146 SCOPE — RETIRED FROM THE LANES (C39 demoted):** the kind-0
+// lanes no longer build any gradAt — the byte law is field0 ≡ 1.0 for P == NULL
+// (every shipped biome; entry (146)) — so neither this ramp nor the
+// topology loader below is load-bearing any more (D-claim retired). Both
+// survive HERE only for the dated probes that still construct them:
+// experiments/2026-10-15-kind-default-probe.mjs (dig #144 pre-port
+// measurement) and 2026-10-15-noodle-throw.mjs (I35's audit instrument).
 function makeGradAt(def) {
   const y0 = parseFloat(def.mGradientStartY ?? "-1024");
   const y1 = def.mGradientEndY ?? 1024;
@@ -401,19 +408,21 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
     const uid = uidFrom(def, cfg);
     uid.driver = makeBandDriver(config, seed);  // dig #142: the kind-0 r-site frame; dig #145 (I21 flip landed): the lane feeds it WORLD px below
     // dig #30: the caves-field source when the biome carries <BitmapCaves>
-    // (the hills/desert/pyramid family); otherwise the C39 IMAGE-LANE
-    // gradAt when a bitmap_noise_file exists (the lake family), else the
-    // ramp instrument.
+    // (the hills/desert/pyramid family). Dig #146 closed the kind-0 else-
+    // arm: for EVERY shipped biome the in-binary P (BitmapNoise [uid+0x1d4])
+    // is NULL, so field0 ≡ 1.0 inside surfaceField and NO gradAt is built
+    // for kind-0 lanes (the C39 image-lane/ramp instruments are retired from
+    // the lanes — see makeGradAt's header for their surviving scope).
     let gradAt = null;
     // dig #121 (entry (121), I25 index half): when the caves field
     // attaches, the lane's VALUE = the field read DIRECTLY at cell
     // coords — the game's sampler reads it via getter 0x9499f0 on
     // &owner+0xb4 with idx = W·y + x (stride [0x9c] = grid[0]) and the
-    // >0.5 gate (@0x90dba5..0x90dbd0), NOT through surfaceField's
-    // u-law grad chain (that law belongs to the kind-0 noise lane
-    // only). The wrapper below is the byte law (mod-wrap = the tile
-    // repeat; canvas vs world px agree under it — the C80 origins are
-    // multiples of 512 and 256).
+    // >0.5 gate (@0x90dba5..0x90dbd0), NOT through surfaceField (the
+    // kind-0 combine never touches the caves grid — dig #121; its u-law
+    // grad chain died with the P==NULL law, dig #146). The wrapper below is
+    // the byte law (mod-wrap = the tile repeat; canvas vs world px agree
+    // under it — the C80 origins are multiples of 512 and 256).
     let cavesSrc = false;
     if (SURFACE_V3 && def.bitmapCaves && def.bitmapCaves.sizeX) {
       const caves = ensureCavesField(dataDirRef.dataDir, def, seed);
@@ -435,17 +444,16 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
         return field[(((row % fh) + fh) % fh) * fw + (((col % fw) + fw) % fw)];
       };
       cavesSrc = true;
-    } else {
-      gradAt =
-        makeGradAtFromTopology(dataDirRef.dataDir, def) ?? makeGradAt(def);
     }
+    // (dig #146: the kind-0 else-arm that built topology/ramp gradAts is
+    // GONE — surfaceField's field0 ≡ 1.0 makes any gradAt unreachable.)
     // dig #117 (I23② action): FEED PIXELS — the game's caller frame is
     // px+0.5 (0x908f7e adds 0.5 then calls @0x908f96, C95). V2's old cell
-    // pre-scale (÷10 via CELLS_PER_CHUNK) fed the GRID the byte-right index
-    // (0.04916·px — it stays IDENTICAL after the surfaceField ×0.1:
-    // 0.1·(0.49162514·10·c)) but STARVED every noise/r-eval consumer 10×
-    // (I23②). Same canvas registration as before (tx·512+cx·10+5 =
-    // 10·(tx·51.2+cx+0.5)).
+    // pre-scale (÷10 via CELLS_PER_CHUNK) STARVED every noise/r-eval
+    // consumer 10× (I23②); every kind-0 consumer (r-eval @0x90b280,
+    // insidePerlin, case arms) reads RAW WORLD px. Same canvas registration
+    // as before (tx·512+cx·10+5 = 10·(tx·51.2+cx+0.5)). (The dig-#117
+    // surfaceField ×0.1 GRID feed died with the u-law — dig #146.)
     // dig #145 (I33(b) fix, I21's frame flip landed): the FIELD build feeds
     // WORLD px (C80: wx = canvas − 17920, wy = canvas − 31744) — the binary's
     // kind-0 lane reads world coords everywhere. The old canvas feed put the
@@ -464,10 +472,10 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
         let v;
         try {
           // dig #121: the caves-lane value = the direct cell read
-          // (gradAt above is the cell-law wrapper); the noise combine
-          // stays for every other grad source (world px, dig #145).
+          // (gradAt above is the cell-law wrapper); the kind-0 combine
+          // takes world px and no gradAt (field0 ≡ 1.0, dig #146).
           v = cavesSrc ? gradAt(gx, gy)
-            : surfaceField(uid, gx - worldX0, gy - worldY0, gradAt, 0, DEF_SEED);
+            : surfaceField(uid, gx - worldX0, gy - worldY0, DEF_SEED);
         } catch {
           return null; // unread-core lane → whole chunk falls through
         }
@@ -482,7 +490,21 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
         if (v > 0.5) {
           const table = ensureSurfaceTable(dataDirRef.dataDir, def);
           if (table) {
-            const rec = classify(table, gx, gy - 24576, v);
+            // dig #146: the field ≡ 1 fix makes the gate REACH classify for
+            // defs it never reached pre-fix (e.g. boss_arena: the old floor
+            // 0.5·r kept rp ≤ 0.5 at deep rows ⇒ all-air ⇒ classify skipped;
+            // rp = r·1.0 now passes). classify's un-ported polygon arm
+            // (is_polygon=1, surface-level.mjs) throws by design — the lane
+            // contract for an un-ported arm is the same as the field-build
+            // arm's: the WHOLE chunk falls through honestly (null), so the
+            // wang/template lane paints it instead of the process dying.
+            let rec;
+            try {
+              rec = classify(table, gx, gy - 24576, v);
+            } catch (e) {
+              if (e.message?.includes("polygon arm not ported")) return null;
+              throw e; // any other throw is a real defect — fail loud
+            }
             // classify returns comp.celldata (the per-comp record built at
             // table build time = { i, name } via noise-terrain's records arg)
             if (rec) mi = rec.i;
@@ -518,14 +540,15 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
   // noise-proto.mjs:713; the driver 0x908F40 kind-0 arm feeds exactly
   // that into the f32 grid the gate reads, VERIFIED:593) computed at
   // WORLD px (C80: wx = canvas px − 17920, wy = canvas py − 31744).
-  // gradAt selection = the V3 model (the V2 lane's :219-231 semantics,
-  // WITHOUT its SURFACE_V3 conjunct: this branch only runs under the
-  // V3 candidate — attach gate :340 — or direct env-free test calls,
-  // and the conjunct would desync the test mirror from the instrument):
-  // caves-field grid for <BitmapCaves> biomes, else the C39 image lane,
-  // else the world-y ramp. Field build throws (noiseKind −1 on
-  // winter/mountain_center per VERIFIED §8 row 30; the I20 default arm
-  // no longer throws — ported dig #113) ⇒ return null = whole chunk
+  // Value source selection = the V3 model (the V2 lane's :219-231
+  // semantics, WITHOUT its SURFACE_V3 conjunct: this branch only runs
+  // under the V3 candidate — attach gate :340 — or direct env-free test
+  // calls, and the conjunct would desync the test mirror from the
+  // instrument): caves-field grid for <BitmapCaves> biomes; every other
+  // biome is kind-0 and takes surfaceField with field0 ≡ 1.0 — no gradAt
+  // exists for it (dig #146, entry (146)). Field build throws (noiseKind
+  // −1 on winter/mountain_center per VERIFIED §8 row 30; the I20 default
+  // arm no longer throws — ported dig #113) ⇒ return null = whole chunk
   // falls through honestly (V2 :237-241 mirror). Evaluate/classify keep the C76 lane frame unchanged this
   // dig (evaluator2≡classify floor-fix identity; frame flip = I21).
   // **dig #121 correction (entry (121), I25 index half):** the
@@ -533,15 +556,15 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
   // BitmapCaves biomes the game's sampler reads the caves field
   // DIRECTLY (idx = W·y + x via getter 0x9499f0 on &owner+0xb4,
   // stride [0x9c] = grid[0]; gate value > 0.5 @0x90dba5..0x90dbd0) —
-  // the u-law grad chain is the kind-0 surfaceField path and never
-  // touches the caves grid (writer 0x8EE750 uses the same W·y+x,
-  // reader/writer closure verified dig #121). The caves lane's gate
-  // value below is therefore the DIRECT cell read, not the combine.
+  // surfaceField's kind-0 path never touches the caves grid (writer
+  // 0x8EE750 uses the same W·y+x, reader/writer closure verified dig
+  // #121). The caves lane's gate value below is therefore the DIRECT
+  // cell read, not the combine.
   const surfaceTable = ensureSurfaceTable(dataDirRef.dataDir, def);
   const uid = uidFrom(def, cfg);
   uid.driver = makeBandDriver(config, seed);  // dig #142: the kind-0 r-site frame (world-px coords, C80)
   let gradAt = null;
-  let gradKind = "ramp"; // which source fed gradAt — logged by SURFACE_LOG below
+  let gradKind = "field0"; // caves = the cell read; field0 = kind-0 (field ≡ 1.0, dig #146) — logged by SURFACE_LOG below
   if (def.bitmapCaves && def.bitmapCaves.sizeX) {
     const caves = ensureCavesField(dataDirRef.dataDir, def, seed);
     const { w: fw, h: fh, field } = caves;
@@ -555,18 +578,18 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
       return field[(((wy % fh) + fh) % fh) * fw + (((wx % fw) + fw) % fw)];
     };
     gradKind = "caves";
-  } else {
-    const topo = makeGradAtFromTopology(dataDirRef.dataDir, def);
-    gradAt = topo ?? makeGradAt(def);
-    if (topo) gradKind = "topology";
   }
+  // (dig #146: the else-arm that built the topology/ramp gradAts is GONE —
+  // kind-0 takes surfaceField with field0 ≡ 1.0 and never consults it.)
   const bandTopPx = SKY_ROWS * CHUNK; // 24576 — classify y frame origin (C76)
   const worldX0 = 35 * CHUNK; // 17920 — C80 world x origin (biome px 35)
   const worldY0 = (SKY_ROWS + 14) * CHUNK; // 31744 — C80 world y origin (biome row 14)
   // L1 value logger (Task 0 of the post-(101)-FAIL plan, SESSION_CONTEXT
   // Update 2026-09-24 (1)): SURFACE_LOG=<path> ⇒ every evaluated cell is
   // appended as one JSONL record — lane x/y (C76), world wx/wy (C80),
-  // gradKind (caves|topology|ramp), field value, the >0.5 gate, classify's
+  // gradKind (caves|field0), the lane value (`field` = surfaceField's
+  // return for kind-0, the caves cell read for BitmapCaves), the >0.5
+  // gate, classify's
   // v + the solid verdict — so each patch's coordinates can be checked
   // against what actually flowed. The directory must exist; with no env
   // var nothing is allocated to disk and the lane runs as before.
@@ -594,10 +617,10 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
       let field;
       try {
         // dig #121: BitmapCaves ⇒ the DIRECT cell read (the sampler's
-        // law, see the correction block above); every other grad source
-        // keeps the kind-0 combine.
+        // law, see the correction block above); kind-0 ⇒ the combine
+        // itself, no gradAt (field0 ≡ 1.0, dig #146).
         field = gradKind === "caves" ? gradAt(wx, wy)
-          : surfaceField(uid, wx, wy, gradAt, 0, DEF_SEED);
+          : surfaceField(uid, wx, wy, DEF_SEED);
       } catch {
         flushLog();
         return null; // unread-core lane → whole chunk falls through (V2 mirror)
@@ -616,7 +639,19 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
         // origin-added counters classify receives after the floor-fix
         // (identity pinned C76) — NOT the wang-cell+config proxy
         v = evaluator2(x, y, field);
-        const rec = classify(surfaceTable, x, y, v);
+        // dig #146: un-ported polygon arm (is_polygon=1) ⇒ the whole chunk
+        // falls through honestly (null), the V2 mirror — the field ≡ 1 fix
+        // makes the gate reach classify for defs it never reached pre-fix.
+        let rec;
+        try {
+          rec = classify(surfaceTable, x, y, v);
+        } catch (e) {
+          if (e.message?.includes("polygon arm not ported")) {
+            flushLog();
+            return null;
+          }
+          throw e; // any other throw is a real defect — fail loud
+        }
         if (rec) {
           solid = 1;
           // dig #130 (the surface-lane compositor): the record index + the
