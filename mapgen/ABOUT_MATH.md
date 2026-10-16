@@ -10340,6 +10340,62 @@ METER-CLASS (this entry covers meter history, E1-only): every row below
   is a counted reading with its class; no new meter run this entry
   (the only instrument = the register grep + the already-run I31
   differential, cite in row 9).
+- **2026-10-16 (149) — dig #149: THE BIOME-XML LOADER SEMANTICS — the A8 byte
+  route begun: the config layer = PORO'S OWN data-format tree (pugixml
+  structurally FALSIFIED), the child loads are NAME-EQUALITY-GATED (mismatch
+  = `inc idx` skip, NO parse, NO append).** Origin: the session-#148 frontier
+  (A8's named reducer = "the loader read"). Target: how the game enumerates
+  `<MaterialComponent` from `<Materials>` and whether comment nodes can ever
+  become components. **Predicted (before bytes):** pugixml-style name-filtered
+  sibling iteration, comments skipped structurally; port unchanged.
+  **NEW EVIDENCE:** three fresh full windows + two micro windows, all
+  extracted AND md5'd THIS session — MANIFEST **X108** (fnA 0x7DAEB0..0x7DC5DF,
+  md5 `9b87402925fece20b3ff156abb02ed8d`), **X109** (fnEnum 0x943250..0x94357F,
+  md5 `f9f6e7acbb8593f3d922e3faea458ba4`), **X110** (the biome builder
+  0x8F8720..0x8F946F, md5 `bb81d42d9bc8090565a60a3afd0023fc`), **X111**
+  (the poro getters 0x100A600/0x100AAB0, md5s
+  `2d5f796382643faeece7291849b8e75d`/`08443cb8739d7eef5b7f5ec977627acd`).
+  - **Agree/Refute:** the pugixml PREDICTION REFUTED — no pugixml string; and
+    structurally: the game's node = a DIRECT-FIELD struct `{ name SSO string
+    @+0x8, field/value string @+0x20, children raw ptr vector @+0x38/+3c }`,
+    not a pugixml node-pointer handle; the node api = no-RTTI plain fns
+    (child[i] 0x100A600; name/value copy 0x100AAB0/0x100AAF0→0x41d770;
+    hasAttr 0x100A6F0; attr 0x100A960; 'name' key 0x116a8fc = the (140) row's
+    key, LIVE ✓).
+  - **THE GATE LAW (B, live instruction-level):** fnEnum (poro's generic
+    child-list loader — its abort path pushes
+    `..\..\poro\source\utils/vector_utils/vector_utils.h` 51 ch, assert line
+    0x15d=349): **every loaded child's NAME string (node+8) must win the
+    equality compare (0x42b780 mini-memcmp + the length-tie) — mismatch =
+    `inc [ebp-0xec]`/`jmp` loop WITHOUT parse/append** (@0x9434d6 je
+    0x94352c). A comment node — WHATEVER name the reader materializes
+    (absent/empty/raw-text) — fails the gate family; observe the LIVE
+    generalization at ONE lane (the VegetationComponent fill via fnA).
+  - **fnA = THE MaterialComponent PARSE (B):** prologue = the C74 defaults
+    (material_index 10 @+20 …is_polygon=false @+74, vector init 0x92baa0) +
+    the sorted attr-name chain incl. "material_name"(13)/"material_index"(14)/
+    "material_min"(12) + **"celldata" (8 ch — MaterialComponent-only ✓)** +
+    the dispatch entries **(is_polygon → flag-attr, polygon → CHILD-ELEMENT)**
+    @0x7db670/0x7db69c; sub-walks carry the (−100, 100) value pair @0x8a24d0.
+  - **Port: UNCHANGED this dig** (no bytecode read contradicts the strip; no
+    read permits a comment becoming a component). The port's `polygon`
+    field-parse = child-element ✓ matches the byte dispatch.
+  - **OPEN (status D — A8 keeps its row):** (a) fnA's <Materials>-side location
+    (the walk's own name-locate — the function immediately backing the
+    components iteration); (b) the reader's NODEIFIER — whether XML comments
+    persist as child nodes (name="") — the file→tree parse-in sits BELOW this
+    node api, un-read; (c) the lava_90percent E0 oracle. NOTE (a)'s mail: the
+    per-component parse fnA has exactly ONE call site (fnEnum @0x9434de) whose
+    own call site = the biome builder (X110) — the walk chain is bounded
+    (3 fns to the root); the FULL <Materials> walk = the next read's core +
+    A8's removal path, queued behind the user's call.
+  - **Count test:** none this dig — the gate law = a STRUCTURE read with NO
+    port delta (the existing count suite 336/3/339 stands; the
+    enum-half behavior = pinned by the dig-#148 zero-material bars + the
+    census counts which already run in the gates).
+  - **Landed:** MANIFEST X108–X111, CONSTANTS C124, ISSUES A8 (amended
+    in-row), THIS ENTRY, the loader. Tests: no delta (336/3). Next free:
+    entry **(150)**, C125, I37, X112; §8 row 52.
 - **2026-10-16 (148) — dig #148: THE POLYGON-LANE CORRECTION — dig #147's double-check
   ("double check dig 147"): the mod-512 FLOOR law (X107), dig #147's phantom XML-comment
   comp tables RETRACTED, the red api-surface contract fixed, the gate-truncation defect
