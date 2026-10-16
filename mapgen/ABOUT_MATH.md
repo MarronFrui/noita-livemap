@@ -10340,6 +10340,58 @@ METER-CLASS (this entry covers meter history, E1-only): every row below
   is a counted reading with its class; no new meter run this entry
   (the only instrument = the register grep + the already-run I31
   differential, cite in row 9).
+- **2026-10-16 (150) — dig #150: THE SURFACE-SHAPE RESIDUAL TRIAGE — the deep-band
+  over-solidity isolated to C125's return combine; the insidePerlin D-stand-in is
+  the mover (I37).** The pivot the user called: the shape lane over the loader.
+  **Pre-registered predictions (both FALSIFIED — taken as bytes, per (128)):**
+  P1 "desert worst (caves-heavy)" → desert = the BEST family (raw IoU 0.65, iouShift
+  0.78); P2 "aliasing/salt-pepper dominant" → the deep-band fG≈1.0-exact floor
+  (6/56 tiles) is PATCH-INVARIANT structure, not sampling noise. **METER-CLASS:**
+  the triage run = **E2** (shape sentinels: iou/iouShift/dyOpt/profL1/fG/fR over
+  the 56-tile C97 set — instrument `mapgen/experiments/2026-10-10-surface-shape-iou.mjs`,
+  artifacts `mapgen/out/surface-shape-2026-10-10-v3.json` md5-pinned in X112);
+  the fG = 1.0-EXACT floor + the per-band fR counts = **E1** (count laws — the
+  qualifies-the-fingerprint counts); no E0 this dig (no byte-golden bar run);
+  the steering compass = the byte read (X112)+the registered D (C84), NOT the
+  meters — the meters only LOCATE the read target (charter, entry (128)). **NEW EVIDENCE:**
+  (i) the fresh triage at HEAD post-#148 — `mapgen/out/surface-shape-2026-10-10-v3.json`
+  (md5 `6025b179e88a1bc884891faac0d4ad48`, the dig-#118 instrument, SURFACE_V3=1,
+  seed 78633191, 56 tiles, 18 overlays committed in the /out dir): overall raw
+  IoU **0.46243** / iouShift **0.64752** / dyOpt med −256(clamped); per-band fG/fR:
+  **bty10–13 (36 tiles) fG 0.91–1.0-exact vs fR 0.32–0.44**, bty14 (20 tiles)
+  fG 0.753 vs fR 0.790 (raw IoU 0.79 — the good band), desert-family raw 0.65,
+  lake = the only under-solid family (fG 0.407 vs fR 0.577); (ii) the fresh
+  window `dig150-surfacefield-tail-90ab43-90b110.asm` (380 ln, md5
+  `2412bd3d862aeb3d843caec1ed0aefc6`, **X112**) — surfaceField's epilogue:
+  **THE RETURN COMBINE v_out = [ebx+0x268]·gradW-noise + [ebx+0x264]·r′_eased +
+  base([ebx+0x260])** @0x90b0d9..0x90b106 (byte law **C125**), the insidePerlin
+  result enters via the +0x24c slope arm (@0x90b0a2 cmp je 0x90b0d9), and the
+  r′ ≤ 0.85 arm (@0x90ab48 jbe 0x90b0a2) SKIPS the noise feed entirely.
+  - **The diagnosis (byte-backed, not meter-motivated):** fG = 1.0-exact in the
+    deep band ⇒ v never dips below the comp's [material_min, material_max) ⇒
+    the noise term is ZERO in the port — and the port's insidePerlin is the
+    REGISTERED D-stand-in (C84: "the port's seed-draw VALUES remain a
+    D-stand-in", carried from #146 untouched). **I37 opened** = the deep-band
+    over-solidity; its fix = dig #151: port insidePerlin's draw law + the
+    [uid+0x268]/[+0x264] amp-knob provenance. PREDICTION (registered in I37):
+    after the fix fG drops to ~0.6–0.7 in bty10–13 and iou moves +≥ +0.10;
+    FALSIFIER: fG unchanged ⇒ the shipped kinds' amps read 0 ⇒ the read moves
+    to the uid defaults (the XML-default arm).
+  - **Scope discipline:** the polygon arm (digs #147–149) = RED HERRING for the
+    shape residual — the census (640 active comps / 1 active polygon in shipped
+    data) already said so; this dig's meters CONFIRM it (the desert = best).
+    The caves cell-read creep (M-3/entry (146)) is NOT the mover either: the
+    bty14 band (caves-heavy desert+hills=the majority of its tiles) is the
+    GOOD band at fG≈fR. The lake under-solidity (fG 0.407) = registered as an
+    unpinned sub-item of I37, queued behind the #151 port.
+  - **Count test:** no new port code ⇒ no new suite; the
+    dig-#148 zero-material bars + the census counts remain the running counts
+    (the 336/3/339 battery stands, docs+bytes commit).
+  - **Landed:** `mapgen/extractions/dig150-surfacefield-tail-90ab43-90b110.asm`
+    + the fresh triage art (the gitignored /out json + 18 overlays — md5-pinned
+    in X112), CONSTANTS **C125**, ISSUES **I37**, VERIFIED §9's shape-lane
+    re-rank, THIS ENTRY, the loader. Next free: entry **(151)**, C126, I38,
+    X113; §8 row 52 free.
 - **2026-10-16 (149) — dig #149: THE BIOME-XML LOADER SEMANTICS — the A8 byte
   route begun: the config layer = PORO'S OWN data-format tree (pugixml
   structurally FALSIFIED), the child loads are NAME-EQUALITY-GATED (mismatch
