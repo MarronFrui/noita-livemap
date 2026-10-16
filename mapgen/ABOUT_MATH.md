@@ -10340,6 +10340,41 @@ METER-CLASS (this entry covers meter history, E1-only): every row below
   is a counted reading with its class; no new meter run this entry
   (the only instrument = the register grep + the already-run I31
   differential, cite in row 9).
+- **2026-10-16 (152) — dig #152: THE 56-TILE KIND-SPLIT — the shape residual is
+  caves-kind land (43/56 tiles, 18 all-solid, mean raw IoU 0.4548), not the noise
+  chain (13/56, mean 0.4941, 2 all-solid).** The user's focus holds (the shape lane).
+  **METER-CLASS: E1** (the kind resolution = presence counts + the aggregates; no
+  shape meter run, no E0 bar; the #150 triage = the running E2 reference). No new
+  byte read this dig — the resolution probed the PORT'S OWN `biomeAt` + the
+  `def.bitmapCaves && def.bitmapCaves.sizeX` gate (the port's caves-kind test,
+  `noise-terrain.mjs:574-592`) per tile; **NEW EVIDENCE:** the fresh artifact
+  `mapgen/out/dig152-kind-split.json` (committed, 56 rows + both aggregates).
+  - **Per-kind aggregates (the artifact):** caves n=43 mean raw IoU **0.4548**,
+    fG=1.0-exact tiles **18**; noise n=13 mean **0.4941**, fG=1.0-exact **2**.
+    The caves-family defs = {_EMPTY_, desert, winter}, the noise-family =
+    {_EMPTY_, lake}; lake/lake_statue/mountain_lake/left_stub = the GOOD tiles
+    (raw IoU 0.32–0.91 = the template/pixel-scene land ✓ per (144) = correct-by-
+    construction).
+  - **The conclusion:** the noise chain (C125's frame + field0) is ~fine on
+    shipped data — the caves-kind land carries the shape loss. **I37's IL re-
+    pinned I31** ✓ (the (151) correction holds under the kind split: the
+    caves under-carve = the byte home); the noise-kind's own 2 all-solid
+    tiles = registered inside I37 as the NOISE-kind residual sub-item (the
+    r′ ≥ 1 deep-band eased — gradW·per ≥ 0 + eased 1 ⇒ v ≥ 1.057 vs a
+    window-wide [−100,100) ⇒ solid always — the same shape as (150)'s deep
+    band; the byte side's carve for THESE = open, registered with I31).
+  - **Next (dig #153):** the I31 byte read properly = the walk-chain presence
+    law — the walk's carve coverage: 0x8eec70 walk (0.15–0.96S budget, the
+    exit law ported #127 ✓) + the setter 0x8ee750 + the blend 0x8ee930 + the
+    record stamps (all registered C99/C101) — the specific byte side that the
+    C48 data says carves 58% at x0..11 while the port carves 0: the walk's
+    pre-record presence — the read chain = walk budget/s-per-point → v decay →
+    the setter's "write iff cell > target" — the port has ALL of these;
+    the presence gap = between them (the walk's own count law vs the port's
+    budget/exit — the <x0..11> band = the BYTE's own carve reaches x≈0..
+    = the byte-budget walk spans wider x than the port's). Sources: the
+    #150 triage; this dig's kind artifact. Next free: entry **(153)**,
+    C127, I38, X115; §8 row 52.
 - **2026-10-16 (151) — dig #151: INSIDEPERLIN = DORMANT ON SHIPPED DATA (the draw-slot
   D resolved to bytes) + THE I37 CAUSE SWAP: the deep-band residual re-aims at the
   caves under-carve (I31).** The dig opened as I37's fix (the insidePerlin port per
