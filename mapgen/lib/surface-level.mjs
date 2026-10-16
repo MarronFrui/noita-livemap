@@ -49,8 +49,9 @@
 //     are UNREAD (OPEN) → port throws instead of guessing.
 //   - lookup 0x741890 / record RESOLVE (material_name → +0x04) unread →
 //     celldata comes from the caller (parallel array).
-//   - jitter 0x9119d0 / fbm 0x9fad90 / polygon 0x10096a0 bodies unread →
-//     honest throws (all three arms P1-dead per this session's censuses).
+//   - jitter 0x9119d0 / fbm 0x9fad90 bodies unread → honest throws (both
+//     arms P1-dead per this session's censuses). polygon 0x10096a0 IS read
+//     (dig #147, X106; the caller frame + mod-512 law = dig #148, X107).
 //   - simplex2DDeriv reused from noise-proto.mjs:422 — INHERITS its FLAGGED
 //     runtime skew BSS 0x132ab68/0x132ac70 (UNPINNED).
 
@@ -478,11 +479,16 @@ export function rarePolka(px, py, low, high, boxed, prob) {
 
 // dig #147 -- helpers for the polygon arm (point-in-polygon, byte-level)
 function modSigned512Int(n) {
+  // The byte idiom (caller window X107, 0x8f54f4..0x8f550c, dig #148):
+  //   and 0x800001ff; jns skip; dec; OR 0xfffffe00; inc; jns skip; add 0x200
+  // = floor-mod 512, result always in [0, 511]. Dig #147 shipped `and`
+  // where the byte has `or` — every negative input collapsed to
+  // ±0x80000000-ish garbage (−1 → −2147483135) instead of 511.
   let a = n | 0;
   a = a & 0x800001ff;
   if (a < 0) {
     a = (a - 1) | 0;
-    a = (a & 0xfffffe00) | 0;
+    a = (a | 0xfffffe00) | 0;
     a = (a + 1) | 0;
     if (a < 0) a = a + 0x200;
   }
@@ -504,14 +510,20 @@ function pointInPolygon(poly, tx, ty) {
     const prevGe = (prevY >= testY);
     const curGe  = (curY  >= testY);
     if (prevGe !== curGe) {
-      // even-odd cross X at +X direction
+      // even-odd cross X at +X direction. FLAGGED DEVIATION (dig #148):
+      // the bytes compute x_int = curr.x − (prev.x−curr.x)·(curr.y−ty)
+      // /(prev.y−curr.y) (X106 @0x1009751..76); this port uses the
+      // algebraically equal prev.x + (cur.x−prev.x)·(ty−prev.y)/(cur.y−prev.y)
+      // with a DIFFERENT f32 rounding chain — exact-tie cells may differ
+      // from the game in the last ulp. The `edgeY === 0` arm is dead
+      // (the Y-straddle guarantees prevY ≠ curY) and kept only as a guard.
       const edgeX = Math.fround(curX - prevX);
       const edgeY = Math.fround(curY - prevY);
       const t = Math.fround(testY - prevY);
       const xIntersect = (edgeY === 0) ?
-        Math.fround(prevX + curX) :             // degenerate horizontal
+        Math.fround(prevX + curX) :             // degenerate horizontal (unreachable)
         Math.fround(Math.fround(prevX) + Math.fround(Math.fround(edgeX) * Math.fround(t / edgeY)));
-      // closing byte all-paths normalize via 1/512 already; compare floats
+      // bytes @0x100976f/72: comiss x_int,x_t; jb skip ⇒ toggle iff x_int >= x_t
       if ((testX < xIntersect) || testX === xIntersect) {
         inside = !inside;
       }

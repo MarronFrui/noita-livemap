@@ -694,6 +694,57 @@ describe("rarePolka (0x8fbe60 ramp)", () => {
 });
 
 // ---------------------------------------------------------------------------
+// dig #148 — the mod-512 FLOOR law (caller window X107, 0x8f54f4..0x8f550c:
+// and 0x800001ff / jns / dec / OR 0xfffffe00 / inc / jns / add 0x200 ⇒ the
+// result is always in [0, 511]). Dig #147 shipped `and` where the byte has
+// `or` — every negative input collapsed to ±0x80000000-family garbage
+// (−1 → −2147483135, ×1/512 → −4194303.0). Both tests below FAIL under the
+// old law (the replacement-test rule).
+describe("dig #148 — modSigned512 floor law (X107) + negative-coord classify", () => {
+  test("negative+positive sweep: modSigned512Float(n) ≡ floor-mod(n,512)/512 ∈ [0,1)", () => {
+    for (let n = -2050; n <= 2050; n++) {
+      const k = ((n % 512) + 512) % 512;
+      // k/512 is exact in f32 (k ≤ 511 fits the 24-bit mantissa) ⇒ fround no-op:
+      expect(modSigned512Float(n), `mod512(${n})`).toBe(k / 512);
+    }
+  });
+
+  test("byte-idiom spot pins (the dec/OR/inc/+0x200 trace)", () => {
+    expect(modSigned512Float(-1)).toBe(511 / 512);
+    expect(modSigned512Float(-511)).toBe(1 / 512);
+    expect(modSigned512Float(-512)).toBe(0);
+    expect(modSigned512Float(-513)).toBe(511 / 512);
+    expect(modSigned512Float(-600)).toBe(424 / 512); // −600 + 1024 = 424
+    expect(modSigned512Float(-1024)).toBe(0);
+    expect(modSigned512Float(0)).toBe(0);
+    expect(modSigned512Float(511)).toBe(511 / 512);
+    expect(modSigned512Float(512)).toBe(0);
+    expect(modSigned512Float(513)).toBe(1 / 512);
+  });
+
+  test("classify's polygon arm consumes the WRAPPED point for negative cells", () => {
+    // right-half square [0.5,1]×[0,1]; cell (−1,−1) wraps to (511/512, 511/512)
+    // = INSIDE under the byte law. Under the #147 `and`-slip the point sat at
+    // ±4194303 ⇒ always outside ⇒ these pins fail (the discriminator).
+    const comp = componentFromXml(
+      `<MaterialComponent material_name="p" material_min="-100" material_max="100" is_polygon="1">
+        <polygon>
+          <Vec2 x="0.5" y="0" />
+          <Vec2 x="1" y="0" />
+          <Vec2 x="1" y="1" />
+          <Vec2 x="0.5" y="1" />
+        </polygon>
+      </MaterialComponent>`,
+    );
+    const table = buildMaterialsTable([comp], { min: 0, max: 1 }, [{ id: "p" }]);
+    expect(classify(table, -1, -1, 0.5)).toEqual({ id: "p" }); // (511/512, 511/512)
+    expect(classify(table, -1, -600, 0.5)).toEqual({ id: "p" }); // (511/512, 424/512)
+    expect(classify(table, -600, -1, 0.5)).toEqual({ id: "p" }); // (424/512, 511/512)
+    expect(classify(table, 300, 256, 0.5)).toEqual({ id: "p" }); // (0.586, 0.5) control
+    expect(classify(table, 100, 256, 0.5)).toBe(null); // (0.195, 0.5) left of the edge
+  });
+});
+// ---------------------------------------------------------------------------
 // hills.xml fixture — real P1 component data (read this session: 6 blocks,
 // material_name lines 196/218/240/262/284/306, band seed {0,0} → [0, 3.5]).
 describe.skipIf(!hasNoitaData())("hills.xml fixture (data-gated)", () => {

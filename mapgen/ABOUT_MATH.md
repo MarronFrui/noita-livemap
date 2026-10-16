@@ -10340,6 +10340,113 @@ METER-CLASS (this entry covers meter history, E1-only): every row below
   is a counted reading with its class; no new meter run this entry
   (the only instrument = the register grep + the already-run I31
   differential, cite in row 9).
+- **2026-10-16 (148) — dig #148: THE POLYGON-LANE CORRECTION — dig #147's double-check
+  ("double check dig 147"): the mod-512 FLOOR law (X107), dig #147's phantom XML-comment
+  comp tables RETRACTED, the red api-surface contract fixed, the gate-truncation defect
+  registered.** The user asked for a triple "double check dig 147". VERDICT: the #147
+  byte-read survived (the X106 dump re-verified instruction-for-instruction against a
+  fresh objdump of noita_dev.exe, exe md5 8b611494212a69492dd0a4527d9c92e0; the even-odd
+  decode stands with corrected register glosses) — THREE port/pipeline/contract claims
+  failed.
+  **NEW EVIDENCE:** (i) `mapgen/extractions/dig148-poly-caller-8f53c0-8f5570.asm`
+  (433 B, md5 `d3bdff435d1bf36bf860355f74c3c73a`, MANIFEST **X107**) — the CALLER
+  window in classify 0x8f5030's frame: **THE MOD-512 FLOOR LAW** (@0x8f54f4..0x8f550c:
+  `and 0x800001ff; jns; dec; OR 0xfffffe00; inc; jns; add 0x200` — `jns` gates on BOTH
+  the AND result and the INC result ⇒ **floor-mod 512, result ALWAYS ∈ [0, 511]**
+  −1→511, −512→0, −600→424, −513→511), scaled `cvtdq2ps(movd)` × **[0x11df8b4] =
+  0x3B000000 = f32 1/512** (PE-read this session) ⇒ test point ∈ [0,1)², x ← [ebp+8],
+  y ← [ebp+0xc], stored [ebp−0x48]/[ebp−0x44]; the gate (is_polygon `[ebx+0x74]`
+  @0x8f5418), the count `([ebx+0x7c]−[ebx+0x78]) sar 3` @0x8f5422..28, the line-280
+  assert block 0x8f5434..56, the call @0x8f555d (`ecx = lea [ebp−0x48]`, `edx = [ebx+0x78]`,
+  push count) + `test al,al` → je. (ii) the XML component census
+  `mapgen/experiments/2026-10-16-dig148-xml-comp-census.mjs` — 128 files carry
+  `<MaterialComponent>`, **647 raw → 640 active**: boss_arena 2→0, end_wall 2→0,
+  temple_wall 2→0, wandcave 4→3 — the FOUR "polygon chunk" biome files ship every
+  polygon comp except lava_90percent's one commented out. (iii) the A/B probe (a HEAD
+  worktree of the committed #147 vs this tree, seed 500412504): temple_wall (31,67)
+  mask solids **398 → 398** (classify-INDEPENDENT field content — the 398 pin was NEVER
+  the polygon arm's product) but matIdx `rock_hard_border` **155 → 0** (the phantom
+  diamonds painting cells the game never paints: its Materials tables for these biomes
+  are EMPTY).
+  - **FINDING 1 (the frame): modSigned512Int shipped a one-char transcription slip** —
+    the port wrote `and 0xfffffe00` where the byte idiom has `OR 0xfffffe00`; every
+    negative input collapsed to ±0x8000_0000-family garbage (−1 → −2147483135, ×1/512 →
+    −4194303.0; −512 → +2147483137). Positive inputs were never affected — that is why
+    the green #147 suite hid it. C123's "(negative-coordinate cases) is mirrored" was
+    FALSE. FIXED (one char + the law comment) + count-tested in
+    `tests/mapgen/surface-level.test.mjs`: the −2050..2050 sweep
+    `modSigned512Float(n) ≡ floor-mod(n,512)/512` (the f32 quotient is exact — fround
+    no-op), the dec/OR/inc/+0x200 spot pins, and the negative-cell classify
+    integration pins (right-half-square polygon: classify(−1,−1) tests
+    (511/512, 511/512) = in) — each FAILS under the old law (the replacement-test rule).
+  - **FINDING 2 (the pipeline): #147's comp tables were PHANTOMS.** `ensureSurfaceTable`'s
+    regexes (the old open-tag form AND #147's full-body form) match raw text — including
+    `<!-- -->` comments — so temple_wall/boss_arena/end_wall shipped TWO comps each
+    (100% commented out) and wandcave four-instead-of-three. (a) the retracted
+    "polygon chunks leave NULL for painted cells" story: the #146-era NULL was an
+    un-parseable phantom comp asserting (empty polygon child → the line-280 assert),
+    not the game's law; (b) post-#147 the parsed phantom diamonds painted 155
+    rock_hard_border cells (the A/B numbers above). FIXED: `ensureSurfaceTable`
+    comment-strips before matching + a fail-loud guard against self-closing
+    `<MaterialComponent/>` (zero in shipped data — swept biome/ + biome_impl/); the
+    dead "polygon arm not ported" catch clauses and the 280-arm are REMOVED from both
+    lanes — a classify throw is a real defect and now fails loud per the lane contract
+    (the null-table path was already correct: `if (table)` V2 / `if (field > 0.5 &&
+    surfaceTable)` V3 = the byte's mBiomeMaterials-null ⇒ air @0x90dd01 record-null ⇒
+    air @0x90dd8b).
+  - **FINDING 3 (the contracts): #147 landed with `api-surface.test.mjs` RED** — the
+    exports-matching test still listed 4 exports while the dig added
+    `pointInPolygon`/`modSigned512Float`. A completed battery at #147 HEAD measured
+    this session: 22 files / 336 tests / **332 passed, 1 failed, exit 1**. FIXED (the
+    contract updated with the two export arities). The composed-content temple_wall
+    assertion upgraded: the 398 solids pin KEPT, honestly relabeled
+    (field-lane, classify-independent) + a NEW ZERO-material discriminator
+    (`Object.keys(matProbe(31,67)) ≡ []` — FAILS under the phantom law's 155 hits).
+  - **FINDING 4 (process): the gate truncates silently + the bypass pattern.** Two of
+    three full-battery runs this session aborted at the surface-compositor IPC watchdog
+    (`Timeout calling "onTaskUpdate"`) reporting only 9/22 files / 205 tests; their
+    exit codes were piped away — UNMEASURED, flagged as such. #146 and #147 both landed
+    via REGISTERED `--no-verify` (journal lines 1792168412 / 1792170607); #147's skip
+    hid exactly FINDING 3. REGISTERED = **I36** (the count-verify / watchdog-retry /
+    heavy-file-split fix candidates = a separate scripts dig; "counts RUN, not skip"
+    preserved).
+  - **Port/doc deltas:** `surface-level.mjs` = the `OR` fix + the stale "polygon …
+    bodies unread" header retired + the pointInPolygon deviation flagged in code (the
+    x_int is an algebraically-equal rearrangement — prev.x+(cur.x−prev.x)·
+    (ty−prev.y)/(cur.y−prev.y) — with a DIFFERENT f32 rounding chain than the byte's
+    `curr.x − (prev.x−curr.x)·(curr.y−ty)/(prev.y−curr.y)`; exact-tie cells may differ
+    in the last ulp; the `edgeY === 0` arm is unreachable-but-guarded; covered by A8).
+    `noise-terrain.mjs` = the strip + the guard + the throw-arm removal. Registries:
+    C123 amended in place (the corrupted fragments removed — "Por declared gaps<
+    rfl:parameter name=", "1-g0.000", "dudiscovered"; the register gloss fixed: ecx =
+    the TEST-POINT pointer not "comp-as-facing", xmm3 = prev.y, 4 verdict pins not 3;
+    the toggle law stated cleanly: even-odd to +X∞, ties COUNTED, toggle iff
+    `x_int ≥ x_t`); X106 amended (the "191 B" figure → 286 B inclusive; the mid-dig
+    "in-progress / do-NOT-commit" note and the wrong register description retracted);
+    X107 added; I35 corrected (the phantom retraction + the A/B numbers); **A8
+    REGISTERED in §A** (the (147) text promised "Flagged OPEN: A8" but no row existed);
+    I36 added; §8 row 51 (the retraction); SESSION_CONTEXT reloaded (the #147 commit
+    left the loader's body claiming dig #145 while its header claimed #147 — fixed).
+  - METER-CLASS: E1 only (the mod-512 sweep + spot pins; the matIdx zero-bar; the
+    census counts; the A/B chunk count pairs). E2 note: the C97/C79 family reads the
+    MASK — unchanged at every probed chunk (398/414/1367 hold through the fix); the
+    matIdx delta can move only material-COLOR composites (temple_wall's phantom 155 +
+    wandcave's third-column choice); if a sentinel moves on a re-run, the attribution
+    = the phantom removal — law-level, not UNATTRIBUTED.
+  - The polygon predicate's own verdicts stay DIRECTION-only (no game-side oracle):
+    the oracle = A8 (the lava_90percent capture route rides the user's-call frontier).
+    Purification: the §A accounting lives in ISSUES's register note — 4→5 active, with
+    the which-and-why statement inline.
+  - **Landed:** `mapgen/lib/surface-level.mjs`, `mapgen/lib/noise-terrain.mjs`,
+    `tests/mapgen/surface-level.test.mjs` (+3),
+    `tests/mapgen/api-surface.test.mjs` (fixed red),
+    `tests/mapgen/composed-content.test.mjs` (the discriminator), the four registries,
+    the loader, the census instrument, the X107 dump (the gitignored pool). Tests at
+    commit: **336 passed / 3 skipped, 22 files, exit 0** (full battery, unpiped, this
+    session; the heavy stall did not reproduce on the completed run). Reproduction of
+    the census: `node mapgen/experiments/2026-10-16-dig148-xml-comp-census.mjs`; of the
+    A/B: the probe snippet in the entry text (HEAD worktree vs this tree, V2+V3 flags,
+    seed 500412504). Next free: entry **(149)**, C124, I37, X108; §8 row 52.
 - **2026-10-16 (147) — dig #147: THE POLYGON PREDICATE 0x10096a0 — the
   EVEN-ODD raster, the mod-512 ×1/512 test point, and its byte-read.**
   **NEW EVIDENCE:** `dig147-poly-10096a0-10097bd.asm` (191 B, VA

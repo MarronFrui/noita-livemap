@@ -110,12 +110,15 @@ describe("caves-field.mjs", () => {
 describe("surface-level.mjs", () => {
   test("exports match the documented surface", () => {
     expect(Object.keys(surfaceLevel).sort()).toEqual([
-      "buildMaterialsTable", "classify", "componentFromXml", "rarePolka",
+      "buildMaterialsTable", "classify", "componentFromXml",
+      "modSigned512Float", "pointInPolygon", "rarePolka",
     ]);
     expect(surfaceLevel.componentFromXml.length).toBe(1);
     expect(surfaceLevel.buildMaterialsTable.length).toBe(3);
     expect(surfaceLevel.classify.length).toBe(4);
     expect(surfaceLevel.rarePolka.length).toBe(6);
+    expect(surfaceLevel.pointInPolygon.length).toBe(3); // (poly, tx, ty) — dig #147
+    expect(surfaceLevel.modSigned512Float.length).toBe(1); // dig #147/#148
   });
 });
 

@@ -266,11 +266,15 @@ describe.skipIf(!hasData)("composed-content laws (dig #144, I34/I33)", () => {
   //     — FAILS under the old law's arithmetic (the floor kept rp ≤ 0.5 in
   //     every cell ⇒ ALL-AIR); (2) solid_wall (1,70): 1367/2704 → 1367/2704
   //     (byte-stable — the deep-row ramp-saturation byte argument holds
-  //     exactly); (3) temple_wall (31,67): 0/2704 → NULL (honest
-  //     fall-through — the kind-0 lane now reaches classify for an
-  //     previously ALL-AIR chunk and the un-ported is_polygon=1 arm
-  //     declines the whole chunk instead of killing the process — FAILS
-  //     under the old arithmetic, which returned 0, not null).
+  //     exactly); (3) temple_wall (31,67): 398/2704 field-lane solids — the
+  //     mask is classify-INDEPENDENT (the #146-era "NULL" was the throw of
+  //     an un-parseable phantom comp; retracted dig #148). The classify
+  //     lane contributes ZERO material hits: temple_wall's shipped
+  //     <Materials> are 100% commented out ⇒ the game's table is EMPTY ⇒
+  //     no overrides (the wall renders from the template lanes). Under the
+  //     #147 raw-text regex the commented-out rock_hard_border diamonds
+  //     painted 155 matIdx cells — the ZERO-material bar below FAILS
+  //     under that law (the phantom discriminator).
   test("THE FIELD0 LAW count (dig #146): lavalake 0→414 (FAILS old law: 0), solid_wall 1367→1367 (byte-stable), temple_wall 0→NULL (fails old law: 0)", async () => {
     const { noiseChunkMask } = await import("../../mapgen/lib/noise-terrain.mjs");
     const { loadBiomeConfig } = await import("../../mapgen/lib/biomes.mjs");
@@ -285,9 +289,24 @@ describe.skipIf(!hasData)("composed-content laws (dig #144, I34/I33)", () => {
       for (const v of r.mask) s += v;
       return s;
     };
+    const matProbe = (tx, ty) => {
+      const r = noiseChunkMask(cfg, tx, ty, LIVE_SEED);
+      const mat = {};
+      for (let i = 0; i < r.mask.length; i++) {
+        const mi = r.matIdx?.[i];
+        if (mi !== undefined && mi !== 255) {
+          const n = r.matNames?.[mi] ?? String(mi);
+          mat[n] = (mat[n] ?? 0) + 1;
+        }
+      }
+      return mat;
+    };
     expect(solids(41, 66), "lavalake kind-0 — THE FIELD0 discrimination").toBe(414);
     expect(solids(1, 70), "solid_wall deep — byte-stable through the change").toBe(1367);
     expect(solids(31, 67),
-           "temple_wall polygon — dig #147 ported (was honest-fall NULL under #146)").toBe(398);
+           "temple_wall field-lane solids (classify-independent; was honest-fall NULL under #146)").toBe(398);
+    expect(Object.keys(matProbe(31, 67)),
+           "temple_wall ZERO material hits — the commented-out (phantom) comps are retracted; 155 rock_hard_border cells under the #147 raw-regex table")
+      .toEqual([]);
   });
 });

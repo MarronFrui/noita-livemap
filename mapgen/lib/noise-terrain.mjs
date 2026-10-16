@@ -114,12 +114,24 @@ function ensureSurfaceTable(dataDir, def) {
   const dir = dataDir ?? dataDirRef.dataDir;
   if (dir) {
     const xml = fs.readFileSync(path.join(dir, def.filename.replace(/^data\//, "")), "utf-8");
+    // XML comments are NOT components: the game's parser never sees
+    // commented-out elements. dig #147 matched RAW text and built PHANTOM
+    // tables — temple_wall/boss_arena/end_wall ship ALL their polygon comps
+    // inside <!-- --> and wandcave 1 of 4 (census 647 raw → 640 active,
+    // 128 files: experiments/2026-10-16-dig148-xml-comp-census.mjs) — the
+    // phantom polygon comps painted rock_hard_border diamonds the game
+    // never renders (the retracted #147 "temple_wall 398" pin).
     // Capture the FULL component body, including child <polygon> blocks —
     // the polygon arm @0x8f5418 reads comp's vertex list (+0x78..+0x7c),
-    // which surface-level.mjs parses from the nested <Vec2/> nodes. Capture
-    // only the open tag used to silently strip the polygon child, which drove
-    // the temple_wall Assert at line 0x118 through the old regex.
-    const blocks = xml.match(/<MaterialComponent\b[^>]*>[\s\S]*?<\/MaterialComponent>/g) ?? [];
+    // which surface-level.mjs parses from the nested <Vec2/> nodes.
+    const xmlActive = xml.replace(/<!--[\s\S]*?-->/g, "");
+    if (/<MaterialComponent\b[^>]*\/>/.test(xmlActive)) {
+      // the full-body matcher below would silently DROP a self-closing
+      // component (fail loud instead; none exists in shipped data as of
+      // dig #148 — swept biome/*.xml + biome_impl/*.xml).
+      throw new Error(`noise-terrain: ensureSurfaceTable: self-closing <MaterialComponent/> in ${def.filename} would be dropped by the full-body matcher`);
+    }
+    const blocks = xmlActive.match(/<MaterialComponent\b[^>]*>[\s\S]*?<\/MaterialComponent>/g) ?? [];
     if (blocks.length > 0) {
       const comps = blocks.map((b) => componentFromXml(b));
       const records = comps.map((c, i) => ({ i, name: c.material_name }));
@@ -495,23 +507,11 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
         if (v > 0.5) {
           const table = ensureSurfaceTable(dataDirRef.dataDir, def);
           if (table) {
-            // dig #146: the field ≡ 1 fix makes the gate REACH classify for
-            // defs it never reached pre-fix (e.g. boss_arena: the old floor
-            // 0.5·r kept rp ≤ 0.5 at deep rows ⇒ all-air ⇒ classify skipped;
-            // rp = r·1.0 now passes). classify's un-ported polygon arm
-            // (is_polygon=1, surface-level.mjs) throws by design — the lane
-            // contract for an un-ported arm is the same as the field-build
-            // arm's: the WHOLE chunk falls through honestly (null), so the
-            // wang/template lane paints it instead of the process dying.
-            let rec;
-            try {
-              rec = classify(table, gx, gy - 24576, v);
-            } catch (e) {
-              if (e.message?.includes("polygon arm not ported") ||
-              e.message?.includes("polygon.size() >= 3") ||
-              e.message?.includes("line 280")) return null;
-              throw e; // any other throw is a real defect — fail loud
-            }
+            // dig #148: the polygon arm IS ported (X106) and classify runs
+            // it; the comps for these defs come from comment-stripped XML
+            // (phantom comps retracted). A throw here = a real defect —
+            // fail loud (the chunk-null mapping lives in noiseAt's catch).
+            const rec = classify(table, gx, gy - 24576, v);
             // classify returns comp.celldata (the per-comp record built at
             // table build time = { i, name } via noise-terrain's records arg)
             if (rec) mi = rec.i;
@@ -646,21 +646,11 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
         // origin-added counters classify receives after the floor-fix
         // (identity pinned C76) — NOT the wang-cell+config proxy
         v = evaluator2(x, y, field);
-        // dig #146: un-ported polygon arm (is_polygon=1) ⇒ the whole chunk
-        // falls through honestly (null), the V2 mirror — the field ≡ 1 fix
-        // makes the gate reach classify for defs it never reached pre-fix.
-        let rec;
-        try {
-          rec = classify(surfaceTable, x, y, v);
-        } catch (e) {
-          if (e.message?.includes("polygon arm not ported") ||
-              e.message?.includes("polygon.size() >= 3") ||
-              e.message?.includes("line 280")) {
-            flushLog();
-            return null;
-          }
-          throw e; // any other throw is a real defect — fail loud
-        }
+        // dig #148: the polygon arm IS ported (X106) — a throw here is a
+        // real defect and propagates to noiseAt's catch (the chunk falls
+        // through honestly, the lane contract). The #147 polygon-message
+        // catch arms are gone with the phantom comps that motivated them.
+        const rec = classify(surfaceTable, x, y, v);
         if (rec) {
           solid = 1;
           // dig #130 (the surface-lane compositor): the record index + the
