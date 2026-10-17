@@ -754,7 +754,7 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   already validates the read) — but it is the last inferential join in
   the caves chain. Sources: entry (121), C100, VERIFIED §8 row 41.
 
-- [x] **I28. The record-stamp template fill engine (opened 2026-10-10,
+- [x] **I28.** … **[THE DIG-#162 OVERTURN — the "draws-only, the engines no-op on the ctor-empty template" verdict = TRUE ONLY PRE-IMAGE-DECODE: the record lane's template = filled by the records' `image_file` decode (the CaveStructure images), the stencil (the fn950) then copies the template's nonzero bytes into the BYTE PLANE ([P+0x58]) = the sampler's FIRST gate (0 = air) = **the caves' shape = the image files** (C136, X126/X127). The port's record lane never decodes the images ⇒ the byte plane = all-zero ⇒ the sampler skips every cell ⇒ the 1.0-base field shows = the ~90–100% solid caves band = the measured defect. THE FIX = the image decode port (the #163): the image_file PNGs → the template → the stencil → the byte plane.]** The record-stamp template fill engine (opened 2026-10-10,
   dig #122).** I26's closure settled the record phase's two ENGINES
   (FUN_008EF870's two-sided float lerp `cell += (v − cell)·temp.cell`
   + FUN_008EF950's gated stencil byte copy — entry (122), C101) but
