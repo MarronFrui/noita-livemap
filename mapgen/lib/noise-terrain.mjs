@@ -441,9 +441,16 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
     // the byte law (mod-wrap = the tile repeat; canvas vs world px agree
     // under it — the C80 origins are multiples of 512 and 256).
     let cavesSrc = false;
+    let byteAt = null; // dig #164: the byte-plane reader (the caves branch assigns)
     if (SURFACE_V3 && def.bitmapCaves && def.bitmapCaves.sizeX) {
       const caves = ensureCavesField(dataDirRef.dataDir, def, seed);
-      const { w: fw, h: fh, field } = caves;
+      const { w: fw, h: fh, field, bytes: fbytes } = caves;
+      // dig #164 (the byte-plane gate, C136): the sampler's FIRST gate per
+      // cell = the [P+0x58] byte plane (cmp slot,0 → skip = air,
+      // @0x90D912); only byte-nonzero cells reach the field gate below.
+      // The plane's writer = the record lane's stencil (the dig-#162 law;
+      // the dig-#163 spawn-lane claim RETRACTED — spawn_percent = 0 × 55
+      // biomes = the never-fires item side-lane, the C98 original stands).
       // dig #131 (the read-window law): the caves grid lives in the WORLD
       // frame (C80 origin = canvas py 31744 = biome row 14; C49's name-
       // keyed cache). The sampler's getter (0x9499f0, dig #121)
@@ -459,6 +466,14 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
         if (row < 0) return 0; // above the band origin: OOB read ⇒ air
         const col = gx - bandX0;
         return field[(((row % fh) + fh) % fh) * fw + (((col % fw) + fw) % fw)];
+      };
+      // dig #164: the byte-plane reader — the same mod-wrap frame as the
+      // field (the plane shares the grid dims + the getter's frame).
+      byteAt = (gx, gy) => {
+        const row = gy - bandY0;
+        if (row < 0) return 0;
+        const col = gx - bandX0;
+        return fbytes[(((row % fh) + fh) % fh) * fw + (((col % fw) + fw) % fw)];
       };
       cavesSrc = true;
     }
@@ -488,13 +503,22 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
         const gy = ty * CHUNK + cy * 10 + 5;
         let v;
         try {
+          // dig #164: the byte plane EXISTS in the grid now (the record
+          // lane's stamps write it — caves-field), but the sampler gate is
+          // NOT wired yet: the count test showed the port's plane coverage
+          // (0.0/2.3/2.1% per desert/_EMPTY_/winter) is 20–30× short of the
+          // capture's solid shares (65/47/37%) AND desert — with ZERO
+          // CaveStructure records — still shows 65% capture ⇒ the record
+          // lane is NOT the plane's (sole) writer. The gate wires when the
+          // writer lane is byte-resolved (dig #165). Gate shape (kept for
+          // that wiring): byte===0 ⇒ mask 0, matIdx 255, continue.
           // dig #121: the caves-lane value = the direct cell read
           // (gradAt above is the cell-law wrapper); the kind-0 combine
           // takes world px and no gradAt (field0 ≡ 1.0, dig #146).
           v = cavesSrc ? gradAt(gx, gy)
             : surfaceField(uid, gx - worldX0, gy - worldY0, DEF_SEED);
         } catch {
-          return null; // unread-core lane → whole chunk falls through
+          return null; // unread-core lane
         }
         mask[52 * cy + cx] = v > 0.5 ? 1 : 0;
         // dig #130 (the surface-lane compositor): the per-cell MATERIAL bands

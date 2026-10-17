@@ -96,6 +96,7 @@
 //     per-roll draw counts inside walkChain are the model's.
 import path from "node:path";
 import { readPng } from "./images.mjs";
+import { findNoitaDataDir } from "./paths.mjs";
 import { NollaPrng } from "./wang-js.mjs";
 
 export const CAVES_FIELD_VER = "caves-field v6 walk-exit (2026-10-13, dig #127 I30: the walk's loop-top carve EXIT gate v_prev >= cursor @0x8ef109 (C105(b), comiss mapping byte-verified in dig #126) + the t<0.2 lane band's base = the carried v_prev (@0x8ef12b..0x8ef13d, not 0); the walk-length distribution = byte-BIMODAL (count-test census)); v5 composition (2026-10-10, dig #120: loop-B top-band runs, blob y ∈ [25,h−5], L2 2-pass chains, L3 do_beginning_down chains, the t² blend + setterStamp carve arm; dig #122 I26: the walk stamp = setterStamp flag=1 (lower-only carve + the center-y q⁸ eave), the record stamp = the 0x8EF870 two-sided template lerp, carveCircle retired to the legacy model; 2026-10-11 dig #123 I28: the record lane = a draws-ONLY consumer (count up-from-min + the ctor-seed/resolver-iff-$[lo-hi]/X/Y/strength per-stamp budget; the engines no-op on the ctor-empty template); 2026-09-21 dig #55/#61/#64/#65/#68 byte-order swap; 2026-09-22 dig #81: phase 1 = mountain_count)";
@@ -173,21 +174,104 @@ export function toucherValue(w) {
 // non-zero bytes. The y=0 bump in the C48 oracle = this stamp family.
 // The port here remains the PLAIN-class mirror (draws only); the
 // grouped-class write port + the X/Y anchors = dig #136.
-export function caveRecordStamp({ countMin, countMax, imageFile }, prng) {
+export function caveRecordStamp({ countMin, countMax, imageFile, aabbMinX, aabbMaxX, aabbMinY, aabbMaxY, strengthMin, strengthMax }, prng, bytes, gridW, gridH) {
   const lo = countMin ?? 0;
   const hi = countMax ?? 0;
   const resolverCount = resolverDraws(imageFile); // pure — hoisted out of the loop
   const count = lo + Math.trunc((hi - lo + 1) * prng.next()); // up from min
-  for (let s = 0; s < count; s++) {
-    prng.next(); // the ctor-seed draw (the seed arg feeds a local Random)
-    // the 0x668400 resolver — 1 draw per well-formed `$[lo-hi]` group (the
-    // binary recurses per group inside ONE call, @0x66873f)
-    for (let g = 0; g < resolverCount; g++) prng.next();
-    prng.next(); // the X roll (discarded)
-    prng.next(); // the Y roll (discarded)
-    prng.next(); // the strength roll (discarded)
+  // dig #164: the RECORD LANE now writes the byte plane (the dig-#162 law:
+  // the records' image_file → the template → the fn950 stencil → [P+0x58]).
+  // The template lookup happens per stamp — the resolver's $[lo-hi] group
+  // rolls its index (1 draw per well-formed group @0x66873f) and the
+  // substitution replaces the group in the path before the load.
+  // D-STAND-INS (flagged in ISSUES §A, this dig): (d1) the position rolls —
+  // X then Y, the integer roll-in-range form lo + trunc(N·u) over the aabb
+  // (N = max−min+1); (d2) the byte VALUE = 1 (the paint flag — the sampler's
+  // gate reads != 0; the record's strength draw travels for stream parity
+  // only). The exact fn950 roll shapes + byte decode = the next read if the
+  // census disagrees.
+  if (bytes && imageFile) {
+    for (let s = 0; s < count; s++) {
+      prng.next(); // the ctor-seed draw (the seed arg feeds a local Random)
+      // the resolver rolls + the PATH SUBSTITUTION: each well-formed group
+      // consumes 1 draw and is replaced by its rolled index (≤ 1 group per
+      // shipped image_file — the census this dig)
+      let stampPath = imageFile;
+      for (let g = 0; g < resolverCount; g++) {
+        const u = prng.next();
+        stampPath = stampPath.replace(/\$\[(\d+)-(\d+)\]/, (m, a, b) => {
+          void m;
+          return String(Number(a) + Math.trunc((Number(b) - Number(a) + 1) * u));
+        });
+      }
+      // the position rolls (X then Y, in-range integer forms; x = the aabb
+      // min + trunc(N·u); the record aabb Y range is 0..20 — the TOP-BAND
+      // placement is the binary's own data, not a port clamp)
+      const X = (aabbMinX ?? 5) + Math.trunc(((aabbMaxX ?? 507) - (aabbMinX ?? 5) + 1) * prng.next());
+      const Y = (aabbMinY ?? 0) + Math.trunc(((aabbMaxY ?? 20) - (aabbMinY ?? 0) + 1) * prng.next());
+      prng.next(); // the strength roll (the value lane; byte value = 1, d2)
+      // the stencil copy (fn950's law: the template's NONZERO bytes → the
+      // plane at (x0,y0); the record's gate = the template non-empty)
+      const stamp = recordTemplate(stampPath);
+      if (stamp) {
+        for (let py = 0; py < stamp.h; py++) {
+          const gy = Y + py;
+          if (gy < 0 || gy >= gridH) continue;
+          for (let px = 0; px < stamp.w; px++) {
+            const v = stamp.px[py * stamp.w + px];
+            if (v !== 0) {
+              const gx = X + px;
+              if (gx < 0 || gx >= gridW) continue;
+              bytes[gy * gridW + gx] = v; // NONZERO = the paint flag
+            }
+          }
+        }
+      }
+    }
+  } else {
+    // the no-template/no-bytes path: the byte-identical draws-only consumer
+    // (the I28 law, retained for the stream determinism)
+    for (let s = 0; s < count; s++) {
+      prng.next();
+      for (let g = 0; g < resolverCount; g++) prng.next();
+      prng.next();
+      prng.next();
+      prng.next();
+    }
   }
   return count;
+}
+
+// dig #164: the $[lo-hi] resolver's SUBSTITUTION lives inline in
+// caveRecordStamp (1 draw per well-formed group, the group vanishes after
+// the roll — the same draw budget resolverDraws counts).
+
+// dig #164: the record-TEMPLATE cache — the resolved image_file → the
+// 1-byte stencil template. The template's nonzero bytes ARE the fn950
+// stencil's source (C136: the stencil gate "[temp+0x5c] ≠ 0, the template's
+// nonzero bytes → [P+0x58]"). BYTE-VALUE LAW = D-STAND-IN (flagged, ISSUES
+// §A): the first-order decode = nonzero-rgb → the byte 1 (the paint flag;
+// the sampler's gate reads != 0 — the VALUE's magnitude only reaches the
+// material lane downstream); threshold = the pixel's rgb != 0. The darker
+// first-order (lum-scaled bytes) RETRACTED — any nonzero writes the flag;
+// the true channel decode = the fn950's template-fill read if the census
+// disagrees.
+const __templates = new Map();
+function recordTemplate(resolvedFile) {
+  if (!resolvedFile) return null;
+  if (__templates.has(resolvedFile)) return __templates.get(resolvedFile);
+  let tpl = null;
+  try {
+    const png = readPng(path.join(findNoitaDataDir(), resolvedFile.replace(/^data\//, "")));
+    const px = new Uint8Array(png.width * png.height);
+    for (let i = 0; i < px.length; i++) {
+      const r = png.data[4 * i], g = png.data[4 * i + 1], b = png.data[4 * i + 2];
+      px[i] = r !== 0 || g !== 0 || b !== 0 ? 1 : 0;
+    }
+    tpl = { w: png.width, h: png.height, px };
+  } catch { tpl = null; } // missing art → the draws-only arm (honest)
+  __templates.set(resolvedFile, tpl);
+  return tpl;
 }
 
 // The 0x668400 resolver's DRAW BUDGET (the byte law above): 1 per
@@ -679,14 +763,14 @@ export function buildCavesField(dataDir, def, seed) {
     return blobCount;
   })();
 
-  // ── (3) the CaveStructure RECORD walk — a PRNG-DRAW consumer (dig #123,
-  // I28 CLOSED): per record the count roll (up from min; ≤ 0 skips the
-  // record) + per stamp the ctor-seed / resolver-iff-$[lo-hi] / X / Y /
-  // strength draws. The stamp engines no-op on the ctor-empty template
-  // ⇒ no field/byte writes (see caveRecordStamp's byte ledger).
+  // ── (3) the CaveStructure RECORD walk — the BYTE-PLANE WRITER (dig #164,
+  // the dig-#162 law landed): per record the count roll (up from min; ≤ 0
+  // skips) + per stamp the ctor-seed / resolver / X / Y / strength draws AND
+  // the image-template stencil: the template's nonzero bytes → `bytes`
+  // ([P+0x58]) at (X, Y). No FIELD writes in this lane.
   setPhase("records");
   for (const rec of bc.structures ?? []) {
-    caveRecordStamp(rec, prng);
+    caveRecordStamp(rec, prng, bytes, w, h);
   }
 
   setPhase("l2");

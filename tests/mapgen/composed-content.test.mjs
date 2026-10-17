@@ -309,4 +309,55 @@ describe.skipIf(!hasData)("composed-content laws (dig #144, I34/I33)", () => {
            "temple_wall ZERO material hits — the commented-out (phantom) comps are retracted; 155 rock_hard_border cells under the #147 raw-regex table")
       .toEqual([]);
   });
+
+  // dig #164 (entry (164), the byte-plane WRITER falsification): the record
+  // lane's stamps now write the [P+0x58] byte plane (the dig-#162 chain:
+  // image_file → recordTemplate → the fn950 stencil). METER E1 pins:
+  //   (1) the nonzero-byte coverage MUST grow off the old constant-zero
+  //       plane (0.00%) for the record-carrying defs — FAILS under the
+  //       draws-only port arithmetic (the old law's exact number);
+  //   (2) desert — ZERO CaveStructure records in its XML (census this dig)
+  //       — keeps 0.00% ⇒ the record lane CANNOT be the plane's (sole)
+  //       writer (the capture shows 65.19% solid there = the dig-#165
+  //       writer-hunt's opening evidence);
+  //   (3) FIELD PARITY: the record lane is field-inert — the dig-#160 pins
+  //       (90.07/98.57/89.9%) hold to ±0.05 ⇒ the write lane cannot shift
+  //       the field (the dig-#163 spawn-scatter claim is also out:
+  //       spawn_percent="0" across all 55 biomes).
+  test("dig #164 byte-plane count: the record lane stamps nonzero bytes (FAILS old 0.00%), desert 0-records stays 0 (the writer-hunt evidence), field parity holds", async () => {
+    const { buildCavesField } = await import("../../mapgen/lib/caves-field.mjs");
+    const { loadBiomeConfig } = await import("../../mapgen/lib/biomes.mjs");
+    const cfg = loadBiomeConfig(DATA_DIR);
+    const pins = { _EMPTY_: 90.07, desert: 98.57, winter: 89.9 };
+    const coverage = { _EMPTY_: NaN, desert: 0, winter: NaN }; // desert's XML census: 0 records
+    for (const defName of Object.keys(pins)) {
+      const def = [...cfg.biomes.values()].find((d) => d.name === defName);
+      expect(def?.bitmapCaves, `${defName} carries <BitmapCaves>`).toBeTruthy();
+      const cf = buildCavesField(DATA_DIR, def, SEED);
+      const N = cf.w * cf.h;
+      let nz = 0, fsol = 0;
+      for (let i = 0; i < N; i++) {
+        if (cf.bytes[i] !== 0) nz++;
+        if (cf.field[i] > 0.5) fsol++;
+      }
+      const pct = 100 * nz / N;
+      if (defName === "desert") {
+        // the falsification anchor: ZERO <CaveStructure> elements in
+        // desert.xml (grep census this dig) ⇒ the record lane writes
+        // nothing ⇒ 0.00%. The capture still shows 65.19% solid ⇒ the
+        // plane's writer lane lives elsewhere (dig #165).
+        expect((def.bitmapCaves.structures ?? []).length, "desert record census").toBe(0);
+        expect(cf.bytes.every((v) => v === 0), "desert byte plane untouched").toBe(true);
+        coverage.desert = pct;
+      } else {
+        expect(pct, `${defName} nonzero-byte coverage > 0.5% — FAILS the old constant-zero plane (0.00%)`).toBeGreaterThan(0.5);
+      }
+      coverage[defName] = pct;
+      const fpct = 100 * fsol / N;
+      expect(fpct, `${defName} field parity (the record lane is field-inert)`).toBeCloseTo(pins[defName], 1);
+    }
+    // the template-load law reaches the test through the byte output pins
+    // above (recordTemplate stays module-private — the API surface is
+    // pinned by tests/mapgen/api-surface.test.mjs).
+  });
 });
