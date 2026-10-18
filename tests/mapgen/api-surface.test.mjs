@@ -13,6 +13,7 @@ import * as images from "../../mapgen/lib/images.mjs";
 import * as biomes from "../../mapgen/lib/biomes.mjs";
 import * as paths from "../../mapgen/lib/paths.mjs";
 import * as templateRender from "../../mapgen/lib/template-render.mjs";
+import * as plz from "../../mapgen/lib/plz.mjs";
 import * as mapFormat from "../../mapgen/lib/map-format.mjs";
 import * as spec from "../../mapgen/lib/map-format-spec.mjs";
 import * as cavesField from "../../mapgen/lib/caves-field.mjs";
@@ -156,9 +157,20 @@ describe("paths.mjs", () => {
 describe("template-render.mjs", () => {
   test("exports match the documented surface", () => {
     expect(Object.keys(templateRender).sort()).toEqual([
-      "TEMPLATE_SHADES", "parseInitPixelScenes",
+      "TEMPLATE_SHADES", "blitSplicedScenes", "parseInitPixelScenes",
       "renderTemplateChunk", "renderTemplateWorld",
     ]);
+  });
+});
+
+describe("plz.mjs", () => {
+  test("exports match the documented surface", () => {
+    expect(Object.keys(plz).sort()).toEqual([
+      "PLZ_HEADER_BYTES", "PLZ_RAW_THRESHOLD",
+      "decodePlz", "decodePlz1", "decodePlz2", "parsePlzHeader", "plzLevel",
+    ]);
+    expect(plz.PLZ_HEADER_BYTES).toBe(24);
+    expect(plz.PLZ_RAW_THRESHOLD).toBe(0x80); // loader gate 0x90E644 (dig #168)
   });
 });
 

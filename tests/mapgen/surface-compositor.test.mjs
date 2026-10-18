@@ -22,6 +22,24 @@ process.env.SURFACE_V3 = "1";
 const DATA_DIR = "/mnt/c/Users/xan98/AppData/LocalLow/Nolla_Games_Noita/data";
 const hasData = fs.existsSync(DATA_DIR + "/scripts");
 
+// ONE world per file (dig #168): ensureWorld()'s CALL is one contiguous SYNC
+// span — renderTemplateWorld (world-gen.mjs:277) PLUS the eager readFileSync
+// cache load (readCache per area inside the world.ready map, 342 .bin files).
+// Three per-file rebuilds put that span under a pending worker->host RPC reply
+// and tripped vitest single-fork's 60 s birpc window (`Timeout calling
+// "onTaskUpdate"`, the I36 class — battery deaths at the art-crust test, dig
+// #168). Same seed 78633191 + same dataDir ⇒ byte-identical world; sharing
+// removes the two redundant rebuilds. Assertions unchanged.
+let sharedWorld = null;
+async function getWorld() {
+  if (!sharedWorld) {
+    const { ensureWorld } = await import("../../mapgen/lib/world-gen.mjs");
+    sharedWorld = ensureWorld(78633191, DATA_DIR, { onProgress: () => {} });
+  }
+  await sharedWorld.ready;
+  return sharedWorld;
+}
+
 describe.skipIf(!hasData)("surface-band compositor (digs #130/#131/#132)", () => {
   test("the per-cell material classify compositor (dig #130)", async () => {
     const { noiseChunkMask } = await import("../../mapgen/lib/noise-terrain.mjs");
@@ -70,9 +88,8 @@ describe.skipIf(!hasData)("surface-band compositor (digs #130/#131/#132)", () =>
   });
 
   test("the sky/Hell layer law (dig #133): the sky band = ONE backdrop (the parallax gradient + stars) over every air row above the datum; the mines band unchanged", async () => {
-    const { ensureWorld, worldColorAt } = await import("../../mapgen/lib/world-gen.mjs");
-    const world = ensureWorld(78633191, DATA_DIR, { onProgress: () => {} });
-    await world.ready;
+    const { worldColorAt } = await import("../../mapgen/lib/world-gen.mjs");
+    const world = await getWorld();
     // the high sky = the parallax png's blue top rows (105,170,200 family)
     const high = worldColorAt(world, 35 * 512 + 256, 1 * 512 + 10);
     expect(high).not.toBeNull();
@@ -94,11 +111,10 @@ describe.skipIf(!hasData)("surface-band compositor (digs #130/#131/#132)", () =>
 
 
   test("the bin-air backdrop law (dig #134): the wang bands' AIR cells composite the area biome's declared bg", async () => {
-    const { ensureWorld, worldColorAt } = await import("../../mapgen/lib/world-gen.mjs");
+    const { worldColorAt } = await import("../../mapgen/lib/world-gen.mjs");
     const { loadBiomeConfig, biomeAt } = await import("../../mapgen/lib/biomes.mjs");
     const dataDir = DATA_DIR;
-    const world = ensureWorld(78633191, dataDir, { onProgress: () => {} });
-    await world.ready;
+    const world = await getWorld();
     const cfg = loadBiomeConfig(dataDir);
     // the pyramid band: the def declares background_pyramid.png; its air
     // cells (the colorize airDark family in the bins) must composite it
@@ -115,17 +131,22 @@ describe.skipIf(!hasData)("surface-band compositor (digs #130/#131/#132)", () =>
   });
 
   test("the wang-biome art-crust blit (dig #134): the pyramid's LoadPixelScene pieces land over the corridors", async () => {
-    const { ensureWorld, worldColorAt } = await import("../../mapgen/lib/world-gen.mjs");
-    const { renderTemplateWorld } = await import("../../mapgen/lib/template-render.mjs");
-    const { loadBiomeConfig } = await import("../../mapgen/lib/biomes.mjs");
-    const world = ensureWorld(78633191, DATA_DIR, { onProgress: () => {} });
-    await world.ready;
+    const { worldColorAt } = await import("../../mapgen/lib/world-gen.mjs");
+    const world = await getWorld();
     // the strongest pin: the template buffer for the pyramid chunk carries
     // the blitted art (non-9 pixels) — the first cut's `dynamic > 0` gate
     // skipped the whole blit (the pyramid's init has unresolvable callsites
     // mixed with the static ones); this pin FAILS under that gate.
-    const buffers = renderTemplateWorld(DATA_DIR, loadBiomeConfig(DATA_DIR), 78633191);
-    const buf = buffers.get("51,62");
+    // ensureWorld ALREADY ran renderTemplateWorld into world.templates
+    // (world-gen.mjs:277 — same fn, same dataDir, same seed 78633191 ⇒
+    // byte-identical output). The explicit SECOND render that used to live
+    // here was a ~49 s sync span immediately after a microtask-only gap —
+    // the recipe that trips vitest single-fork's 60 s worker-RPC timeout
+    // (`Timeout calling "onTaskUpdate"`, the I36 class, measured 48783 ms
+    // cold by mapgen/experiments/2026-10-18-splice-chunk-equiv.mjs, dig
+    // #168). Read the world's copy; both halves of this test now read the
+    // SAME template layer (worldColorAt probes below read world too).
+    const buf = world.templates.get("51,62");
     expect(buf).toBeDefined();
     let painted = 0;
     for (let i = 0; i < buf.length; i += 3) if (buf[i] !== 9) painted++;

@@ -1,10 +1,16 @@
 // Template-biome rendering (non-wang biomes): LoadPixelScene port for PNG
 // scenes + per-biome terrain fills. Authority: the game's own data (biome
 // XML Topology/Materials, scripts/biomes/*.lua compositions) + capture
-// calibration. Deferred (logged ABOUT_MATH 2026-09-09): plz-spliced scenes
-// (tree/moon/skull — container format RE), poro noise-terrain port (exact
-// shapes for hills/winter/desert/lake/mountains — banded fills below are
-// first-order approximations on world-seeded fBm).
+// calibration. Deferred (logged ABOUT_MATH 2026-09-09): poro noise-terrain
+// port (exact shapes for hills/winter/desert/lake/mountains — banded fills
+// below are first-order approximations on world-seeded fBm). The plz
+// container codec = reproduced dig #168 (mapgen/lib/plz.mjs, VERIFIED §10);
+// the paint-classification law for splice scenes = capture-verified (the
+// air/miss skips in blitSplicedScenes, ISSUES I9 amended). All 11 scene
+// families blit via their root PNGs; the open items (ISSUES I40/I39): the
+// *_visual.png / _visual.plz visual layers are NOT applied, blitFixedArt
+// paints raw colors (unmeasured vs capture), and the underlying fill under
+// splice scenes is too low/blocky (the revealed fill gap = I39).
 
 import { readPng, rgbToRgbaInt } from "./images.mjs";
 import { SHADES, MATERIAL_SHADE, pick, loadMaterials } from "./colorize.mjs";
@@ -324,7 +330,7 @@ const SPLICE_PNGS = [
   { file: "lavalake_pit_bottom.png", x: 2560, y: 3072 },
 ];
 
-function blitSplicedScenes(buffers, dataDir) {
+export function blitSplicedScenes(buffers, dataDir) {
   const materials = loadMaterials(dataDir);
   for (const sc of SPLICE_PNGS) {
     const img = art(dataDir, "data/biome_impl/spliced/" + sc.file);
@@ -337,12 +343,19 @@ function blitSplicedScenes(buffers, dataDir) {
         if (r === 0 && g === 0 && b === 0) continue; // scene air: below shows
         const hex = `${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
         const mname = materials.get(hex);
-        let color;
-        if (mname) {
-          color = pick(materialShadeFor(dataDir, mname), sc.x + i, sc.y + j, 0x51ce3f);
-        } else {
-          color = [r, g, b]; // non-material palette pixel (art detail) — draw raw
+        if (mname === "air" || !mname) {
+          // Paint-classification law (dig #168, capture truth table over
+          // mountain_lake/lake_statue/watercave): cell value = the
+          // wang_color->material lookup. 'air' hit -> open scene sky;
+          // MISS (raw art detail: whites/grays/glyphs) -> the cell KEEPS
+          // its content — the floor/sky fill shows through (404/404
+          // mountain_lake samples show fill, never the art's own color;
+          // I9's "unmatched palette colors drawn raw" clause corrected).
+          // Pure black = a miss too (materials.xml has no 000000 key),
+          // skipped above by the explicit black check.
+          continue;
         }
+        const color = pick(materialShadeFor(dataDir, mname), sc.x + i, sc.y + j, 0x51ce3f);
         setWorldPx(buffers, sc.x + i, sc.y + j, color);
       }
     }
@@ -396,8 +409,12 @@ function blitFixedScenes(buffers, dataDir) {
   return artPainted;
 }
 
-// fixed-absolute scenes keep their RAW palette for non-material art px (the
-// spliced-scene rule), not the full band fill — they are the scene's own art.
+// FLAGGED D (dig #168, ISSUES I40): fixed-absolute scenes still paint
+// non-material art px with the ART's RAW RGB below. The splice lane's
+// capture truth table (404/404 raw samples show FILL, never the art color)
+// says the raw paint is likely wrong here too — but _pixel_scenes entries
+// are UNMEASURED against the capture, so the behavior is kept (registered,
+// not silently changed) until a capture window pins its classification.
 function blitFixedArt(buffers, dataDir, matFile, visFile, sx, sy) {
   const img = art(dataDir, matFile);
   if (!img) return 0;
