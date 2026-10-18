@@ -1,7 +1,7 @@
 {
   "comment": "the I36 count law's reference (dig #156, scripts/precommit-gates-lib.mjs): the full battery must report EXACTLY these vitest summary totals at every gated commit — any deficit = the silent-truncation class, refused with one retry allowed. Updated per dig when the committed test set changes (the dig's own battery run is the source).",
-  "filesTotal": 27,
-  "testsTotal": 371,
+  "filesTotal": 28,
+  "testsTotal": 375,
   "testsSkipped": 3,
-  "source": "npm test at dig #168 (2026-10-18, live: the dig-#167-era 26 files/358 tests + tests/mapgen/plz-codec.test.mjs (12) + the api-surface plz export pin (1) = 27 files / 371 tests / 3 skipped, exit 0, zero rpc errors — AFTER the dig's I36-recurrence test-scoping fixes: the plz count law pins blitSplicedScenes directly (chunk 40,62 full-render equivalence measured byteEqual, 48783 ms -> 1825 ms) and surface-compositor reads world.templates + shares one getWorld() across its tests (solo 174 s -> 71 s))"
+  "source": "npm test at dig #169 (2026-10-18, live: the dig-#168 set 27 files/371 tests + tests/mapgen/bitmap-noise-census.test.mjs (4) = 28 files / 375 tests / 3 skipped, exit 0) — the dig-#169 census suite is data-dependent (RUNS with NOITA_DATA_DIR present, skips without per the repo pattern)"
 }

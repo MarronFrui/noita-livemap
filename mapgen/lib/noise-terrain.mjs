@@ -327,7 +327,11 @@ function uidFrom(def, cfg) {
 // so the instrument can swap it once the rasterize read lands.
 // **dig #146 SCOPE — RETIRED FROM THE LANES (C39 demoted):** the kind-0
 // lanes no longer build any gradAt — the byte law is field0 ≡ 1.0 for P == NULL
-// (every shipped biome; entry (146)) — so neither this ramp nor the
+// (dig #169/C144 CORRECTION: NOT "every shipped biome" — the lake family
+// (lake/lake_blood/lake_deep/lake_statue) carries bitmap_noise_file →
+// topology_lake.png and the P-wire (the [+0xa8] path → [uid+0x1d4]) = the
+// OPEN read (#170); the no-gradAt stance stays the honest port behavior for
+// the non-attr biomes incl. this anchor) — so neither this ramp nor the
 // topology loader below is load-bearing any more (D-claim retired). Both
 // survive HERE only for the dated probes that still construct them:
 // experiments/2026-10-15-kind-default-probe.mjs (dig #144 pre-port
@@ -426,10 +430,14 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
     uid.driver = makeBandDriver(config, seed);  // dig #142: the kind-0 r-site frame; dig #145 (I21 flip landed): the lane feeds it WORLD px below
     // dig #30: the caves-field source when the biome carries <BitmapCaves>
     // (the hills/desert/pyramid family). Dig #146 closed the kind-0 else-
-    // arm: for EVERY shipped biome the in-binary P (BitmapNoise [uid+0x1d4])
-    // is NULL, so field0 ≡ 1.0 inside surfaceField and NO gradAt is built
-    // for kind-0 lanes (the C39 image-lane/ramp instruments are retired from
-    // the lanes — see makeGradAt's header for their surviving scope).
+    // arm: for the NON-ATTR shipped biomes (incl. the mountain_lake anchor)
+    // the in-binary P (BitmapNoise [uid+0x1d4]) is NULL, so field0 ≡ 1.0
+    // inside surfaceField and NO gradAt is built for kind-0 lanes (the C39
+    // image-lane/ramp instruments are retired from the lanes — see
+    // makeGradAt's header for their surviving scope). Dig #169/C144
+    // correction: the lake family DOES carry bitmap_noise_file (4 defs →
+    // topology_lake.png) and its P-wire = the open read (#170); the port
+    // behavior is unchanged.
     let gradAt = null;
     // dig #121 (entry (121), I25 index half): when the caves field
     // attaches, the lane's VALUE = the field read DIRECTLY at cell
