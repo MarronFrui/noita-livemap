@@ -158,8 +158,25 @@ describe.skipIf(!hasNoitaData())("ensureWorld — cached generation (repo gen-ca
 
   test("loads all areas from the disk cache", async () => {
     if (!cacheDir) return; // no cached seed — cold gen out of scope for the battery
-    world = ensureWorld(CAPTURE_SEED, dataDir, { cacheDir });
-    await world.ready;
+    // The I36 yield law (closed with entry (173)): ensureWorld MUST yield
+    // per area on BOTH branches — the cache-HIT path's old contiguous
+    // span (342 readFileSync in one sync block; 64.2/70.4/70.6 s measured
+    // per battery run on 2026-10-20) starved the single-fork worker's
+    // birpc channel, and every `Timeout calling "onTaskUpdate"` battery
+    // abort landed at that span's end. Count the scheduled ticks: ≥1 per
+    // area proves the load interleaves with the event loop instead of
+    // blocking it for the whole span (other setImmediate users in the
+    // window only add ticks, so the lower bound never false-fails).
+    let ticks = 0;
+    const origSetImmediate = globalThis.setImmediate;
+    globalThis.setImmediate = (fn, ...args) => { ticks++; return origSetImmediate(fn, ...args); };
+    try {
+      world = ensureWorld(CAPTURE_SEED, dataDir, { cacheDir });
+      await world.ready;
+    } finally {
+      globalThis.setImmediate = origSetImmediate;
+    }
+    expect(ticks).toBeGreaterThanOrEqual(world.areas.length);
     // some areas legitimately end with no accepted attempt (lake / rainforest_dark — VERIFIED.md §5/open frontier)
     expect(world.errors.size).toBeLessThanOrEqual(10);
     expect(world.maps.size).toBe(world.areas.length - world.errors.size);

@@ -298,16 +298,26 @@ export function ensureWorld(seed, dataDir, { cacheDir = null, onProgress = () =>
     world.areas.map(
       (a) =>
         new Promise((resolve) => {
-          const cacheFile = cacheDir ? path.join(cacheDir, String(seed), `${a.key}.bin`) : null;
-          const cached = cacheFile ? readCache(cacheFile) : null;
-          if (cached && cached.w === a.w && cached.h === a.h) {
-            world.maps.set(a.key, cached);
-            onProgress(1, a.key, null);
-            resolve();
-            return;
-          }
-          // let the caller tick before each generation (keeps logs responsive)
+          // Yield BEFORE the per-area work on BOTH branches (I36's recurrence
+          // closed with entry (173)): the cache-HIT path used to read all 342
+          // .bin files in ONE contiguous sync span — 64.2/70.4/70.6 s measured
+          // per battery run on 2026-10-20 — so the single-fork worker's event
+          // loop (and its pending birpc acks/timers) only resumed at the
+          // span's END, where an expired `Timeout calling "onTaskUpdate"`
+          // timer beats the already-queued ack and aborts the run. One tick
+          // per area (one file read or one generation between ticks) keeps
+          // the channel live; `world.ready`, the progress contract and the
+          // per-area work are unchanged, and the gen server also stays
+          // responsive during startup loads.
           setImmediate(() => {
+            const cacheFile = cacheDir ? path.join(cacheDir, String(seed), `${a.key}.bin`) : null;
+            const cached = cacheFile ? readCache(cacheFile) : null;
+            if (cached && cached.w === a.w && cached.h === a.h) {
+              world.maps.set(a.key, cached);
+              onProgress(1, a.key, null);
+              resolve();
+              return;
+            }
             let r = null, err = null;
             try {
               // static-tile biomes carry fixed artworks, not herringbone
