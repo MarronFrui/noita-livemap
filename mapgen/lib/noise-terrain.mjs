@@ -64,27 +64,38 @@ function ensureCavesField(dataDir, def, seed) {
 // seed {min:0, max:0} is the documented proxy — the game's seed init is
 // unread (OPEN, C76) and buildMaterialsTable's extend-if-narrower rule
 // makes the real band = the comps' hull ∪ {0,0} = [0, 3.5] for hills.
-// dig #133 (I32 p2c, the SKY/Hell layer law): ONE sky backdrop for every
-// world row above the datum (canvas py < 31744 = bty 0..13 + the vmap
-// sky above, all the way up to the Heaven end) — the parallax gradient
-// (weather_gfx/parallax_background.png: blue high → warm at the horizon)
-// + the star sprite (star_007.png) at hash-deterministic positions.
+// dig #133 (I32 p2c, the SKY/Hell layer law) AS CORRECTED BY THE NIGHT
+// LAW (2026-10-19, I32 amended): ONE sky backdrop for every world row
+// above the datum (canvas py < 31744 = bty 0..13 + the vmap sky above,
+// all the way up to the Heaven end) = BLACK air (null; the capture's
+// opaque black = air under C78's lum<24 mask rule) + the star sprite
+// (star_007.png) at hash-deterministic positions AT EVERY ALTITUDE.
+// The parallax-row gradient (weather_gfx/parallax_background.png, the
+// game's DAYTIME layer: blue (100,168,198) top → warm (254,206,108)
+// horizon) is NOT rendered: the render target = the noitamap/mapcap
+// reference, whose sky is opaque black + stars at every altitude
+// (M-grade: ref/35_10, 35_13, 30_13 = 100% alpha-255, ref sky-band
+// warm 0.001 vs our gradient's 0.892 — census
+// mapgen/out/surface-color-census-2026-10-19-*.json). WHY the capture
+// is night (time-of-day vs the layer-excluded world render) = OPEN,
+// untagged; either way the capture = the product target.
 // The per-biome bg art (cave_04_alt etc.) = the UNDERGROUND bands only
 // (bty ≥ 14); the hills def's cave-bg declaration does NOT paint the sky
 // (the user's in-game observation + the biome-map rows 1..12 = hills with
 // sky visible). Hell = the_end's own background_the_end.png (its
 // declaration; the template-lane air bg for the hell rows = tagged OPEN).
-const skyBackdropCache = { done: false, sky: null, star: null };
+// NIGHT law (2026-10-19): only the star sprite loads — the parallax
+// gradient png is the game's daytime layer and never renders here (see
+// the sky-law note at the top of this file; the capture = black).
+const skyBackdropCache = { done: false, star: null };
 function ensureSkyBackdrop(dataDir) {
   if (skyBackdropCache.done) return skyBackdropCache;
   skyBackdropCache.done = true;
   const dir = dataDir ?? dataDirRef.dataDir;
   try {
-    const sky = readPng(path.join(dir, "weather_gfx/parallax_background.png"));
-    skyBackdropCache.sky = { w: sky.width, h: sky.height, px: sky.data };
     const star = readPng(path.join(dir, "weather_gfx/star_007.png"));
     skyBackdropCache.star = { w: star.width, h: star.height, px: star.data };
-  } catch { /* missing art → transparent sky (honest) */ }
+  } catch { /* missing art → plain black sky (honest) */ }
   return skyBackdropCache;
 }
 const skyStarHash = (cx, cy) =>
@@ -729,7 +740,8 @@ export function attachNoiseTerrain(world, dataDir, seed = 0) {
   // below the SURFACE_* gate made every default-lane sky / void /
   // bin-less px null → the tile renderer's opaque black (their viewer's
   // black sky rows). The data-image backdrop carries zero D (it reads
-  // the game's own parallax PNG), so it ships with the honest default
+  // the game's own star sprite — the NIGHT law, 2026-10-19), so it
+  // ships with the honest default
   // render; the NOISE band stays OPT-IN below (VERIFIED.md §12's D-law:
   // the placeholder ramp + the un-carve'd filler shape must not ship as
   // default). Tests: the default-lane attach contract in
@@ -743,47 +755,38 @@ export function attachNoiseTerrain(world, dataDir, seed = 0) {
   // back to null = transparent air (the sky row's blue = the template
   // lane's biome_color, landed later). The game's true parallax/layering
   // = OPEN (tagged): this is the prototype tile law.
-  // dig #133 (I32 p2c, the SKY/Hell layer law) + dig #134 fix-3: the
-  // backdrop is split — `bgImageAt` = the VOID/bins-air path (the caller
-  // decides); `skyAt` = the pure sky (the parallax gradient + the stars),
-  // called for the world rows above the datum (the caller's ty < 62 = the
-  // sky band, to the Heaven end). The per-biome backgrounds (the C109
-  // law) = the UNDERGROUND bands (ty >= 62).
-  // dig #133 (I32 p2c, the SKY/Hell layer law) + dig #134 fix-3: the
-  // backdrop is split — `skyAt` = the pure sky (the parallax gradient +
-  // the stars; the world rows above the datum = the caller's ty < 62 =
-  // the band to the Heaven end) and `bgImageAt` = the C109 per-biome
-  // backdrop for the UNDERGROUND bands (ty ≥ 62).
+  // dig #133 (I32 p2c, the SKY/Hell layer law) + dig #134 fix-3, AS
+  // CORRECTED BY THE NIGHT LAW (2026-10-19, I32 amended): the backdrop
+  // is split — `bgImageAt` = the VOID/bins-air path (the caller
+  // decides); `skyAt` = the pure sky (BLACK air + stars at every
+  // altitude — see the sky-law note at the top of this file), called
+  // for the world rows above the datum (the caller's ty < 62 = the sky
+  // band, to the Heaven end). The per-biome backgrounds (the C109 law)
+  // = the UNDERGROUND bands (ty >= 62).
   const skyAt = (tx, ty, gx, gy) => {
+    // NIGHT law (2026-10-19): plain sky = null (transparent air — the
+    // renderer's black + C78 air in the capture's mask), stars =
+    // hash-placed sprite px composited over black. The old law sampled
+    // the parallax png's ROW by gy/31744 (its bottom = the warm horizon
+    // (254,206,108) = the user's "brown chunk" gold band) and gated the
+    // stars at t < 0.75, which excluded the whole scorable sky band
+    // (t >= 0.87): both removed. Hash + placement unchanged (C110).
     const sb = ensureSkyBackdrop(dataDir);
-    if (!sb.sky) return null;
-    // the vertical gradient: the png's top = high altitude (blue), its
-    // bottom = the horizon (warm). t: 1 at the datum → 0 at the canvas top.
-    const tRaw = gy / 31744;
-    const t = tRaw < 0 ? 0 : tRaw > 1 ? 1 : tRaw;
-    const sr = Math.floor(t * (sb.sky.h - 1)); // the png's top = blue (high), bottom = warm (horizon)
-    const sx = ((gx % sb.sky.w) + sb.sky.w) % sb.sky.w;
-    const q = 4 * (sr * sb.sky.w + sx);
-    let r = sb.sky.px[q], g = sb.sky.px[q + 1], b = sb.sky.px[q + 2];
-    // the stars: hash-placed in the upper sky, alpha-composited
-    if (t < 0.75) {
-      const cx = Math.floor(gx / 32), cy = Math.floor(gy / 32);
-      if (skyStarHash(cx, cy) % 23 === 0 && sb.star) {
-        const h2 = skyStarHash(cx + 7919, cy + 104729);
-        const ox = h2 % 32, oy = (h2 >> 5) % 32;
-        const lx = gx - cx * 32 - ox, ly = gy - cy * 32 - oy;
-        if (lx >= 0 && ly >= 0 && lx < sb.star.w && ly < sb.star.h) {
-          const sq = 4 * (ly * sb.star.w + lx);
-          const a = sb.star.px[sq + 3] / 255;
-          if (a > 0) {
-            r = Math.round(sb.star.px[sq] * a + r * (1 - a));
-            g = Math.round(sb.star.px[sq + 1] * a + g * (1 - a));
-            b = Math.round(sb.star.px[sq + 2] * a + b * (1 - a));
-          }
-        }
-      }
-    }
-    return [r, g, b];
+    if (!sb.star) return null;
+    const cx = Math.floor(gx / 32), cy = Math.floor(gy / 32);
+    if (skyStarHash(cx, cy) % 23 !== 0) return null;
+    const h2 = skyStarHash(cx + 7919, cy + 104729);
+    const ox = h2 % 32, oy = (h2 >> 5) % 32;
+    const lx = gx - cx * 32 - ox, ly = gy - cy * 32 - oy;
+    if (lx < 0 || ly < 0 || lx >= sb.star.w || ly >= sb.star.h) return null;
+    const sq = 4 * (ly * sb.star.w + lx);
+    const a = sb.star.px[sq + 3] / 255;
+    if (a <= 0) return null;
+    return [
+      Math.round(sb.star.px[sq] * a),
+      Math.round(sb.star.px[sq + 1] * a),
+      Math.round(sb.star.px[sq + 2] * a),
+    ];
   };
   const bgImageAtInner = (tx, ty, gx, gy, skyInstead) => {
     if (skyInstead || ty < 62) return skyAt(tx, ty, gx, gy);

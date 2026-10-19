@@ -233,22 +233,36 @@ describe("default lane (no SURFACE_* flags) — attach noise-terrain contract", 
 });
 
 describe.skipIf(!hasNoitaData())("default lane sky color (data-gated)", () => {
-  test("skyAt returns the parallax gradient px without flags (3×uint8)", () => {
+  // NIGHT law (2026-10-19, I32 amended): the sky band = BLACK air (null)
+  // + hash-placed stars at EVERY altitude. Fail-under-old-law pins: the
+  // old parallax-row law returned the gold horizon (254,206,108) at
+  // t=0.9766 and the blue rows (100,168,198 family) at t=0.094 (both
+  // non-null ⇒ the toBeNull asserts fail), and its t<0.75 star gate
+  // excluded the horizon scan band entirely (pale star count = 0).
+  test("skyAt = the NIGHT law: null at the horizon and high sky; stars present below t=0.75", () => {
     const env = { ...process.env, PROBE_REPO: repoRoot, PROBE_DATA: dataDir };
     delete env.SURFACE_V2;
     delete env.SURFACE_V3;
     const r = spawnSync(process.execPath, ["--input-type=module", "-e", `
       const { attachNoiseTerrain } = await import(process.env.PROBE_REPO + "/mapgen/lib/noise-terrain.mjs");
       const w = attachNoiseTerrain({ config: null }, process.env.PROBE_DATA, 0);
-      // canvas px near the datum (gy/31744 → t≈0.97 = the horizon rows)
-      process.stdout.write(JSON.stringify(w.skyAt(17, 60, 8800, 31000)));
+      const lum = (c) => 0.299*c[0] + 0.587*c[1] + 0.114*c[2];
+      const pale = (c) => Math.abs(c[0] - c[2]) < 60 && lum(c) >= 60;
+      let stars = 0;
+      for (let gx = 8700; gx < 9212; gx++) for (let gy = 31000; gy < 31744; gy += 4) {
+        const c = w.skyAt(17, 60, gx, gy);
+        if (c && pale(c)) stars++;
+      }
+      process.stdout.write(JSON.stringify({
+        horizon: w.skyAt(17, 60, 8800, 31000), // t = 31000/31744 = 0.9766 (old: gold)
+        high: w.skyAt(17, 1, 8800, 3000),      // t = 0.094 (old: blue rows)
+        stars,                                  // old: 0 (the t<0.75 gate excluded the band)
+      }));
     `], { env, encoding: "utf8", cwd: repoRoot });
     expect(r.status, r.stderr).toBe(0);
-    const px = JSON.parse(r.stdout);
-    expect(px).toHaveLength(3);
-    for (const v of px) {
-      expect(v).toBeGreaterThanOrEqual(0);
-      expect(v).toBeLessThanOrEqual(255);
-    }
+    const s = JSON.parse(r.stdout);
+    expect(s.horizon).toBeNull();
+    expect(s.high).toBeNull();
+    expect(s.stars).toBeGreaterThan(0);
   });
 });

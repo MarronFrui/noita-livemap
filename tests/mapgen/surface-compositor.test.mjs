@@ -87,15 +87,30 @@ describe.skipIf(!hasData)("surface-band compositor (digs #130/#131/#132)", () =>
     expect([...r62.matIdx].filter((v) => v !== 255).length).toBe(2409);
   });
 
-  test("the sky/Hell layer law (dig #133): the sky band = ONE backdrop (the parallax gradient + stars) over every air row above the datum; the mines band unchanged", async () => {
+  test("the NIGHT sky law (2026-10-19, I32 amended): the sky band = black air + stars at every altitude; the mines band unchanged", async () => {
     const { worldColorAt } = await import("../../mapgen/lib/world-gen.mjs");
     const world = await getWorld();
-    // the high sky = the parallax png's blue top rows (105,170,200 family)
+    // the high sky = plain air (null). The OLD parallax law returned the
+    // blue rows (100,168,198 family) here ⇒ fails under the old law.
     const high = worldColorAt(world, 35 * 512 + 256, 1 * 512 + 10);
-    expect(high).not.toBeNull();
-    expect(high[1]).toBeGreaterThan(120); // green channel high = blue, not airDark/cave-bg
-    expect(high[0]).toBeLessThan(160);
-    // the stars: bright specks exist in the sky band (the hash-placed sprites)
+    expect(high).toBeNull();
+    // the horizon row (t = 0.977): plain air. The OLD law sampled the
+    // parallax png's bottom rows = gold (254,206,108) ⇒ non-null ⇒ fails.
+    const horizon = worldColorAt(world, 48 * 512 + 256, 31000);
+    expect(horizon).toBeNull();
+    // the warm share over the desert sky window: ~0 now (stars are pale,
+    // art is absent at these rows); the OLD law = gold ≈ 0.98 ⇒ fails.
+    let n = 0, warm = 0;
+    for (let x = 0; x < 512; x += 2) for (let wy = 31000; wy < 31744; wy += 8) {
+      const c = worldColorAt(world, 48 * 512 + x, wy);
+      n++;
+      if (c && c[0] >= 200 && c[0] - c[2] >= 60) warm++;
+    }
+    expect(n).toBeGreaterThan(0);
+    expect(warm / n).toBeLessThan(0.05);
+    // the stars at EVERY altitude (the old t<0.75 gate excluded the
+    // horizon band): pale sprite px exist across the sky band — standing
+    // pin (the pale rule excludes the old gold AND the ice-blue silhouette)
     let stars = 0;
     for (let ty = 5; ty < 55; ty++) for (let y = 0; y < 512; y += 2) for (let x = 0; x < 512; x += 2) {
       const c = worldColorAt(world, 40 * 512 + x, ty * 512 + y);

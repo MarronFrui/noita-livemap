@@ -101,8 +101,10 @@ export function worldColorAt(world, wx, wy) {
   const tx = Math.floor(gx / CHUNK), ty = Math.floor(gy / CHUNK);
   // dig #133 (I32 p2c, the SKY/Hell layer law): the SKY BAND = chunk rows
   // 0..61 (the vmap sky clamp + the biome map's rows 0..13 = the_sky/hills
-  // sky region, all the way up to the Heaven end). ONE backdrop (the
-  // parallax gradient + stars) with the template lane's ART pieces over
+  // sky region, all the way up to the Heaven end). ONE backdrop (BLACK
+  // air + stars at every altitude — the NIGHT law 2026-10-19; the old
+  // parallax gradient = the user's "brown chunk" gold band) with the
+  // template lane's ART pieces over
   // it (the mountain/hills LoadPixelScene pieces, the moon, the spliced
   // scenes). The area-bin lane NEVER paints here (the_sky's bin = the
   // void black; the extension's airDark = superseded by the sky). The
@@ -120,7 +122,7 @@ export function worldColorAt(world, wx, wy) {
     // cells composite the area def's bg via the #134 bin-air law);
     // 2) the template buffer's art pieces over it; 3) the VOID defs (the
     // _sky/barren/darkness family = the "renders black" set) + the bin-less
-    // chunks = the sky backdrop (the gradient+stars). The hills def's
+    // chunks = the sky backdrop (black + stars, the NIGHT law 2026-10-19). The hills def's
     // cave-bg = still NOT in the sky (only the VOID bgs route here).
     let binPx = null, voidChunk = false;
     {
