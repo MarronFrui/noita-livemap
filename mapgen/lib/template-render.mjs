@@ -7,10 +7,13 @@
 // container codec = reproduced dig #168 (mapgen/lib/plz.mjs, VERIFIED §10);
 // the paint-classification law for splice scenes = capture-verified (the
 // air/miss skips in blitSplicedScenes, ISSUES I9 amended). All 11 scene
-// families blit via their root PNGs; the open items (ISSUES I40/I39): the
-// *_visual.png / _visual.plz visual layers are NOT applied, blitFixedArt
-// paints raw colors (unmeasured vs capture), and the underlying fill under
-// splice scenes is too low/blocky (the revealed fill gap = I39).
+// families blit via their root PNGs; the open items (ISSUES I40): the
+// *_visual.png / _visual.plz visual layers are NOT applied and
+// blitFixedArt paints raw colors (unmeasured vs capture). dig #170 landed
+// the two lake-band defects (C145): the template lane reads at the
+// DISPLAY frame (the anchor belongs to the generator lanes) and the
+// splice lane's grey placeholders get the hosting biome's band fill
+// (blitSplicedScenes' grey branch).
 
 import { readPng, rgbToRgbaInt } from "./images.mjs";
 import { SHADES, MATERIAL_SHADE, pick, loadMaterials } from "./colorize.mjs";
@@ -330,8 +333,41 @@ const SPLICE_PNGS = [
   { file: "lavalake_pit_bottom.png", x: 2560, y: 3072 },
 ];
 
-export function blitSplicedScenes(buffers, dataDir) {
+export function blitSplicedScenes(buffers, dataDir, config, seed = 0) {
   const materials = loadMaterials(dataDir);
+  // dig #170 (fix B): the SPLICE LANE's grey-placeholder band fill — the
+  // same law blitScene applies to per-chunk scenes. dig #168's MISS→keep
+  // law stands for every OTHER raw color; pure grey (r===g===b, non-black,
+  // alpha≥10) is the placeholder family and gets the HOSTING BIOME's
+  // MaterialComponent fill (M-grade: at the mountain_lake art-grey cells
+  // the capture is solid terrain 104002/104002 = 100.000%, depth-banded
+  // soil→copper per the biome's windows — capture rows 160-400
+  // soil-dominant, copper rising 416-496 — while art-BLACK ("below shows")
+  // dark: the fill/defer split pins the loader law, not a base-lane
+  // coincidence). The seeded-fBm band choice stays the registered
+  // approximation (ISSUES §A A5 — the C32 band/vein open read).
+  const bandsCache = new Map();
+  const bandsOf = (gx, gy) => {
+    if (!config) return null;
+    // game frame -> biome chunk: display = game + (35·512, 62·512) and
+    // biome = display chunk with the 48 sky rows removed (C145 frame law)
+    const at = biomeAt(config, Math.floor(gx / 512) + 35, Math.floor(gy / 512) + 14);
+    const def = at?.biome;
+    if (!def) return null;
+    let e = bandsCache.get(def);
+    if (e === undefined) {
+      const bands = (def.materialBands ?? []).filter((b) => !b.rare);
+      e = bands.length
+        ? {
+            bands,
+            lo: Math.min(...bands.map((b) => b.min)),
+            hi: Math.max(...bands.map((b) => b.max)),
+          }
+        : null;
+      bandsCache.set(def, e);
+    }
+    return e;
+  };
   for (const sc of SPLICE_PNGS) {
     const img = art(dataDir, "data/biome_impl/spliced/" + sc.file);
     if (!img) continue;
@@ -341,22 +377,42 @@ export function blitSplicedScenes(buffers, dataDir) {
         if (img.data[q + 3] < 10) continue; // transparent: below shows
         const r = img.data[q], g = img.data[q + 1], b = img.data[q + 2];
         if (r === 0 && g === 0 && b === 0) continue; // scene air: below shows
-        const hex = `${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
-        const mname = materials.get(hex);
-        if (mname === "air" || !mname) {
-          // Paint-classification law (dig #168, capture truth table over
-          // mountain_lake/lake_statue/watercave): cell value = the
-          // wang_color->material lookup. 'air' hit -> open scene sky;
-          // MISS (raw art detail: whites/grays/glyphs) -> the cell KEEPS
-          // its content — the floor/sky fill shows through (404/404
-          // mountain_lake samples show fill, never the art's own color;
-          // I9's "unmatched palette colors drawn raw" clause corrected).
-          // Pure black = a miss too (materials.xml has no 000000 key),
-          // skipped above by the explicit black check.
-          continue;
+        const gx = sc.x + i, gy = sc.y + j;
+        let color;
+        if (r === g && g === b) {
+          // grey placeholder -> the hosting biome's MaterialComponent fill
+          // (blitScene's branch, template-render.mjs:90-100; the A5 D-flag
+          // covers the seeded band choice). No hosting biome / no bands:
+          // the cell keeps its content (the old law).
+          const info = bandsOf(gx, gy);
+          if (!info) continue;
+          const active = info.bands.filter(
+            (b2) => !b2.limitMinY || !b2.limitMaxY || (gy >= b2.limitMinY && gy <= b2.limitMaxY)
+          );
+          const use = active.length ? active : info.bands;
+          const v = info.lo + fbm2(gx, gy, seed | 0) * (info.hi - info.lo);
+          const chosen = use.filter((bd) => v >= bd.min && v < bd.max).pop() ?? use[use.length - 1];
+          color = pick(materialShadeFor(dataDir, chosen.name), gx, gy, 0x51ce3f);
+        } else {
+          const hex = `${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+          const mname = materials.get(hex);
+          if (mname === "air" || !mname) {
+            // Paint-classification law (dig #168, capture truth table over
+            // mountain_lake/lake_statue/watercave): cell value = the
+            // wang_color->material lookup. 'air' hit -> open scene sky;
+            // MISS (raw art detail: whites/grays/glyphs) -> the cell KEEPS
+            // its content — the floor/sky fill shows through (404/404
+            // mountain_lake samples show fill, never the art's own color;
+            // I9's "unmatched palette colors drawn raw" clause corrected).
+            // Pure black = a miss too (materials.xml has no 000000 key),
+            // skipped above by the explicit black check. dig #170 splits
+            // the MISS family: pure grey = the band fill (above), all
+            // other raw colors keep this skip.
+            continue;
+          }
+          color = pick(materialShadeFor(dataDir, mname), gx, gy, 0x51ce3f);
         }
-        const color = pick(materialShadeFor(dataDir, mname), sc.x + i, sc.y + j, 0x51ce3f);
-        setWorldPx(buffers, sc.x + i, sc.y + j, color);
+        setWorldPx(buffers, gx, gy, color);
       }
     }
   }
@@ -478,7 +534,7 @@ export function renderTemplateWorld(dataDir, config, seed) {
     }
   }
   renderWorldExtension(buffers, config, seed);
-  blitSplicedScenes(buffers, dataDir);
+  blitSplicedScenes(buffers, dataDir, config, seed);
   blitFixedScenes(buffers, dataDir);
   // dig #134 (I32 p2c, the ART-CRUST for the WANG biomes): the generic
   // LoadPixelScene lane extended to the templateFile biomes (the pyramid

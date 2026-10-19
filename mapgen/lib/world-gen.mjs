@@ -76,10 +76,22 @@ export function loadWangWorld(dataDir) {
 // L3 anchor (CONSTANTS C78, dig #99): gen↔capture registration fitted on
 // seed 78633191 (ABOUT_MATH (99)). score(dx,dy) compared ref(x,y) with
 // gen(x+dx,y+dy); the CONSTANT verdict peak (11,12) ⇒ display (wx,wy) reads
-// content at (wx+11, wy+12), shifting every lane (area map, template, noise)
-// together. Bounds are checked on the DISPLAY coordinate first; content past
-// the canvas edge is background (right 11 px / bottom 12 px strips → null).
-// Sampling-only: the gen-cache .bin format is untouched.
+// GENERATOR-lane content at (wx+11, wy+12). Bounds are checked on the
+// DISPLAY coordinate first; content past the canvas edge is background
+// (right 11 px / bottom 12 px strips → null). Sampling-only: the gen-cache
+// .bin format is untouched.
+// dig #170 (C145): the anchor registers the GENERATOR lanes (area bins,
+// noise) only — NOT the template lane. The template buffer is a
+// DISPLAY-frame buffer (setWorldPx keys it by the game→display CHUNK map
+// (+35/+62, chunk-aligned) and writes game-frame locals, so the display
+// chunk = the write chunk and the display local = the write local); the
+// template reads below sample (wx, wy), not (gx, gy). Reading the template
+// at generator-local had shifted every scene (−11,−12) (M-grade: the
+// water-mask cross-correlation of spliced/mountain_lake.png vs capture
+// 40_14 peaks at IDENTITY — 56450/56467 = 99.97% of the capture's flat
+// [35,61,56] water covered by art water at offset (0,0); no neighbor
+// offset beats (0,0) in the ±16 sweep — instrument:
+// mapgen/experiments/2026-10-19-dig170-lake-band-counts.mjs).
 export const L3_ANCHOR = { x: 11, y: 12 };
 
 export function worldColorAt(world, wx, wy) {
@@ -146,10 +158,13 @@ export function worldColorAt(world, wx, wy) {
         }
       }
     }
-    const buf = world.templates?.get(`${tx},${ty}`);
-    if (buf) {
-      const o = 3 * ((gy - ty * 512) * 512 + (gx - tx * 512));
-      if (buf[o] !== 9) return [buf[o], buf[o + 1], buf[o + 2]];
+    // dig #170 (C145): template lane = DISPLAY frame (see the anchor
+    // comment); the bin lane above and skyAt below keep the generator frame.
+    const ttx = Math.floor(wx / CHUNK), tty = Math.floor(wy / CHUNK);
+    const tbuf = world.templates?.get(`${ttx},${tty}`);
+    if (tbuf) {
+      const o = 3 * ((wy - tty * CHUNK) * CHUNK + (wx - ttx * CHUNK));
+      if (tbuf[o] !== 9) return [tbuf[o], tbuf[o + 1], tbuf[o + 2]];
     }
     if (!voidChunk && binPx) return binPx;
     return world.skyAt?.(tx, ty, gx, gy) ?? null;
@@ -186,10 +201,11 @@ export function worldColorAt(world, wx, wy) {
     }
   }
   // template-biome overlay (temple scenes, procedural fills); 9 = unset
-  const key = `${tx},${ty}`;
-  const buf = world.templates?.get(key);
+  // dig #170 (C145): template lane = DISPLAY frame (anchor comment).
+  const ttx = Math.floor(wx / CHUNK), tty = Math.floor(wy / CHUNK);
+  const buf = world.templates?.get(`${ttx},${tty}`);
   if (buf) {
-    const o = 3 * ((gy - ty * CHUNK) * CHUNK + (gx - tx * CHUNK));
+    const o = 3 * ((wy - tty * CHUNK) * CHUNK + (wx - ttx * CHUNK));
     if (buf[o] !== 9 || buf[o + 1] !== 9 || buf[o + 2] !== 9) {
       return [buf[o], buf[o + 1], buf[o + 2]];
     }

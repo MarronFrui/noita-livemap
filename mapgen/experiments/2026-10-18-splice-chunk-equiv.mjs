@@ -29,12 +29,15 @@ function stats(buf) {
 }
 
 const t0 = Date.now();
-const full = renderTemplateWorld(DATA_DIR, loadBiomeConfig(DATA_DIR), 78633191);
+const config = loadBiomeConfig(DATA_DIR);
+const full = renderTemplateWorld(DATA_DIR, config, 78633191);
 const tFull = Date.now() - t0;
 
 const t1 = Date.now();
 const fresh = new Map();
-blitSplicedScenes(fresh, DATA_DIR);
+// dig #170: same config+seed args as the full render — the splice lane's
+// grey -> band fill resolves the hosting biome through config
+blitSplicedScenes(fresh, DATA_DIR, config, 78633191);
 const tSplice = Date.now() - t1;
 
 const a = full.get(KEY);

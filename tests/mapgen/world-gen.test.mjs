@@ -73,12 +73,40 @@ describe("worldColorAt — injected world (no data needed)", () => {
     const w = mkWorld();
     expect(worldColorAt(w, 0, 0)).toBeNull(); // grid -1, no template
     w.templates.set("0,0", new Uint8Array(CHUNK * CHUNK * 3).fill(9)); // all 9 = unset
-    expect(worldColorAt(w, 40 - 11, 100 - 12)).toBeNull();
+    expect(worldColorAt(w, 40, 100)).toBeNull();
     const buf = new Uint8Array(CHUNK * CHUNK * 3).fill(9);
     const o = 3 * (100 * CHUNK + 40);
     buf[o] = 120; buf[o + 1] = 121; buf[o + 2] = 122;
     w.templates.set("0,0", buf);
-    expect(worldColorAt(w, 40 - 11, 100 - 12)).toEqual([120, 121, 122]);
+    // dig #170 (C145): the template lane reads at the DISPLAY frame —
+    // cell (40,100) of chunk "0,0" shows at display (40,100). The pre-#170
+    // generator-local read sampled local (51,112) here (9 -> null) and
+    // returned this color at (40-11, 100-12) — both old-law coordinates
+    // fail the pins below.
+    expect(worldColorAt(w, 40, 100)).toEqual([120, 121, 122]);
+    expect(worldColorAt(w, 40 - 11, 100 - 12)).toBeNull(); // old-law coord: local (29,88) = unset
+  });
+
+  test("C145 frame law (dig #170): the template lane reads at the DISPLAY frame in both branches", () => {
+    const w = mkWorld();
+    // underground branch: chunk "40,62" = the game-frame origin (0,0) via
+    // setWorldPx's +35/+62 map; art pixel (0,0) writes local (0,0).
+    const buf = new Uint8Array(CHUNK * CHUNK * 3).fill(9);
+    buf[0] = 10; buf[1] = 20; buf[2] = 30; // art (0,0)
+    w.templates.set("40,62", buf);
+    expect(worldColorAt(w, 40 * CHUNK, 62 * CHUNK)).toEqual([10, 20, 30]);
+    // fail-under-old: the generator-local read samples local (11,12)
+    const buf11 = new Uint8Array(CHUNK * CHUNK * 3).fill(9);
+    const o11 = 3 * (12 * CHUNK + 11);
+    buf11[o11] = 77; buf11[o11 + 1] = 78; buf11[o11 + 2] = 79;
+    w.templates.set("40,62", buf11);
+    expect(worldColorAt(w, 40 * CHUNK, 62 * CHUNK)).toBeNull(); // old law: [77, 78, 79]
+    // sky branch (ty < 62): art pixel (7,5) of chunk "0,10"
+    const sky = new Uint8Array(CHUNK * CHUNK * 3).fill(9);
+    const os = 3 * (5 * CHUNK + 7);
+    sky[os] = 55; sky[os + 1] = 56; sky[os + 2] = 57;
+    w.templates.set("0,10", sky);
+    expect(worldColorAt(w, 7, 10 * CHUNK + 5)).toEqual([55, 56, 57]); // old law: local (18,17) = 9 -> null
   });
 });
 
