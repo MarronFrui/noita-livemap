@@ -728,6 +728,61 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
 // walk feeds it; kept here so the V2 lane has an explicit injection point.
 const DEF_SEED = 0;
 
+// ------------------------------------------------------- fill lane (dig #172) ---
+// The SCENE-BLIT GREY-PLACEHOLDER FILL — the game's per-cell driver law,
+// byte-pinned 2026-10-19 (X148/X149: dig172-driver-908f40-909380.asm,
+// dig172-sceneblit-792e00-794400.asm):
+//   walk 0x792f98..0x793332 (the asserted 512×512 scene-chunk walk; scene
+//   rect origin = chunkX<<9 / chunkY<<9, setup 0x794187-0x79419b, size
+//   assert cmpl $0x200 @0x793ebc/0x793f93): per cell, the ART-RECORD plane
+//   gate (plane[(row<<9)|col] != 0 → skip, the art-classified cells) then
+//   call the driver @0x7930d3 with x = originX+col, y = originY+row;
+//   driver NULL → the cell is NOT painted (the base lane shows through).
+//   driver 0x908F40 (this = [+0x70] of the scene): kind-0 arm (mountain_lake
+//   and every non-ATTR biome: empty wang_template ⇒ no kind-1 image, P =
+//   [config+0x1d4] NULL ⇒ no kind-2 evaluator; other kinds return 0):
+//     v = surfaceField(x+0.5, y+0.5)   (the +0.5 const 0x11dfdd8 = C95
+//                                      pixel centers; stack arg = config,
+//                                      ecx = the driver)
+//     chosen = classify([config+0x2a4] = mBiomeMaterials, trunc(x),
+//                       trunc(y), v)   (first non-rare window match;
+//                       rare comps fall to the polka arm; NULL = no paint)
+// FRAME (I39(a3) OPEN, D-knob below): the field reads the port's calibrated
+// world px (the C97-verified 0.5 surface line, M-grade); the classify
+// y-gate frame carries the residual game-vs-port frame offset as yOff —
+// capture-fit at the mountain_lake anchor (dig #172 gate-offset scan in
+// experiments/2026-10-19-dig172-fill-mix-profile.mjs), D-flagged in
+// ISSUES §A until a game-lab dump of the caller's chunk-pair frame pins it.
+const fillLaneCache = new Map();
+export function surfaceFillLane(config, def, seed) {
+  const key = `${seed}|${def?.filename ?? ""}`;
+  let lane = fillLaneCache.get(key);
+  if (lane === undefined) {
+    lane = null;
+    try {
+      if (dataDirRef.dataDir == null) {
+        try { dataDirRef.dataDir = findNoitaDataDir(); } catch { dataDirRef.dataDir = null; }
+      }
+      const uid = uidFrom(def, biomeCfg(def));
+      uid.driver = makeBandDriver(config, seed); // the kind-0 r-site frame (dig #142/#145)
+      const table = ensureSurfaceTable(dataDirRef.dataDir, def);
+      if (table) lane = { uid, table };
+    } catch {
+      lane = null; // unread-core lane → the caller defers (the old law)
+    }
+    fillLaneCache.set(key, lane);
+  }
+  return lane;
+}
+
+// The per-cell law: v = surfaceField(world px + 0.5) (the driver's +0.5);
+// classify on (x, y + yOff). yOff = the I39(a3) gate-frame knob (px).
+// Returns the classify record { i, name } | null (null = the cell stays).
+export function surfaceFillAt(lane, wx, wy, yOff = 0) {
+  const v = surfaceField(lane.uid, wx + 0.5, wy + 0.5, DEF_SEED);
+  return classify(lane.table, wx, wy + yOff, v);
+}
+
 // Lazily-memoized chunk mask cache attached onto the world object.
 // dig #30: the seed plumbs through (the caves field is (seed, name)-
 // deterministic per the binary's ctor chain — the C49 proof), so the

@@ -19,6 +19,7 @@ import { readPng, rgbToRgbaInt } from "./images.mjs";
 import { SHADES, MATERIAL_SHADE, pick, loadMaterials } from "./colorize.mjs";
 import { seededPrng } from "./wang-js.mjs";
 import { biomeAt } from "./biomes.mjs"; // the OWNERSHIP GATE source (dig 52)
+import { surfaceFillLane, surfaceFillAt } from "./noise-terrain.mjs"; // dig #172: the driver fill lane
 import path from "node:path";
 
 // ---------------------------------------------------------------- caches ---
@@ -42,6 +43,17 @@ const materialShadeFor = (dataDir, name) => {
   if (TEMPLATE_SHADES[name]) return TEMPLATE_SHADES[name];
   return SHADES.fallbackSolid;
 };
+
+// dig #172 (I39(d) fix): the splice fill's shade families — the capture's
+// EXACT colors at the mountain_lake art-grey cells (E1 census,
+// mapgen/out/dig172-fill-mix.json): soil #464128 = (70,65,40) = the soil
+// family; sand_static renders the DARK sand family (95,87,49) (NOT the
+// light template sand_static zone shade — that family belongs to the
+// desert-surface art, TEMPLATE_SHADES keeps it); rock_static = the rock
+// family (39,40,45). All three are exact single-color matches on the
+// capture at ≥8.8k px each. Other names keep materialShadeFor.
+const FILL_SHADES = { sand_static: SHADES.sand, rock_static: SHADES.rock };
+const fillShadeFor = (dataDir, name) => FILL_SHADES[name] ?? materialShadeFor(dataDir, name);
 
 // template-only display shades (capture/stitch-calibrated, seed-independent zones)
 export const TEMPLATE_SHADES = {
@@ -91,8 +103,12 @@ function blitScene(buffers, dataDir, def, matFile, visFile, wx, wy, biomeName, s
       let shade = null;
       if (r === 0 && g === 0 && b === 0) continue; // scene air: below shows
       if (r === g && g === b) {
-        // grey/white placeholder family -> the biome's MaterialComponent fill
-        // (Approximation, flagged: exact band/vein noise = the C32 open read)
+        // grey/white placeholder family -> the biome's MaterialComponent
+        // fill. dig #172 wired the game's driver law (classify(surfaceField)
+        // — noise-terrain surfaceFillLane) into the SPLICE lane; this
+        // per-chunk lane still runs the seeded-fBm approximation (A5,
+        // narrowed to here: threading `config` through blitScene's 10 call
+        // sites is the queued follow-up, ISSUES I43).
         if (!bands.length) continue;
         const active = bands.filter(
           (b2) => !b2.limitMinY || !b2.limitMaxY || (wy + j >= b2.limitMinY && wy + j <= b2.limitMaxY)
@@ -335,38 +351,40 @@ const SPLICE_PNGS = [
 
 export function blitSplicedScenes(buffers, dataDir, config, seed = 0) {
   const materials = loadMaterials(dataDir);
-  // dig #170 (fix B): the SPLICE LANE's grey-placeholder band fill — the
-  // same law blitScene applies to per-chunk scenes. dig #168's MISS→keep
-  // law stands for every OTHER raw color; pure grey (r===g===b, non-black,
-  // alpha≥10) is the placeholder family and gets the HOSTING BIOME's
-  // MaterialComponent fill (M-grade: at the mountain_lake art-grey cells
-  // the capture is solid terrain 104002/104002 = 100.000%, depth-banded
-  // soil→copper per the biome's windows — capture rows 160-400
-  // soil-dominant, copper rising 416-496 — while art-BLACK ("below shows")
-  // dark: the fill/defer split pins the loader law, not a base-lane
-  // coincidence). The seeded-fBm band choice stays the registered
-  // approximation (ISSUES §A A5 — the C32 band/vein open read).
-  const bandsCache = new Map();
-  const bandsOf = (gx, gy) => {
+  // dig #172 (I39(d) fix; A5's splice half retired, blitScene keeps the
+  // approximation): the grey-placeholder fill = the game's per-cell DRIVER
+  // LAW, byte-pinned this session — the 512-chunk scene walk calls the
+  // driver at (originX+col, originY+row) for every art-MISS cell (walk site
+  // 0x7930d3, the record-plane gate; driver NULL = no paint → the base lane
+  // shows), and the driver's kind-0 arm (mountain_lake: empty wang_template
+  // + null P ⇒ the only reachable arm) = v = surfaceField(x+0.5, y+0.5)
+  // then classify(mBiomeMaterials, trunc x, trunc y, v) — first non-rare
+  // window match, rare comps through the polka arm, y-gate included
+  // (the lane: noise-terrain surfaceFillLane/surfaceFillAt; X148/X149
+  // dig172-{driver,sceneblit}-*.asm). The frame is the raw chunk frame
+  // (δ=0, byte: the origin = chunkY<<9 @0x794195; the port's A/B band
+  // matrix reads the game's numbers verbatim on world px, so the field
+  // identity pins the gate frame too — I39(a3): the capture's deep-band
+  // soil at rows>424, beyond the soil gate's 424.229, does NOT come from
+  // this lane; its writer stays OPEN, ISSUES I42). The seeded-fBm band
+  // choice + the manual band/gate filter are gone (M-grade anchor facts:
+  // entry (170)'s census + this dig's E1 profile: the capture on art-grey
+  // cells is solid terrain 104002/104002 with a soil→rock stratification;
+  // art-BLACK stays "below shows").
+  const laneCache = new Map();
+  const laneOf = (gx, gy) => {
     if (!config) return null;
     // game frame -> biome chunk: display = game + (35·512, 62·512) and
     // biome = display chunk with the 48 sky rows removed (C145 frame law)
     const at = biomeAt(config, Math.floor(gx / 512) + 35, Math.floor(gy / 512) + 14);
     const def = at?.biome;
     if (!def) return null;
-    let e = bandsCache.get(def);
-    if (e === undefined) {
-      const bands = (def.materialBands ?? []).filter((b) => !b.rare);
-      e = bands.length
-        ? {
-            bands,
-            lo: Math.min(...bands.map((b) => b.min)),
-            hi: Math.max(...bands.map((b) => b.max)),
-          }
-        : null;
-      bandsCache.set(def, e);
+    let lane = laneCache.get(def);
+    if (lane === undefined) {
+      lane = surfaceFillLane(config, def, seed);
+      laneCache.set(def, lane);
     }
-    return e;
+    return lane;
   };
   for (const sc of SPLICE_PNGS) {
     const img = art(dataDir, "data/biome_impl/spliced/" + sc.file);
@@ -380,19 +398,15 @@ export function blitSplicedScenes(buffers, dataDir, config, seed = 0) {
         const gx = sc.x + i, gy = sc.y + j;
         let color;
         if (r === g && g === b) {
-          // grey placeholder -> the hosting biome's MaterialComponent fill
-          // (blitScene's branch, template-render.mjs:90-100; the A5 D-flag
-          // covers the seeded band choice). No hosting biome / no bands:
-          // the cell keeps its content (the old law).
-          const info = bandsOf(gx, gy);
-          if (!info) continue;
-          const active = info.bands.filter(
-            (b2) => !b2.limitMinY || !b2.limitMaxY || (gy >= b2.limitMinY && gy <= b2.limitMaxY)
-          );
-          const use = active.length ? active : info.bands;
-          const v = info.lo + fbm2(gx, gy, seed | 0) * (info.hi - info.lo);
-          const chosen = use.filter((bd) => v >= bd.min && v < bd.max).pop() ?? use[use.length - 1];
-          color = pick(materialShadeFor(dataDir, chosen.name), gx, gy, 0x51ce3f);
+          // grey placeholder -> the hosting biome's driver fill (dig #172,
+          // the law above). No lane (unread core / no config) or no
+          // classify match (the walk's NULL arm): the cell KEEPS its
+          // content — the base lane shows through.
+          const lane = laneOf(gx, gy);
+          if (!lane) continue;
+          const comp = surfaceFillAt(lane, gx, gy);
+          if (!comp) continue;
+          color = pick(fillShadeFor(dataDir, comp.name), gx, gy, 0x51ce3f);
         } else {
           const hex = `${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
           const mname = materials.get(hex);

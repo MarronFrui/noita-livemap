@@ -289,20 +289,36 @@ describe.skipIf(!hasData)("plz census + splice paint law (dig #168, measured)", 
     }
     // dig #170 (the grey-fill law, C145 fix B): mountain_lake's own
     // 104002 pure-grey px (alpha>=10 — there are NO grey px at alpha
-    // 10..127) fill with the hosting biome's band shades, PLUS 651
+    // 10..127) fill with the hosting biome's shades, PLUS 651
     // fill-THROUGH cells: lavalake2.png (2560x2392 at game (2048,0),
     // blitted BEFORE mountain_lake, SPLICE_PNGS order) overlaps this
     // chunk, and its grey->band fill lands under mountain_lake's
     // below-shows cells (transparent 56209 + black 22860 + non-grey miss
-    // 73 = 79142 skip cells, of which 651 keep lavalake2's fill — colors
-    // 90,90,95:451 + 80,80,85:200, both rock-family; M: the per-cell
-    // attribution instrument is this test's own blit-vs-art scan, and
-    // mapgen/experiments/2026-10-19-dig170-lake-band-counts.mjs reproduces
-    // the totals). Hence unset = 79142 - 651 = 78491 and fill = 104002 +
-    // 651 = 104653. OLD law (grey = keep-content for BOTH scenes): unset
-    // 183144 / fill 0 → FAILS these pins by construction.
+    // 73 = 79142 skip cells, of which 651 keep lavalake2's fill; M: the
+    // per-cell attribution instrument is this test's own blit-vs-art scan,
+    // and mapgen/experiments/2026-10-19-dig170-lake-band-counts.mjs
+    // reproduces the totals). Hence unset = 79142 - 651 = 78491 and fill
+    // = 104002 + 651 = 104653. OLD law (grey = keep-content for BOTH
+    // scenes): unset 183144 / fill 0 → FAILS these pins by construction.
+    //
+    // dig #172 re-pins painted.size: the fill is now the game's driver law
+    // (classify(surfaceField) — noise-terrain surfaceFillLane), so the
+    // distinct-color count = 4 water + 3 rock_hard (the art hits, same as
+    // #170) + the lane's classify shades: 3 sand (95,87,49 / 132,114,54 /
+    // 62,69,85 — the dark sand_static family per the capture census) +
+    // 2 soil (70,65,40 / 64,58,41) + 4 coal (the RARE comp's polka arm,
+    // 25 px — the byte law's rare path riding along). FAIL-UNDER-OLD: the
+    // #170 fill gave 12 (5 fbm shades incl. the fallback slab 90,90,95 /
+    // 80,80,85, NO soil, NO dark sand) — the two family assertions below
+    // fail that arithmetic directly.
     expect(unset).toBe(78491);
-    expect(painted.size).toBe(12); // 4 water + 3 rock_hard (art hits) + 5 fill shades
+    expect(painted.size).toBe(16); // 4 water + 3 rock_hard + 3 sand + 2 soil + 4 coal
+    // the law, not the incidental count: the fill paints the classifying
+    // MATERIALS' shades (soil + the dark sand here) and never the fallback
+    // slab (the old law's 90,90,95 / 80,80,85 family)
+    expect(painted.has(0x464128), "the soil shade (70,65,40) is painted").toBe(true);
+    expect(painted.has(0x5f5731), "the dark sand shade (95,87,49) is painted").toBe(true);
+    expect(painted.has(0x5a5a5f) || painted.has(0x505055), "no fallback slab colors").toBe(false);
 
     // the raw-art miss colors must never reach the buffer (the dig #168
     // guard; still 0 under the #170 fill — the fill paints MATERIAL shades,
