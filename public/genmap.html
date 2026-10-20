@@ -29,6 +29,7 @@
       <button id="load">load</button>
       <button id="live">live: off</button>
       <button id="zones" title="chunk classification overlay">zones</button>
+      <button id="capture" title="capture-composite layer: at the captured seed (78633191) show the game's own capture pixels where the generator's runtime-computed lanes are still partial (ISSUES A10). Off = the raw generated map.">capture: on</button>
       <button id="regen" title="delete this seed's generated cache and regenerate from scratch">regen</button>
       <span id="hint">drag = pan · wheel = zoom (z <span id="zlabel"></span>)</span>
     </div>
@@ -96,6 +97,7 @@
       const tiles = new Map(); // key -> {img, ok}
       let zones = null, showZones = false; // per-chunk tags
       let epoch = 0; // server cache epoch (/gen/status) — busts the browser's immutable tile cache after a /gen/clear
+      let captureOn = true; // capture-composite display layer (A10) — the tile URL's ?c=0 flag
       let live = true, ws = null, marker = null, followMarker = false;
 
       const liveBtn = document.getElementById("live");
@@ -188,7 +190,7 @@
       function resize() { cv.width = innerWidth; cv.height = innerHeight; ctx.imageSmoothingEnabled = false; draw(); }
       addEventListener("resize", resize);
 
-      function tileUrl(tx, ty, tz) { return `/gen/tile/${seed}/${tz}/${tx}/${ty}.png?e=${epoch}`; }
+      function tileUrl(tx, ty, tz) { return `/gen/tile/${seed}/${tz}/${tx}/${ty}.png?e=${epoch}${captureOn ? "" : "&c=0"}`; }
       function fetchTile(tx, ty, tz) {
         const key = `${seed}/${tz}/${tx}/${ty}`;
         if (tiles.has(key)) return tiles.get(key);
@@ -276,12 +278,20 @@
             status.textContent = `generating seed ${seed}: ${s.done}/${s.total} areas${s.errors.length ? ` — ${s.errors.length} errors` : ""}…`;
             draw();
             setTimeout(pollStatus, 500);
+          } else {
+            // I46 (fixed): the poll used to STOP at ready, so a server restart's
+            // epoch bump was never observed with the page open — the browser's
+            // year-immutable tile cache kept serving the pre-restart renders
+            // (the "floating lava on an old page" report). Keep polling slowly
+            // once ready; the epoch adoption above drops + re-fetches on change.
+            setTimeout(pollStatus, 5000);
           }
         }).catch(() => {});
       }
 
       const zonesBtn = document.getElementById("zones");
       const regenBtn = document.getElementById("regen");
+      const captureBtn = document.getElementById("capture");
       const legend = document.getElementById("legend");
       let showGrid = false;
       zonesBtn.onclick = () => {
@@ -289,6 +299,13 @@
         showGrid = showZones;
         legend.style.display = showZones ? "block" : "none";
         if (showZones && !zones) loadZones();
+        draw();
+      };
+
+      captureBtn.onclick = () => {
+        captureOn = !captureOn;
+        captureBtn.textContent = `capture: ${captureOn ? "on" : "off"}`;
+        tiles.clear(); // the layer flag rides the tile URLs — refetch both ways
         draw();
       };
 

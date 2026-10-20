@@ -3,7 +3,11 @@
 // Routes:
 //   GET /gen/tile/:seed/:z/:x/:y.png   z=0 native (512x512 world-px tiles,
 //                                      one per chunk), z+1 halves resolution
-//   GET /gen/status/:seed              generation progress JSON (includes `epoch`)
+//   GET /gen/tile/:seed/:z/:x/:y.png?c=0        turn the capture-composite
+//                                      display layer off for this request
+//                                      (ISSUES A10; ON at seed 78633191)
+//   GET /gen/status/:seed              generation progress JSON (includes `epoch`
+//                                      + the `capture` layer state)
 //   GET|POST /gen/clear/:seed          dev: drop one seed's disk cache + memory,
 //                                      next request regenerates from scratch
 //   GET|POST /gen/clear                dev: same, for every cached seed
@@ -43,6 +47,62 @@ let cacheEpoch = Date.now(); // bumped on every /gen/clear — the viewer append
 // the tile memory cache (LRU-ish; see the tile route)
 const tileCache = new Map();
 
+// ── capture-composite display layer (ISSUES A10) ───────────────────────────
+// The game's runtime-computed lanes (the splice/fixed-scene driver fills, the
+// deep fill bands) are only partially recovered — their cells currently show
+// approximations. At the CAPTURED seed the viewer can instead take those world
+// px straight from the capture tiles (mapgen/out/ref = noita-mapcap's own
+// output for seed 78633191 = the game's true pixels, M-grade ground truth,
+// mapcap/README). Frame law: canvas px = world px + (17920, 31744) (C145),
+// so capture `X_Y.png` (the game chunk X−35, Y−14) = canvas chunk (X, Y+48),
+// 1:1 px (empirically pinned: our tile 40_63 lava-family count = 81,897 vs
+// the capture's 40_15 = 80,268, and 40_64 = 242,351 both).
+// Scope honesty: the fill pixels are SEED-DEPENDENT, so the layer is
+// registered at the captured seed only (the world-fixed landmark ART is
+// seed-independent — I9 — but its driver fill is not). Display-only by
+// construction: it wraps worldColorAt here in the server; the lib lanes and
+// the E1/E2 instruments read the generator directly and are unaffected.
+// Default ON at seed 78633191; CAPTURE_LAYER=0 forces it off globally; the
+// viewer toggles per request with ?c=0 on the tile URL. It dies when the
+// field's noise law + the scene fill laws compose at the demo seed (queued:
+// dig #177+ = the surfaceField noise-arm read).
+const CAPTURE_SEED = 78633191;
+const CAPTURE_DIR = path.join(repoRoot, "mapgen/out/ref");
+const CAPTURE_DEFAULT = process.env.CAPTURE_LAYER !== "0";
+const captureTiles = new Map(); // "tx,ty" -> Uint8Array(512*512*3) | null (absent)
+const captureLru = [];
+function captureTileAt(tx, ty) {
+  const key = `${tx},${ty}`;
+  let t = captureTiles.get(key);
+  if (t === undefined) {
+    t = null; // miss sentinel — absent tiles are not re-read per px
+    try {
+      const png = PNG.sync.read(fs.readFileSync(path.join(CAPTURE_DIR, `${tx}_${ty - 48}.png`)));
+      if (png.width === 512 && png.height === 512) {
+        const rgb = new Uint8Array(512 * 512 * 3);
+        for (let i = 0, p = 0; p < rgb.length; i += 4, p += 3) {
+          rgb[p] = png.data[i]; rgb[p + 1] = png.data[i + 1]; rgb[p + 2] = png.data[i + 2];
+        }
+        t = rgb;
+      }
+    } catch { /* no capture coverage at this chunk */ }
+    captureTiles.set(key, t);
+    captureLru.push(key);
+    if (captureLru.length > 192) captureTiles.delete(captureLru.shift());
+  }
+  return t;
+}
+function worldColorComposedAt(world, seed, captureOn, wx, wy) {
+  if (captureOn && seed === CAPTURE_SEED && wx >= 0 && wy >= 0) {
+    const t = captureTileAt(Math.floor(wx / 512), Math.floor(wy / 512));
+    if (t) {
+      const p = 3 * ((wy & 511) * 512 + (wx & 511));
+      return [t[p], t[p + 1], t[p + 2]];
+    }
+  }
+  return worldColorAt(world, wx, wy);
+}
+
 function getWorld(seed) {
   let entry = worlds.get(seed);
   if (entry) return entry;
@@ -72,7 +132,7 @@ function getWorld(seed) {
 // report). The honest downsample: per output pixel, enumerate the distinct
 // 10-world-px wang cells inside the block (steps of 10, cell centers),
 // count solid vs air, and emit the majority's color (air = transparent).
-function renderTile(world, z, x, y) {
+function renderTile(world, z, x, y, seed, captureOn) {
   const png = new PNG({ width: 512, height: 512 });
   const data = png.data;
   let p = 0;
@@ -81,7 +141,7 @@ function renderTile(world, z, x, y) {
       const wy = (y * 512 + j);
       for (let i = 0; i < 512; i++) {
         const wx = (x * 512 + i);
-        const c = worldColorAt(world, wx, wy);
+        const c = worldColorComposedAt(world, seed, captureOn, wx, wy);
         if (c) {
           data[p] = c[0];
           data[p + 1] = c[1];
@@ -107,7 +167,7 @@ function renderTile(world, z, x, y) {
         const wy = wy0 + Math.min(sy + (step >> 1), scale - 1);
         for (let sx = 0; sx < scale; sx += step) {
           const wx = wx0 + Math.min(sx + (step >> 1), scale - 1);
-          const c = worldColorAt(world, wx, wy);
+          const c = worldColorComposedAt(world, seed, captureOn, wx, wy);
           total++;
           if (!c) continue;
           solid++;
@@ -148,7 +208,8 @@ const server = http.createServer(async (req, res) => {
       // area served from the RAM instead of the per-request re-render;
       // LRU-capped at 512 tiles; cleared on /gen/clear via the epoch change
       // (the epoch rides the viewer's tile urls)).
-      const tkey = `${seed}/${z}/${x}/${y}`;
+      const captureOn = CAPTURE_DEFAULT && url.searchParams.get("c") !== "0";
+      const tkey = `${seed}/${z}/${x}/${y}${captureOn ? "" : "/nc"}`;
       const cached = tileCache.get(tkey);
       if (cached && cached.epoch === cacheEpoch) {
         res.writeHead(200, { "Content-Type": "image/png", "Cache-Control": "public, max-age=31536000, immutable" });
@@ -158,7 +219,7 @@ const server = http.createServer(async (req, res) => {
       const entry = getWorld(seed);
       if (!entry.progress.ready) await entry.ready;
       entry.progress.ready = true;
-      const png = renderTile(entry.world, z, x, y);
+      const png = renderTile(entry.world, z, x, y, seed, captureOn);
       tileCache.set(tkey, { buf: png, epoch: cacheEpoch });
       if (tileCache.size > 512) {
         // cheap eviction: drop the oldest inserted keys
@@ -175,7 +236,7 @@ const server = http.createServer(async (req, res) => {
       const seed = Number(m[1]) >>> 0;
       const entry = getWorld(seed);
       res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-cache" });
-      res.end(JSON.stringify({ ready: entry.progress.done >= entry.progress.total, epoch: cacheEpoch, ...entry.progress }));
+      res.end(JSON.stringify({ ready: entry.progress.done >= entry.progress.total, epoch: cacheEpoch, capture: CAPTURE_DEFAULT && seed === CAPTURE_SEED, ...entry.progress }));
       return;
     }
     if ((m = url.pathname.match(/^\/gen\/clear(?:\/(-?\d+))?$/))) {

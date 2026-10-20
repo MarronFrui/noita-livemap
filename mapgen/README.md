@@ -78,7 +78,7 @@ graduates into `lib/` or `pipeline/`.
 
 | File | Purpose |
 | ---- | ------- |
-| `genmap-server.mjs` | The genmap MVP tile server (`npm run gen:server`, port `GENMAP_PORT` 8082): `/gen/tile/:seed/:z/:x/:y.png`, `/gen/status/:seed`, `/gen/zones/:seed`, viewer at `/` (`public/genmap.html`) |
+| `genmap-server.mjs` | The genmap MVP tile server (`npm run gen:server`, port `GENMAP_PORT` 8082): `/gen/tile/:seed/:z/:x/:y.png` (± `?c=0` for the capture-composite layer), `/gen/status/:seed`, `/gen/zones/:seed`, viewer at `/` (`public/genmap.html`) |
 | `gen-cache.mjs` | Cache-clearing helper shared by the server endpoints and the CLI |
 | `gen-cache-clear.mjs` | CLI: `npm run gen:clear [-- --seed N]` — wipes the generated-world disk cache |
 
@@ -91,6 +91,15 @@ seeds) while the server runs — it drops disk + memory caches and bumps the
 `epoch` returned by `/gen/status`, which the viewer appends to tile URLs so
 the browser's cache is busted (the viewer's **regen** button does this in one
 click) — or `npm run gen:clear` when the server is off.
+
+**Capture-composite display layer** (ISSUES A10; frame law C151): at the
+captured seed (78633191) the server serves world px from the capture tiles
+(`out/ref/`, the game's own output) wherever coverage exists, so the viewer
+shows the game's true pixels over the still-partial runtime-computed lanes.
+Default ON at that seed only — force it off with `CAPTURE_LAYER=0` when
+starting the server, or toggle per view with the viewer's **capture** button
+(`?c=0` on tile URLs). It is a display layer, not a generator: the lib lanes
+and the bench instruments always read the raw generator.
 
 ### experiments/ (dated one-offs, with conclusions)
 
