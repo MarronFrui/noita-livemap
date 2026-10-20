@@ -283,3 +283,68 @@ describe.skipIf(!hasNoitaData())("default lane sky color (data-gated)", () => {
     expect(s.stars).toBeGreaterThan(0);
   });
 });
+
+describe.skipIf(!hasNoitaData())("surface-band sky (dig #177) — the row-62 air renders the SKY, not the cave backdrop", () => {
+  // dig #177 port (world-gen.mjs: the noise lane's air branch): the AIR
+  // cell of canvas row 62 (display y 0..511 = the surface band; capture
+  // Y14 = the C151 frame + SKY_ROWS=48) renders the SKY (black + stars,
+  // the C110 NIGHT law); rows >= 63 keep the cave backdrop (the C109
+  // per-area bg). M-grade anchor: the capture census ref/39_13..39_19 =
+  // black 237,697 / 21,669 / 0 / 0 / 0 / 0 px (repro: the family census
+  // per tile). Count laws (child probe, SURFACE_V3=1; the flags are
+  // module-load captured, and the singleFork worker env is set by other
+  // suites):
+  //   C1: tile (39,62) black px >= 1000 — FAILS under the old law (the
+  //       row-62 air fell through to bgImageAt = the hills'
+  //       background_cave_04_alt — non-black; verified fail-under-old
+  //       this session: port reverted ⇒ the probe measures black62 = 0).
+  //   C2: tile (39,63) black px = 0 — pins the measured sky/cave
+  //       boundary (the capture's Y15+ tiles carry zero black); an
+  //       over-broad fix (the sky leaking below the band) fails this.
+  //   C3: tile (39,61) (the sky-band row above, ty < 62 — the lane this
+  //       dig does NOT touch) keeps its sky: black >= 100,000 px — a
+  //       regression guard on the edit's blast radius.
+  const probe = `
+    process.env.SURFACE_V3 = "1";
+    const { findNoitaDataDir, repoRoot } = await import(process.env.PROBE_REPO + "/mapgen/lib/paths.mjs");
+    const { ensureWorld, worldColorAt } = await import(process.env.PROBE_REPO + "/mapgen/lib/world-gen.mjs");
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const dataDir = findNoitaDataDir();
+    const cacheDir = path.join(repoRoot, "mapgen/out/gen-cache/r3i");
+    const world = ensureWorld(78633191, dataDir, { cacheDir, onProgress: () => {} });
+    await world.ready;
+    const isBlack = (c) => !c || (c[0] < 3 && c[1] < 3 && c[2] < 3);
+    let black61 = 0, black62 = 0, black63 = 0;
+    for (let j = 0; j < 512; j++) {
+      for (let i = 0; i < 512; i++) {
+        if (isBlack(worldColorAt(world, 39 * 512 + i, 61 * 512 + j))) black61++;
+        if (isBlack(worldColorAt(world, 39 * 512 + i, 62 * 512 + j))) black62++;
+        if (isBlack(worldColorAt(world, 39 * 512 + i, 63 * 512 + j))) black63++;
+      }
+    }
+    process.stdout.write(JSON.stringify({ black61, black62, black63 }));
+  `;
+  const run = () => {
+    const env = { ...process.env, PROBE_REPO: repoRoot };
+    const r = spawnSync(process.execPath, ["--input-type=module", "-e", probe], {
+      env, encoding: "utf8", cwd: repoRoot, timeout: 240000,
+    });
+    expect(r.status, r.stderr).toBe(0);
+    return JSON.parse(r.stdout);
+  };
+  let s = null;
+  const stats = () => (s ??= run());
+
+  test("C1: the surface-band tile (39,62) renders sky (black) — >= 1000 px (old law: 0)", () => {
+    expect(stats().black62).toBeGreaterThanOrEqual(1000);
+  });
+
+  test("C2: the sky stops at the band — tile (39,63) renders 0 black px (the cave backdrop below)", () => {
+    expect(stats().black63).toBe(0);
+  });
+
+  test("C3: the sky-band row above (39,61) keeps its sky — black >= 100,000 px (regression guard)", () => {
+    expect(stats().black61).toBeGreaterThanOrEqual(100000);
+  });
+});

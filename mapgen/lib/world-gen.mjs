@@ -226,6 +226,24 @@ export function worldColorAt(world, wx, wy) {
       rgb = materialColorByName(world.dataDir, mat.names[mat.idx]);
     }
     if (nz) return noiseColor(world, tx, ty, nz, rgb);
+    // dig #177 (the surface-band sky law; M-grade: the family census of
+    // the capture tiles ref/39_13..39_19 — black = 237,697 / 21,669 / 0 /
+    // 0 / 0 / 0 px per 512×512 tile, repro `node mapgen/experiments/
+    // 2026-10-20-family-census.mjs mapgen/out/ref/39_14.png`; capture Y14
+    // = world y 0..511 = canvas row 62 = the C151 frame + SKY_ROWS=48):
+    // the SKY (black + stars, the C110 NIGHT law) covers every AIR cell
+    // of canvas row 62 (display y 0..511) and NONE below (the capture's
+    // Y15+ tiles carry zero black). Before this fix the row-62 air fell
+    // through to bgImageAtInner's ty>=62 arm = the biome's
+    // background_cave px, so the air cells were indistinguishable from
+    // the fill (fail-under-old verified this session: port reverted ⇒
+    // the C1 probe measures black62 = 0). The C109 per-area bg starts at
+    // row 63; lane (the dig #121 law) the mask's air = the caves field
+    // (gradAt; BitmapCaves biomes never read surfaceField). OPEN (E3,
+    // I47): whether an enclosed row-62 air cell renders sky or bg in the
+    // game — untestable from the capture set (its row-62 air = 100%
+    // black).
+    if (ty === 62) return world.skyAt?.(tx, ty, gx, gy) ?? null;
     // dig #132 (I32 p2b, the per-area background law): an AIR cell in a
     // procedural chunk composites the chunk's biome Topology
     // `background_image` (the game's per-area backdrop; hills =
