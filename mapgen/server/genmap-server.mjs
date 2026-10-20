@@ -3,9 +3,10 @@
 // Routes:
 //   GET /gen/tile/:seed/:z/:x/:y.png   z=0 native (512x512 world-px tiles,
 //                                      one per chunk), z+1 halves resolution
-//   GET /gen/tile/:seed/:z/:x/:y.png?c=0        turn the capture-composite
-//                                      display layer off for this request
-//                                      (ISSUES A10; ON at seed 78633191)
+//   GET /gen/tile/:seed/:z/:x/:y.png?c=0|1     override the capture-composite
+//                                      display layer for this request
+//                                      (ISSUES A10; default OFF since
+//                                      2026-10-21, fires at seed 78633191)
 //   GET /gen/status/:seed              generation progress JSON (includes `epoch`
 //                                      + the `capture` layer state)
 //   GET|POST /gen/clear/:seed          dev: drop one seed's disk cache + memory,
@@ -62,13 +63,16 @@ const tileCache = new Map();
 // seed-independent — I9 — but its driver fill is not). Display-only by
 // construction: it wraps worldColorAt here in the server; the lib lanes and
 // the E1/E2 instruments read the generator directly and are unaffected.
-// Default ON at seed 78633191; CAPTURE_LAYER=0 forces it off globally; the
-// viewer toggles per request with ?c=0 on the tile URL. It dies when the
-// field's noise law + the scene fill laws compose at the demo seed (queued:
-// dig #177+ = the surfaceField noise-arm read).
+// Default OFF (user call 2026-10-21): the layer only ever shows the
+// noitamap capture of seed 78633191 — a world that is never the live
+// run's — so it is pointless at any other seed and a per-px lookup cost
+// at this one. CAPTURE_LAYER=1 re-enables it globally (benchmark use at
+// the demo seed); the viewer overrides per request with ?c=0 / ?c=1 on
+// the tile URL. It dies when the field's noise law + the scene fill
+// laws compose at the demo seed (the dig #177+ lane work).
 const CAPTURE_SEED = 78633191;
 const CAPTURE_DIR = path.join(repoRoot, "mapgen/out/ref");
-const CAPTURE_DEFAULT = process.env.CAPTURE_LAYER !== "0";
+const CAPTURE_DEFAULT = process.env.CAPTURE_LAYER === "1";
 const captureTiles = new Map(); // "tx,ty" -> Uint8Array(512*512*3) | null (absent)
 const captureLru = [];
 function captureTileAt(tx, ty) {
@@ -208,7 +212,8 @@ const server = http.createServer(async (req, res) => {
       // area served from the RAM instead of the per-request re-render;
       // LRU-capped at 512 tiles; cleared on /gen/clear via the epoch change
       // (the epoch rides the viewer's tile urls)).
-      const captureOn = CAPTURE_DEFAULT && url.searchParams.get("c") !== "0";
+      const cParam = url.searchParams.get("c");
+      const captureOn = cParam != null ? cParam !== "0" : CAPTURE_DEFAULT;
       const tkey = `${seed}/${z}/${x}/${y}${captureOn ? "" : "/nc"}`;
       const cached = tileCache.get(tkey);
       if (cached && cached.epoch === cacheEpoch) {

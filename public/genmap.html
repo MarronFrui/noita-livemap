@@ -29,7 +29,7 @@
       <button id="load">load</button>
       <button id="live">live: off</button>
       <button id="zones" title="chunk classification overlay">zones</button>
-      <button id="capture" title="capture-composite layer: at the captured seed (78633191) show the game's own capture pixels where the generator's runtime-computed lanes are still partial (ISSUES A10). Off = the raw generated map.">capture: on</button>
+      <button id="capture" title="capture-composite layer: at the captured seed (78633191) show the game's own capture pixels where the generator's runtime-computed lanes are still partial (ISSUES A10). Default OFF (user call 2026-10-21) — the capture is a fixed world that is never the live run's.">capture: off</button>
       <button id="regen" title="delete this seed's generated cache and regenerate from scratch">regen</button>
       <span id="hint">drag = pan · wheel = zoom (z <span id="zlabel"></span>)</span>
     </div>
@@ -97,7 +97,7 @@
       const tiles = new Map(); // key -> {img, ok}
       let zones = null, showZones = false; // per-chunk tags
       let epoch = 0; // server cache epoch (/gen/status) — busts the browser's immutable tile cache after a /gen/clear
-      let captureOn = true; // capture-composite display layer (A10) — the tile URL's ?c=0 flag
+      let captureOn = false; // capture-composite display layer (A10) — default OFF (user call 2026-10-21); the tile URL carries an explicit ?c=1/0 either way
       let live = true, ws = null, marker = null, followMarker = false;
 
       const liveBtn = document.getElementById("live");
@@ -190,7 +190,7 @@
       function resize() { cv.width = innerWidth; cv.height = innerHeight; ctx.imageSmoothingEnabled = false; draw(); }
       addEventListener("resize", resize);
 
-      function tileUrl(tx, ty, tz) { return `/gen/tile/${seed}/${tz}/${tx}/${ty}.png?e=${epoch}${captureOn ? "" : "&c=0"}`; }
+      function tileUrl(tx, ty, tz) { return `/gen/tile/${seed}/${tz}/${tx}/${ty}.png?e=${epoch}&c=${captureOn ? 1 : 0}`; }
       function fetchTile(tx, ty, tz) {
         const key = `${seed}/${tz}/${tx}/${ty}`;
         if (tiles.has(key)) return tiles.get(key);
