@@ -6,7 +6,7 @@
 // walks the 548-vertex lab key (best ≈ 60-65% = the extreme-value noise
 // ceiling). The binary-exact recipe below is asm-verified at every link;
 // therefore the fill's runtime seed is NOT any statically-decoded derivation
-// of the worldseed. See ABOUT_MATH §7novies + ghidra-ledger.md (hunt 37-45).
+// of the worldseed. See ABOUT_MATH §7.8 + ghidra-ledger.md (hunt 37-45).
 //
 // Binary-exact recipe (all asm-verified this session):
 //   seed = (int)[area+0x4c]                         (asm 0x904d3b: MOV EAX,[ESI+0x4c])
