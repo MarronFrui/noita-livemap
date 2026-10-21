@@ -10,7 +10,7 @@ Established (2026-09-04): pixel-stability of the capture pipeline, real
 wang-generation seams, seed-independence of template biomes (Holy Mountain
 bands), and the adjacent-seed divergence target — so the wang model can be
 judged without the capture's non-wang layers poisoning the metric
-(see `mapgen/ABOUT_MATH.md` §6–§7quinquies).
+(see `mapgen/ABOUT_MATH.md` §6–§7.4).
 
 ## Seeds and captures
 

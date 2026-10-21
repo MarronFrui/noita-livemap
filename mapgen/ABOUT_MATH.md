@@ -89,7 +89,7 @@ Per biome **area** (bounding box of one connected component of a biome color):
 Not exercised by us (yet): `drawImageData` (pixel scenes) and `MapGen::finalize()`
 internals (room blocking, randomMaterials application).
 
-## 3bis. Atlas format — fully decoded (2026-09-03, ✅ verified)
+## 3.1. Atlas format — fully decoded (2026-09-03, ✅ verified)
 
 Each `data/wang_tiles/<biome>.png` is a self-describing stbhw template:
 
@@ -116,11 +116,11 @@ short 26; crypt `(2,1,3,1)` short 22; fungicave `(3,1,3,1)` short 13 …
 has exactly ONE tile → tile choice is uniquely determined by the vertex color
 grid; the only randomness is the vertex coloring itself.
 
-## 3ter. The fill algorithm (corner mode, read in full)
+## 3.2. The fill algorithm (corner mode, read in full)
 
 1. Vertex grid `xmax = w/s+6`, `ymax = h/s+6`; **class `p = (i+j)&3`**
    (corrected 2026-09-07 from the binary: FUN_008ec9f0 uses
-   `(i+j)&3`; the earlier `(i−j+1)&3` reading was wrong — see §7octies;
+   `(i+j)&3`; the earlier `(i−j+1)&3` reading was wrong — see §7.7;
    the lab's binary-class rule `(I−J)&3 ∈ {0,2}` has the same parity classes).
    `c_color[j][i] = rand() % cc[p]` — **one RNG draw per vertex, scan order**.
 2. Repetition-reduction pass (default ON): re-colors vertices where a 3×2
@@ -184,7 +184,7 @@ signs; linear → monotonic growth; H1 vs H3 → single-cell steps at negative c
 - `BIOME_PATH_FIND_WORLD_POS_MIN_X/MAX_X = 159/223` (`w/:105-106`) — beyond the
   70-wide map; parallel-world east coordinates?
 
-## 4bis. Herringbone theory — the nothings.org articles (read 2026-09-03)
+## 4.1. Herringbone theory — the nothings.org articles (read 2026-09-03)
 
 Sources (now fully read, linked from https://nothings.org/gamedev/herringbone/):
 `herringbone_tiles.html` (2011) and `more_herringbone_tiles.html` (2014).
@@ -243,7 +243,7 @@ Key theory takeaways relevant to Noita:
   **24-bit RGB ints** `[n, [from, k, to…]]` (noitool `hexRGBAtoIntRGB` =
   `parseInt(hex.slice(0,6),16)` — alpha dropped ✅).
 
-## 5bis. Special areas & connectivity — constraint ruleset
+## 5.1. Special areas & connectivity — constraint ruleset
 
 How unique (pre-placed) areas relate to the randomized wang fill. Layer model,
 each layer with what we know and what we don't:
@@ -260,7 +260,7 @@ L4  pixel scenes/decor   overlays (LoadPixelScene pools), spawn functions
 structure has fixed doors/exits at fixed lattice positions; the fill must
 produce walkable continuity between those doors and the randomized tiles
 around them, otherwise the candidate is rejected and re-rolled. Per the
-herringbone articles (§4bis), the game can enforce this two ways:
+herringbone articles (§4.1), the game can enforce this two ways:
 
 - **in-lattice**: the structure is authored *as wang tiles* with unique
   boundary colors that force co-placement and guarantee corridor matches
@@ -614,7 +614,7 @@ ground truth (dev-build probe) or to model the full layer stack.
   constraints must come only from wang-triggered spawns (`wang_scripts.csv`
   colors → item entities), not HM pedestal content.
 
-## 7. Open questions → ordered experiments
+## 7. Experiments & results (ordered; the old `bis/ter/quater/…` chapters, renumbered 2026-10-21)
 
 > **Status after 2026-09-03 (full day):** alignment eliminated; noitool's wang
 > output statistically unrelated to the capture (below the gen-vs-gen noise
@@ -645,7 +645,7 @@ ground truth (dev-build probe) or to model the full layer stack.
    mod session vs `biomeAt` predictions.
 7. Only then: targeted Ghidra on `noita.exe` for whatever remains unexplained.
 
-## 7bis. RNG ORACLE RESULT (2026-09-03 night) — reconstruction CONFIRMED 🎉
+## 7.1. RNG ORACLE RESULT (2026-09-03 night) — reconstruction CONFIRMED 🎉
 
 `mods/noita-livemap-rng-probe/` (in-game dump) + `experiments/2026-09-03-lua-oracle-crosscheck.mjs`:
 
@@ -668,7 +668,7 @@ HOW the fill consumes these numbers — which positions get seeded, how many dra
 vertex, in what order. Test B (oracle-driven fill sweep) is armed: dump larger truth
 tables once, then sweep fill hypotheses offline forever.
 
-## 7ter. Fill sweep v1 — per-vertex seeding ELIMINATED (2026-09-03 late night)
+## 7.2. Fill sweep v1 — per-vertex seeding ELIMINATED (2026-09-03 late night)
 
 Same-seed oracle (user forced seed 78633191 via a seed mod — dump seed == capture seed)
 + `experiments/2026-09-03-fill-sweep.mjs`:
@@ -689,7 +689,7 @@ Same-seed oracle (user forced seed 78633191 via a seed mod — dump seed == capt
   sequences per chunk origin → probe v4 (8× Random(0,255) anchor + 4088× Randomf()
   per chunk origin, 24×9 chunk window) deployed, awaiting game run.
 
-## 7quater. Fill sweep v2 — per-chunk sequential fills ELIMINATED (2026-09-04)
+## 7.3. Fill sweep v2 — per-chunk sequential fills ELIMINATED (2026-09-04)
 
 Probe v4 (216 chunk-origin streams: 8× Random(0,255) anchors + 4088× Randomf, seed
 78633191 = capture seed) + `experiments/2026-09-04-chunk-fill-sweep.mjs`:
@@ -714,7 +714,7 @@ perk/chest position = an exact wang-cell color fact). Priority: fix probe v3 (th
 entity filter came back empty) and make spawn equations the primary judge; geometry
 becomes secondary confirmation.
 
-## 7quinquies. Seed differential analysis (2026-09-04)
+## 7.4. Seed differential analysis (2026-09-04)
 
 User hypothesis: comparing seed N vs N+1 could reveal the generation math.
 
@@ -760,7 +760,7 @@ User hypothesis: comparing seed N vs N+1 could reveal the generation math.
   detail). A fill model that only produces all-distinct pixels for changed
   content misses the two-agree class entirely.
 
-## 7sexies. Spawn-equation judge v1 — L1 armed, first paint-immune verdict (2026-09-04)
+## 7.5. Spawn-equation judge v1 — L1 armed, first paint-immune verdict (2026-09-04)
 
 **Oracle data** (`mods/noita-livemap-rng-probe/` v3 sweep, committed fixtures
 `mapgen/fixtures/oracle/`): entity dumps for 78633191/92/93 (74/54/50 items;
@@ -805,7 +805,7 @@ depends on area width — fixed).
 
 Both candidate models fail the spawn equations — the first **paint-immune**
 eliminations, independent of the capture's non-wang layers that confounded
-§7ter/§7quater. The js sequential model is indistinguishable-from-chance to
+§7.2/§7.3. The js sequential model is indistinguishable-from-chance to
 slightly-above; noitool's model is flat zero.
 
 **Caveats / next knobs**: physics drift can move items below the tolerance
@@ -844,7 +844,7 @@ per-class detail in `mapgen/out/oracle/judge-v1.json`.
 
 
 
-## 7septies. WANG LAB — controlled experiments (2026-09-04 night)
+## 7.6. WANG LAB — controlled experiments (2026-09-04 night)
 
 **The lab** (`mods/noita-wang-lab/`): a 16-tile custom wang biome injected at
 runtime (BIOME_MAP lua + `BiomeMapSetPixel` rect at biome px tx 2..6, ty
@@ -898,7 +898,7 @@ hard way, two iterations).
    placement phase) → integer vertex indices I = (X+φx)/4+2 → each placement
    pins 6 corners → over-determined grid, **0 conflicts** → the per-seed
    answer key (`out/oracle/lab-vertex-grids.json`).
-6. **Class rule (empirical, supersedes §3ter's note)**: binary classes at
+6. **Class rule (empirical, supersedes §3.2's note)**: binary classes at
    `(I−J)&3 ∈ {0,2}`; classes {1,3} are single-color (0) by construction —
    a built-in skeleton: ~half the vertices are seed-independent.
 7. **Optimizer** (`experiments/2026-09-04-lab-optimizer.mjs`): automated
@@ -923,7 +923,7 @@ candidates/s; `--max-old-space-size=4096` as belt-and-braces.
 338 full placements per seed → 778 vertices, **0 conflicts** (natural corner
 mapping: h = a,b,c left→right top, d,e,f bottom; v = a,b,c left col top→bottom,
 d,e,f right col). Class rule CORRECTED empirically: binary classes at
-`(I−J)&3 ∈ {0,2}` (not the `(i−j+1)&3` of §3ter — parity shifted by one).
+`(I−J)&3 ∈ {0,2}` (not the `(i−j+1)&3` of §3.2 — parity shifted by one).
 
 **Structural facts (exact):**
 - The lattice is **GLOBAL and continuous across chunk boundaries** (v-tile
@@ -1068,7 +1068,7 @@ precisely why reading the code beats guessing the parameters.
 
 
 
-## 7octies. CREATEHERRINGBONEWANG LOCATED + READ (2026-09-07, Ghidra hunts 33–35)
+## 7.7. CREATEHERRINGBONEWANG LOCATED + READ (2026-09-07, Ghidra hunts 33–35)
 
 **Target found** — the previous xref failure had two causes: (1) the noted
 string VAs were substring starts (actual C-strings: 0x1172ff8/0x1173003/
@@ -1104,7 +1104,7 @@ section has the recipe, all constants checked from .rdata):
   verified this session).
 
 **Verdict on prior sweeps — the class formula was wrong**: the binary's
-vertex class is `p = (i+j) & 3`; §3ter (and all lab S1/P/S2 sweeps) used
+vertex class is `p = (i+j) & 3`; §3.2 (and all lab S1/P/S2 sweeps) used
 `(i−j+1)&3`. With the wrong class the `%` draws hit the wrong modulus ~half
 the time → ~58% noise floor on every walk — matching the 644M-candidate
 verdict (58.03%) exactly. The lab's `(I−J)&3 ∈ {0,2}` binary-classes rule is
@@ -1124,13 +1124,13 @@ the ProceduralTerrain::Init 9999/200000/100000 chain. Areas cache by
 (w,h,seed) across chunks (FUN_0090c1f0), explaining once-per-area
 generation.
 
-## 7novies. THE FILL RECIPE IS BINARY-EXACT — AND THE SEED STILL DOESN'T MATCH (2026-09-07, hunts 37–45)
+## 7.8. THE FILL RECIPE IS BINARY-EXACT — AND THE SEED STILL DOESN'T MATCH (2026-09-07, hunts 37–45)
 
 Everything below was verified against the **assembly** this session (dumps
 `h35`–`h45` in ghidra-logs). Three ledger claims from the same day were
 **corrections of corrections**:
 
-1. **Vertex class = `(i − j + 1) & 3` in generation space** (§3ter was right).
+1. **Vertex class = `(i − j + 1) & 3` in generation space** (§3.2 was right).
    The 2026-09-07 "(i+j)&3 correction" misread FUN_008ec9f0's row counter,
    which starts at **1 and DECREMENTS** per row (`MOV EBX,1 … DEC EBX`,
    asm 0x8eca4b/0x8ecacd): class = `(col + (1 − row)) & 3`. After the
@@ -1205,7 +1205,7 @@ order of cost:
 3. Lab variant with an asymmetric tileset (e.g. numColor (3,1,2,1)) so vertex
    colors pin draw indices more tightly, disambiguating geometry vs stream.
 
-## 7decies. THE SUB-SEED IS MEASURED — AND THE CHAIN TO THE WORLDSEED STILL DOESN'T CLOSE (2026-09-08)
+## 7.9. THE SUB-SEED IS MEASURED — AND THE CHAIN TO THE WORLDSEED STILL DOESN'T CLOSE (2026-09-08)
 
 **The instrument (this session's move — cheaper than all three mission probe
 targets):** instead of hooking the exe, invert the problem. The accepted fill
@@ -1228,8 +1228,8 @@ All three at key→gen offset **(dI,dJ) = (−5,−6)**. **The walk mechanics ar
 now measured-correct**: 1206/1218 informative vertices exact across three
 independent seeds (chance ≈ 2^−1000) — class `(i−j+1)&3`, one `nextU()` per
 vertex row-major, the rep-reduce pass, the `(H+4)/4+6` vertex grid (70×32),
-warm-up absorbed. The 644M-candidate failure (§7septies verdict) and the
-§7novies negative were both purely the SEED. Files (new, on disk):
+warm-up absorbed. The 644M-candidate failure (§7.6 verdict) and the
+§7.8 negative were both purely the SEED. Files (new, on disk):
 `experiments/2026-09-08-subseed-sweep.mjs` (planted-solution integrity test —
 PASS; flip-rate calibration), `-export.mjs` (key binaries → `the session temp bank (now settled under mapgen/extractions/, manifest X1–X61)
 subsweep/key_{91,92,93}.bin`), `2026-09-08-subseed-sweep.c` (sweeper; FNV
@@ -1259,7 +1259,7 @@ border-zone values or a local game-side edge effect. Unresolved.
 - **FUN_009233d0 (the biome-map reset — resets `is_biome_map_initialized`,
   BIOME_MAP paths to `data/biome_impl/biome_map.png` etc.) sets
   `DAT_01328010 = 0`** (h46 dump). So the fill-time value is 0 unless the
-  XML parser set it (nothing does). **§7novies' "[area+0x4c] = worldseed +
+  XML parser set it (nothing does). **§7.8' "[area+0x4c] = worldseed +
   13589" is DEAD — the fill's base seed C = ws + 0 = the raw worldseed**
   (and the printed "ProceduralTerrain - worldseed: N" = ws + NGPC).
 - Full xref scan (u32 0x1328010 over the whole exe): WRITERS = the magic
@@ -1470,7 +1470,7 @@ first use from now on):**
       matches the XML semantics; re-derive from binary before trusting RNG
       details). noitool maps.json carries the same per-biome lists.
     - **Trigger colors** (consumed at generation, never visible in-game —
-      §7sexies) render RAW in our viewer: `00ff33/00ff00` spawn_items, big
+      §7.5) render RAW in our viewer: `00ff33/00ff00` spawn_items, big
       green altar blob, `ff0000/78ffff` hearts, `ffff00`, plus the
       coalmine.lua `RegisterSpawnFunction` palette (`969678/967878/967896`
       structure loaders, `c35700` oiltank, `c88d1a`...). Must map → air (or

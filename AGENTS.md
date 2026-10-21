@@ -42,10 +42,14 @@ git config core.hooksPath .githooks   # MANDATORY commit gates (scripts/precommi
 npm run dev:bridge   # bridge WebSocket server on :8080
 npm run dev          # Vite dev server on http://localhost:5173/
 
-# Map-gen bench (see mapgen/README.md and mapgen/ABOUT_MATH.md)
-npm run bench        # generate + fetch reference + diff (report in mapgen/out/report.html)
-npm run bench:gen    # seed -> wang-layer chunk PNGs in mapgen/out/gen/
-npm run bench:ref    # fetch capture tiles (seed 78633191) -> mapgen/out/ref/
+# Map-gen bench — LEGACY lane (see mapgen/README.md §pipeline): bench:gen runs
+# noitool's OBSOLETE wang-wasm — generate-exact.mjs is the real model (the
+# genmap server uses it) — so bench/bench:diff score the LEGACY fill, not the
+# current pipeline. A regression baseline, never a game reference. The real
+# shape instrument = mapgen/experiments/2026-10-10-surface-shape-iou.mjs.
+npm run bench        # legacy generate + fetch reference + diff (mapgen/out/report.html)
+npm run bench:gen    # seed -> wang-layer chunk PNGs (LEGACY wasm model) in mapgen/out/gen/
+npm run bench:ref    # fetch capture tiles (seed 78633191) -> mapgen/out/ref/  [still-valid ground truth]
 npm run bench:diff   # score chunks, write stats.json + report.html
 npm run gen:server   # generated-map tile server on :8082 (mapgen/server/genmap-server.mjs)
 npm run gen:clear    # wipe the generated-world cache (-- --seed N scopes to one seed)
@@ -57,7 +61,7 @@ node mapcap/analyze-capture.mjs --name <run> --seed <seed> [--stitched <png>] [-
 node mapcap/diff-captures.mjs --a <runA> --b <runB>
 node mapcap/diff-vs-reference.mjs --name <run>
 
-# Wang Lab (controlled fill experiments; see mapgen/README.md + ABOUT_MATH §7septies)
+# Wang Lab (controlled fill experiments; see mapgen/README.md + ABOUT_MATH §7.6)
 node mapgen/experiments/2026-09-04-lab-vertex-recovery.mjs          # dumps → vertex grids
 node --max-old-space-size=4096 mapgen/experiments/2026-09-04-lab-optimizer.mjs 60  # hypothesis search (timeout min)
 
@@ -164,7 +168,9 @@ rules, with the incident that motivates each in one line:
   (usage only). **NO new .md files, ever** — a fact's home is the
   registry that already owns its kind (amend in place, one home per
   fact, no per-site stamps); the pre-commit gate refuses any added .md
-  outside that set. And an existence claim ("no X exists", either
+  outside that set. **Removal is allowed** (see the Synthesis law) —
+  only *new* .md files are refused; a superseded line is deleted, not
+  annotated. And an existence claim ("no X exists", either
   written or acted on) requires a NAMED artifact sweep performed this
   session — grep `src/ public/ mapgen/server` + `git log --all --oneline
   -- <pattern>` + the registers — before it may move work. *(The
@@ -173,6 +179,22 @@ rules, with the incident that motivates each in one line:
 - **Dead-code honesty:** a replaced viewer/instrument page is deleted
   in the same session it is superseded; parallel copies of a product
   are divergence, not safety.
+- **Synthesis law (user mandate, 2026-10-21 — the append-only phase is
+  over).** Registries carry CURRENT state, never history. Git history is
+  the archive: removing a line loses nothing (`git log -p` keeps it).
+  Every session MAY — and any session that notices rot MUST — remove:
+  (a) superseded text whose correction has already landed, (b) closed
+  issues (collapse to one line + the owning §6 entry that holds the
+  narrative), (c) duplicate or contradicted statements (keep the true
+  one, delete the false one — no struck-through ghosts), (d) entries
+  that were eliminated or never landed (a false positive rots into a
+  misleading one). An entry that is closed is ONE line, not a
+  chronicle; a standing entry is a STATE, not a dig-by-dig log. A
+  synthesis commit is a normal non-dig commit whose message names what
+  was removed and where each narrative now lives (§6 entry or commit).
+  *(Charter history: the old "rows are never silently deleted" rule
+  produced 12.5k-line logs, 2k-word table cells and I-rows that exist
+  as 4 scattered `[~]` fragments — retracted by the user, 2026-10-21.)*
 - **Numbers are claims.** Every reported number carries its unit, range
   and reproduction path; an unqualified number is a non-claim. The
   shorthand decodes as follows — each row is verifiable at its named

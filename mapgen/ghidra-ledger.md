@@ -623,7 +623,7 @@ attempt ≤ 100:
 ### THE SMOKING GUN for the 644M-candidate failure
 
 The binary's vertex class is `p = (i+j) & 3` (@0x8ec9f0 vertex coloring,
-`param_1[(iVar13 + local_18 & 3) + 1]`). Our port/lab used §3ter's
+`param_1[(iVar13 + local_18 & 3) + 1]`). Our port/lab used §3.2's
 `(i−j+1)&3`. Wrong class ⇒ drawing `%` the WRONG count for ~half the
 vertices ⇒ 50% noise floor on ANY walk — the exact result the lab optimizer
 produced (58.03%). The `(I−J)&3 ∈ {0,2}` parity correction from lab recovery
@@ -672,7 +672,7 @@ step — lib/wang-js.mjs fill + 548-vertex answer key can do it O(minutes).**
 +0x10/+0x12 doubles) and the fill's reads ([0x4c]); the missing ~10% is
 mapping which derived field (mSeed / ×200000−100000 state) lands at the
 fill's seed input.~~ **RESOLVED + OVERTURNED (2026-09-07 late, hunts 37–45,
-see ABOUT_MATH §7novies for the full asm-verified recipe):**
+see ABOUT_MATH §7.8 for the full asm-verified recipe):**
 
 - The fill's `this` = the **0x154-byte AREA OBJECT** built by Init's biome-map
   walk (NOT the mSeed-ctor object, NOT the 0x1ec generator object). Ctor
@@ -686,7 +686,7 @@ see ABOUT_MATH §7novies for the full asm-verified recipe):**
   Init-time thread-pool task with the area object captured.
 - Class formula = **`(i − j + 1) & 3`** in gen space — the same-day
   "(i+j)&3 correction" misread the decrementing row counter (asm 0x8eca4b
-  `MOV EBX,1` … 0x8ecacd `DEC EBX`). §3ter was right; in key space it
+  `MOV EBX,1` … 0x8ecacd `DEC EBX`). §3.2 was right; in key space it
   equals the lab's `(I−J)&3` after the 1-vertex-row discard.
 - ALL draws (vertex 0x8eca9e, reroll 0x8ec950, choose-tile 0x8ec855) =
   **`nextU() % m`** — poro `Next()` RETURNS `state × 4.656612875e-10` in XMM0
@@ -724,7 +724,7 @@ S₉₁=1228813614, S₉₂=1319606147, S₉₃=1966969580** (all at key→gen o
 (−5,−6)); post-reduce match 498/500, 325/327, 395/403. 1206/1218 informative
 vertices exact across three seeds ⇒ **the walk mechanics are measured-correct;
 the 644M failure and the 2026-09-07 negative were purely the SEED.**
-Full story + evidence tables: ABOUT_MATH §7decies. 12 residual mismatches,
+Full story + evidence tables: ABOUT_MATH §7.9. 12 residual mismatches,
 all gen-border zones, systematic across seeds (key(5,23) fails in 91 AND 93)
 — OPEN, parked.
 
@@ -733,14 +733,14 @@ all gen-border zones, systematic across seeds (key(5,23) fails in 91 AND 93)
 | Function | VA | Verdict |
 | --- | --- | --- |
 | `FUN_00922950` | 0x922950 | magic-number bind/parse (2684 B): binds NEW_GAME_PLUS_COUNT→DAT_01328010 (register via FUN_00442f50(&DAT_01328010) = the current default as fallback; parse `DAT_01328010 = FUN_004448e0()` @0x6fa1f8 is in FUN_006fa0d0). Name mapping independently confirmed in-binary: string "NEW_GAME_PLUS_COUNT" VA 0x1199be4 pushed 16 B before `push 0x1328010` @0x6f9f9e. |
-| `FUN_009233d0` | 0x9233d0 | **biome-map RESET (89 B): sets DAT_01328010 = 0** + `is_biome_map_initialized`=0 + BIOME_MAP paths to defaults + DESIGN_SCALE_ENEMIES=0 + NG+ scales 1.0f. ⇒ fill-time NEW_GAME_PLUS_COUNT = 0 (no XML defines it); §7novies' "C = ws+13589" is DEAD (C = ws). Timing of the reset vs Init unverified — moot, both 0 and 13589 are excluded by measurement (below). |
+| `FUN_009233d0` | 0x9233d0 | **biome-map RESET (89 B): sets DAT_01328010 = 0** + `is_biome_map_initialized`=0 + BIOME_MAP paths to defaults + DESIGN_SCALE_ENEMIES=0 + NG+ scales 1.0f. ⇒ fill-time NEW_GAME_PLUS_COUNT = 0 (no XML defines it); §7.8' "C = ws+13589" is DEAD (C = ws). Timing of the reset vs Init unverified — moot, both 0 and 13589 are excluded by measurement (below). |
 | `FUN_00904c20` | 0x904c20 | **area driver — chain asm-verified end-to-end** (h47 full decompile, 4997 B + objdump): [ESP+0x4c]=[area+0x4c] (0x904d3b/0x904d4f); diddle/halve (0x90523c–59); ONE warm-up on the LOCAL Random object at [ESP+0x24] (0x905264–6e); skip = (w%11)+((u32)C%12) (0x905273–b1, magics 0xaaaaaaab & 0xd1745d17=−0x2e8ba2e9); ≤100 attempts, 1 Schrage each (0x905643–67a; Schrage exact: 16807·(n mod 127773) − 2836·⌊n/127773⌋, +M if ≤0); **param_9 = (double)state × 4.656612875e-10 × 2147483645** (0x905681–a7; MULSD [0x11df988]=C1 — the JS literal, bits 685f1c000000003e, ONE .rdata hit @file 0xddeb88; [0x11e0210]=2147483645.0 @file 0xddf410); coalmine/excavationsite string checks → FUN_00901580; hasPath = FUN_00901780. |
 | `FUN_00904c20` tail | 0x905a93+ | **the spawn-color walker FOUND (the enqueue side)**: per placed pixel → color → BiomeSpawnScripts std::map lookup → ONE Schrage draw per pixel → FUN_00900c70 (queue insert). Closes the ledger's old "find the ENQUEUE side" item. |
 | `FUN_008eda10` | 0x8eda10 | Threaded (1309 B): asserts xs/ys ∈ [1,2048]; cached-seed check `param_9 != _DAT_011df878 (0.0)` (DAT_013276c8 = write-only cache); FUN_008ebf00 lazy TLS ctor; **TLS Random.seed = param_9 (the UNTRUNCATED double**, halved if ≥ 2^31−1 — never: param_9 < 2147483645); ONE warm-up Next; FUN_008ed0f0 buildTileset; FUN_008ec9f0(w·3, w, h+4); copy loop j=−4.. = the +4-row discard; FUN_008ed320. |
 | `FUN_008ebf00` | 0x8ebf00 | lazy TLS Random ctor (74 B): if TLS+0x14 == 0 → operator_new(8) + FUN_00452ba0; then an UNCONDITIONAL tail Next() + double→u64 (an extra advance of the TLS object — absorbed by the sweep's S convention). |
 | `FUN_00904b10` | 0x904b10 | area ctor (264 B): `[area+0x4c] = arg` (raw store, param_1[0x13]); FUN_008f9470(arg) on the sub-object. Ctor call site 0x9077d9: `PUSH [EBP-0x270]; MOV ECX,EAX; CALL` — the arg slot [EBP−0x270] is written once at 0x9062e0 (= GetSeed()+DAT_01328010, h50b slot scan); puVar20[0x13] has NO other writer in the walk (only [0x0d]/[0x0e] w/h and [0x23] sub-seed). |
 | `FUN_008f9470` | 0x8f9470 | generator ctor (336 B): sub[+0x8c] = raw seed; d = (double)seed + diddle[sign]; halve if ≥ 2147483647; **2 GLOBAL poro Nexts**; sub[+0x94] = (float)d×200000f − 100000f. |
-| `FUN_00904730` | 0x904730 | mSeed ctor (926 B): **all three float outputs derive from d = ws UNCHAINED** — mSeed = f32(f32(ws)·9999f+1f) → +0x30; stateA = stateB = f32(f32(ws)·200000f−100000f); its 3 Nexts advance the GLOBAL poro (decompile shows the working double unchanged). Supersedes the h37–45 "local chain" reading and §7novies' CVTTSD2SI-saturation "stateA/stateB seed-constant" reasoning (based on a misread; moot anyway). |
+| `FUN_00904730` | 0x904730 | mSeed ctor (926 B): **all three float outputs derive from d = ws UNCHAINED** — mSeed = f32(f32(ws)·9999f+1f) → +0x30; stateA = stateB = f32(f32(ws)·200000f−100000f); its 3 Nexts advance the GLOBAL poro (decompile shows the working double unchanged). Supersedes the h37–45 "local chain" reading and §7.8' CVTTSD2SI-saturation "stateA/stateB seed-constant" reasoning (based on a misread; moot anyway). |
 | `FUN_00beeee0` | 0xbeeee0 | game-mode dispatch, reads DAT_01328010 ×3 (cmp 0x21/0x0b — NG+ mode checks) — reader only. |
 
 ### THE OPEN CONTRADICTION (measured, not modeled)

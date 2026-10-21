@@ -129,7 +129,7 @@ A controlled experiment: injects a 16-tile custom wang biome as a 5×2-chunk
 rectangle (biome px tx 2..6, ty 36..37) whose tiles self-report their
 placement via spawn-color callbacks. The recovered tile→cell map determines
 the vertex-color grid **exactly** — the answer key for fill-hypothesis
-testing (see `ABOUT_MATH.md` §7septies).
+testing (see `ABOUT_MATH.md` §7.6).
 
 ```bash
 # regenerate atlas + lab.lua from the template encoder (self-validating)
