@@ -1,7 +1,7 @@
 {
   "comment": "the I36 count law's reference (dig #156, scripts/precommit-gates-lib.mjs): the full battery must report EXACTLY these vitest summary totals at every gated commit — any deficit = the silent-truncation class, refused with one retry allowed. Updated per dig when the committed test set changes (the dig's own battery run is the source).",
   "filesTotal": 30,
-  "testsTotal": 384,
+  "testsTotal": 385,
   "testsSkipped": 3,
-  "source": "npm test at dig #177 (2026-10-20, live: the dig-#172 baseline set 30 files/381 tests + the 3 surface-band sky count laws in tests/mapgen/world-gen.test.mjs (C1 gen(39,62) black >= 1000 / C2 gen(39,63) = 0 / C3 gen(39,61) >= 100,000 — data-dependent: RUN with NOITA_DATA_DIR, skip without) = 30 files / 384 tests / 3 skipped, exit 0)"
+  "source": "npm test at dig #178 (2026-10-21, live: the dig-#177 baseline set 30 files/384 tests + the dig-#178 C153-precondition count law in tests/mapgen/surface-compositor.test.mjs (countNeg === 0 && countLE05 > 0 over the 512x256 hills caves field — data-dependent: RUN with NOITA_DATA_DIR, skip without) = 30 files / 385 tests / 3 skipped, exit 0)"
 }

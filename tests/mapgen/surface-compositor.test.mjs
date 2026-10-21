@@ -87,6 +87,33 @@ describe.skipIf(!hasData)("surface-band compositor (digs #130/#131/#132)", () =>
     expect([...r62.matIdx].filter((v) => v !== 255).length).toBe(2409);
   });
 
+  test("the C153 PRECONDITION (dig #178): the hills caves field NEVER goes negative, so the game's air mark (v < 0) cannot fire here", async () => {
+    const { buildCavesField } = await import("../../mapgen/lib/caves-field.mjs");
+    const { loadBiomeConfig, biomeAt } = await import("../../mapgen/lib/biomes.mjs");
+    const cfg = loadBiomeConfig(DATA_DIR);
+    const at = biomeAt(cfg, 39, 14);
+    expect(at).not.toBeNull();
+    const { field } = buildCavesField(DATA_DIR, at.biome, 78633191);
+    expect(field.length).toBe(512 * 256);
+    let countNeg = 0, countLE05 = 0;
+    for (let i = 0; i < field.length; i++) {
+      if (field[i] < 0) countNeg++;
+      if (field[i] <= 0.5) countLE05++;
+    }
+    // The dig-#178 E1 law: C153's byte truth is that the sampler's air arm
+    // stamps ONLY on v < 0 (the [0, 0.5] cells stay unmarked base fill) —
+    // and on our data the field never reaches v < 0, so that arm is inert.
+    // This is the load-bearing reason the ported gate (`v >= 0 ⇒ solid`)
+    // had to be REVERTED: it marked the whole band solid (row-62 sky
+    // 28,323 → 946 vs the capture's 21,669, §8 row 62).
+    // FAILS under dig #178's own retracted F1 prediction (countNeg > 0)
+    // and under the ported gate's arithmetic. dig #179's contract: make
+    // countNeg > 0 and RE-PIN this law.
+    expect(countNeg).toBe(0);
+    // the [0, 0.5] band carries mass ⇒ the flip was never a no-op
+    expect(countLE05).toBeGreaterThan(0);
+  });
+
   test("the NIGHT sky law (2026-10-19, I32 amended): the sky band = black air + stars at every altitude; the mines band unchanged", async () => {
     const { worldColorAt } = await import("../../mapgen/lib/world-gen.mjs");
     const world = await getWorld();

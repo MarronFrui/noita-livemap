@@ -6,7 +6,12 @@ import path from "node:path";
 //   - the noise evaluator = true 0x908e70 (lower clamp at 0.5, single
 //     anisotropic q warping both axes, C30) — via lib/noise-proto.mjs
 //   - the sampler gate (FUN_0090d860, slab 0x50d3c3) = process cells only
-//     when the field value > 0.5 (comiss 0x11dfa94)
+//     when the field value > 0.5 (comiss 0x11dfa94). dig #178 (C153) read
+//     the FULL three-way gate: the game's AIR MARK = v < 0 STRICTLY and the
+//     [0, 0.5] cells are unmarked base fill. NOT PORTED as the mask rule —
+//     **FLAGGED (D, ISSUES A11, owner I47)**: the hills field never goes
+//     negative (countNeg = 0), so the byte law alone collapses the band;
+//     see entry (178) + §8 row 62 at the mask site below.
 //   - per-cell noise input = the cell coords + the per-biome "Wang offset"
 //     doubles (C24 runtime config; the port's BIOME_PATH_FIND_WORLD_POS_*
 //     159/223 = the engine ConfigRegistry defaults, @prov noitool) — the
@@ -482,7 +487,7 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
       const bandX0 = 17920; // C80 worldX0
       gradAt = (gx, gy) => {
         const row = gy - bandY0;
-        if (row < 0) return 0; // above the band origin: OOB read ⇒ air
+        if (row < 0) return 0; // above the band origin: OOB read ⇒ air (dig #131)
         const col = gx - bandX0;
         return field[(((row % fh) + fh) % fh) * fw + (((col % fw) + fw) % fw)];
       };
@@ -539,6 +544,27 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
         } catch {
           return null; // unread-core lane
         }
+        // dig #178 (C153; FULL-WINDOW read of the sampler fn 0x90d860 →
+        // ret 0x90de0d + the out-of-line blocks to 0x90e058, X178): the
+        // game's AIR MARK = the STRICTLY-NEGATIVE field cells — the air arm
+        // @0x90e02b does `xorps; comiss %xmm0,%xmm1; jbe skip` then stamps
+        // `movb $1` into the u8 plane at [owner+0x1a0] ONLY when v < 0. The
+        // v ∈ [0, 0.5] cells receive NO stamp (neither that air plane nor
+        // the solid plane at +0x1c0) = the band's base fill; only v > 0.5
+        // opens the claim path (the comiss 0x11dfa94 `jbe` @0x90dbd0 = the
+        // gate's ENTRY threshold, NOT the air mark — C136 amended in-row).
+        // **THE PORT IS NOT APPLIED — FLAGGED (D, ISSUES A11, owner I47):**
+        // the hills field NEVER goes negative (countNeg = 0 while countLE05
+        // = 13,021, E1 artifact mapgen/out/dig178-classify-air-law.json), so
+        // the v < 0 arm can never fire here. Lane-controlled A/B (both arms
+        // SURFACE_V2=1 SURFACE_V3=1, ONLY the mask rule differing): row-62
+        // sky 28,323 → 946, i.e. −27,377 px where only −6,654 px of excess
+        // existed (the capture = 21,669) — a 4.1x overshoot landing 20,723
+        // px short — and it breaks the standing count laws dig #177 C1
+        // (>= 1000 px) and dig #146 FIELD0 (lavalake 414 → 1161). The byte
+        // law is real; the field's missing NEGATIVE region is the defect →
+        // dig #179. Entry (178), §8 row 62.
+        // E1 instrument: mapgen/experiments/2026-10-20-dig178-classify-air-law.mjs
         mask[52 * cy + cx] = v > 0.5 ? 1 : 0;
         // dig #130 (the surface-lane compositor): the per-cell MATERIAL bands
         // = classify(table, x, y, v) (0x8f5030 byte law; C76 frame: x = the
