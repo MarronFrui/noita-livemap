@@ -603,12 +603,12 @@ resolved row collapses to one line here — the narrative lives in its
 | A8 | the polygon-lane GAME ORACLE (the loader semantics CLOSED dig #157, C132) | `surface-level.mjs` pointInPolygon; the cxml tokenizer | I35 | the lava_90percent mapcap capture (the game-side E0 oracle, user-side) |
 | A9 | dig-#164 record-stamp stand-ins: position rolls `min+trunc(N·u)`, byte value=1, template nonzero-rgb→1 | `caves-field.mjs` caveRecordStamp | I39/I42 | the fn950 roll-chain read (the X129 window) |
 | A10 | the capture-composite display layer (world px from `out/ref` at the captured seed only, display-only; default OFF 2026-10-21) | `mapgen/server/genmap-server.mjs` worldColorComposedAt | I39/I42/I43/I45 | the scene-fill laws composing at the demo seed (the noise arm DONE dig #177) |
-| A11 | the surface-band mask gate `mask = v > 0.5 ? 1 : 0` — a stand-in for C153's three-way classify law: the `[0, 0.5]` field band is marked **AIR** here where the game leaves it **UNSTAMPED** (the band's base fill). Held deliberately: the field's `countNeg = 0` means porting `v >= 0 ⇒ solid` alone collapses row-62 sky 28,323 → 946 vs the capture's 21,669 (§8 row 62) | `noise-terrain.mjs` `maskChunkMask` (the `v > 0.5 ? 1 : 0` line; FLAGGED in-code at the mask site) | I47 | **dig #182 FOUND an air source (C155) — the palette-alpha decision — and dig #183 then ELIMINATED it as a port (C156, §8 row 66): `randomize_colors` occurs 0 times in the whole data tree and no shipped material colour has alpha 0, so C155's alpha-0 ⇒ AIR branch never fires. A11 therefore stands and its lever moved.** ⇒ **dig #184 — THE NULL-RECORD / KIND-0 SKIP READ** (what the plane's initial value is, and whether "never written" = air — the sampler sends kind 0 to `0x90DDB8` = the loop tail = no store), the only surviving air candidate; plus **`0x749A20`** (the kind-1 claim path's paint), **(b)** the field's NEGATIVE region (what fires C153's `v < 0` arm), and **(c)** the Graphics→record promotion step (C156's caveat); once `countNeg > 0` this gate becomes C153
+| A11 | the surface-band mask gate `mask = v > 0.5 ? 1 : 0` — a stand-in for C153's three-way classify law: the `[0, 0.5]` field band is marked **AIR** here where the game leaves it **UNSTAMPED** (the band's base fill). Held deliberately: the field's `countNeg = 0` means porting `v >= 0 ⇒ solid` alone collapses row-62 sky 28,323 → 946 vs the capture's 21,669 (§8 row 62) | `noise-terrain.mjs` `maskChunkMask` (the `v > 0.5 ? 1 : 0` line; FLAGGED in-code at the mask site) | I47 | **dig #182 FOUND an air source (C155) — the palette-alpha decision — and dig #183 then ELIMINATED it as a port (C156, §8 row 66): `randomize_colors` occurs 0 times in the whole data tree and no shipped material colour has alpha 0, so C155's alpha-0 ⇒ AIR branch never fires. A11 therefore stands and its lever moved.** **Dig #184 ELIMINATED the null-record / kind-0 route as a mask-air source** (C157, §8 row 67): the plane at `+0x1e0` holds a *kind* (the planter returns `0x740F80`'s kind untouched), not the mask's air bit, and a NULL record `je 0x90ddb0` @0x90DD8B jumps past the `v < 0` air arm entirely — all three planes are `memset(0)` but zero is the *unmarked* default, not air. ⇒ **A11's lever is now UNIQUELY ISOLATED: C153's `v < 0` arm is the ONLY air writer for the u8 air plane at `+0x1a0`, and the sole defect is the field's missing NEGATIVE region (`countNeg` = 0 vs `countLE05` = 13,021).** ⇒ **dig #185 — THE FIELD'S MISSING NEGATIVE REGION** (what makes the game's hills field go negative and ours never does; the gate SHAPE is not the defect — dig #178's A/B restore of `v < 0` already overshot 4.1×), plus **(c)** the Graphics→record promotion step (C156's caveat). Once `countNeg > 0` this gate becomes C153
 
 Locations are relative to `mapgen/lib/`. Maintained BY the digs; a stale
 row is a process bug.
 
-**Active D-rows: A2, A4 (residual), A5, A6, A8, A9, A10, A11 (8).** *dig #183 (#178 7→8, then #179–#183 8→8, 5th consecutive): no D-row closed — the port that #182 queued was ELIMINATED as a lever rather than landed (C156 / §8 row 66), so the scope is RE-OPENED as #184 with A11's queue item re-pointed from the palette-alpha route to the NULL-record / kind-0-skip arm.*
+**Active D-rows: A2, A4 (residual), A5, A6, A8, A9, A10, A11 (8).** *dig #184 (#178 7→8, then #179–#184 8→8, 6th consecutive): no D-row closed — a read dig that ELIMINATED the null-record / kind-0 route as a mask-air source (C157 / §8 row 67) and thereby isolated A11's lever to the field's missing NEGATIVE region, so the scope is RE-OPENED as #185.*
 Purification history (per-dig started/ended tallies) lives in git
 history (pre-2026-10-21) + the §6 entries. **Dig #178: 7 → 8** — the dig
 *discovered* the A11 stand-in (C153's read showed the committed gate is
@@ -640,4 +640,18 @@ waiting for), closed C154's OPEN and §8 row 65, but removed no D-row
 because retiring A11 is a **port**, not a read, so per the law its scope
 is **RE-OPENED as dig #183** (the PORT of C155 against the capture +
 `0x749A20`). This is the **fourth consecutive 8→8**.
+**Dig #183: 8 → 8** — a docs-only read dig (the `<Graphics>` XML parser
+`0x73D0C0` X194) that landed **C156** and **ELIMINATED C155's palette-alpha
+air route BY DATA** (`randomize_colors` occurs 0 times in the whole data
+tree; no shipped material colour has alpha 0), closing §8 row 66's port
+framing but removing no D-row, so the scope is **RE-OPENED as dig #184**
+(the NULL-record / kind-0-skip arm). Fifth consecutive 8→8.
+**Dig #184: 8 → 8** — a read dig (the three-plane constructor `0x90CFB0`
+X195 and `CLiquidCell`'s ctor `0x749A20` X196) that landed **C157** and
+**FALSIFIED "air = never written"**: all three planes are `memset(0)` but
+zero is the *unmarked* default — C153's `v < 0` arm is the ONLY air writer
+for the u8 air plane, and a NULL record jumps past it. That ELIMINATED the
+route #183 queued, isolated A11's lever to the field's missing NEGATIVE
+region, and DELETED entry (183)'s non-existent dispatch. Sixth consecutive
+8→8; scope **RE-OPENED as dig #185**.
 No other row's lane is touched.
