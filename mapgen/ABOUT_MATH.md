@@ -7100,7 +7100,7 @@ first use from now on):**
       mapgen/extractions/fulltext86.asm (X1) + mapgen/extractions/rdata.bin (X33), file = VA −
       0x400E00, anchor 0xeb14 ↔ VA 0x11df914): gate `comiss 0x11dfb84`
       @true **0x90ab48** → `jbe 0x90b0a2`; loads @0x90ab55/0x90ab5b;
-      `dec %eax` @0x90ab74 → je 1→**0x90afeb** / 2→**0x90aeba** /
+      `dec %eax` @0x90ab68..0x90ab76 → je 1→**0x90afeb** / 2→**0x90aeba** /
       3→**0x90ae03**; **the default arm @0x90ab7d is LIVE via the world
       value 0** (hills_flat + mountain_lake, laboratory outside P1):
       `call 0x8fb570` @**0x90ab9f** (UNREAD; ≠ whiteLattice2d 0x8fb350
@@ -9749,7 +9749,7 @@ first use from now on):**
     hi)** @0x8f2c3d–0x8f2c8a (bounds = the rand slots, not consts),
     **[−0x110] = clamp(+0.3u−0.15, −1.0, 1.0)** @0x8f2d20–0x8f2d55,
     `decl [−0x118]` @0x8f2d5d, x += vel @0x8f2d6f; same 5%+95/5 spawn
-    lane (gates → 0x8f2f0b, `cmovl [−0x150]` @0x8f2e63, pair via
+    lane (gates → 0x8f2f0b, `cmovl [−0x150]` @0x8f2ed6, pair via
     [−0x144]/[−0x140] — slot reuse of the origin pair as the int pair,
     xmm3 = 1.0 @0x8f2ebb) → `call 0x8eead0` @0x8f2efb.
   - **The spawn keys = a gameplay side-lane (interpretation flagged).**

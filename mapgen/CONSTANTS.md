@@ -1951,7 +1951,7 @@ All VAs true (PE-native, C57); method = one cached full-.text dump
   (`new(0x40)`, `movl $0x118f9e4,(%eax)` @0xa9a0e2, xmm payload
   copy +4..+0x3f); +0 = 0xa9a060, +0xc = 0xa9a130 (`mov $0x12f83d4,
   %eax; ret`), +0x10 = 0xa9a150, +0x14 = 0xa9b430. Functor ctor
-  @0x90d507: `new(0x40)`, vtable @0x90d529, payload = movdqu
+  @0x90d508: `new(0x40)`, vtable @0x90d529, payload = movdqu
   [ebp−0xd0..−0xa0] → obj+4..+0x3b, owner = obj+0x1c ← [ebp−0xb8];
   sole writer `mov %edi,-0xb8(%ebp)` @0x90d4f5 in fn **0x90cfb0**
   (edi set once `mov %ecx,%edi` @0x90cfdd; frame 0x118, SEH
