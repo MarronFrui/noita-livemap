@@ -106,9 +106,11 @@ describe.skipIf(!hasData)("surface-band compositor (digs #130/#131/#132)", () =>
     // This is the load-bearing reason the ported gate (`v >= 0 ⇒ solid`)
     // had to be REVERTED: it marked the whole band solid (row-62 sky
     // 28,323 → 946 vs the capture's 21,669, §8 row 62).
-    // FAILS under dig #178's own retracted F1 prediction (countNeg > 0)
-    // and under the ported gate's arithmetic. dig #179's contract: make
-    // countNeg > 0 and RE-PIN this law.
+    // dig #185 (C158): countNeg === 0 is the PERMANENT law for the caves
+    // field — every setter/blend stamp writes `scale ≥ 0`, so the field
+    // cannot go negative (byte-proven). The earlier "make countNeg > 0"
+    // contract is RETRACTED as impossible: C153's `v < 0` air arm is inert
+    // on this field, and the sampler reads a DIFFERENT field (the gradient).
     expect(countNeg).toBe(0);
     // the [0, 0.5] band carries mass ⇒ the flip was never a no-op
     expect(countLE05).toBeGreaterThan(0);
