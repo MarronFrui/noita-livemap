@@ -950,6 +950,22 @@ export function fieldSolidAt(cf, x, y) {
   return cf.field[y * cf.w + x] > 0.5;
 }
 
+// dig #192 (C165/X205) — the BAND-ANCHORED FINITE cell-read, the pure unit
+// behind noiseChunkMask's caves gradAt. The game's bytes: the field's row 0
+// ↦ worldY = [world-grid+4] + field_row (X205 W6 — worldY = [-0x88] + the saved
+// field-row y), rows run [0, min([+0x8c], BATCH-CAP=16-batches)) — i.e. the
+// field = the image = a FINITE mask anchored one full field-height (fh) above
+// the C80 datum; the getter NEVER tiles and NEVER reads negative indices
+// (C164, X204 W2). Calls:
+//   wy < -fh         ⇒ 0 (above the band top = the sky)
+//   wy ∈ [-fh, ·)    ⇒ the cell (field[slabRow*fw + col]; col = ((wx % fw)+fw)%fw)
+//   row >= fh        ⇒ the wrap (the deeper slabs reuse the same field)
+export function cavesCellAt(field, w, h, wx, wy) {
+  if (wy < -h) return 0; // above the terrain slab's top = the sky
+  const col = ((wx % w) + w) % w;
+  return field[(((wy % h) + h) % h) * w + col];
+}
+
 // The C32 fallback-grey bake (FLAGGED; the per-biome A-resolver = open),
 // for the biomes that carry a `bitmap_noise_file` topology PNG instead.
 export function makeFieldGridFromTopology(dataDir, relPath) {

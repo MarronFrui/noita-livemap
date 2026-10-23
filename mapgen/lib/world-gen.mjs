@@ -169,6 +169,20 @@ export function worldColorAt(world, wx, wy) {
       if (tbuf[o] !== 9) return [tbuf[o], tbuf[o + 1], tbuf[o + 2]];
     }
     if (!voidChunk && binPx) return binPx;
+    // dig #192 (C165/X205): the noise-biome terrain serves the sky band's
+    // rows too — the boss-room law's pattern (dig #134 fix-3's order rule:
+    // the sky-band biomes' TERRAIN = terrain, not sky). The world's real
+    // silhouette lives here: the capture's hills carry solid INSIDE bty13
+    // (fR 0.03–0.22 per tile) while the old law rendered the noise lane only
+    // at ty ≥ 62 — the user's flat floor ("should sit one chunk higher").
+    // Solid cells = the caves-mask terrain (the mask lane, the #192 law);
+    // mask-air cells and null lanes fall through to the sky (the NIGHT law
+    // covers the rest). Precedence AFTER the template/bin art = the same
+    // order as the ty≥62 arm.
+    {
+      const nzSky = world.noiseSolidAt?.(gx, gy);
+      if (nzSky != null && nzSky) return noiseColor(world, tx, ty, nzSky, null);
+    }
     return world.skyAt?.(tx, ty, gx, gy) ?? null;
   }
   const idx = world.grid[ty * WORLD_CHUNKS_W + tx];

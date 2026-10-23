@@ -29,7 +29,7 @@ import path from "node:path";
 
 import { K2, evaluator2, noiseDispatch, surfaceField } from "./noise-proto.mjs";
 import { biomeAt } from "./biomes.mjs";
-import { buildCavesField } from "./caves-field.mjs";
+import { buildCavesField, cavesCellAt } from "./caves-field.mjs";
 import { readPng } from "./images.mjs";
 import { findNoitaDataDir } from "./paths.mjs";
 import {
@@ -644,15 +644,17 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
   if (def.bitmapCaves && def.bitmapCaves.sizeX) {
     const caves = ensureCavesField(dataDirRef.dataDir, def, seed);
     const { w: fw, h: fh, field } = caves;
-    // dig #131 (the read-window law): this branch's caller passes WORLD
-    // coords (wx = canvas − 17920, wy = canvas − 31744, C80) — the getters
-    // bounds-check ⇒ wy < 0 (the sky band) reads NOTHING ⇒ air; below, the
-    // grid repeats mod fh/fw. (The V2 branch's wrapper above subtracts the
-    // origins itself — canvas args there.)
-    gradAt = (wx, wy) => {
-      if (wy < 0) return 0; // negative world row ⇒ OOB read ⇒ air
-      return field[(((wy % fh) + fh) % fh) * fw + (((wx % fw) + fw) % fw)];
-    };
+    // dig #192 (C165/X205): the band-anchored finite cell-read — the field's
+    // row 0 = ONE FULL FIELD-HEIGHT (fh) above the C80 datum (worldY0 = 31744;
+    // canvas 31488 = worldY0 − fh; both 24576 and 31744 are even 256 multiples,
+    // so the slab grid holds for any `<BitmapCaves>` sizeY). The old
+    // `wy < 0` air-guard clipped 51 of bty13's 52 rows — the user's flat floor
+    // ("should sit one chunk higher"): bty13's lower half now serves the real
+    // caves cells (the mountain/surface-cave phases carve the silhouette at
+    // the field's top rows), and rows above the slab top = air. Rows ≥ fh keep
+    // the mod wrap — the DEEPER slabs reuse the field; the multi-band stacking
+    // (a field per 512×256 slab) is the deferred port, FLAGGED as ISSUES A14.
+    gradAt = (wx, wy) => cavesCellAt(field, fw, fh, wx, wy);
     gradKind = "caves";
   }
   // (dig #146: the else-arm that built the topology/ramp gradAts is GONE —
