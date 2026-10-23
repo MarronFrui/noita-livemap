@@ -210,11 +210,13 @@ describe.skipIf(!hasNoitaData())("ensureWorld — cached generation (repo gen-ca
 // SURFACE_* flags. Under the pre-fix law both were undefined in the
 // default lane (every sky/void/bin-less px = null → the tile renderer's
 // opaque black; seed 78633191 tiles z0(34,14)/z1(17,28..29) measured
-// 100% black / 512×512 px). The NOISE band must stay gated (§12's D-law:
-// placeholder ramp + un-carve'd filler). The probe runs as a child
-// process with SURFACE_* stripped: noise-terrain.mjs captures the flags
-// at module load and the singleFork worker's env is set by other
-// suites (surface-compositor.test.mjs:13 sets SURFACE_V3).
+// 100% black / 512×512 px). DIG #192 PRODUCT FLIP (2026-10-23): the flip
+// is INVERTED — the band is ON by default (the C165/C166 byte-backed
+// port ships); the OUT = SURFACE_V3=0/2=0 (the instrument baselines).
+// The probe runs as a child process with SURFACE_* stripped: noise-
+// terrain.mjs captures the flags at module load and the singleFork
+// worker's env is set by other suites (surface-compositor.test.mjs:13
+// sets SURFACE_V3).
 describe("default lane (no SURFACE_* flags) — attach noise-terrain contract", () => {
   const probe = `
     const { attachNoiseTerrain } = await import(process.env.PROBE_REPO + "/mapgen/lib/noise-terrain.mjs");
@@ -241,11 +243,21 @@ describe("default lane (no SURFACE_* flags) — attach noise-terrain contract", 
     expect(s.bg).toBe("function");
   });
 
-  test("the noise band stays opt-in (§12 D-law: placeholder ramp + un-carve'd filler must not ship by default)", () => {
+  test("the noise band is ON by default (the dig #192 product flip — C165/C166: the byte-backed port ships); the out-lane = SURFACE_V3=0/2=0 explicitly", () => {
+    // default (env stripped) = attached:
     const s = run();
-    expect(s.solid).toBe("undefined");
-    expect(s.mask).toBe("undefined");
-    expect(s.mat).toBe("undefined");
+    expect(s.solid).toBe("function");
+    expect(s.mask).toBe("function");
+    expect(s.mat).toBe("function");
+    // explicit opt-out = the old detached lane (the instrument baselines):
+    const env0 = { ...process.env, PROBE_REPO: repoRoot, SURFACE_V2: "0", SURFACE_V3: "0" };
+    const r0 = spawnSync(process.execPath, ["--input-type=module", "-e", probe], {
+      env: env0, encoding: "utf8", cwd: repoRoot,
+    });
+    expect(r0.status, r0.stderr).toBe(0);
+    const s0 = JSON.parse(r0.stdout);
+    expect(s0.solid).toBe("undefined");
+    expect(s0.mask).toBe("undefined");
   });
 });
 

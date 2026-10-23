@@ -36,7 +36,7 @@ import {
 
 const PORT = Number(process.env.GENMAP_PORT ?? 8082);
 const dataDir = findNoitaDataDir();
-const cacheDir = path.join(repoRoot, "mapgen/out/gen-cache/r3i"); // r3i: this cache dir stores ONLY the wang-area bins (world.maps, seed+area-keyed) — independent of the cave-field lane. The caves-field lane is OPT-IN via SURFACE_V3=1 (noise-terrain.mjs); the default render is the template painter + static-tile + wang lanes (see VERIFIED.md §12). Bump to a fresh rev only when a cached build's output observably changes.
+const cacheDir = path.join(repoRoot, "mapgen/out/gen-cache/r3i"); // r3i: this cache dir stores ONLY the wang-area bins (world.maps, seed+area-keyed) — independent of the cave-field lane. DIG #192 PRODUCT FLIP (2026-10-23): the caves-field lane is ON by default (no env needed — `npm run gen:server` starts ALL lanes); the old opt-in belonged to the D-grade era, superseded by the C165/C166 port. SURFACE_V3=0/2=0 = the old detached lane (the instrument baselines). Bump to a fresh rev only when a cached build's output observably changes.
 
 const worlds = new Map(); // seed -> { world, progress, ready }
 // Bump-per-start epoch (Date.now()): every server restart invalidates the

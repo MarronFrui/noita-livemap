@@ -163,13 +163,16 @@ const CELLS_PER_CHUNK = CHUNK / 10; // 51.2 → subrect 0..51 (C11 grid shape �
 
 // dig #31 revert made canonical (VERIFIED.md §12, the no-guessing mandate):
 // the true-0x90a860 lane is OPT-IN again — the ramp `gradAt` placeholder (and
-// the un-carve'd caves lane) all-solid masks must not ship as default; the
-// honest default render = template painter + the art scenes + wang areas,
-// with the procedural-noise band deprecated to env opt-in for A/B
-// instruments. Flip with SURFACE_V2=1 (V2 lane) and/or SURFACE_V3=1 (the
-// caves-field composition lane, still flagged placement).
-const SURFACE_V2 = process.env.SURFACE_V2 === "1";
-const SURFACE_V3 = process.env.SURFACE_V3 === "1";
+// DIG #192 PRODUCT FLIP (2026-10-23, the user's product mandate): the noise
+// band is ON by default — the world's generator ships ALL lanes (the template
+// + the wang bins + the art + the procedural terrain with the caves-field
+// composition). The old "must not ship as default" opt-in belonged to the
+// D-grade placeholder era, superseded by the C165/C166 port (the band is now
+// byte-backed + the M-grade measured: overall 0.602->0.675 raw / 0.603->0.748
+// registered). The env still allows the OUT for the instrument baselines and
+// the A/B lanes: SURFACE_V3=0 (and/or SURFACE_V2=0) = the old detached lane.
+const SURFACE_V2 = process.env.SURFACE_V2 === "1";  // the true-0x90a860 instrument lane — STAYS opt-in-only (V2 default off)
+const SURFACE_V3 = process.env.SURFACE_V3 !== "0";  // the product band — ON by default (the dig #192 product flip); SURFACE_V3=0 = the out-lane
 
 // Per-biome "Wang offset" (C24/C28): ConfigRegistry defaults, engine-side.
 // Tagged @prov noitool (the 159/223 family); validated only at runtime.
