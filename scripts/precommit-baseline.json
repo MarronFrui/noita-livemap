@@ -1,7 +1,7 @@
 {
-  "comment": "the I36 count law's reference (dig #156, scripts/precommit-gates-lib.mjs): the full battery must report EXACTLY these vitest summary totals at every gated commit — any deficit = the silent-truncation class, refused with one retry allowed. Updated per dig when the committed test set changes (the dig's own battery run is the source).",
+  "comment": "the I36 count law's reference (dig #156, scripts/precommit-gates-lib.mjs): the full battery must report EXACTLY these vitest summary totals at every gated commit \u2014 any deficit = the silent-truncation class, refused with one retry allowed. Updated per dig when the committed test set changes (the dig's own battery run is the source).",
   "filesTotal": 31,
-  "testsTotal": 395,
+  "testsTotal": 398,
   "testsSkipped": 3,
-  "source": "npm test at dig #192 (2026-10-23, live: the dig #192 port adds tests/mapgen/caves-slab-row.test.mjs (the C165/X205 band-anchored finite cell-read: 0/1/N count tests + the old-guard falsifier + the skip path, synthetic grids) and the cavesCellAt row in tests/mapgen/api-surface.test.mjs's export contract = 31 files / 395 tests / 3 skipped, exit 0)"
+  "source": "npm test at dig #193 (2026-10-23, live: the dig adds 3 shaped-read count tests (the warping's \u00b11-snap-law + the falsifier + the determinism) to tests/mapgen/caves-slab-row.test.mjs = 13 total there; the api-surface contract rows += cavesShapedCellAt (5 args); the surface-compositor's 41,62 count laws RE-PINNED 2409->2501 (the dig #131-era law superseded by the shaped read) = 31 files / 398 tests / 3 skipped, exit 0)"
 }

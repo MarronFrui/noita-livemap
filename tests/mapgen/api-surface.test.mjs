@@ -97,12 +97,13 @@ describe("world-gen.mjs", () => {
 describe("caves-field.mjs", () => {
   test("exports match the documented surface", () => {
     expect(Object.keys(cavesField).sort()).toEqual([
-      "CAVES_FIELD_VER", "buildCavesField", "carveCircle", "caveRecordStamp", "cavesCellAt",
+      "CAVES_FIELD_VER", "buildCavesField", "carveCircle", "caveRecordStamp", "cavesCellAt", "cavesShapedCellAt",
       "fieldSolidAt", "makeFieldGridFromTopology", "scatterEmptyGate",
       "stampBlendLerp", "toucherValue", "walkChain",
     ]);
     expect(cavesField.buildCavesField.length).toBe(3);
     expect(cavesField.cavesCellAt.length).toBe(5);
+    expect(cavesField.cavesShapedCellAt.length).toBe(5);
     expect(cavesField.walkChain.length).toBe(9);
     expect(cavesField.toucherValue.length).toBe(1);
     expect(typeof cavesField.CAVES_FIELD_VER).toBe("string");

@@ -9,7 +9,8 @@
 // 0.03–0.22). Synthetic grids only (no extracted data needed).
 
 import { describe, test, expect } from "vitest";
-import { cavesCellAt } from "../../mapgen/lib/caves-field.mjs";
+import { cavesCellAt, cavesShapedCellAt } from "../../mapgen/lib/caves-field.mjs";
+import { simplex2d, latticeGrad2d } from "../../mapgen/lib/noise-proto.mjs";
 
 // A synthetic 4×4 field with DISTINCT per-cell values so every mapping case
 // has exactly one yield (values chosen inside (>0.5 solid) and < 0.5 air-ish
@@ -103,5 +104,53 @@ describe("cavesCellAt — the skip path", () => {
     const { field, w, h } = makeField();
     expect(() => cavesCellAt(field, w, h, -1000, 3)).not.toThrow();
     expect(cavesCellAt(field, w, h, -1000, 3)).toBe(field[3 * w]); // col wrap ≡ 0
+  });
+});
+
+// ============================================================================
+// dig #193 — cavesShapedCellAt: the warp-displaced sample-point + the
+// smoothstep's ±1 snap (the SHAPE half). Synthetic grids; the laws:
+//   1. the read's cell ∈ the 4-neighbour set of floor(out0/out1) — the snap
+//      can displace the pick by AT MOST +1 cell per axis (the 0.5-comiss/inc!)
+//   2. the FALSIFIER (the dig #192 flat law = cavesCellAt): the warp displaces
+//      SOME cell in a 40×40 span — the shaped read ≠ the flat pick there —
+//      so a cavesShapedCellAt that regresses to the raw flat read FAILS here,
+//      and a gradAt wiring regression fails the compositor's re-pinned
+//      count (surface-compositor.test.mjs, 2501).
+//   3. DETERMINISM: the shaped read is a pure function of (field,w,h,wx,wy).
+describe("cavesShapedCellAt — the warp + the smooth ±1 snap", () => {
+  test("the shaped read's value ∈ the [floor, floor+1] × [floor, floor+1] window of the warped point (the snap's ±1 bound)", () => {
+    const { field, w, h } = makeField();
+    for (const [wx, wy] of [[0, 0], [37, 220], [-30, 50], [9999, 300]]) {
+      // (the sky-cases (wy < -h) are the 0-entry law's describe, NOT this one)
+      // recompute the shaped point's window independently:
+      const xU = (wx + 0.5) * 0.1, yU = (wy + 0.5) * 0.1;
+      const nx = 0.45 * simplex2d(xU * 0.13715, yU * 0.13717) + 0.1;
+      const ny = latticeGrad2d(yU / 9, xU / 9);
+      const wgt = (1 - nx) * 0.33 + 0.111;
+      const out0 = xU + wgt * ny, out1 = yU + wgt * nx;
+      const f0 = out0 - Math.floor(out0), f1 = out1 - Math.floor(out1);
+      const px = Math.floor(out0) + ((3 - 2 * f0) * f0 * f0 >= 0.5 ? 1 : 0);
+      const py = Math.floor(out1) + ((3 - 2 * f1) * f1 * f1 >= 0.5 ? 1 : 0);
+      const cell = (cx, cy) => field[((((cy % h) + h) % h) * w) + (((cx % w) + w) % w)];
+      const got = cavesShapedCellAt(field, w, h, wx, wy);
+      const set = [cell(px, py), cell(px + 1, py), cell(px, py + 1), cell(px + 1, py + 1)];
+      expect(set).toContain(got);
+    }
+  });
+  test("the warp displaces SOME cells (the read ≠ the flat pick somewhere in a 40×40 span)", () => {
+    const { field, w, h } = makeField();
+    let different = 0;
+    for (let wy = 0; wy < 40; wy++) for (let wx = 0; wx < 40; wx++) {
+      if (cavesShapedCellAt(field, w, h, wx, wy) !== cavesCellAt(field, w, h, wx, wy)) different++;
+    }
+    expect(different).toBeGreaterThan(0);
+  });
+  test("DETERMINISM: the shaped read = a pure function of (field,w,h,wx,wy)", () => {
+    const { field, w, h } = makeField();
+    for (const [wx, wy] of [[5, 5], [400, 800]]) {
+      expect(cavesShapedCellAt(field, w, h, wx, wy))
+        .toBe(cavesShapedCellAt(field, w, h, wx, wy)); // determinism
+    }
   });
 });

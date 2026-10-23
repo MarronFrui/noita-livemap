@@ -29,7 +29,7 @@ import path from "node:path";
 
 import { K2, evaluator2, noiseDispatch, surfaceField } from "./noise-proto.mjs";
 import { biomeAt } from "./biomes.mjs";
-import { buildCavesField, cavesCellAt } from "./caves-field.mjs";
+import { buildCavesField, cavesCellAt, cavesShapedCellAt } from "./caves-field.mjs";
 import { readPng } from "./images.mjs";
 import { findNoitaDataDir } from "./paths.mjs";
 import {
@@ -657,7 +657,7 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
     // the field's top rows), and rows above the slab top = air. Rows ≥ fh keep
     // the mod wrap — the DEEPER slabs reuse the field; the multi-band stacking
     // (a field per 512×256 slab) is the deferred port, FLAGGED as ISSUES A14.
-    gradAt = (wx, wy) => cavesCellAt(field, fw, fh, wx, wy);
+    gradAt = (wx, wy) => cavesShapedCellAt(field, fw, fh, wx, wy);
     gradKind = "caves";
   }
   // (dig #146: the else-arm that built the topology/ramp gradAts is GONE —

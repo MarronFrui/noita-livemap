@@ -98,6 +98,7 @@ import path from "node:path";
 import { readPng } from "./images.mjs";
 import { findNoitaDataDir } from "./paths.mjs";
 import { NollaPrng } from "./wang-js.mjs";
+import { simplex2d, latticeGrad2d } from "./noise-proto.mjs";
 
 export const CAVES_FIELD_VER = "caves-field v6 walk-exit (2026-10-13, dig #127 I30: the walk's loop-top carve EXIT gate v_prev >= cursor @0x8ef109 (C105(b), comiss mapping byte-verified in dig #126) + the t<0.2 lane band's base = the carried v_prev (@0x8ef12b..0x8ef13d, not 0); the walk-length distribution = byte-BIMODAL (count-test census)); v5 composition (2026-10-10, dig #120: loop-B top-band runs, blob y ∈ [25,h−5], L2 2-pass chains, L3 do_beginning_down chains, the t² blend + setterStamp carve arm; dig #122 I26: the walk stamp = setterStamp flag=1 (lower-only carve + the center-y q⁸ eave), the record stamp = the 0x8EF870 two-sided template lerp, carveCircle retired to the legacy model; 2026-10-11 dig #123 I28: the record lane = a draws-ONLY consumer (count up-from-min + the ctor-seed/resolver-iff-$[lo-hi]/X/Y/strength per-stamp budget; the engines no-op on the ctor-empty template); 2026-09-21 dig #55/#61/#64/#65/#68 byte-order swap; 2026-09-22 dig #81: phase 1 = mountain_count)";
 
@@ -965,6 +966,64 @@ export function cavesCellAt(field, w, h, wx, wy) {
   const col = ((wx % w) + w) % w;
   return field[(((wy % h) + h) % h) * w + col];
 }
+
+// ============================================================================
+// dig #193 — THE SHAPE: the warp-displaced, smooth-snapped field read.
+//
+// The bytes (0x90d905..0x90e02b + 0x908cb0..0x908e6e; all consts read from
+// .rdata this session; METER-CLASS: n/a — bytes-only):
+//   per cell the world's sample point is NOT (x, y):
+//     x' = (wx + G2 + 0.5)·0.1   [the 10px-cell unit; 0x11dfdd8 = 0.5d,
+//                                 0x11dfd08 = 0.1d — CVTDQ2PD" world px]
+//     y' = (wy + G1 + 0.5)·0.1   [0x13289a8 = G1 (the wy-global), 0x1327670
+//                                 = G2 (the wx-global) — RUNTIME doubles,
+//                                 their live values unread (FLAGGED/zeroed)]
+//     n1 = simplex2d((wx+G2)·0.13715, (wy+G1)·0.13717)   [x-first ORDER; the
+//     0x11dfd38 = 0.13717d — the two-scale pair]
+//     n1 = 0.45·n1 + 0.1          [0x11dfa5c = 0.45f, 0x11df974 = 0.1f]
+//     n2 = latticeGrad2d( (wy+G1)/9, (wx+G2)/9 )         [SWAPPED y-first arg
+//          order; 0x11dfd20 = 1/9d EXACT — the noise-proto-documented swap]
+//     w  = (1 − n1)·0.33 + 0.111  [0x11dfa10 = 0.33f; 0x11df97c = 0.111f ≈ 1/9f]
+//     out = (int-part + the noise-blends) — the warp returns the PAIR (dx, dy)
+//   then the PICK (0x90dc7d..0x90dcc6): sx = s(frac0), sy = s(frac1) with
+//     s(f) = (3 − 2f)·f²  [the SMOOTHSTEP — 0x11dfbf0 = 1.0f, 0x11dfe68 = 2.0f,
+//     0x11dff70 = 3.0f, 0x11dfa94 = 0.5f] and
+//     px0 = floor(out0) + [sx ≥ 0.5], py0 = floor(out1) + [sy ≥ 0.5]
+//   (the comiss/inc pair at 0x90dcbf/0x90dcc5) — a ≤±1-cell SNAP, not a
+//   bilinear blend (the earlier "4-corner bilinear" claim = CORRECTED).
+//   Then the U16-GATE (0x9fe4e0 = a word-read at [+0x20]) and the SECOND
+//   warp 0x908e70 ((y·0.07, x·0.035) → noise 0x8fc900 → ·15.5 → ±0.5) +
+//   the classify (0x8f5030 = our classify!).
+//
+// DEVIATIONS FLAGGED (the honest gaps; the bytes read, the semantics not):
+//   G1/G2 = 0 (the file-state bytes are denormals; the runtime live values
+//   unread) and 0x8fc900's exact body = unread (the lattice/perm-family,
+//   substituted with our latticeVal2d quintic) — both must carry ISSUES rows
+//   if this lands as the shipped law.
+export function cavesShapedCellAt(field, w, h, wx, wy) {
+  // the 10px-cell frame (the ×0.1 unit; G1/G2 = 0 — FLAGGED above)
+  const xU = (wx + 0.5) * 0.1;
+  const yU = (wy + 0.5) * 0.1;
+  // the simplex (x-first order!) + the 0.45/0.1 pair
+  const nx = 0.45 * simplex2d(xU * 0.13715, yU * 0.13717) + 0.1;
+  // the lattice, swapped y-first, /9
+  const ny = latticeGrad2d(yU / 9, xU / 9);
+  // the blend weight
+  const wgt = (1 - nx) * 0.33 + 0.111;
+  // the displacement pair: the int-lattice + the weight-scaled noise blend
+  const out0 = xU + wgt * ny;
+  const out1 = yU + wgt * nx;
+  // the smoothstep's ±1 snap
+  const f0 = out0 - Math.floor(out0), f1 = out1 - Math.floor(out1);
+  const sx = (3 - 2 * f0) * f0 * f0, sy = (3 - 2 * f1) * f1 * f1;
+  const px = Math.floor(out0) + (sx >= 0.5 ? 1 : 0);
+  const py = Math.floor(out1) + (sy >= 0.5 ? 1 : 0);
+  // the field read (the same in-bounds collision law as cavesCellAt)
+  if (wy < -h) return 0;
+  const col = (((px % w) + w) % w), row = (((py % h) + h) % h);
+  return field[row * w + col];
+}
+
 
 // The C32 fallback-grey bake (FLAGGED; the per-biome A-resolver = open),
 // for the biomes that carry a `bitmap_noise_file` topology PNG instead.
