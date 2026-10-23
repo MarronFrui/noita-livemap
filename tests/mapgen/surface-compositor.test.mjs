@@ -83,8 +83,8 @@ describe.skipIf(!hasData)("surface-band compositor (digs #130/#131/#132)", () =>
     }
     // ty 62 = the mines band's first chunk (world rows ≥ 0): unchanged
     const r62 = noiseChunkMask(cfg, 41, 62, 78633191);
-    expect([...r62.mask].filter((v) => v).length).toBe(2501); // dig #193 re-pin (was 2409): the shaped read (warp + smoothstep snap)
-    expect([...r62.matIdx].filter((v) => v !== 255).length).toBe(2501);
+    expect([...r62.mask].filter((v) => v).length).toBe(2519); // dig #194 re-pin (was 2409 → 2501 at the #193-shaped read): the corrected warp (raw-px noise args, slots uncrossed, m added)
+    expect([...r62.matIdx].filter((v) => v !== 255).length).toBe(2519);
   });
 
   test("the C153 PRECONDITION (dig #178): the hills caves field NEVER goes negative, so the game's air mark (v < 0) cannot fire here", async () => {
@@ -146,11 +146,11 @@ describe.skipIf(!hasData)("surface-band compositor (digs #130/#131/#132)", () =>
       if (c && c[0] > 200 && c[1] > 200 && c[2] > 230) stars++;
     }
     expect(stars).toBeGreaterThan(100);
-    // the mines band's first chunk: the terrain's shaped count (dig #193 re-pin; was 2409)
+    // the mines band's first chunk: the terrain's shaped count (dig #194 re-pin; was 2409 → 2501 → 2519)
     const { noiseChunkMask } = await import("../../mapgen/lib/noise-terrain.mjs");
     const cfg2 = (await import("../../mapgen/lib/biomes.mjs")).loadBiomeConfig(DATA_DIR);
     const r62 = noiseChunkMask(cfg2, 41, 62, 78633191);
-    expect([...r62.mask].filter((v) => v).length).toBe(2501);
+    expect([...r62.mask].filter((v) => v).length).toBe(2519);
   });
 
 

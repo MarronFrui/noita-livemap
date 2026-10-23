@@ -98,7 +98,7 @@ import path from "node:path";
 import { readPng } from "./images.mjs";
 import { findNoitaDataDir } from "./paths.mjs";
 import { NollaPrng } from "./wang-js.mjs";
-import { simplex2d, latticeGrad2d } from "./noise-proto.mjs";
+import { simplex2d, latticeGrad2d, latticeVal2d } from "./noise-proto.mjs";
 
 export const CAVES_FIELD_VER = "caves-field v6 walk-exit (2026-10-13, dig #127 I30: the walk's loop-top carve EXIT gate v_prev >= cursor @0x8ef109 (C105(b), comiss mapping byte-verified in dig #126) + the t<0.2 lane band's base = the carried v_prev (@0x8ef12b..0x8ef13d, not 0); the walk-length distribution = byte-BIMODAL (count-test census)); v5 composition (2026-10-10, dig #120: loop-B top-band runs, blob y ∈ [25,h−5], L2 2-pass chains, L3 do_beginning_down chains, the t² blend + setterStamp carve arm; dig #122 I26: the walk stamp = setterStamp flag=1 (lower-only carve + the center-y q⁸ eave), the record stamp = the 0x8EF870 two-sided template lerp, carveCircle retired to the legacy model; 2026-10-11 dig #123 I28: the record lane = a draws-ONLY consumer (count up-from-min + the ctor-seed/resolver-iff-$[lo-hi]/X/Y/strength per-stamp budget; the engines no-op on the ctor-empty template); 2026-09-21 dig #55/#61/#64/#65/#68 byte-order swap; 2026-09-22 dig #81: phase 1 = mountain_count)";
 
@@ -1000,19 +1000,68 @@ export function cavesCellAt(field, w, h, wx, wy) {
 //   unread) and 0x8fc900's exact body = unread (the lattice/perm-family,
 //   substituted with our latticeVal2d quintic) — both must carry ISSUES rows
 //   if this lands as the shipped law.
+// dig #194 CORRECTION (fresh re-objdump this session): the dig-#193 port
+// above mis-wired the warp in three concrete ways vs these bytes —
+//   (a) the simplex/lattice NOISE args ride the RAW (wx+G2)/(wy+G1) frame,
+//       NOT xU/yU (the 100×-frequency + 0.5-offset error);
+//   (b) the displacement slots are CROSSED: the byte's out.x carries
+//       nx·m (the 0x8fc900 term), out.y carries wgt·L (the lattice term) —
+//       the port had the lattice in x and wgt·nx in y;
+//   (c) flip = 1.0f is byte-pinned at the caves call site (@0x90dc11
+//       `movss 0x11dfbf0` before `call 0x908cb0` @0x90dc19) and gates the
+//       displacement body (@908d35) — not an unread. The body below runs
+//       the corrected law.
+// The warp's out pair — DERIVED FRESH this dig (re-objdump 0x908cb0..0x908e70;
+// the dig-#193 dump re-verified faithful; the regs:
+//   xmm0-in = x, xmm3-in = y, xmm1-in = the displacement flip (a f32 scale),
+//   xmm2 out slot = [ebx+0] x / [ebx+4] y.
+//   slots -0x18 = (wx+G2) raw / -0x20 = (wy+G1) raw — pre-+0.5/×0.1!
+//   nx   = -0xc  = 0.45·simplex2d(0.13715·(wx+G2), 0.13717·(wy+G1)) + 0.1
+//                 [the NOISE-ARG FRAME = RAW world px — the dig-#193 port's
+//                 xU/yU feed = WRONG (a 100× lower frequency + the 0.5
+//                 offset); G2/G1 zeroed-flagged]
+//   L    = 0x8fc740's return = latticeGrad2d((wy+G1)/9, (wx+G2)/9)
+//                 [arg0 = the Y-SIDE — the documented swap ✓, raw px]
+//   m    = 0x8fc900((wx+G2)/9, (wy+G1)/9) [NORMAL order; the body UNREAD
+//                 = A15; substituted with our latticeVal2d quintic —
+//                 genus-flagged]
+//   wgt  = (1−nx)·0.33 + 0.111 ✓
+//   out.x = xU + flip·nx·m        [@908df5/df5-chain + 908e5a (floor(xU) + f0
+//                 + m·nx·flip = xU + m·nx·flip)]; the dig-#193 port put the
+//                 LATTICE here — SWAPPED (a mis-wire the entry (191)-era
+//                 paraphrase carried; corrected dig #194)
+//   out.y = yU + flip·wgt·L       [@908dde+df5+dfa+e0e-and-b4/e5a — wait:
+//                 @908dfa xmm5 = wgt·flip·L, @908e0e xmm5 += f1 (the frac!),
+//                 and 908e62 writes [ebx+4] = floor(yU) + f1 + wgt·flip·L
+//                 = yU + wgt·flip·L ✓]
+//   flip: byte-pinned=1.0f AT THE CAVES CALL SITE (@0x90dc11
+//                 `movss 0x11dfbf0` right before `call 0x908cb0` @0x90dc19)
+//                 AND it GATES the whole displacement body (@908d35:
+//                 flip ≤ 0 ⇒ return undisplaced) — so the caves pipe ALWAYS
+//                 displaces. Other callers (the kind-2 torque warp lane) may
+//                 pass other flips — beyond this law's scope.
+// DEVIATIONS FLAGGED (the honest gaps, ISSUES A14/A15 — unchanged):
+//   G1/G2 = 0 (the runtime live values unread) and 0x8fc900's exact body
+//   = unread (substituted with our latticeVal2d quintic).
 export function cavesShapedCellAt(field, w, h, wx, wy) {
-  // the 10px-cell frame (the ×0.1 unit; G1/G2 = 0 — FLAGGED above)
-  const xU = (wx + 0.5) * 0.1;
-  const yU = (wy + 0.5) * 0.1;
-  // the simplex (x-first order!) + the 0.45/0.1 pair
-  const nx = 0.45 * simplex2d(xU * 0.13715, yU * 0.13717) + 0.1;
-  // the lattice, swapped y-first, /9
-  const ny = latticeGrad2d(yU / 9, xU / 9);
+  const G1 = 0, G2 = 0; // FLAGGED: the runtime-globals' live values unread (A15)
+  // the 10px-cell frame (the ×0.1 unit) — the RAW-px noise frame below
+  const xU = (wx + G2 + 0.5) * 0.1;
+  const yU = (wy + G1 + 0.5) * 0.1;
+  // the simplex, x-first, at RAW world px (dig #194: the frame corrected —
+  // 0.13715 per px, NOT per 10px-cell)
+  const nx = 0.45 * simplex2d((wx + G2) * 0.13715, (wy + G1) * 0.13717) + 0.1;
+  // the lattice, swapped y-first (arg0 = y), /9, raw px
+  const L = latticeGrad2d((wy + G1) / 9, (wx + G2) / 9);
+  // the m-noise (0x8fc900) — body unread, the flagged substitute
+  const m = latticeVal2d((wx + G2) / 9, (wy + G1) / 9);
   // the blend weight
   const wgt = (1 - nx) * 0.33 + 0.111;
-  // the displacement pair: the int-lattice + the weight-scaled noise blend
-  const out0 = xU + wgt * ny;
-  const out1 = yU + wgt * nx;
+  // the displacement pair (flip = 1.0 byte-pinned):
+  //   the x-slot carries nx·m, the y-slot carries wgt·L (the dig-#193
+  //   port had the lattice in x and wgt·nx in y — corrected)
+  const out0 = xU + nx * m;
+  const out1 = yU + wgt * L;
   // the smoothstep's ±1 snap
   const f0 = out0 - Math.floor(out0), f1 = out1 - Math.floor(out1);
   const sx = (3 - 2 * f0) * f0 * f0, sy = (3 - 2 * f1) * f1 * f1;

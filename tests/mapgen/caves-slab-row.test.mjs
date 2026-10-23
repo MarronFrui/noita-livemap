@@ -10,7 +10,7 @@
 
 import { describe, test, expect } from "vitest";
 import { cavesCellAt, cavesShapedCellAt } from "../../mapgen/lib/caves-field.mjs";
-import { simplex2d, latticeGrad2d } from "../../mapgen/lib/noise-proto.mjs";
+import { simplex2d, latticeGrad2d, latticeVal2d } from "../../mapgen/lib/noise-proto.mjs";
 
 // A synthetic 4×4 field with DISTINCT per-cell values so every mapping case
 // has exactly one yield (values chosen inside (>0.5 solid) and < 0.5 air-ish
@@ -123,12 +123,14 @@ describe("cavesShapedCellAt — the warp + the smooth ±1 snap", () => {
     const { field, w, h } = makeField();
     for (const [wx, wy] of [[0, 0], [37, 220], [-30, 50], [9999, 300]]) {
       // (the sky-cases (wy < -h) are the 0-entry law's describe, NOT this one)
-      // recompute the shaped point's window independently:
-      const xU = (wx + 0.5) * 0.1, yU = (wy + 0.5) * 0.1;
-      const nx = 0.45 * simplex2d(xU * 0.13715, yU * 0.13717) + 0.1;
-      const ny = latticeGrad2d(yU / 9, xU / 9);
+      // recompute the shaped point's window independently (the dig-#194 law):
+      const G1 = 0, G2 = 0;
+      const xU = (wx + G2 + 0.5) * 0.1, yU = (wy + G1 + 0.5) * 0.1;
+      const nx = 0.45 * simplex2d((wx + G2) * 0.13715, (wy + G1) * 0.13717) + 0.1;
+      const L = latticeGrad2d((wy + G1) / 9, (wx + G2) / 9);
+      const m = latticeVal2d((wx + G2) / 9, (wy + G1) / 9);
       const wgt = (1 - nx) * 0.33 + 0.111;
-      const out0 = xU + wgt * ny, out1 = yU + wgt * nx;
+      const out0 = xU + nx * m, out1 = yU + wgt * L;
       const f0 = out0 - Math.floor(out0), f1 = out1 - Math.floor(out1);
       const px = Math.floor(out0) + ((3 - 2 * f0) * f0 * f0 >= 0.5 ? 1 : 0);
       const py = Math.floor(out1) + ((3 - 2 * f1) * f1 * f1 >= 0.5 ? 1 : 0);
