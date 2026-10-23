@@ -18,7 +18,7 @@ const fail = (m) => {
 const ok = (m) => console.log(`[precommit-gates] ok: ${m}`);
 const sh = (cmd) => {
   try {
-    return execSync(cmd, { encoding: "utf8", cwd: process.cwd() });
+    return execSync(cmd, { encoding: "utf8", cwd: process.cwd(), maxBuffer: 268435456 });
   } catch (e) {
     fail(`command failed: ${cmd}\n${e.stdout ?? ""}${e.stderr ?? e.message}`);
   }
@@ -47,7 +47,7 @@ function runCommitMsg(msgFile, staged) {
   // docs-only entries occupy slots too (the (128) retrospective), so dig #N = the
   // entry axis, not "the last dig's number".
   const headDoc = (() => {
-    try { return execSync(`git show HEAD:mapgen/ABOUT_MATH.md`, { encoding: "utf8" }); }
+    try { return execSync(`git show HEAD:mapgen/ABOUT_MATH.md`, { encoding: "utf8", maxBuffer: 268435456 }); }
     catch { return ""; }
   })();
   const prevHead = Math.max(...[...headDoc.matchAll(/^- \*\*20\d\d-\d\d-\d\d \((\d+)\) — /gm)].map(m => Number(m[1])), 0);
