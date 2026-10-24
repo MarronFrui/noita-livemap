@@ -977,7 +977,7 @@ export function cavesCellAt(field, w, h, wx, wy) {
 //                                 0x11dfd08 = 0.1d — CVTDQ2PD" world px]
 //     y' = (wy + G1 + 0.5)·0.1   [0x13289a8 = G1 (the wy-global), 0x1327670
 //                                 = G2 (the wx-global) — RUNTIME doubles,
-//                                 their live values unread (FLAGGED/zeroed)]
+//                                 live values PINNED dig #196: 7168.0 / 17920.0]
 //     n1 = simplex2d((wx+G2)·0.13715, (wy+G1)·0.13717)   [x-first ORDER; the
 //     0x11dfd38 = 0.13717d — the two-scale pair]
 //     n1 = 0.45·n1 + 0.1          [0x11dfa5c = 0.45f, 0x11df974 = 0.1f]
@@ -995,11 +995,14 @@ export function cavesCellAt(field, w, h, wx, wy) {
 //   warp 0x908e70 ((y·0.07, x·0.035) → noise 0x8fc900 → ·15.5 → ±0.5) +
 //   the classify (0x8f5030 = our classify!).
 //
-// DEVIATIONS FLAGGED (the honest gaps; the bytes read, the semantics not):
-//   G1/G2 = 0 (the file-state bytes are denormals; the runtime live values
-//   unread) and 0x8fc900's exact body = unread (the lattice/perm-family,
-//   substituted with our latticeVal2d quintic) — both must carry ISSUES rows
-//   if this lands as the shipped law.
+// dig #196 CLOSED the two reads here (X208, fresh objdump):
+//   G1/G2 = the WANG OFFSET doubles — f64[0x13289a8] / f64[0x1327670] are
+//   written ONCE (ProceduralTerrain::Init, this = [ebp−0x248]: [+0x38]→G2
+//   @0x90713a, [+0x40]→G1 @0x907147, logged "Wang offset: " 0x1174b1c) and
+//   the warp ADDS them to its inputs at its head (@0x908CC9 adjY = inY+G1,
+//   @0x908CD6 adjX = inX+G2) ⇒ live G2 = 17920.0, G1 = 7168.0 (the values
+//   below); 0x8fc900's body = the quintic value noise ≡ our latticeVal2d.
+//   The remaining A15 gap = the [world-grid+0x90] material lookup arm.
 // dig #194 CORRECTION (fresh re-objdump this session): the dig-#193 port
 // above mis-wired the warp in three concrete ways vs these bytes —
 //   (a) the simplex/lattice NOISE args ride the RAW (wx+G2)/(wy+G1) frame,
@@ -1022,9 +1025,11 @@ export function cavesCellAt(field, w, h, wx, wy) {
 //                 offset); G2/G1 zeroed-flagged]
 //   L    = 0x8fc740's return = latticeGrad2d((wy+G1)/9, (wx+G2)/9)
 //                 [arg0 = the Y-SIDE — the documented swap ✓, raw px]
-//   m    = 0x8fc900((wx+G2)/9, (wy+G1)/9) [NORMAL order; the body UNREAD
-//                 = A15; substituted with our latticeVal2d quintic —
-//                 genus-flagged]
+//   m    = 0x8fc900((wx+G2)/9, (wy+G1)/9) [NORMAL order; the body READ dig
+//                 #196 = the quintic VALUE noise ≡ our latticeVal2d: floor/
+//                 fracs, hXY = perm[perm[ix]+jy] at 0x114d700 (&0xff wraps,
+//                 the port's PERM_LATTICE byte-identical), /255.0, inline
+//                 quintic (6f−15)·f+10 cubed, (v−0.5)·2 — X208 [4]]
 //   wgt  = (1−nx)·0.33 + 0.111 ✓
 //   out.x = xU + flip·nx·m        [@908df5/df5-chain + 908e5a (floor(xU) + f0
 //                 + m·nx·flip = xU + m·nx·flip)]; the dig-#193 port put the
@@ -1040,11 +1045,22 @@ export function cavesCellAt(field, w, h, wx, wy) {
 //                 flip ≤ 0 ⇒ return undisplaced) — so the caves pipe ALWAYS
 //                 displaces. Other callers (the kind-2 torque warp lane) may
 //                 pass other flips — beyond this law's scope.
-// DEVIATIONS FLAGGED (the honest gaps, ISSUES A14/A15 — unchanged):
-//   G1/G2 = 0 (the runtime live values unread) and 0x8fc900's exact body
-//   = unread (substituted with our latticeVal2d quintic).
+// dig #196 (X208) — both reads CLOSED; the law below is byte-complete for
+//   the displacement pipe. G = the wang offset (the live values, pinned):
+//   G2 = 17920.0 = f64[+0x38] (the biome-map image width w ·256 — C119's
+//   Phase-G law; cross-check: 17920 = the C80 world-x datum = biome px 35·512),
+//   G1 = 7168.0 = f64[+0x40] (the C119 constant 14·512 — both Init branches
+//   agree). Still OPEN (A15 gap 3): the [world-grid+0x90] material-lookup arm.
 export function cavesShapedCellAt(field, w, h, wx, wy) {
-  const G1 = 0, G2 = 0; // FLAGGED: the runtime-globals' live values unread (A15)
+  // The WANG OFFSET — byte-pinned live values (C170, X208, dig #196):
+  //   G2 = 17920.0 = f64[0x1327670] = ProceduralTerrain[+0x38] = w·256 with
+  //        w = the biome-map image width (70) — C119; cross-check: 17920 =
+  //        the C80 world-x datum (biome px 35·512), so the add re-anchors
+  //        world px → the BIOME frame (the warp's @0x908CD6/CC9 addsd pair).
+  //   G1 = 7168.0 = f64[0x13289a8] = ProceduralTerrain[+0x40] = 14·512 (C119's
+  //        constant; both Init branches agree) = the world-y origin's offset
+  //        from the biome frame's row 0 (canvas 24576 → 31744).
+  const G1 = 7168, G2 = 17920;
   // the 10px-cell frame (the ×0.1 unit) — the RAW-px noise frame below
   const xU = (wx + G2 + 0.5) * 0.1;
   const yU = (wy + G1 + 0.5) * 0.1;
@@ -1053,7 +1069,7 @@ export function cavesShapedCellAt(field, w, h, wx, wy) {
   const nx = 0.45 * simplex2d((wx + G2) * 0.13715, (wy + G1) * 0.13717) + 0.1;
   // the lattice, swapped y-first (arg0 = y), /9, raw px
   const L = latticeGrad2d((wy + G1) / 9, (wx + G2) / 9);
-  // the m-noise (0x8fc900) — body unread, the flagged substitute
+  // the m-noise (0x8fc900) — body verified dig #196: = latticeVal2d (X208 [4])
   const m = latticeVal2d((wx + G2) / 9, (wy + G1) / 9);
   // the blend weight
   const wgt = (1 - nx) * 0.33 + 0.111;

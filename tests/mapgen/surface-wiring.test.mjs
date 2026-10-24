@@ -27,6 +27,12 @@
 //     AND the exact field build (C80 world coords + the caves-field gradAt
 //     the lane selects for <BitmapCaves> hills — mirror of
 //     noise-terrain.mjs's selection, WITHOUT any env conjunct).
+//     RE-DERIVED dig #196 (entry (196), C170): gradAtMirror recomputes the
+//     wang-offset SHAPED read byte law (G = (17920, 7168) + the warp args +
+//     the smoothstep ±1 snap); the flat pre-#193 read that lived here was
+//     stale — the SURFACE_V2 skip conjunct had hidden it until this dig's
+//     file edits shifted the worker scheduling (the dig-#145 env-leak class;
+//     verified by a direct solo run: 3/3 green against the C170 port).
 //  2. full equivalence — per-cell mask ≡ (field > 0.5 ∧ classify hit) on
 //     BOTH a sky row (canvas ty 48 — the dig-#100 flood zone) and the
 //     true surface row (canvas ty 60 = biome row 12, PREDICTABLE_ZONES
@@ -51,7 +57,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { noiseChunkMask, NOISE_NAME_KIND, NOISE_TYPE_KIND } from "../../mapgen/lib/noise-terrain.mjs";
 import { loadBiomeConfig } from "../../mapgen/lib/biomes.mjs";
-import { evaluator2 } from "../../mapgen/lib/noise-proto.mjs";
+import { evaluator2, simplex2d, latticeGrad2d, latticeVal2d } from "../../mapgen/lib/noise-proto.mjs";
 import { buildCavesField } from "../../mapgen/lib/caves-field.mjs";
 import {
   componentFromXml,
@@ -149,10 +155,28 @@ function uidMirror(def) {
 function gradAtMirror(def) {
   if (!_caves) _caves = buildCavesField(dataDir, def, CAPTURE_SEED);
   const { w: fw, h: fh, field } = _caves;
-  return (wx, wy) =>
-    (wy < 0) ? 0
-      : field[(((Math.floor(wy) % fh) + fh) % fh) * fw
-          + (((Math.floor(wx) % fw) + fw) % fw)];
+  // dig #196 (C170) re-derivation: the lane's caves field law = the
+  // wang-offset SHAPED read (digs #193/#194 warp + the dig-#196 G add).
+  // The mirror recomputes the byte law INDEPENDENTLY (the addsd G pair
+  // @0x908CD6/CC9, the warp args, the smoothstep ±1 snap @0x90dd37) so
+  // this round-trip cross-checks the port's cavesShapedCellAt against
+  // the lane's mask; the flat pre-#193 read that lived here was stale
+  // (hidden while the SURFACE_V2 env leak kept this suite skipped).
+  return (wx, wy) => {
+    if (wy < -fh) return 0; // the RAW-frame sky gate (the add is post-gate)
+    const ax = wx + 17920, ay = wy + 7168; // the wang offset (C170)
+    const xU = (ax + 0.5) * 0.1, yU = (ay + 0.5) * 0.1;
+    const nx = 0.45 * simplex2d(ax * 0.13715, ay * 0.13717) + 0.1;
+    const L = latticeGrad2d(ay / 9, ax / 9);
+    const m = latticeVal2d(ax / 9, ay / 9);
+    const wgt = (1 - nx) * 0.33 + 0.111;
+    const snap = (o) => {
+      const f = o - Math.floor(o);
+      return Math.floor(o) + ((3 - 2 * f) * f * f >= 0.5 ? 1 : 0);
+    };
+    const px = snap(xU + nx * m), py = snap(yU + wgt * L);
+    return field[(((py % fh) + fh) % fh) * fw + (((px % fw) + fw) % fw)];
+  };
 }
 
 // Exact mirror of the lane's default-branch math (noise-terrain.mjs,

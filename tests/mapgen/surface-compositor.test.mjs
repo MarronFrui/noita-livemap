@@ -55,12 +55,22 @@ describe.skipIf(!hasData)("surface-band compositor (digs #130/#131/#132)", () =>
       "coal", "soil", "sand_static", "coal", "copper", "rock_static",
     ]);
     const classified = [...r.matIdx].filter((v) => v !== 255).length;
-    const airCells = [...r.mask].filter((v) => v === 0).length;
+    // dig #196 (C170): the wang offset G moved the (41,62) pick onto the
+    // bitmap's bottom rows → this ground chunk is now FULLY solid under the
+    // byte law (the capture's tile 41_14 fR = 0.96017 = 96% solid; our fG
+    // 0.93921 → 0.9965 and IoU 0.90092 → 0.95825 = toward the capture).
+    // The "air exists" side of this law therefore rides a hills chunk whose
+    // byte-law state still carries pockets: (44,62) = 110 air cells.
+    expect([...r.mask].filter((v) => v).length).toBe(2704); // the C170 frame's all-solid count (was 2519 pre-#196)
+    const rAir = noiseChunkMask(cfg, 44, 62, 78633191);
+    const airCells = [...rAir.mask].filter((v) => v === 0).length;
+    const classifiedAir = [...rAir.matIdx].filter((v) => v !== 255).length;
     // both sides: classified materials exist (≠ flat slab), air exists
     // (≠ the full-solid wall) — flips if the compositor regresses.
     expect(classified).toBeGreaterThan(1000);
     expect(airCells).toBeGreaterThan(100);
-    expect(classified + airCells).toBeLessThanOrEqual(52 * 52);
+    expect(classifiedAir).toBeGreaterThan(1000);
+    expect(classifiedAir + airCells).toBeLessThanOrEqual(52 * 52);
     for (const name of r.matNames) {
       const rgb = materialColorByName(DATA_DIR, name);
       expect(rgb).not.toBeNull();
@@ -81,10 +91,15 @@ describe.skipIf(!hasData)("surface-band compositor (digs #130/#131/#132)", () =>
       expect([...r.mask].filter((v) => v).length).toBe(0);
       expect([...r.matIdx].filter((v) => v !== 255).length).toBe(0);
     }
-    // ty 62 = the mines band's first chunk (world rows ≥ 0): unchanged
+    // ty 62 = the mines band's first chunk (world rows ≥ 0): served + the
+    // C170 frame's count. dig #196 re-pin (was 2409 → 2501 → 2519 → **2704**):
+    // the wang offset G = (17920, 7168) moves the pick by (+1792, +717) cells
+    // mod the 512×256 bitmap — onto the ground row's solid stretch (the
+    // capture's tile 41_14 fR = 0.96017; our IoU 0.90092 → 0.95825 = toward
+    // it). Byte law: C170; E2 direction: entry (196).
     const r62 = noiseChunkMask(cfg, 41, 62, 78633191);
-    expect([...r62.mask].filter((v) => v).length).toBe(2519); // dig #194 re-pin (was 2409 → 2501 at the #193-shaped read): the corrected warp (raw-px noise args, slots uncrossed, m added)
-    expect([...r62.matIdx].filter((v) => v !== 255).length).toBe(2519);
+    expect([...r62.mask].filter((v) => v).length).toBe(2704);
+    expect([...r62.matIdx].filter((v) => v !== 255).length).toBe(2704);
   });
 
   test("the C153 PRECONDITION (dig #178): the hills caves field NEVER goes negative, so the game's air mark (v < 0) cannot fire here", async () => {
@@ -146,11 +161,13 @@ describe.skipIf(!hasData)("surface-band compositor (digs #130/#131/#132)", () =>
       if (c && c[0] > 200 && c[1] > 200 && c[2] > 230) stars++;
     }
     expect(stars).toBeGreaterThan(100);
-    // the mines band's first chunk: the terrain's shaped count (dig #194 re-pin; was 2409 → 2501 → 2519)
+    // the mines band's first chunk: the terrain's shaped count (dig #196
+    // re-pin to the C170 wang-offset frame; was 2409 → 2501 → 2519 → 2704 —
+    // the byte-law pick move (+1792, +717) mod the bitmap; entry (196))
     const { noiseChunkMask } = await import("../../mapgen/lib/noise-terrain.mjs");
     const cfg2 = (await import("../../mapgen/lib/biomes.mjs")).loadBiomeConfig(DATA_DIR);
     const r62 = noiseChunkMask(cfg2, 41, 62, 78633191);
-    expect([...r62.mask].filter((v) => v).length).toBe(2519);
+    expect([...r62.mask].filter((v) => v).length).toBe(2704);
   });
 
 

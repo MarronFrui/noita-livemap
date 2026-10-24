@@ -123,8 +123,11 @@ describe("cavesShapedCellAt — the warp + the smooth ±1 snap", () => {
     const { field, w, h } = makeField();
     for (const [wx, wy] of [[0, 0], [37, 220], [-30, 50], [9999, 300]]) {
       // (the sky-cases (wy < -h) are the 0-entry law's describe, NOT this one)
-      // recompute the shaped point's window independently (the dig-#194 law):
-      const G1 = 0, G2 = 0;
+      // recompute the shaped point's window independently (the dig-#194 law;
+      // the wang offset G = (7168, 17920) per C170 — dig #196 updated this
+      // oracle to the port's CURRENT frame; at G=0 the port's pick lands
+      // (1792, 717) cells away and this window misses):
+      const G1 = 7168, G2 = 17920;
       const xU = (wx + G2 + 0.5) * 0.1, yU = (wy + G1 + 0.5) * 0.1;
       const nx = 0.45 * simplex2d((wx + G2) * 0.13715, (wy + G1) * 0.13717) + 0.1;
       const L = latticeGrad2d((wy + G1) / 9, (wx + G2) / 9);
@@ -154,5 +157,73 @@ describe("cavesShapedCellAt — the warp + the smooth ±1 snap", () => {
       expect(cavesShapedCellAt(field, w, h, wx, wy))
         .toBe(cavesShapedCellAt(field, w, h, wx, wy)); // determinism
     }
+  });
+});
+
+// dig #196 — THE WANG OFFSET (A15 gap 1 → CLOSED; C170/X208): the warp
+// 0x908CB0 adds the runtime globals to its f64 inputs AT ITS HEAD —
+// @0x908CC9 adjY = inY + f64[0x13289a8] (G1), @0x908CD6 adjX = inX +
+// f64[0x1327670] (G2) — before EVERY derivation: the base (adj+0.5)·0.1,
+// the simplex (adj·0.13715 / adj·0.13717), the lattice/m (adj/9). The
+// globals are written ONCE (ProceduralTerrain::Init: [+0x38]→G2 @0x90713a,
+// [+0x40]→G1 @0x907147, "Wang offset: " 0x1174b1c); live values G2 =
+// 17920.0 (= w·256, w = the biome-map width 70, C119 + the C80 datum
+// cross-check), G1 = 7168.0 (= 14·512, C119's constant in both branches).
+// The oracle below assembles the byte law INDEPENDENTLY from X208's pins.
+// Count tests per the charter: 0-entry (the sky gate rides the RAW wy —
+// pre-add), 1-entry, N-entries — plus the replacement test that must FAIL
+// under the old A15 arithmetic (G = 0,0 = the flagged stand-in).
+describe("cavesShapedCellAt — the wang offset G1/G2 (the byte law)", () => {
+  const G2 = 17920, G1 = 7168;
+  function shapedByBytes(field, w, h, wx, wy, g2 = G2, g1 = G1) {
+    const ax = wx + g2, ay = wy + g1;                 // the addsd pair @0x908CD6/CC9
+    const xU = (ax + 0.5) * 0.1, yU = (ay + 0.5) * 0.1; // 0.5d @0x11dfdd8, 0.1d @0x11dfd08
+    const nx = 0.45 * simplex2d(ax * 0.13715, ay * 0.13717) + 0.1; // 0.45f/0.1f
+    const L = latticeGrad2d(ay / 9, ax / 9);          // the y-first swap, ~1/9 @0x11dfd20
+    const m = latticeVal2d(ax / 9, ay / 9);           // 0x8fc900 (verified X208 [4])
+    const wgt = (1 - nx) * 0.33 + 0.111;
+    const out0 = xU + nx * m, out1 = yU + wgt * L;
+    const snap = (o) => {
+      const f = o - Math.floor(o);
+      return Math.floor(o) + ((3 - 2 * f) * f * f >= 0.5 ? 1 : 0); // 3.0/2.0/0.5f
+    };
+    if (wy < -h) return 0;                            // the RAW-frame sky gate (dig #192)
+    const px = snap(out0), py = snap(out1);
+    return field[(((py % h) + h) % h) * w + (((px % w) + w) % w)];
+  }
+  const CASES = [[0, 0], [5, 5], [37, 220], [-30, 50], [9999, 300],
+                 [17920, 7168], [400, 800], [-17920, -7168], [123, -2], [511, 511]];
+  test("0-entry (skip path): the sky gate rides the RAW wy, pre-add", () => {
+    const { field, w, h } = makeField();
+    for (const wy of [-h - 1, -2 * h]) {
+      expect(cavesShapedCellAt(field, w, h, 0, wy)).toBe(0);
+      expect(shapedByBytes(field, w, h, 0, wy)).toBe(0); // even though ay = wy+7168 is in-band
+    }
+  });
+  test("1-entry: one sample reads the byte-law cell exactly", () => {
+    const { field, w, h } = makeField();
+    const [wx, wy] = [37, 220];
+    expect(cavesShapedCellAt(field, w, h, wx, wy))
+      .toBe(shapedByBytes(field, w, h, wx, wy));
+  });
+  test("N-entries: every sample matches the byte-law oracle (the G-pinned assembly)", () => {
+    const { field, w, h } = makeField();
+    for (const [wx, wy] of CASES) {
+      expect(cavesShapedCellAt(field, w, h, wx, wy))
+        .toBe(shapedByBytes(field, w, h, wx, wy));
+    }
+  });
+  test("REPLACEMENT FAILS UNDER THE OLD LAW: the G=0 stand-in (A15) disagrees on 8 of the 10 cases", () => {
+    const { field, w, h } = makeField();
+    let oldLawDiffers = 0;
+    for (const [wx, wy] of CASES) {
+      if (cavesShapedCellAt(field, w, h, wx, wy) !== shapedByBytes(field, w, h, wx, wy, 0, 0)) {
+        oldLawDiffers++;
+      }
+    }
+    // the pinned count (the two coincidences = the 4×4 wrap aligning mod 4 —
+    // e.g. (0,0)/(5,5): the pick delta (1792, 717) ≡ (0,1) mod 4 lands in the
+    // same cell); any G=0-shaped regression fails on 8, not 0.
+    expect(oldLawDiffers).toBe(8);
   });
 });
