@@ -1,7 +1,7 @@
 {
   "comment": "the I36 count law's reference (dig #156, scripts/precommit-gates-lib.mjs): the full battery must report EXACTLY these vitest summary totals at every gated commit — any deficit = the silent-truncation class, refused with one retry allowed. Updated per dig when the committed test set changes (the dig's own battery run is the source).",
   "filesTotal": 32,
-  "testsTotal": 416,
+  "testsTotal": 420,
   "testsSkipped": 4,
-  "source": "npm test at dig #208 (2026-10-26, the classify-or-air cell-law + the world-y limits + the caves row-gate): 32 files / 412 passed | 4 skipped (416), exit 0. The +3 = the dig-#208 cell-law tests (composed-content); the re-pins = the FIELD0 counts (lavalake 375, solid_wall 2704, temple_wall 0) + the I33 empty/lake_statue laws + the I34 anchor set (the winter-only) + the caves-filler/census rows (the underground's row-gate 63)."
+  "source": "npm test at dig #210 (2026-10-26, obs-1 measurement commit: the worldColorAt arm-order pins): 32 files / 416 passed | 4 skipped (420), exit 0. The +4 = the injected-world (data-free) arm-order tests — (1) bin material px raw + beats the template sentinel, (2) the airDark bd-null raw-leak arm (both biomeBackdrop guards), (3) fg template art beats the noise lane, (4) row-62 air -> skyAt vs row-63 air -> bgImageAt. The skip set is unchanged (4)."
 }

@@ -108,6 +108,57 @@ describe("worldColorAt — injected world (no data needed)", () => {
     w.templates.set("0,10", sky);
     expect(worldColorAt(w, 7, 10 * CHUNK + 5)).toEqual([55, 56, 57]); // old law: local (18,17) = 9 -> null
   });
+
+  // dig #210 (entry (210), I49): the worldColorAt arm-order pins the obs-1
+  // fix touches. Each test names whether it SURVIVES the fix (the arm the
+  // fix keeps) or is CONSCIOUSLY REVISED with it (the fix commit replaces it
+  // with a test that FAILS under this law's arithmetic).
+  test("bin material px: raw rgb returned AND it beats the template lane (I49 pre-fix pin, survives)", () => {
+    const w = mkWorld();
+    const buf = new Uint8Array(CHUNK * CHUNK * 3).fill(9);
+    buf[0] = 77; buf[1] = 78; buf[2] = 79; // template sentinel at display local (0,0)
+    w.templates.set("35,62", buf);
+    // display (35*512, 62*512) -> generator (+11,+12) = atlas cell (1,1) = [10,11,12]
+    // (non-airDark ⇒ the wang terrain); the bin lane precedes the template
+    // lane, so the sentinel [77,78,79] must NOT surface (old-law order:
+    // template first ⇒ [77,78,79]).
+    expect(worldColorAt(w, 35 * CHUNK, 62 * CHUNK)).toEqual([10, 11, 12]);
+  });
+
+  test("bin airDark px with no backdrop source (no def.filename, then no dataDir) leaks the raw rgb (I49 pre-fix pin, the bd-null arm)", () => {
+    const w = mkWorld();
+    const m = w.maps.get("coalmine_29_14");
+    m.rgb[0] = 13; m.rgb[1] = 14; m.rgb[2] = 18; // atlas cell (0,0) = the airDark family
+    const at = () => worldColorAt(w, 35 * CHUNK - L3_ANCHOR.x, 62 * CHUNK - L3_ANCHOR.y);
+    // guard 1: no declared bg filename -> biomeBackdrop null (world-gen.mjs:22)
+    expect(at()).toEqual([13, 14, 18]);
+    // guard 2: filename declared but world.dataDir unset -> still null
+    w.areas[0].def = { filename: "data/biomes/coalmine.xml" };
+    expect(at()).toEqual([13, 14, 18]);
+  });
+
+  test("fg template art beats the noise lane (order: bin material -> template -> noise; survives)", () => {
+    const w = mkWorld();
+    // canvas chunk (36,63) has no area on the grid (only (35,62) is set)
+    const buf = new Uint8Array(CHUNK * CHUNK * 3).fill(9);
+    const o = 3 * (5 * CHUNK + 7);
+    buf[o] = 44; buf[o + 1] = 45; buf[o + 2] = 46;
+    w.templates.set("36,63", buf);
+    w.noiseSolidAt = () => 1; // the noise lane would claim the cell if consulted first
+    w.noiseMatAt = () => null;
+    expect(worldColorAt(w, 36 * CHUNK + 7, 63 * CHUNK + 5)).toEqual([44, 45, 46]);
+  });
+
+  test("noise-air routing (dig #177 C151 sky law / C109 per-area bg): generator row 62 -> skyAt, row 63 -> bgImageAt", () => {
+    const w = mkWorld();
+    w.noiseSolidAt = () => 0; // everything air
+    w.noiseMatAt = () => null;
+    w.skyAt = () => [90, 90, 90];
+    w.bgImageAt = () => [70, 70, 70];
+    // wy = row*512 − 12 puts the generator row exactly at the row edge
+    expect(worldColorAt(w, 39 * CHUNK, 62 * CHUNK - L3_ANCHOR.y)).toEqual([90, 90, 90]);
+    expect(worldColorAt(w, 39 * CHUNK, 63 * CHUNK - L3_ANCHOR.y)).toEqual([70, 70, 70]);
+  });
 });
 
 describe.skipIf(!hasNoitaData())("loadWangWorld — full biome/world skeleton", () => {
