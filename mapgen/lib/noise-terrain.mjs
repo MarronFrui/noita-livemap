@@ -170,9 +170,14 @@ const CELLS_PER_CHUNK = CHUNK / 10; // 51.2 → subrect 0..51 (C11 grid shape �
 // D-grade placeholder era, superseded by the C165/C166 port (the band is now
 // byte-backed + the M-grade measured: overall 0.602->0.675 raw / 0.603->0.748
 // registered). The env still allows the OUT for the instrument baselines and
-// the A/B lanes: SURFACE_V3=0 (and/or SURFACE_V2=0) = the old detached lane.
-const SURFACE_V2 = process.env.SURFACE_V2 === "1";  // the true-0x90a860 instrument lane — STAYS opt-in-only (V2 default off)
-const SURFACE_V3 = process.env.SURFACE_V3 !== "0";  // the product band — ON by default (the dig #192 product flip); SURFACE_V3=0 = the out-lane
+// the A/B lanes — dig #205's FRAME FLIP (C178): the surface band's shape =
+// the TOPOLOGY lane (the surfaceField evaluator — the mGradient heightmap /
+// the topology images), NOT the caves field (§8 row 75). The gates flip:
+// the V2 = the product lane (ON by default — the topology surface); the V3 =
+// the caves lane = OPT-IN (SURFACE_V3=1 — the underground's field; the
+// user's working caves stay accessible behind the flag).
+const SURFACE_V2 = process.env.SURFACE_V2 !== "0";  // the topology surface — ON by default (the dig #205 frame flip); SURFACE_V2=0 = the out-lane
+const SURFACE_V3 = process.env.SURFACE_V3 === "1";  // the caves field — OPT-IN (the underground lane; was the default pre-#205)
 // dig #202 (C175): the CaveStructure STAMP-FIELD lane — the fn870 α-blend
 // paints the stamps' decoded values (alpha × lum × strength) into the field
 // at the record-lane positions (the draws = dig #164's, byte-identical).

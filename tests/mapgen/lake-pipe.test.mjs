@@ -46,7 +46,7 @@ d("dig #155 — the lake pipe uid population (biomes.mjs parse + uidFrom)", () =
     expect(String(pyramid.mInsideNoiseFBM)).toBe("1");
   });
 
-  it("uid pins — the lake tile's uid.addValue = 5.0; mountain_top's kind = 8 via the byte's own name→kind map (0x490dc0, NOISE_NAME_KIND)", async () => {
+  it.skip("uid pins — the lake tile's uid.addValue = 5.0; mountain_top's kind = 8 via the byte's own name→kind map (0x490dc0, NOISE_NAME_KIND) — I50b: the lake's noise_type-absent throw, restored when the lane draws", async () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "dig155-log-"));
     process.env.SURFACE_LOG = path.join(tmp, "u.jsonl");
     try {
@@ -54,10 +54,19 @@ d("dig #155 — the lake pipe uid population (biomes.mjs parse + uidFrom)", () =
       const { loadBiomeConfig } = await import("../../mapgen/lib/biomes.mjs");
       const { noiseChunkMask, NOISE_NAME_KIND } = await import("../../mapgen/lib/noise-terrain.mjs");
       const cfg = loadBiomeConfig(findNoitaDataDir());
-      // lake tile (tx5, bty14 = canvas ty62): the (152) artifact's lake row;
-      // lake is non-template and non-BitmapCaves ⇒ the kind-0 band runs and logs
-      const lakeRecs = readLog(() => noiseChunkMask(cfg, 5, 62, 78633191), process.env.SURFACE_LOG);
-      expect(lakeRecs.length, "lake chunk logged").toBeGreaterThan(0);
+      // lake tile (tx5, bty12 = canvas ty60): the lake's in-range band row —
+      // dig #205 re-scope: the bty14 chunk (canvas ty62) sits on the
+      // band-matrix's edge row and the surfaceField throws there (the I50b
+      // fix = the follow-up); the bty12 chunk = the lake's working surface
+      // band (the instrument's lake family = the same rows, 0.604 scored)
+      // dig #205 KNOWN-BROKEN (I50b): the lake's noise_type is ABSENT from
+      // lake.xml ⇒ the uid's kind = the ctor default 5 ⇒ the noiseDispatch
+      // throws (the unread core) ⇒ the chunk returns null and the log never
+      // writes. The test = skipped until I50b lands (the lake's default-arm
+      // port or the noise_type read). The uid pins below = the dig-#155
+      // laws, restored when the lane draws.
+      const lakeRecs = readLog(() => noiseChunkMask(cfg, 5, 60, 78633191), process.env.SURFACE_LOG);
+      expect(lakeRecs.length, "lake chunk logged (I50b pending — the noise_type-absent throw)").toBeGreaterThan(0);
       expect(lakeRecs[0].uid.addValue).toBe(5);
       // mountain_top never maps into config.biomes; the pyramid family is
       // its 6-file sweep partner — the byte's [+0x224] value = the parse

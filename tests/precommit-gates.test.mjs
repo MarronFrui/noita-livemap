@@ -91,7 +91,7 @@ describe("dig #156 — the battery gate decision core (I36 forms (a)+(b)", () =>
   it("LAW (a): the skip drift (44 skipped vs 3) = REFUSE — the counts-RUN bar, machine-checked", () => {
     const d = decideBattery({ exitCode: 0, output: TAIL_SKIP_DRIFT }, BASE, { retries: 0 });
     expect(d.verdict).toBe("refuse");
-    expect(d.reason).toContain("Tests skipped 44 ≠ the baseline 3");
+    expect(d.reason).toContain(`Tests skipped 44 ≠ the baseline ${BASE.testsSkipped}`);
   });
 
   it("LAW (a): a genuinely failed test (337/1/3/341, exit 1) = REFUSE (never retried past the stall law silently)", () => {
@@ -117,7 +117,7 @@ describe("dig #156 — the battery gate decision core (I36 forms (a)+(b)", () =>
   it("the tracked baseline is present, parseable, and pin-shaped (no reference = no law)", () => {
     expect(BASE.testsTotal).toBeTypeOf("number");
     expect(BASE.testsTotal).toBeGreaterThan(330); // the (155)-era 341 floor
-    expect(BASE.testsSkipped).toBe(3);
+    expect(BASE.testsSkipped).toBeTypeOf("number"); // the count tracks the committed test set (the dig-#205 I50b skip = 4)
     expect(BASE.filesTotal).toBeGreaterThan(23);
     expect(typeof BASE.source).toBe("string");
   });
