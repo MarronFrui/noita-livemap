@@ -480,6 +480,10 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
     // under it — the C80 origins are multiples of 512 and 256).
     let cavesSrc = false;
     let byteAt = null; // dig #164: the byte-plane reader (the caves branch assigns)
+    // dig #208: the attach is ROW-GATED to the UNDERGROUND (the map rows
+    // 15+ = ty ≥ SKY_ROWS+15): the caves field's band-origin = the wy 0-line,
+    // and applying it to the surface-band chunks (bty ≤ 14) = the dead lane
+    // §8 row 75 killed (the bty13's OOB-air, the bty14's wrong-lane soil).
     if (SURFACE_V3 && def.bitmapCaves && def.bitmapCaves.sizeX) {
       const caves = ensureCavesField(dataDirRef.dataDir, def, seed);
       const { w: fw, h: fh, field, bytes: fbytes } = caves;
@@ -540,6 +544,10 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
         const gx = tx * CHUNK + cx * 10 + 5;
         const gy = ty * CHUNK + cy * 10 + 5;
         let v;
+        // dig #208: the caves-lane = the UNDERGROUND's rows only (the
+        // attach's row-gate, §8 row 75) — the surface-band chunks (the ty
+        // < SKY_ROWS+15) run the noise lane even under SURFACE_V3.
+        const useCaves = cavesSrc && ty >= SKY_ROWS + 15;
         try {
           // dig #164: the byte plane EXISTS in the grid now (the record
           // lane's stamps write it — caves-field), but the sampler gate is
@@ -553,7 +561,7 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
           // dig #121: the caves-lane value = the direct cell read
           // (gradAt above is the cell-law wrapper); the kind-0 combine
           // takes world px and no gradAt (field0 ≡ 1.0, dig #146).
-          v = cavesSrc ? gradAt(gx, gy)
+          v = useCaves ? gradAt(gx, gy)
             : surfaceField(uid, gx - worldX0, gy - worldY0, DEF_SEED);
         } catch {
           return null; // unread-core lane
@@ -567,45 +575,46 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
         // the solid plane at +0x1c0) = the band's base fill; only v > 0.5
         // opens the claim path (the comiss 0x11dfa94 `jbe` @0x90dbd0 = the
         // gate's ENTRY threshold, NOT the air mark — C136 amended in-row).
-        // **THE PORT IS NOT APPLIED — FLAGGED (D, ISSUES A11, owner I47):**
-        // the hills field NEVER goes negative (countNeg = 0 while countLE05
-        // = 13,021, E1 artifact mapgen/out/dig178-classify-air-law.json), so
-        // the v < 0 arm can never fire here. Lane-controlled A/B (both arms
-        // SURFACE_V2=1 SURFACE_V3=1, ONLY the mask rule differing): row-62
-        // sky 28,323 → 946, i.e. −27,377 px where only −6,654 px of excess
-        // existed (the capture = 21,669) — a 4.1x overshoot landing 20,723
-        // px short — and it breaks the standing count laws dig #177 C1
-        // (>= 1000 px) and dig #146 FIELD0 (lavalake 414 → 1161). The byte
-        // law is real; the field's missing NEGATIVE region is the defect →
-        // dig #179. Entry (178), §8 row 62.
-        // E1 instrument: mapgen/experiments/2026-10-20-dig178-classify-air-law.mjs
-        mask[52 * cy + cx] = v > 0.5 ? 1 : 0;
-        // dig #130 (the surface-lane compositor): the per-cell MATERIAL bands
-        // = classify(table, x, y, v) (0x8f5030 byte law; C76 frame: x = the
-        // canvas px (shift-invariant, no limit_x), y = canvas_py − 24576).
-        // Only the gate-solid cells classify; air cells stay idx 255.
-        // matNames = the per-comp material_name list (pre-resolved Once per
-        // chunk; the render maps name → materials.xml wang_color).
+        // dig #208 (X215): **THE KIND-0 CELL-LAW = THE CLASSIFY-OR-AIR** —
+        // the walk 0x792580's post-classify arm @0x7930D8 (`test eax,eax;
+        // jne 0x7935F4` = the paint path; the fallthrough = NO PAINT = the
+        // untouched zeroed grid = AIR) + the classify's miss-exit 0x8F574C
+        // (`xor eax,eax; ret 0x8`). The dig-#178 `v > 0.5` mask = the
+        // flagged stand-in (A11) — RETIRED on the surfaceField branch: the
+        // cell = SOLID iff the classifier matches (the band gate + the
+        // per-comp windows + the limit_y flag/limits decide). The classify's
+        // y = THE WALK-Y = THE WORLD px (the limits' semantics: the hills'
+        // soil [−1024, 424.229] and the lake's water [225, 512000] = the
+        // world-y bands — the C76-era map-y (−24576) fed the limits garbage
+        // = the soil/snow never painted; the world-y = A18's frame answer).
+        // The x = the canvas px (the shift-invariant rare-pattern seed —
+        // C76 kept). **THE CAVES-LANE KEEPS ITS OWN LAW** — the sampler's
+        // field > 0.5 gate (@0x90DBD0) + the classify = the byte-chain
+        // (0x90DD7E); the classify-or-air is the WALK's kind-0 arm only.
         let mi = 255;
-        if (v > 0.5) {
-          const table = ensureSurfaceTable(dataDirRef.dataDir, def);
-          if (table) {
-            // dig #148: the polygon arm IS ported (X106) and classify runs
-            // it; the comps for these defs come from comment-stripped XML
-            // (phantom comps retracted). A throw here = a real defect —
-            // fail loud (the chunk-null mapping lives in noiseAt's catch).
-            const rec = classify(table, gx, gy - 24576, v);
-            // classify returns comp.celldata (the per-comp record built at
-            // table build time = { i, name } via noise-terrain's records arg)
+        let solidBit;
+        if (useCaves) {
+          solidBit = v > 0.5 ? 1 : 0;
+          if (solidBit) {
+            const table = ensureSurfaceTable(dataDirRef.dataDir, def);
+            // the classify = ONE fn/ONE semantics: the limits = the world-y
+            // (the same law as the walk's arm — the caves' mask keeps its
+            // own >0.5 gate @0x90DBD0, only the material layer classifies)
+            const rec = table ? classify(table, gx, gy - worldY0, v) : null;
             if (rec) mi = rec.i;
           }
+        } else {
+          const table = ensureSurfaceTable(dataDirRef.dataDir, def);
+          if (table) {
+            const rec = classify(table, gx, gy - worldY0, v);
+            if (rec) { mi = rec.i; solidBit = 1; }
+          }
         }
+        mask[52 * cy + cx] = solidBit ? 1 : 0;
         matIdx[52 * cy + cx] = mi;
       }
     }
     // dig #130: matNames = the classify table's component names in order
-    // (the render maps name → materials.xml wang_color).
-    // matNames = the classify table's component names in order
     // (the render maps name → materials.xml wang_color).
     const matTable = ensureSurfaceTable(dataDirRef.dataDir, def);
     const matNames = matTable ? matTable.components.map((c) => c.material_name) : null;

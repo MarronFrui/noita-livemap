@@ -1,7 +1,7 @@
 {
   "comment": "the I36 count law's reference (dig #156, scripts/precommit-gates-lib.mjs): the full battery must report EXACTLY these vitest summary totals at every gated commit — any deficit = the silent-truncation class, refused with one retry allowed. Updated per dig when the committed test set changes (the dig's own battery run is the source).",
   "filesTotal": 32,
-  "testsTotal": 413,
+  "testsTotal": 416,
   "testsSkipped": 4,
-  "source": "npm test at dig #207 (2026-10-26, the case-5 hash-chain fix: perm[Y]+x + the third corner's dropped x-step, 0x8fc0f0..0x8fc135): 32 files / 409 passed | 4 skipped (413), exit 0. The +3 = the dig-#207 hash-law tests (band-ramp); the re-pins = the composed-content FIELD0 counts (lavalake 414→401, solid_wall 1367→1361, temple_wall 398→386 — the re-pattern's downstream counts)."
+  "source": "npm test at dig #208 (2026-10-26, the classify-or-air cell-law + the world-y limits + the caves row-gate): 32 files / 412 passed | 4 skipped (416), exit 0. The +3 = the dig-#208 cell-law tests (composed-content); the re-pins = the FIELD0 counts (lavalake 375, solid_wall 2704, temple_wall 0) + the I33 empty/lake_statue laws + the I34 anchor set (the winter-only) + the caves-filler/census rows (the underground's row-gate 63)."
 }
