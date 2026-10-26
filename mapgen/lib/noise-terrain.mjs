@@ -53,10 +53,10 @@ const dataDirRef = { dataDir: null };
 function ensureCavesField(dataDir, def, seed) {
   if (dataDir && !dataDirRef.dataDir) dataDirRef.dataDir = dataDir;
   if (!dataDirRef.dataDir) dataDirRef.dataDir = findNoitaDataDir();
-  const key = `${def.filename ?? def.name}|${seed}`;
+  const key = `${def.filename ?? def.name}|${seed}|${SURFACE_STAMPS ? "s" : ""}`;
   let entry = cavesFieldCache.get(key);
   if (entry) return entry;
-  entry = buildCavesField(dataDir, def, seed);
+  entry = buildCavesField(dataDir, def, seed, SURFACE_STAMPS);
   cavesFieldCache.set(key, entry);
   return entry;
 }
@@ -173,6 +173,12 @@ const CELLS_PER_CHUNK = CHUNK / 10; // 51.2 → subrect 0..51 (C11 grid shape �
 // the A/B lanes: SURFACE_V3=0 (and/or SURFACE_V2=0) = the old detached lane.
 const SURFACE_V2 = process.env.SURFACE_V2 === "1";  // the true-0x90a860 instrument lane — STAYS opt-in-only (V2 default off)
 const SURFACE_V3 = process.env.SURFACE_V3 !== "0";  // the product band — ON by default (the dig #192 product flip); SURFACE_V3=0 = the out-lane
+// dig #202 (C175): the CaveStructure STAMP-FIELD lane — the fn870 α-blend
+// paints the stamps' decoded values (alpha × lum × strength) into the field
+// at the record-lane positions (the draws = dig #164's, byte-identical).
+// OPT-IN until the instrument verdict (the charter's env-gate rule); the
+// byte-plane stencil = the landed dig-#164 behavior, unaffected.
+const SURFACE_STAMPS = process.env.SURFACE_STAMPS === "1";
 
 // Per-biome "Wang offset" (C24/C28): ConfigRegistry defaults, engine-side.
 // Tagged @prov noitool (the 159/223 family); validated only at runtime.
@@ -646,7 +652,7 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
   let gradKind = "field0"; // caves = the cell read; field0 = kind-0 (field ≡ 1.0, dig #146) — logged by SURFACE_LOG below
   if (def.bitmapCaves && def.bitmapCaves.sizeX) {
     const caves = ensureCavesField(dataDirRef.dataDir, def, seed);
-    const { w: fw, h: fh, field } = caves;
+    const { w: fw, h: fh, field, overlays } = caves;
     // dig #192 (C165/X205): the band-anchored finite cell-read — the field's
     // row 0 = ONE FULL FIELD-HEIGHT (fh) above the C80 datum (worldY0 = 31744;
     // canvas 31488 = worldY0 − fh; both 24576 and 31744 are even 256 multiples,
@@ -657,7 +663,34 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
     // the field's top rows), and rows above the slab top = air. Rows ≥ fh keep
     // the mod wrap — the DEEPER slabs reuse the field; the multi-band stacking
     // (a field per 512×256 slab) is the deferred port, FLAGGED as ISSUES A14.
-    gradAt = (wx, wy) => cavesShapedCellAt(field, fw, fh, wx, wy);
+    // dig #202 (C175): the STAMP-OVERLAY lane — the CaveStructure stamps'
+    // rects = materialized FROM THE STAMP'S OWN IMAGE by its own wg (the
+    // hard lane; C171's field gate = the LOCAL image read, no warp, no G).
+    // The overlay = the IMAGE frame: the stamp's stored X/Y = the biome
+    // image's cell coords; the world-px mapping = col = wx/10 (the image
+    // col 0 = the wx 0 = the canvas 17920), row = (wy + fh)/10 (the image
+    // row 0 = the wy −fh = the canvas 29184). The overlay lookup runs
+    // FIRST; the shaped base field only outside the stamps. FLAGGED
+    // (ISSUES §A): the shaped base's G-shifted frame vs the overlay's
+    // image frame = the +256-col offset question (the C170 meter vs the
+    // C175 cancel algebra) — the scatter's exact-code read settles it.
+    const stampAt = overlays && overlays.length
+      ? (wx, wy) => {
+          const col = Math.floor(wx / 10), row = Math.floor((wy + fh) / 10);
+          for (const o of overlays) {
+            const dx = col - o.x, dy = row - o.y;
+            if (dx >= 0 && dy >= 0 && dx < o.w && dy < o.h) return o.values[dy * o.w + dx];
+          }
+          return null;
+        }
+      : null;
+    gradAt = (wx, wy) => {
+      if (stampAt) {
+        const v = stampAt(wx, wy);
+        if (v != null) return v;
+      }
+      return cavesShapedCellAt(field, fw, fh, wx, wy);
+    };
     gradKind = "caves";
   }
   // (dig #146: the else-arm that built the topology/ramp gradAts is GONE —

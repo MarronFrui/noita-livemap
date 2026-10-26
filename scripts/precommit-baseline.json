@@ -1,7 +1,7 @@
 {
-  "comment": "the I36 count law's reference (dig #156, scripts/precommit-gates-lib.mjs): the full battery must report EXACTLY these vitest summary totals at every gated commit \u2014 any deficit = the silent-truncation class, refused with one retry allowed. Updated per dig when the committed test set changes (the dig's own battery run is the source).",
-  "filesTotal": 31,
-  "testsTotal": 402,
+  "comment": "the I36 count law's reference (dig #156, scripts/precommit-gates-lib.mjs): the full battery must report EXACTLY these vitest summary totals at every gated commit — any deficit = the silent-truncation class, refused with one retry allowed. Updated per dig when the committed test set changes (the dig's own battery run is the source).",
+  "filesTotal": 32,
+  "testsTotal": 408,
   "testsSkipped": 3,
-  "source": "npm test at dig #196 (2026-10-24, live: the dig adds 4 wang-offset byte-law tests to tests/mapgen/caves-slab-row.test.mjs = 17 total there (the 0-entry raw-frame sky gate, the 1-entry, the N-entries byte oracle, the REPLACEMENT pin G=0 disagrees on 8 of 10); the dig #193 window test's oracle re-pinned G=0 -> G=(7168,17920) (C170); the surface-compositor's 41,62 count laws RE-PINNED 2519->2704 (the C170 frame: the pick move (+1792,+717) mod the bitmap; the air side rides (44,62) = 110 air cells); surface-wiring's gradAtMirror RE-DERIVED to the shaped byte law (the flat pre-#193 mirror was stale-hidden behind the SURFACE_V2 skip; solo run 3/3) = 31 files / 402 tests / 3 skipped, exit 0)"
+  "source": "npm test at dig #202 (2026-10-26, live: the dig adds tests/mapgen/cave-stamps.test.mjs = 6 tests (the draw parity = the paint consumes no draws, the strength roll consumed via the C50 closed form, the fn870 blend formula dst' = dst + α·(v−dst), the count≤0 skip arm, the data-gated fail-under-old buildCavesField SURFACE_STAMPS=1 vs the base + the symmetric-blend signature — both directions occur); the files total 31→32 (the new file); the caves-field record lane's caveRecordStamp signature extended (field, paintField, overlays) with the defaults preserving every existing call = 32 files / 408 tests / 3 skipped, exit 0)"
 }

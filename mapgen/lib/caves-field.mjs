@@ -175,7 +175,7 @@ export function toucherValue(w) {
 // non-zero bytes. The y=0 bump in the C48 oracle = this stamp family.
 // The port here remains the PLAIN-class mirror (draws only); the
 // grouped-class write port + the X/Y anchors = dig #136.
-export function caveRecordStamp({ countMin, countMax, imageFile, aabbMinX, aabbMaxX, aabbMinY, aabbMaxY, strengthMin, strengthMax }, prng, bytes, gridW, gridH) {
+export function caveRecordStamp({ countMin, countMax, imageFile, aabbMinX, aabbMaxX, aabbMinY, aabbMaxY, strengthMin, strengthMax }, prng, bytes, gridW, gridH, field = null, paintField = false, overlays = null) {
   const lo = countMin ?? 0;
   const hi = countMax ?? 0;
   const resolverCount = resolverDraws(imageFile); // pure — hoisted out of the loop
@@ -210,11 +210,30 @@ export function caveRecordStamp({ countMin, countMax, imageFile, aabbMinX, aabbM
       // placement is the binary's own data, not a port clamp)
       const X = (aabbMinX ?? 5) + Math.trunc(((aabbMaxX ?? 507) - (aabbMinX ?? 5) + 1) * prng.next());
       const Y = (aabbMinY ?? 0) + Math.trunc(((aabbMaxY ?? 20) - (aabbMinY ?? 0) + 1) * prng.next());
-      prng.next(); // the strength roll (the value lane; byte value = 1, d2)
+      // dig #202: the strength roll CONSUMED — the drawn strength (the
+      // Random(min,max) closed form, the C50 read) scales the stamp's value
+      // operand (v = lum × strength; the D-STAND-IN flagged in ISSUES §A).
+      // The roll order is UNCHANGED (one draw here, as before — the stream
+      // parity holds: the paint consumes no draws).
+      const su = prng.next(); // the strength roll (the value lane; byte value = 1, d2)
+      const strength = (strengthMin ?? 0) + ((strengthMax ?? 0) - (strengthMin ?? 0)) * su;
       // the stencil copy (fn950's law: the template's NONZERO bytes → the
       // plane at (x0,y0); the record's gate = the template non-empty)
       const stamp = recordTemplate(stampPath);
       if (stamp) {
+        // dig #202: the OVERLAY record (the C175 hard lane): the stamp's
+        // rect = materialized FROM THE STAMP'S OWN IMAGE by its own wg —
+        // the per-pixel value = α·lum·strength (the >0.5 gate decides the
+        // solidity directly; the low-strength pit family = the carve). The
+        // overlay list rides the build result; the mask readers check it
+        // FIRST (the raw field frame). The draws = unchanged.
+        if (overlays) {
+          const values = new Float32Array(stamp.w * stamp.h);
+          for (let i = 0; i < values.length; i++) {
+            values[i] = stamp.alpha[i] * stamp.lum[i] * strength;
+          }
+          overlays.push({ x: X, y: Y, w: stamp.w, h: stamp.h, values });
+        }
         for (let py = 0; py < stamp.h; py++) {
           const gy = Y + py;
           if (gy < 0 || gy >= gridH) continue;
@@ -224,6 +243,22 @@ export function caveRecordStamp({ countMin, countMax, imageFile, aabbMinX, aabbM
               const gx = X + px;
               if (gx < 0 || gx >= gridW) continue;
               bytes[gy * gridW + gx] = v; // NONZERO = the paint flag
+              // dig #202: the fn870 FIELD BLEND (the C48-era read: dst' =
+              // dst + α·(v − dst) over the template's W×H at (xs,ys)) —
+              // α = the pixel's alpha, v = lum × strength. The α = 0 pixels
+              // are no-ops naturally (the blend self-handles the trans-
+              // parency); the low-strength stamps (the pit family, ≤ 0.65)
+              // pull the blended cells below the 0.5 gate = the carve.
+              // GATED: paintField = the SURFACE_STAMPS=1 lane (the byte
+              // stencil above = the landed dig-#164 behavior, untouched).
+              if (paintField && field) {
+                const idx = gy * gridW + gx;
+                const a = stamp.alpha[py * stamp.w + px];
+                if (a > 0) {
+                  const val = stamp.lum[py * stamp.w + px] * strength;
+                  field[idx] += a * (val - field[idx]);
+                }
+              }
             }
           }
         }
@@ -265,11 +300,22 @@ function recordTemplate(resolvedFile) {
   try {
     const png = readPng(path.join(findNoitaDataDir(), resolvedFile.replace(/^data\//, "")));
     const px = new Uint8Array(png.width * png.height);
+    // dig #202 (C175's decode law): the stamp's VALUE channels — alpha =
+    // a/255 (the fn870 blend's α), lum = max(r,g,b)/255 (the grayscale
+    // value maps: the stamp's solid core = the BRIGHT-and-opaque pixels,
+    // measured cave_500 = (255,255,255,255)×80; the fringe = the low-alpha
+    // near-black = ≈0 = air under the blend). The v operand of the fn870
+    // blend = lum × strength (the strength role = D-STAND-IN, flagged
+    // ISSUES §A — the fn870 operand read = the follow-up).
+    const alpha = new Float32Array(png.width * png.height);
+    const lum = new Float32Array(png.width * png.height);
     for (let i = 0; i < px.length; i++) {
       const r = png.data[4 * i], g = png.data[4 * i + 1], b = png.data[4 * i + 2];
       px[i] = r !== 0 || g !== 0 || b !== 0 ? 1 : 0;
+      alpha[i] = png.data[4 * i + 3] / 255;
+      lum[i] = Math.max(r, g, b) / 255;
     }
-    tpl = { w: png.width, h: png.height, px };
+    tpl = { w: png.width, h: png.height, px, alpha, lum };
   } catch { tpl = null; } // missing art → the draws-only arm (honest)
   __templates.set(resolvedFile, tpl);
   return tpl;
@@ -575,7 +621,7 @@ function isSolidCell(v) {
  * old standalone L2/L3 scatter calls are gone: every scatter site lives
  * inside a chain's spawn lane (C46's call-site census).
  */
-export function buildCavesField(dataDir, def, seed) {
+export function buildCavesField(dataDir, def, seed, paintStamps = false) {
   const bc = def.bitmapCaves;
   if (!bc || !bc.sizeX || !bc.sizeY) return null;
   const w = bc.sizeX, h = bc.sizeY;
@@ -768,10 +814,13 @@ export function buildCavesField(dataDir, def, seed) {
   // the dig-#162 law landed): per record the count roll (up from min; ≤ 0
   // skips) + per stamp the ctor-seed / resolver / X / Y / strength draws AND
   // the image-template stencil: the template's nonzero bytes → `bytes`
-  // ([P+0x58]) at (X, Y). No FIELD writes in this lane.
+  // ([P+0x58]) at (X, Y). dig #202: with paintStamps (SURFACE_STAMPS=1) the
+  // SAME walk also paints the fn870 α-blend into `field` (the stamps'
+  // decoded values — C175's law; the draws byte-identical either way).
   setPhase("records");
+  const overlays = paintStamps ? [] : null;
   for (const rec of bc.structures ?? []) {
-    caveRecordStamp(rec, prng, bytes, w, h);
+    caveRecordStamp(rec, prng, bytes, w, h, field, paintStamps, overlays);
   }
 
   setPhase("l2");
@@ -884,7 +933,7 @@ export function buildCavesField(dataDir, def, seed) {
   }
 
   return {
-    w, h, field, bytes,
+    w, h, field, bytes, overlays,
     p94: toucherValue(w),
     prngState: prng.seed,
     isSolid: isSolidCell,
