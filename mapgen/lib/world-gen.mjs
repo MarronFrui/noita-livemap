@@ -267,7 +267,21 @@ export function worldColorAt(world, wx, wy) {
     // The backdrop tiles in the CHUNK frame (per 512×512 cell region —
     // the game's own per-area parallax is a later lane; tagged).
     const bgr = world.bgImageAt?.(tx, ty, gx, gy);
-    return bgr ?? null;
+    if (bgr) return bgr;
+  }
+  // I49 (dig #210 obs-1 fix): pixel-scene background art (the LoadPixelScene
+  // background layer — right_stub/pyramid/temple backdrops, blitBackdrop's
+  // bg plane) = the AIR-ONLY LAST fallback: consulted only when no bin,
+  // fg-template, noise or bgImage lane owns the cell, never in the sky band
+  // (ty < 62 returns above), never preempts a material lane. The old law
+  // kept these px in the fg buffer, where the fg lane returned them pre-
+  // noise (the tree-west "water").
+  const bgBuf = world.templates?.get("bg")?.get(`${ttx},${tty}`);
+  if (bgBuf) {
+    const o = 3 * ((wy - tty * CHUNK) * CHUNK + (wx - ttx * CHUNK));
+    if (bgBuf[o] !== 9 || bgBuf[o + 1] !== 9 || bgBuf[o + 2] !== 9) {
+      return [bgBuf[o], bgBuf[o + 1], bgBuf[o + 2]];
+    }
   }
   return null;
 }

@@ -155,10 +155,16 @@ describe.skipIf(!hasData)("surface-band compositor (digs #130/#131/#132)", () =>
     // the stars at EVERY altitude (the old t<0.75 gate excluded the
     // horizon band): pale sprite px exist across the sky band — standing
     // pin (the pale rule excludes the old gold AND the ice-blue silhouette)
-    let stars = 0;
+    // I36 root cause (dig #210): this triple loop = 3.28M sync calls ≈ 65 s
+    // unbroken — long enough that a pending vitest RPC reply (onTaskUpdate)
+    // cannot drain and the 60 s birpc watchdog fires (the stall class the
+    // gate retries). A macrotask yield every 100k calls drains the port;
+    // the sampling, the count and every assertion below are unchanged.
+    let stars = 0, checked = 0;
     for (let ty = 5; ty < 55; ty++) for (let y = 0; y < 512; y += 2) for (let x = 0; x < 512; x += 2) {
       const c = worldColorAt(world, 40 * 512 + x, ty * 512 + y);
       if (c && c[0] > 200 && c[1] > 200 && c[2] > 230) stars++;
+      if (++checked % 100000 === 0) await new Promise((r) => setTimeout(r, 0));
     }
     expect(stars).toBeGreaterThan(100);
     // the mines band's first chunk: the terrain's shaped count (dig #196

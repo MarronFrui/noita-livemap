@@ -3,6 +3,7 @@
 // world loads; worldColorAt runs against an injected world (no data).
 
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { describe, test, expect } from "vitest";
@@ -10,6 +11,8 @@ import {
   CHUNK, WORLD_CHUNKS_W, WORLD_CHUNKS_H, SKY_ROWS, WORLD_W, WORLD_H,
   loadWangWorld, worldColorAt, ensureWorld, areaKey, L3_ANCHOR,
 } from "../../mapgen/lib/world-gen.mjs";
+import { blitBackdrop } from "../../mapgen/lib/template-render.mjs";
+import { writePng } from "../../mapgen/lib/images.mjs";
 import { dataDir, hasNoitaData, CAPTURE_SEED, repoRoot } from "../helpers/data.mjs";
 import { biomeByName } from "../helpers/golden.mjs";
 
@@ -158,6 +161,78 @@ describe("worldColorAt — injected world (no data needed)", () => {
     // wy = row*512 − 12 puts the generator row exactly at the row edge
     expect(worldColorAt(w, 39 * CHUNK, 62 * CHUNK - L3_ANCHOR.y)).toEqual([90, 90, 90]);
     expect(worldColorAt(w, 39 * CHUNK, 63 * CHUNK - L3_ANCHOR.y)).toEqual([70, 70, 70]);
+  });
+
+  // --- I49 (dig #210 obs-1 fix): the background_file fg/bg plane split ------
+  // The real write path: a 2×2 opaque airDark PNG (the right_stub_background
+  // color family) blitted through blitBackdrop at a game-frame origin.
+  // Frames: setWorldPx keys game (wx,wy) at canvas chunk floor(w/512)+(+35,+62)
+  // with local = w mod 512; worldColorAt reads the DISPLAY frame, so canvas =
+  // game + (35*512, 62*512). Game (2567,5) -> key "40,62" local (7,5) ->
+  // canvas (40*512+7, 62*512+5); mkWorld's grid has an area only at (35,62),
+  // so chunk (40,62) has no bin lane (grid -1).
+  const blitFixtureBg = (buffers, wx, wy) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "dig210-i49-"));
+    try {
+      fs.mkdirSync(path.join(dir, "fixture"), { recursive: true });
+      writePng(path.join(dir, "fixture", "bg.png"), 2, 2,
+        Buffer.from([13, 14, 18, 255, 13, 14, 18, 255, 13, 14, 18, 255, 13, 14, 18, 255]));
+      return blitBackdrop(buffers, dir, "data/fixture/bg.png", wx, wy);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  };
+
+  test("I49 fix: blitBackdrop writes the bg plane (not the fg buffer) and the bg surfaces for scene air (fails under old law)", () => {
+    const buffers = new Map();
+    expect(blitFixtureBg(buffers, 2567, 5)).toBe(4); // 2x2 opaque px kept
+    const bg = buffers.get("bg");
+    expect(bg).toBeInstanceOf(Map);
+    const o = 3 * (5 * CHUNK + 7);
+    expect([bg.get("40,62")[o], bg.get("40,62")[o + 1], bg.get("40,62")[o + 2]]).toEqual([13, 14, 18]);
+    // old law: the px landed in the FG buffer (and no "bg" plane existed) —
+    // the fg lane then returned them pre-noise at every scene cell
+    expect(buffers.get("40,62")).toBeUndefined();
+    // contract: at the scene-air cell (no bin, no fg art, no noise lane) the
+    // bg plane now surfaces the backdrop color instead of null
+    const w = mkWorld();
+    w.templates = buffers;
+    expect(worldColorAt(w, 40 * CHUNK + 7, 62 * CHUNK + 5)).toEqual([13, 14, 18]);
+  });
+
+  test("I49 fix: the bg plane is air-only — the noise lane still wins (fails under old law: bg-as-fg preempted noise)", () => {
+    const buffers = new Map();
+    blitFixtureBg(buffers, 2567, 5);
+    const w = mkWorld();
+    w.templates = buffers;
+    w.noiseSolidAt = () => 1; // the noise evaluator solids every cell
+    w.noiseMatAt = () => null;
+    // noiseColor(62, solid) = the provisional surface shade 0x6a5a44;
+    // old law (px in the fg buffer): the fg lane returned [13,14,18] pre-noise
+    expect(worldColorAt(w, 40 * CHUNK + 7, 62 * CHUNK + 5)).toEqual([106, 90, 68]);
+  });
+
+  test("I49 fix: fg template art beats the bg plane at the same cell (contract)", () => {
+    const buffers = new Map();
+    blitFixtureBg(buffers, 2567, 5);
+    const fg = new Uint8Array(CHUNK * CHUNK * 3).fill(9);
+    const o = 3 * (5 * CHUNK + 7);
+    fg[o] = 44; fg[o + 1] = 45; fg[o + 2] = 46;
+    buffers.set("40,62", fg);
+    const w = mkWorld();
+    w.templates = buffers;
+    expect(worldColorAt(w, 40 * CHUNK + 7, 62 * CHUNK + 5)).toEqual([44, 45, 46]);
+  });
+
+  test("I49 fix: the bg plane never paints the sky band (ty < 62 lanes untouched; fails under old law)", () => {
+    const buffers = new Map();
+    // game y -507 -> canvas chunk row 61 (floor(-507/512) = -1 -> 61), local 5
+    blitFixtureBg(buffers, 2567, -507);
+    const w = mkWorld();
+    w.templates = buffers;
+    // old law: the fg buffer "40,61" carried the px and the sky branch's
+    // fg-template lane returned [13,14,18]; new law: sky/noise own the band
+    expect(worldColorAt(w, 40 * CHUNK + 7, 61 * CHUNK + 5)).toBeNull();
   });
 });
 

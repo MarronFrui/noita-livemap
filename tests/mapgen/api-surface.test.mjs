@@ -159,8 +159,8 @@ describe("paths.mjs", () => {
 describe("template-render.mjs", () => {
   test("exports match the documented surface", () => {
     expect(Object.keys(templateRender).sort()).toEqual([
-      "TEMPLATE_SHADES", "blitSplicedScenes", "parseInitPixelScenes",
-      "renderTemplateChunk", "renderTemplateWorld",
+      "TEMPLATE_SHADES", "blitBackdrop", "blitSplicedScenes",
+      "parseInitPixelScenes", "renderTemplateChunk", "renderTemplateWorld",
     ]);
   });
 });

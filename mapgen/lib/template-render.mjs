@@ -135,15 +135,25 @@ function blitScene(buffers, dataDir, def, matFile, visFile, wx, wy, biomeName, s
   return n;
 }
 
-function blitBackdrop(buffers, dataDir, file, wx, wy) {
+// I49 (dig #210 obs-1 fix): the LoadPixelScene background layer lives on a
+// SEPARATE bg plane — the nested Map under `buffers.get("bg")` — never the
+// fg art buffers worldColorAt's fg-template lane consults. The old law
+// blitted background_file px into the fg buffer, so the right_stub_
+// background's airDark preempted the noise/terrain lanes at the scene's
+// cells (the tree-west "water": capture (38,62) = airDark 1.6% / soil
+// 55.3% / rock 27.0%, our render = the bg colors CONSTANT across seeds).
+// Exported for the I49 write-path pin (tests/mapgen/world-gen.test.mjs).
+export function blitBackdrop(buffers, dataDir, file, wx, wy) {
   const img = art(dataDir, file);
   if (!img) return 0;
+  let bg = buffers.get("bg");
+  if (!bg) { bg = new Map(); buffers.set("bg", bg); }
   let n = 0;
   for (let j = 0; j < img.height; j++) {
     for (let i = 0; i < img.width; i++) {
       const q = 4 * (j * img.width + i);
       if (img.data[q + 3] < 10) continue;
-      n += setWorldPx(buffers, wx + i, wy + j, [img.data[q], img.data[q + 1], img.data[q + 2]]);
+      n += setWorldPx(bg, wx + i, wy + j, [img.data[q], img.data[q + 1], img.data[q + 2]]);
     }
   }
   return n;
