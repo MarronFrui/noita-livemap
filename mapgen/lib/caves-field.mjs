@@ -211,8 +211,10 @@ export function caveRecordStamp({ countMin, countMax, imageFile, aabbMinX, aabbM
       const X = (aabbMinX ?? 5) + Math.trunc(((aabbMaxX ?? 507) - (aabbMinX ?? 5) + 1) * prng.next());
       const Y = (aabbMinY ?? 0) + Math.trunc(((aabbMaxY ?? 20) - (aabbMinY ?? 0) + 1) * prng.next());
       // dig #202: the strength roll CONSUMED — the drawn strength (the
-      // Random(min,max) closed form, the C50 read) scales the stamp's value
-      // operand (v = lum × strength; the D-STAND-IN flagged in ISSUES §A).
+      // Random(min,max) closed form, the C50 read) = THE BLEND'S TARGET
+      // (dig #203's fn870 law: dst' = dst + src_val·(strength − dst) —
+      // the lerp toward the strength weighted by the stamp's decoded
+      // pixel; the old v = lum × strength form RETRACTED).
       // The roll order is UNCHANGED (one draw here, as before — the stream
       // parity holds: the paint consumes no draws).
       const su = prng.next(); // the strength roll (the value lane; byte value = 1, d2)
@@ -230,7 +232,12 @@ export function caveRecordStamp({ countMin, countMax, imageFile, aabbMinX, aabbM
         if (overlays) {
           const values = new Float32Array(stamp.w * stamp.h);
           for (let i = 0; i < values.length; i++) {
-            values[i] = stamp.alpha[i] * stamp.lum[i] * strength;
+            // dig #203: the overlay = the WG lane = the stamp's DECODED
+            // image (the C32 chain) — the value = THE ALPHA (the coverage
+            // mask: the opaque = solid, the transparent = air; the lum =
+            // the color = the material lane). NO strength term (the
+            // strength = the P-lane blend's target, fn870).
+            values[i] = stamp.alpha[i];
           }
           overlays.push({ x: X, y: Y, w: stamp.w, h: stamp.h, values });
         }
@@ -243,20 +250,26 @@ export function caveRecordStamp({ countMin, countMax, imageFile, aabbMinX, aabbM
               const gx = X + px;
               if (gx < 0 || gx >= gridW) continue;
               bytes[gy * gridW + gx] = v; // NONZERO = the paint flag
-              // dig #202: the fn870 FIELD BLEND (the C48-era read: dst' =
-              // dst + α·(v − dst) over the template's W×H at (xs,ys)) —
-              // α = the pixel's alpha, v = lum × strength. The α = 0 pixels
-              // are no-ops naturally (the blend self-handles the trans-
-              // parency); the low-strength stamps (the pit family, ≤ 0.65)
-              // pull the blended cells below the 0.5 gate = the carve.
+              // dig #203: the fn870 BLEND — the BYTE LAW (0x8EF870 full):
+              // dst' = dst + src_val·(strength − dst) — the lerp toward the
+              // DRAWN STRENGTH weighted by the stamp's decoded pixel value
+              // (the 0x949ad0 read on the src embed's data). The α = 0
+              // pixels are no-ops naturally; the low-strength stamps (the
+              // pit family, ≤ 0.65) pull the blended cells below the 0.5
+              // gate = the carve. The src_val stand-in = α·lum (the C32
+              // decode's exact form = the follow-up read, flagged A17 d2).
               // GATED: paintField = the SURFACE_STAMPS=1 lane (the byte
               // stencil above = the landed dig-#164 behavior, untouched).
               if (paintField && field) {
                 const idx = gy * gridW + gx;
-                const a = stamp.alpha[py * stamp.w + px];
-                if (a > 0) {
-                  const val = stamp.lum[py * stamp.w + px] * strength;
-                  field[idx] += a * (val - field[idx]);
+                // dig #203: the srcVal = THE ALPHA (the coverage) — the
+                // measured blends REACH the target exactly on the opaque
+                // pixels (the pit's body = the flat strength-colored
+                // region); the lum = the color = the MATERIAL lane, not
+                // the field's.
+                const srcVal = stamp.alpha[py * stamp.w + px];
+                if (srcVal > 0) {
+                  field[idx] += srcVal * (strength - field[idx]);
                 }
               }
             }

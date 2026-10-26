@@ -1,7 +1,7 @@
 {
   "comment": "the I36 count law's reference (dig #156, scripts/precommit-gates-lib.mjs): the full battery must report EXACTLY these vitest summary totals at every gated commit — any deficit = the silent-truncation class, refused with one retry allowed. Updated per dig when the committed test set changes (the dig's own battery run is the source).",
   "filesTotal": 32,
-  "testsTotal": 408,
+  "testsTotal": 407,
   "testsSkipped": 3,
-  "source": "npm test at dig #202 (2026-10-26, live: the dig adds tests/mapgen/cave-stamps.test.mjs = 6 tests (the draw parity = the paint consumes no draws, the strength roll consumed via the C50 closed form, the fn870 blend formula dst' = dst + α·(v−dst), the count≤0 skip arm, the data-gated fail-under-old buildCavesField SURFACE_STAMPS=1 vs the base + the symmetric-blend signature — both directions occur); the files total 31→32 (the new file); the caves-field record lane's caveRecordStamp signature extended (field, paintField, overlays) with the defaults preserving every existing call = 32 files / 408 tests / 3 skipped, exit 0)"
+  "source": "npm test at dig #203 (2026-10-26, live: the cave-stamps file = 5 tests after the dig-#203 blend-law correction consolidated the two fn870 formula tests into one (the lerp property + the measured target-reach); the draw parity/strength-consumption/skip-arm/data-gated fail-under-old unchanged = 32 files / 407 tests / 3 skipped, exit 0)"
 }
