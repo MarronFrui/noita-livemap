@@ -61,14 +61,14 @@ describe.skipIf(!hasData)("surface-band compositor (digs #130/#131/#132)", () =>
     // 0.93921 → 0.9965 and IoU 0.90092 → 0.95825 = toward the capture).
     // The "air exists" side of this law therefore rides a hills chunk whose
     // byte-law state still carries pockets: (44,62) = 110 air cells.
-    expect([...r.mask].filter((v) => v).length).toBe(2704); // the C170 frame's all-solid count (was 2519 pre-#196)
+    expect([...r.mask].filter((v) => v).length).toBe(2698); // dig #204 re-pin (the MINSTD engine swap, C177; was 2704 = the NollaPrng era)
     const rAir = noiseChunkMask(cfg, 44, 62, 78633191);
     const airCells = [...rAir.mask].filter((v) => v === 0).length;
     const classifiedAir = [...rAir.matIdx].filter((v) => v !== 255).length;
     // both sides: classified materials exist (≠ flat slab), air exists
     // (≠ the full-solid wall) — flips if the compositor regresses.
     expect(classified).toBeGreaterThan(1000);
-    expect(airCells).toBeGreaterThan(100);
+    expect(airCells).toBeGreaterThan(50); // dig #204 re-pin (was >100 at 110; the MINSTD engine = 61)
     expect(classifiedAir).toBeGreaterThan(1000);
     expect(classifiedAir + airCells).toBeLessThanOrEqual(52 * 52);
     for (const name of r.matNames) {
@@ -98,8 +98,8 @@ describe.skipIf(!hasData)("surface-band compositor (digs #130/#131/#132)", () =>
     // capture's tile 41_14 fR = 0.96017; our IoU 0.90092 → 0.95825 = toward
     // it). Byte law: C170; E2 direction: entry (196).
     const r62 = noiseChunkMask(cfg, 41, 62, 78633191);
-    expect([...r62.mask].filter((v) => v).length).toBe(2704);
-    expect([...r62.matIdx].filter((v) => v !== 255).length).toBe(2704);
+    expect([...r62.mask].filter((v) => v).length).toBe(2698); // dig #204 re-pin (was 2704)
+    expect([...r62.matIdx].filter((v) => v !== 255).length).toBe(2698); // dig #204 re-pin
   });
 
   test("the C153 PRECONDITION (dig #178): the hills caves field NEVER goes negative, so the game's air mark (v < 0) cannot fire here", async () => {
@@ -167,7 +167,7 @@ describe.skipIf(!hasData)("surface-band compositor (digs #130/#131/#132)", () =>
     const { noiseChunkMask } = await import("../../mapgen/lib/noise-terrain.mjs");
     const cfg2 = (await import("../../mapgen/lib/biomes.mjs")).loadBiomeConfig(DATA_DIR);
     const r62 = noiseChunkMask(cfg2, 41, 62, 78633191);
-    expect([...r62.mask].filter((v) => v).length).toBe(2704);
+    expect([...r62.mask].filter((v) => v).length).toBe(2698); // dig #204 re-pin (was 2704)
   });
 
 

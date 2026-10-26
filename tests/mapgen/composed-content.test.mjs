@@ -328,7 +328,8 @@ describe.skipIf(!hasData)("composed-content laws (dig #144, I34/I33)", () => {
     const { buildCavesField } = await import("../../mapgen/lib/caves-field.mjs");
     const { loadBiomeConfig } = await import("../../mapgen/lib/biomes.mjs");
     const cfg = loadBiomeConfig(DATA_DIR);
-    const pins = { _EMPTY_: 90.07, desert: 98.57, winter: 89.9 };
+    // dig #204 re-pin (the MINSTD engine swap, C177): the NollaPrng-era values (90.07/98.57/89.9) = the old engine's; the measured = the game's seed lane
+    const pins = { _EMPTY_: 94.29, desert: 98.07, winter: 94.29 };
     const coverage = { _EMPTY_: NaN, desert: 0, winter: NaN }; // desert's XML census: 0 records
     for (const defName of Object.keys(pins)) {
       const def = [...cfg.biomes.values()].find((d) => d.name === defName);

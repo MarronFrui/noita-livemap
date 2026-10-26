@@ -98,7 +98,7 @@ describe("caves-field.mjs", () => {
   test("exports match the documented surface", () => {
     expect(Object.keys(cavesField).sort()).toEqual([
       "CAVES_FIELD_VER", "buildCavesField", "carveCircle", "caveRecordStamp", "cavesCellAt", "cavesShapedCellAt",
-      "fieldSolidAt", "makeFieldGridFromTopology", "scatterEmptyGate",
+      "fieldSolidAt", "makeFieldGridFromTopology", "makeMinstd", "scatterEmptyGate",
       "stampBlendLerp", "toucherValue", "walkChain",
     ]);
     expect(cavesField.buildCavesField.length).toBe(3);

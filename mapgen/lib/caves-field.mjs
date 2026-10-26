@@ -576,6 +576,32 @@ function isSolidCell(v) {
   return v > 0.5;
 }
 
+// dig #204: THE MINSTD ENGINE — the game's fnB draw chain (C177/the dig-#203
+// laws): the Schrage MINSTD step (16807/127773/2836 — the 0x834e0b5f/2^48
+// signed-division magic), the state = a f64 seeded `f64(uint32(seed))` +
+// the sign-table correction (0x11E0BA0's two entries, the ctor 0x8F9470's
+// head), persisted on P+0 across all the fnB phases. next() = the state
+// step → the u = state × 1/2³¹ (0x11DF988) — the state is always positive
+// after the step (the ≤0 ⇒ +0x7FFFFFFF correction), so every roll's u ∈
+// (0,1) and the port's up-form rolls match the game's byte forms exactly.
+export function makeMinstd(seed) {
+  let state = seed | 0; // the signed-32 wrap = the ctor's cvttsd2si trunc
+  return {
+    next() {
+      const s = state | 0;
+      const hi = Math.trunc(s / 127773);
+      const lo = s - hi * 127773;
+      let t = 16807 * lo - 2836 * hi;
+      if (t <= 0) t += 0x7fffffff;
+      state = t;
+      return t * (1 / 2 ** 31);
+    },
+    get state() {
+      return state;
+    },
+  };
+}
+
 /**
  * buildCavesField(dataDir, def, seed) — the [uid+0x1d4] BitmapCaves grid.
  * Returns { w, h, field, p94, verify, meta }, null when no BitmapCaves.
@@ -639,9 +665,14 @@ export function buildCavesField(dataDir, def, seed, paintStamps = false) {
   if (!bc || !bc.sizeX || !bc.sizeY) return null;
   const w = bc.sizeX, h = bc.sizeY;
 
-  // fn C1's ctor chain (C27): diddled-ws poro Random + ONE warm draw.
-  const base = new NollaPrng(seed);
-  base.next();
+  // fn C1's ctor chain — dig #204 SWAP: the game's draw engine = the
+  // MINSTD-Schrage chain seeded f64(uint32(seed)) at the P's ctor
+  // (0x8F9470's head law), persisted on P+0 across all the fnB phases
+  // (the blobs AND the record stamps — the 0x8F07D3 site). The old
+  // NollaPrng + warm-draw model = RETRACTED (the C27 poro read = the
+  // pre-MINSTD-discovery model). The state's seed = the world seed's
+  // signed-32 wrap; no warm draw (the ctor sets the state, draws nothing).
+  const base = makeMinstd(seed);
 
   // ── the STREAM-TRACE instrument (C104: dig #125) ─────────────────────────
   // Every phase consumes the ONE stream; the trace buckets its draws per

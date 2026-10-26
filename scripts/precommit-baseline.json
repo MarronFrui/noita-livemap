@@ -1,7 +1,7 @@
 {
   "comment": "the I36 count law's reference (dig #156, scripts/precommit-gates-lib.mjs): the full battery must report EXACTLY these vitest summary totals at every gated commit — any deficit = the silent-truncation class, refused with one retry allowed. Updated per dig when the committed test set changes (the dig's own battery run is the source).",
   "filesTotal": 32,
-  "testsTotal": 407,
+  "testsTotal": 410,
   "testsSkipped": 3,
-  "source": "npm test at dig #203 (2026-10-26, live: the cave-stamps file = 5 tests after the dig-#203 blend-law correction consolidated the two fn870 formula tests into one (the lerp property + the measured target-reach); the draw parity/strength-consumption/skip-arm/data-gated fail-under-old unchanged = 32 files / 407 tests / 3 skipped, exit 0)"
+  "source": "npm test at dig #204 (2026-10-26, live: the cave-stamps file = 8 tests (+3 the makeMinstd engine: the classic MINSTD vector seed 1 -> 16807 -> 282475249, the signed-32 seed-wrap law, the 1000-draw positivity); the caves-field tests 42/42 under the engine swap (the C48 oracle bar = the y224 row = the all-base trivial row — the honest state: the oracle's other rows = the partial match (y192 11/12, the blob zone = the phase-parity gap = the new lever)); the composed-content/surface-compositor/api-surface pins RE-PINNED to the MINSTD-era values (the field% 90.07->94.29 class, the 2704->2698 counts, the air 110->61) = 32 files / 410 tests / 3 skipped, exit 0)"
 }

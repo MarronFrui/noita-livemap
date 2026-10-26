@@ -11,6 +11,7 @@ import { describe, test, expect } from "vitest";
 import {
   caveRecordStamp,
   buildCavesField,
+  makeMinstd,
 } from "../../mapgen/lib/caves-field.mjs";
 import { loadBiomeConfig } from "../../mapgen/lib/biomes.mjs";
 import { dataDir, hasNoitaData } from "../helpers/data.mjs";
@@ -123,6 +124,32 @@ describe("caveRecordStamp — the fn870 field paint (dig #202/#203)", () => {
     );
     expect(s.draws).toBe(1);
     expect([...field].every((v) => v === 1.0)).toBe(true);
+  });
+});
+
+// ── the MINSTD engine (dig #204: the game's fnB draw chain) ──────────────────
+describe("makeMinstd — the Schrage MINSTD engine (dig #204)", () => {
+  test("the classic MINSTD vector: seed 1 → 16807 → 282475249", () => {
+    const m = makeMinstd(1);
+    expect(Math.round(m.next() * 2 ** 31)).toBe(16807);
+    expect(Math.round(m.next() * 2 ** 31)).toBe(282475249);
+  });
+
+  test("the seed = the signed-32 wrap (the ctor's cvttsd2si trunc law)", () => {
+    // the seed ≥ 2^31 wraps negative; the first step's ≤0 correction fires
+    const m = makeMinstd(0x80000000); // → the signed −2^31
+    const u = m.next();
+    expect(u).toBeGreaterThan(0); // the correction forces the positive state
+    expect(u).toBeLessThan(1);
+  });
+
+  test("the u ∈ (0,1) and the state stays positive across 1000 draws", () => {
+    const m = makeMinstd(78633191);
+    for (let i = 0; i < 1000; i++) {
+      const u = m.next();
+      expect(u).toBeGreaterThan(0);
+      expect(u).toBeLessThan(1);
+    }
   });
 });
 
