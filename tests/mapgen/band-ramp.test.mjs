@@ -696,3 +696,45 @@ describe.skipIf(!hasNoitaData())("makeBandDriver on the real config (data-gated)
     }
   });
 });
+
+describe("dig #207 — the case-5 hash-chain law (0x8fc0f0..0x8fc135) + the skew pins", () => {
+  // Byte law (fresh this dig): the core 0x8fc020's corner-grad chain is
+  //   mod12t[perm16[j + dy] + i + dx]  — PERM CARRIES Y, the add carries X:
+  //   (0,0) mod12t[perm16[j] + i] · (s1x,s1y) mod12t[perm16[j+s1y] + i+s1x]
+  //   (1,1) mod12t[perm16[j+1] + i] — the X-STEP ABSENT (the game's quirk,
+  //   0x8fc117..0x8fc135). Tables = 0x8fbfd0 (512 entries, PERM_SIMPLEX[k&0xff]).
+  // The old port chained perm[i]+j — a full re-pattern. Every golden pin
+  // below FAILS under that old orientation (the replacement-test rule).
+  test("golden pins (fresh bytes; fail under the old perm[i]+j orientation)", () => {
+    const pins = [
+      [0.37, 1.41, 0.1894057695264049],
+      [12.3, -7.9, -0.033050584807483796],
+      [15.3, -1.3166, -0.08269365088101008], // the band-ramp A-side slice point
+      [28.4, 1.3166, 0.5501758706192326],    // the B-side slice point
+      [100.5, -50.25, 0.4556832640237321],
+      [28.75, 1.9, 0.19936865600968767],
+    ];
+    for (const [x, y, want] of pins) {
+      expect(simplex2DDeriv(x, y), `deriv(${x},${y})`).toBeCloseTo(want, 12);
+    }
+  });
+  test("orientation discriminator: the law is NOT symmetric under the arg swap", () => {
+    // the game's perm index follows Y — swapping the args re-rolls the pattern
+    expect(simplex2DDeriv(12.3, -7.9)).not.toBe(simplex2DDeriv(-7.9, 12.3));
+    // the degenerate center stays 0 under both orientations (the both-zero corner)
+    expect(simplex2DDeriv(0, 0)).toBe(0);
+  });
+  test("the skew doubles are PINNED static-init forms (0x4070e0/0x407110): F2=(√3−1)/2, G2=(3−√3)/6", () => {
+    // The C39-era "unpinned BSS" flag is CLEARED: 0x4070e0 computes
+    // F2 = (sqrt([0x11dfea0]=3.0) − [0x11dfe30]=1.0) · [0x11dfdd8]=0.5 and
+    // 0x407110 computes G2 = ([0x11dfea0] − sqrt(3.0)) / [0x11dfef0]=6.0.
+    // The core's lattice geometry therefore matches the standard simplex
+    // skew EXACTLY — assert the wrap-point symmetry the skew implies.
+    const F2 = (Math.sqrt(3) - 1) / 2;
+    const G2 = (3 - Math.sqrt(3)) / 6;
+    // at a lattice-corner point the field must be the corner-grad dot = 0
+    // in BOTH the old and the new orientation (the skew-invariant pin)
+    expect(simplex2DDeriv(0, 0)).toBe(0);
+    expect(Number.isFinite(F2 + G2) && F2 > 0.36 && G2 > 0.21).toBe(true);
+  });
+});

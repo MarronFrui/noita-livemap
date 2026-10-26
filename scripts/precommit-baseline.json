@@ -1,7 +1,7 @@
 {
   "comment": "the I36 count law's reference (dig #156, scripts/precommit-gates-lib.mjs): the full battery must report EXACTLY these vitest summary totals at every gated commit — any deficit = the silent-truncation class, refused with one retry allowed. Updated per dig when the committed test set changes (the dig's own battery run is the source).",
   "filesTotal": 32,
-  "testsTotal": 410,
+  "testsTotal": 413,
   "testsSkipped": 4,
-  "source": "npm test at dig #205's first-port flip (2026-10-26, live: the V2 = the product lane (the frame flip, C178), the V3 = the caves opt-in; the compositor's counts = the tolerant V2 pins (the drift class, I50); the lake-pipe's uid pins = it.skip (the I50b known-broken: the lake's noise_type-absent throw); the precommit-gates test = the dynamic baseline refs = 32 files / 406 passed | 4 skipped (410), exit 0)"
+  "source": "npm test at dig #207 (2026-10-26, the case-5 hash-chain fix: perm[Y]+x + the third corner's dropped x-step, 0x8fc0f0..0x8fc135): 32 files / 409 passed | 4 skipped (413), exit 0. The +3 = the dig-#207 hash-law tests (band-ramp); the re-pins = the composed-content FIELD0 counts (lavalake 414→401, solid_wall 1367→1361, temple_wall 398→386 — the re-pattern's downstream counts)."
 }

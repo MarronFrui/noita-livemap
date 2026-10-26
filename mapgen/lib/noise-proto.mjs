@@ -456,18 +456,29 @@ export const GRAD12 = new Float64Array([
   0, 1, 0, -1, 0, 1, 0, -1,
 ]);
 
-// ---- C35 lazy tables: [0x1327bd0]=perm u16; [0x1327720]=perm % 12 -----------
-// source .rdata u16 table 0x114cc50 = a copy of PERM_SIMPLEX (starts 151,160,...)
-const MOD12 = new Int16Array(256);
-for (let i = 0; i < 256; i++) MOD12[i] = PERM_SIMPLEX[i] % 12;
+// ---- dig #207 lazy tables — true 0x8FBFD0 (fresh full read): the 512-entry
+// u16 tables built ONCE from the .rdata seed table 0x114cc50 = PERM_SIMPLEX:
+//   perm16[k] = PERM_SIMPLEX[k & 0xff]   (0x8fbff0..0x8fbffb, k < 0x200)
+//   mod12t[k] = PERM_SIMPLEX[k & 0xff] % 12  (cwde/cdq/idiv 12 → dx)
+// (the old MOD12[256] gloss = the same content at k < 256; the 512-entry
+// span exists because the hash sums below run UNMASKED up to 510.)
+const PERM16 = new Int16Array(512);
+const MOD12T = new Int16Array(512);
+for (let k = 0; k < 512; k++) {
+  PERM16[k] = PERM_SIMPLEX[k & 0xff];
+  MOD12T[k] = PERM_SIMPLEX[k & 0xff] % 12;
+}
 
 // ============ case-5 core — true 0x8fc020 = slab 0x4fb820 ==============
-// f64 args (xmm0/xmm1), f64 return. Skew/unskew = runtime BSS doubles
-// 0x132ab68 / 0x132ac70 (UNPINNED — standard F2/G2 widened used, FLAGGED).
+// f64 args (xmm0/xmm1), f64 return. dig #207: THE SKEW DOUBLES ARE PINNED —
+// the BSS 0x132ab68/0x132ac70 are written by the static initializers
+// 0x4070e0/0x407110: F2 = (sqrt(3.0)−1)·0.5 [0x11dfea0=3.0, 0x11dfe30=1.0,
+// 0x11dfdd8=0.5], G2 = (3.0−sqrt(3.0))/6.0 [0x11dfef0=6.0] — the port's
+// literals were already exact (the C39 "unpinned BSS" flags CLEARED).
 // Kernel: per-corner t² (two squarings) · dot(grad12[hash], d), outside → 0;
-// three-corner sum; final × 70.0 (0x11dffd0). Gustavson/IQ hybrid op-order
-// as read (slab 0x4fb820..0x4fba7c); exact corner op order = the next
-// byte-trace item, this port keeps the pinned values + shapes.
+// three-corner sum; final × 70.0 (0x11dffd0, f64 — fresh readback).
+// The corner walk = (0,0) → (s1x,s1y) → (1,1); the grad table = 0x12ee338,
+// the 32-B stride (shl 5) = the port's GRAD12.
 export function simplex2DDeriv(xin, yin) {
   const x = +xin, y = +yin;
   // LAP: runtime skew pair (unpinned BSS 0x132ab68/0x132ac70, widened-F2/G2
@@ -497,11 +508,20 @@ export function simplex2DDeriv(xin, yin) {
     return dot * tt2 * tt2;
   }
   const ii = i & 0xff, jj = j & 0xff;
-  // hash shape (FLAGGED — corner chains read as perm[perm[?]+?] → MOD12;
-  // exact index orientation = follow-up byte item 0x4fb90f/0x4fb917/0x4fb935):
-  const m0 = MOD12[(PERM_SIMPLEX[ii] + jj) & 0xff];
-  const m1 = MOD12[(PERM_SIMPLEX[(ii + s1x) & 0xff] + (jj + s1y)) & 0xff];
-  const m2 = MOD12[(PERM_SIMPLEX[(ii + 1) & 0xff] + (jj + 1)) & 0xff];
+  // dig #207 HASH LAW (fresh 0x8fc0f0..0x8fc135 + 0x8fc182..0x8fc190; the
+  // dig-#85-era orientation FLAG = RESOLVED): the game's chain is
+  //   mod12t[perm16[j + dy] + i + dx]  — PERM CARRIES **Y**, the add carries X
+  //   (0,0)      mod12t[perm16[j] + i]                      (perm16[ebx]+edi)
+  //   (s1x,s1y)  mod12t[perm16[j+s1y] + i + s1x]            (8fc0f0..0x8fc10f)
+  //   (1,1)      mod12t[perm16[j+1] + i]                    (8fc117..0x8fc135)
+  //              — the X-STEP IS ABSENT on the third corner (the game's own
+  //              quirk: only the Y-step appears in the perm index); mirrored
+  //              verbatim. The sums stay ≤ 511 < 512 = in-table, no mask.
+  // The old port chained perm[i]+j (the axes swapped) — a full re-pattern;
+  // every composed score below the band-ramp lane moved with this fix.
+  const m0 = MOD12T[PERM16[jj] + ii];
+  const m1 = MOD12T[PERM16[jj + s1y] + ii + s1x];
+  const m2 = MOD12T[PERM16[jj + 1] + ii];
   return (kern(dx0, dy0, m0) + kern(dx1, dy1, m1) + kern(dx2, dy2, m2)) * K2.sc70;
 }
 

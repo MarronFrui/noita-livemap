@@ -301,10 +301,14 @@ describe.skipIf(!hasData)("composed-content laws (dig #144, I34/I33)", () => {
       }
       return mat;
     };
-    expect(solids(41, 66), "lavalake kind-0 — THE FIELD0 discrimination").toBe(414);
-    expect(solids(1, 70), "solid_wall deep — byte-stable through the change").toBe(1367);
+    // dig #207 RE-PIN: the case-5 hash-chain law (perm[Y]+x, the third
+    // corner's dropped x-step) re-rolled the insidePerlin pattern — the
+    // lavalake count moved 414 → 401. The pin FAILS under the old hash
+    // (the old arithmetic produces 414).
+    expect(solids(41, 66), "lavalake kind-0 — THE FIELD0 discrimination").toBe(401);
+    expect(solids(1, 70), "solid_wall deep — #207 re-pin 1367→1361 (the hash re-pattern)").toBe(1361);
     expect(solids(31, 67),
-           "temple_wall field-lane solids (classify-independent; was honest-fall NULL under #146)").toBe(398);
+           "temple_wall field-lane solids (classify-independent; #207 re-pin 398→386 under the fixed hash)").toBe(386);
     expect(Object.keys(matProbe(31, 67)),
            "temple_wall ZERO material hits — the commented-out (phantom) comps are retracted; 155 rock_hard_border cells under the #147 raw-regex table")
       .toEqual([]);
