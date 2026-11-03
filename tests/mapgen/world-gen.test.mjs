@@ -163,6 +163,22 @@ describe("worldColorAt — injected world (no data needed)", () => {
     expect(worldColorAt(w, 39 * CHUNK, 63 * CHUNK - L3_ANCHOR.y)).toEqual([70, 70, 70]);
   });
 
+  // dig #211 (the winter-band rows law): the surface band's SKY-row rows
+  // (bty 6..13 = display 54..61) carry the winter/mountain noise band, and
+  // its cell decisions run the SAME classify-or-air law the ty >= 62 arm
+  // runs (the dig-#208 law). The classify's miss (idx 255 / unresolvable)
+  // = AIR — under the previous law every mask-solid sky-row cell painted
+  // the flat unclassified noiseColor (0x6a5a44), the over-fill class.
+  test("dig #211: a sky-row (ty<62) mask-solid cell whose classify misses = AIR (fails under the flat-fill law)", () => {
+    const w = mkWorld();
+    // canvas (17,61) = a bty13 sky-row chunk; the probe lands on the
+    // noise-solid path with the classify missing
+    w.noiseSolidAt = () => 1;
+    w.noiseMatAt = () => ({ idx: 255, names: null });
+    // old law: noiseColor(..., null) = [106,90,68] returned here
+    expect(worldColorAt(w, 17 * CHUNK + 5, 61 * CHUNK + 5)).toBeNull();
+  });
+
   // --- I49 (dig #210 obs-1 fix): the background_file fg/bg plane split ------
   // The real write path: a 2×2 opaque airDark PNG (the right_stub_background
   // color family) blitted through blitBackdrop at a game-frame origin.
@@ -419,6 +435,30 @@ describe.skipIf(!hasNoitaData())("default lane sky color (data-gated)", () => {
     expect(s.horizon).toBeNull();
     expect(s.high).toBeNull();
     expect(s.stars).toBeGreaterThan(0);
+  });
+});
+
+describe.skipIf(!hasNoitaData())("winter-band rows law (dig #211) — the surface band's sky-row rows classify, never the flat noiseColor", () => {
+  // dig #211 (the classify-or-air law at the sky-band rows; bty 6..13 =
+  // display rows 54..61 = the mask's winter/mountain noise band): the OLD
+  // law painted EVERY mask-solid sky-row cell the flat unclassified
+  // (106,90,68) — measured (METER-CLASS: E1, the lane attribution, repro
+  // mapgen/experiments/2026-11-03-dig211-lane-attribution.mjs): the winter
+  // tile (17,61) = 75.7% solid with 73.2% flat vs the capture's 40.7%.
+  // The fix (world-gen.mjs, the ty < 62 arm) = the classify (the ty>=62
+  // arm's law) + the miss = air. Fail-under-old: the flat family's share
+  // at (17,61) was 73.2% and must now be ~0.
+  test("tile (17,61) carries no flat noiseColor px (old law: 73.2%)", async () => {
+    const world = ensureWorld(CAPTURE_SEED, dataDir, { cacheDir: path.join(repoRoot, "mapgen/out/gen-cache/r3i") });
+    await world.ready;
+    let flat = 0, n = 0;
+    for (let y = 0; y < 512; y += 2) for (let x = 0; x < 512; x += 2) {
+      const c = worldColorAt(world, 17 * 512 + x, 61 * 512 + y);
+      n++;
+      if (c && c[0] === 106 && c[1] === 90 && c[2] === 68) flat++;
+    }
+    expect(n).toBeGreaterThan(0);
+    expect(flat / n).toBeLessThan(0.005);
   });
 });
 

@@ -181,7 +181,27 @@ export function worldColorAt(world, wx, wy) {
     // order as the ty≥62 arm.
     {
       const nzSky = world.noiseSolidAt?.(gx, gy);
-      if (nzSky != null && nzSky) return noiseColor(world, tx, ty, nzSky, null);
+      if (nzSky != null) {
+      // dig #211 (the winter-band rows law): bty 6..13 = the surface band's
+      // SKY-row rows (display 54..61) = the winter/mountain's own noise band,
+      // and its solid cells must run the SAME classify-or-air cell-law the
+      // ty >= 62 arm runs (the dig-#208 law — the paint iff the classify
+      // matches; the miss = air → the sky art below). The old law painted
+      // EVERY mask-solid sky-row cell with the flat unclassified noiseColor
+      // (materialRgb=null) = the 0x6a5a44 over-fill class (measured: the
+      // winter tile 17 row 61 = ours 75.7% solid, 73.2% flat, vs the
+      // capture's 40.7% — repro `mapgen/experiments/2026-11-03-dig211-
+      // lane-attribution.mjs`).
+      if (nzSky) {
+        const matSky = world.noiseMatAt?.(gx, gy);
+        if (matSky && matSky.idx !== 255 && matSky.names && matSky.names[matSky.idx] && world.dataDir) {
+          return noiseColor(world, tx, ty, nzSky, materialColorByName(world.dataDir, matSky.names[matSky.idx]));
+        }
+        // the classify's miss (idx 255 / unresolvable) = AIR, the dig-#208
+        // law at the sky-band rows: falls through to the sky art below —
+        // the old code returned the flat noiseColor here (the over-fill).
+      }
+    }
     }
     return world.skyAt?.(tx, ty, gx, gy) ?? null;
   }

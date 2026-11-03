@@ -1,7 +1,7 @@
 {
   "comment": "the I36 count law's reference (dig #156, scripts/precommit-gates-lib.mjs): the full battery must report EXACTLY these vitest summary totals at every gated commit — any deficit = the silent-truncation class, refused with one retry allowed. Updated per dig when the committed test set changes (the dig's own battery run is the source).",
   "filesTotal": 32,
-  "testsTotal": 424,
+  "testsTotal": 426,
   "testsSkipped": 4,
-  "source": "npm test at dig #210's I49 fix commit (2026-10-26 battery6, exit 0): 32 files / 420 passed | 4 skipped (424). The +4 over commit 1's 420 = the I49 fix pins in tests/mapgen/world-gen.test.mjs (write-path plane split + scene-air surface; noise beats bg; fg beats bg; the row-62 sky band untouched). Same commit: the api-surface export list + blitBackdrop (18/18), and the I36 root-cause removal (surface-compositor's NIGHT stars loop yields a macrotask every 100k calls — assertions unchanged; the loop was a ~65s unbroken sync stretch that starved vitest's 60s RPC watchdog: 3 consecutive full-battery crashes at 9/32 files stopped at the fix). The skip set is unchanged (4)."
+  "source": "npm test at dig #211 (2026-11-03, the winter-band rows law: the classify-or-air at the ty<62 arm): 32 files / 422 passed | 4 skipped (426), exit 0. The +2 over dig #210's 424 = the dig-#211 pins in tests/mapgen/world-gen.test.mjs — (1) data-free injected: a sky-row (ty<62) mask-solid cell whose classify misses = AIR (the old = the flat [106,90,68]); (2) data-gated: the winter (17,61) carries ~no flat noiseColor px (the old = 73.2%). Waited 28/28 in the suite's own run before the battery. The skip set unchanged (4)."
 }
