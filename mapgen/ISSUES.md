@@ -664,3 +664,19 @@ route #183 queued, isolated A11's lever to the field's missing NEGATIVE
 region, and DELETED entry (183)'s non-existent dispatch. Sixth consecutive
 8→8; scope **RE-OPENED as dig #185**.
 No other row's lane is touched.
+## Notes (2026-11-03)
+
+**Noise vs topology (recorded so it is not re-litigated):** the surfaceField
+combine `v = gradWCoef·gradW·per + perlinCoef·rpost + add` splits into
+TOPOLOGY (`rpost` = bandRampEval, the mGradient heightmap ramp — the
+surface shape) and NOISE (`per` = insidePerlin, the case-arm overlay — the
+texture). The capture's first-solid row is a TOPOLOGY measurement (where
+rpost crosses 0.5/perlinCoef); the insidePerlin case arms (default/1/2/3)
+are NOISE and cannot move the surface line. Past I50a work repeatedly
+chased the case arms (acos-NaN, addNoise enum, gradWCoef default) as
+"topology" fixes — they are noise-only. The winter _EMPTY_ filler's
+all-air hole was mis-diagnosed as a case-3 NaN issue; the real cause is
+the region-grower resolution (A4 residual), a placement question. Plains
+and desert topology are already byte-correct and aligned (dig #211 meter:
+mountain family ±1 px, HM 0). Only the winter band remains open, pending
+the runtime capture of the region grower's output.
