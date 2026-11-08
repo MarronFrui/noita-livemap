@@ -120,6 +120,22 @@ export function ensureBiomeBackdrop(dataDir, def) {  if (!def?.filename) return 
       bd = { w: png.width, h: png.height, pixels: png.data, fill: null };
     } catch { bd = null; } // unreadable/missing bg art → transparent air (honest)
   }
+  if (bd) {
+    // dig #212 (C184): the clip pair + the limit_y edge sprite. 0x72c180
+    // builds "data/weather_gfx/limit_y/" + the backdrop's file name when the
+    // limit cuts into the chunk and places it at (chunk centre x,
+    // trunc(height)) via 0x72e330 (the shipped folder_desc.txt states the
+    // same rule). Its bottom sits on the height: the capture sweep over
+    // ref/15_14 peaks at top = height − 31 = 194 (E1, entry (212)).
+    bd.limit = def.limitBackgroundImage ?? true;
+    bd.height = def.backgroundImageHeight ?? 225;
+    bd.edge = null;
+    try {
+      const edgeRel = path.join("weather_gfx/limit_y", path.basename(rel));
+      const png = readPng(path.join((dataDir ?? dataDirRef.dataDir), edgeRel));
+      bd.edge = { w: png.width, h: png.height, pixels: png.data };
+    } catch { bd.edge = null; } // no limit_y file for this backdrop → a hard clip
+  }
   backdropCache.set(def.filename, bd);
   return bd;
 }

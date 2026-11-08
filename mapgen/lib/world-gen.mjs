@@ -260,24 +260,41 @@ export function worldColorAt(world, wx, wy) {
       rgb = materialColorByName(world.dataDir, mat.names[mat.idx]);
     }
     if (nz) return noiseColor(world, tx, ty, nz, rgb);
-    // dig #177 (the surface-band sky law; M-grade: the family census of
-    // the capture tiles ref/39_13..39_19 — black = 237,697 / 21,669 / 0 /
-    // 0 / 0 / 0 px per 512×512 tile, repro `node mapgen/experiments/
-    // 2026-10-20-family-census.mjs mapgen/out/ref/39_14.png`; capture Y14
-    // = world y 0..511 = canvas row 62 = the C151 frame + SKY_ROWS=48):
-    // the SKY (black + stars, the C110 NIGHT law) covers every AIR cell
-    // of canvas row 62 (display y 0..511) and NONE below (the capture's
-    // Y15+ tiles carry zero black). Before this fix the row-62 air fell
-    // through to bgImageAtInner's ty>=62 arm = the biome's
-    // background_cave px, so the air cells were indistinguishable from
-    // the fill (fail-under-old verified this session: port reverted ⇒
-    // the C1 probe measures black62 = 0). The C109 per-area bg starts at
-    // row 63; lane (the dig #121 law) the mask's air = the caves field
-    // (gradAt; BitmapCaves biomes never read surfaceField). OPEN (E3,
-    // I47): whether an enclosed row-62 air cell renders sky or bg in the
-    // game — untestable from the capture set (its row-62 air = 100%
-    // black).
-    if (ty === 62) return world.skyAt?.(tx, ty, gx, gy) ?? null;
+    // dig #212 (C184, the backdrop CLIP law; replaces dig #177's "every
+    // row-62 air cell = sky"): the game's per-chunk backdrop builder
+    // 0x72c180 starts the biome backdrop at max(chunk top, height) when
+    // the biome's limit is on (defaults: height 225.0f, limit 1), so a
+    // row-62 air cell renders the SKY above the height and the BACKDROP
+    // below it; a limit-off biome (coalmine/liquidcave/pyramid…) renders
+    // the backdrop at every height. The limit_y edge sprite occupies
+    // [height − edge.h, height) composited over the sky. E1 anchor (entry
+    // (212)): over all 55 capture tiles of bty 14, 0 sky px below wy 240
+    // in limit-on biomes, 0 sky px anywhere in limit-off ones. Frame: the
+    // world y = the DISPLAY y − (SKY_ROWS+14)·512 (the capture frame,
+    // C145); the chunk's def comes from the generator tx/ty like the
+    // rest of this lane (the ≤12 px anchor strip is a known approximation).
+    if (ty === 62) {
+      const bd = world.noiseAt?.(tx, ty)?.backdrop ?? null;
+      const yW = wy - (SKY_ROWS + 14) * CHUNK;
+      const limit = bd?.limit ?? true, h = bd?.height ?? 225;
+      if (limit && yW < h) {
+        const sky = world.skyAt?.(tx, ty, gx, gy) ?? null;
+        const e = bd?.edge;
+        if (e && yW >= h - e.h) {
+          const ex = (((wx % CHUNK) + CHUNK) % CHUNK) - ((CHUNK - e.w) >> 1);
+          const ey = Math.floor(yW - (h - e.h));
+          if (ex >= 0 && ex < e.w && ey >= 0 && ey < e.h) {
+            const q = 4 * (ey * e.w + ex);
+            const a = e.pixels[q + 3] / 255;
+            if (a > 0) {
+              const s = sky ?? [0, 0, 0];
+              return [0, 1, 2].map((k) => Math.round(e.pixels[q + k] * a + s[k] * (1 - a)));
+            }
+          }
+        }
+        return sky;
+      }
+    }
     // dig #132 (I32 p2b, the per-area background law): an AIR cell in a
     // procedural chunk composites the chunk's biome Topology
     // `background_image` (the game's per-area backdrop; hills =

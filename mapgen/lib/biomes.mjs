@@ -55,6 +55,18 @@ function parseBiomeDefinition(dataDir, filename) {
     parseAttr(attrs, "background_image") ??
     parseAttr(xml.match(/<Biome\b[^>]*>/)?.[1] ?? "", "background_image") ??
     "";
+  // dig #212 (C184): the backdrop CLIP pair. The attr arm binds
+  // background_image_height -> f32 [cfg+0xa0] (@0x49cf4e..0x49cf65) and
+  // limit_background_image -> u8 [cfg+0xa4] (@0x49cf81..0x49cf98); the
+  // config ctor's defaults = 0x43610000 = 225.0f (@0x495ecf) and 1
+  // (@0x495ed9). Consumer = the per-chunk backdrop builder 0x72c180
+  // (game_world.cpp): with the limit on, the backdrop starts at
+  // max(chunk top, height) and is skipped when height > chunk bottom.
+  const rootAttrs = xml.match(/<Biome\b([^>]*)>/)?.[1] ?? "";
+  const bgHeightAttr = parseAttr(attrs, "background_image_height") ?? parseAttr(rootAttrs, "background_image_height");
+  const bgLimitAttr = parseAttr(attrs, "limit_background_image") ?? parseAttr(rootAttrs, "limit_background_image");
+  const backgroundImageHeight = bgHeightAttr != null && Number.isFinite(Number(bgHeightAttr)) ? Number(bgHeightAttr) : 225;
+  const limitBackgroundImage = bgLimitAttr != null ? bgLimitAttr.trim() !== "0" : true;
   // static_tile="1" biomes (barren/darkness/boss_sky/potion_mimics/watchtower)
   // carry an artworks fg PNG + bg mask instead of a herringbone wang atlas —
   // their first-row wang header is all zeros, so the corner-type fill path
@@ -102,6 +114,8 @@ function parseBiomeDefinition(dataDir, filename) {
     templateFile,
     staticTile,
     backgroundImage,
+    backgroundImageHeight,
+    limitBackgroundImage,
     luaScript: parseAttr(attrs, "lua_script"), // the per-chunk 0xffffeedd init lane
     randomMaterials: flatRandomMaterials,
 

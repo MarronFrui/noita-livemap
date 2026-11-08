@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawnSync, spawn } from "node:child_process";
 import { describe, test, expect } from "vitest";
 import {
   CHUNK, WORLD_CHUNKS_W, WORLD_CHUNKS_H, SKY_ROWS, WORLD_W, WORLD_H,
@@ -161,6 +161,53 @@ describe("worldColorAt — injected world (no data needed)", () => {
     // wy = row*512 − 12 puts the generator row exactly at the row edge
     expect(worldColorAt(w, 39 * CHUNK, 62 * CHUNK - L3_ANCHOR.y)).toEqual([90, 90, 90]);
     expect(worldColorAt(w, 39 * CHUNK, 63 * CHUNK - L3_ANCHOR.y)).toEqual([70, 70, 70]);
+  });
+
+  // dig #212 (C184, the backdrop CLIP law, 0x72c180): a row-62 air cell
+  // renders the BACKDROP at world y >= the biome's background_image_height
+  // (default 225.0f) and the SKY above it; a limit-off biome renders the
+  // backdrop at every height; the limit_y edge sprite fills
+  // [height − edge.h, height). The display row 62 starts at world y 0.
+  describe("dig #212 backdrop clip law (row 62)", () => {
+    const Y0 = 62 * CHUNK; // display y of world y 0
+    const mk = (backdrop) => {
+      const w = mkWorld();
+      w.noiseSolidAt = () => 0; // all air
+      w.noiseMatAt = () => null;
+      w.noiseAt = () => ({ backdrop });
+      w.skyAt = () => [90, 90, 90];
+      w.bgImageAt = () => [70, 70, 70];
+      return w;
+    };
+    test("limit on (default 225): world y 300 = BACKDROP (fails under the dig-#177 all-sky law), world y 100 = SKY", () => {
+      const w = mk({ limit: true, height: 225, edge: null });
+      expect(worldColorAt(w, 39 * CHUNK, Y0 + 300)).toEqual([70, 70, 70]);
+      expect(worldColorAt(w, 39 * CHUNK, Y0 + 100)).toEqual([90, 90, 90]);
+    });
+    test("the boundary is the height itself: y = 224 sky, y = 225 backdrop", () => {
+      const w = mk({ limit: true, height: 225, edge: null });
+      expect(worldColorAt(w, 39 * CHUNK, Y0 + 224)).toEqual([90, 90, 90]);
+      expect(worldColorAt(w, 39 * CHUNK, Y0 + 225)).toEqual([70, 70, 70]);
+    });
+    test("limit off (coalmine/liquidcave/pyramid): the backdrop at world y 10 (fails under the all-sky law)", () => {
+      const w = mk({ limit: false, height: 225, edge: null });
+      expect(worldColorAt(w, 39 * CHUNK, Y0 + 10)).toEqual([70, 70, 70]);
+    });
+    test("the limit_y edge sprite sits on [height − edge.h, height), composited over the sky by its alpha", () => {
+      const ew = 512, eh = 31;
+      const px = new Uint8Array(4 * ew * eh);
+      for (let i = 0; i < ew * eh; i++) { px[4 * i] = 200; px[4 * i + 3] = 255; }
+      const w = mk({ limit: true, height: 225, edge: { w: ew, h: eh, pixels: px } });
+      expect(worldColorAt(w, 39 * CHUNK + 5, Y0 + 194)).toEqual([200, 0, 0]);
+      expect(worldColorAt(w, 39 * CHUNK + 5, Y0 + 224)).toEqual([200, 0, 0]);
+      expect(worldColorAt(w, 39 * CHUNK + 5, Y0 + 193)).toEqual([90, 90, 90]);
+    });
+    test("no backdrop record = the default law (limit on, 225): the sky above, the bg lane below", () => {
+      const w = mk(null);
+      w.noiseAt = () => null;
+      expect(worldColorAt(w, 39 * CHUNK, Y0 + 50)).toEqual([90, 90, 90]);
+      expect(worldColorAt(w, 39 * CHUNK, Y0 + 400)).toEqual([70, 70, 70]);
+    });
   });
 
   // dig #211 (the winter-band rows law): the surface band's SKY-row rows
@@ -525,4 +572,58 @@ describe.skipIf(!hasNoitaData())("surface-band sky (dig #177) — the row-62 air
   test("C3: the sky-band row above (39,61) keeps its sky — black >= 100,000 px (regression guard)", () => {
     expect(stats().black61).toBeGreaterThanOrEqual(100000);
   });
+});
+
+describe.skipIf(!hasNoitaData())("backdrop clip law (dig #212, C184) — data-gated", () => {
+  // The parser carries the clip pair with the byte-read ctor defaults
+  // (0x495ecf: 225.0f, 0x495ed9: 1) and the shipped overrides.
+  test("defs: empty.xml = the defaults (limit on, 225); coalmine.xml = limit off; liquidcave.xml = height 0 + limit off", async () => {
+    const { loadBiomeConfig } = await import("../../mapgen/lib/biomes.mjs");
+    const config = loadBiomeConfig(dataDir);
+    const find = (f) => [...config.biomes.values()].find((d) => d?.filename?.endsWith(f));
+    const empty = find("/empty.xml"), coal = find("/coalmine.xml"), liq = find("/liquidcave.xml");
+    expect(empty).toBeTruthy();
+    expect(empty.limitBackgroundImage).toBe(true);
+    expect(empty.backgroundImageHeight).toBe(225);
+    expect(coal.limitBackgroundImage).toBe(false);
+    expect(liq.backgroundImageHeight).toBe(0);
+    expect(liq.limitBackgroundImage).toBe(false);
+  });
+
+  // The count law (E1, entry (212)): the capture's bty-14 tiles carry 0
+  // sky px below world y 240 in every limit-on biome. Tile 15 = the
+  // empty.xml chasm under the bridge (all air): the old all-sky law
+  // rendered 130,066 black px there below y 240; the capture has 0 and
+  // 98,619 above y 225.
+  const probe = `
+    const { findNoitaDataDir, repoRoot } = await import(process.env.PROBE_REPO + "/mapgen/lib/paths.mjs");
+    const { ensureWorld, worldColorAt } = await import(process.env.PROBE_REPO + "/mapgen/lib/world-gen.mjs");
+    const path = await import("node:path");
+    const world = ensureWorld(78633191, findNoitaDataDir(), { cacheDir: path.join(repoRoot, "mapgen/out/gen-cache/r3i"), onProgress: () => {} });
+    await world.ready;
+    const isBlack = (c) => !c || (c[0] < 3 && c[1] < 3 && c[2] < 3);
+    let above = 0, below = 0;
+    for (let j = 0; j < 512; j++) for (let i = 0; i < 512; i++) {
+      if (isBlack(worldColorAt(world, 15 * 512 + i, 62 * 512 + j))) { if (j < 225) above++; else if (j >= 240) below++; }
+    }
+    process.stdout.write(JSON.stringify({ above, below }));
+  `;
+  // ASYNC child (I36): a spawnSync here blocks the worker's event loop for
+  // the whole ~40 s probe and trips the 60 s birpc onTaskUpdate watchdog.
+  let s = null;
+  const stats = () => (s ??= new Promise((resolve, reject) => {
+    const env = { ...process.env, PROBE_REPO: repoRoot };
+    const child = spawn(process.execPath, ["--input-type=module", "-e", probe], { env, cwd: repoRoot });
+    let out = "", err = "";
+    child.stdout.on("data", (d) => { out += d; });
+    child.stderr.on("data", (d) => { err += d; });
+    child.on("error", reject);
+    child.on("close", (code) => (code === 0 ? resolve(JSON.parse(out)) : reject(new Error(`probe exit ${code}: ${err}`))));
+  }));
+  test("tile (15,62): 0 black px below world y 240 (old law: 130,066)", async () => {
+    expect((await stats()).below).toBe(0);
+  }, 240000);
+  test("tile (15,62): the sky above the height stays — >= 90,000 black px above y 225 (capture 98,619)", async () => {
+    expect((await stats()).above).toBeGreaterThanOrEqual(90000);
+  }, 240000);
 });

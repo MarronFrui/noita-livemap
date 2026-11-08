@@ -103,3 +103,6 @@
 0x7eb020	function	AddScriptColor
 0x85d7b0	function	SpawnQueue_Process
 0x900c70	function	SpawnQueue_Insert
+# Backdrop clip — CONSTANTS C184 (dig #212, X219)
+0x72c180	function	BiomeBackdrop_BuildChunk
+0x72e330	function	BackdropSprite_Place

@@ -232,11 +232,12 @@ of these mechanisms, cite the row instead of re-running it.
 | 75 | **"The surface band's shape = the caves field" — the C165–C176 era's application of the caves system to the surface band (the band-anchored port, the shaped warp, the stamps as the silhouette)** | **REFUTED dig #205 by the capture A/B (the same 56 C97 tiles, the raw unshifted scores): the surfaceField evaluator (the Topology lane — the mGradient heightmap / the topology images) scores hills IoU 0.72435 RAW with dyOpt med = 0 (the silhouette lands IN PLACE, no shift), the profile residual 0.110 (the caves' half), the honest solidity 0.391 vs fR 0.436; the caves lane = 0.607 raw needing the −162 shift, the profile 0.243+, the over-solid 0.67–0.69. desert: the Topology lane = 0.923 raw dyOpt −4. ⇒ the surface band's shape = the TOPOLOGY LANE (the surfaceField 0x90A860 + the band ramp + the insidePerlin — the byte-model complete in noise-proto.mjs, env-gated SURFACE_V2); the caves system = the UNDERGROUND (the blob caves + the walk + the stamps = the cave entrances — the user's working caves); the pixel-scene machinery = the structure drawer (105 biome Lua scripts call LoadPixelScene — the boss arenas, the temples, endgame_end.lua). The caves-lane byte laws (C165–C176) STAND for the underground; their SURFACE application = dead. The topology_lake.png = the surface shape as a rasterized mask (512×256, the solid field + the 2-row surface strip) = the deterministic lake's own data. The broken lanes = I50 (the winter's surfaceField near-all-air; the lake's grey-bake stand-in). Do NOT re-apply the caves field to the surface band** | ✅ ABOUT_MATH §6 (205); CONSTANTS C178; ISSUES I50 + the A14/I47/I48 re-frames |
 | 76 | **"The winter's collapse = the SLOPE ARM engaged by `mGradientType` + the bandParams' SIN arm" (the dig-#206 addendum's prime suspect; the A4 fix-list's SIN-half)** — the mechanism requires the exe to parse `mGradientType` and compute SIN band values | **PROVEN WRONG dig #207 (three independent legs: the raw-byte sweep + the C58 bind table + the C47 census):** `mGradientType`, `mGradientSinMultipleMin/Max`, `mGradientMaxY/MinY`, `mInsidePerlinFunc`, `mPerlinScale_x/y`, `mWaterLevel`, `mCave*` are ZERO-HIT strings in noita_dev.exe (the other mGradient keys = one hit each) — the attrs CANNOT BIND; the bind table (C58) maps [+0x24C] = **mInsidePerlinForceInside** (a bool, 0x49C269) which NO live file carries and the ctor clears; C47's CE census = [+0x24C] = 0 across all 42 uids at runtime. The slope arm `cmpb $0x0,0x24c(%ebx) → je` is DEAD IN THE GAME for every biome — the port's dormant arm = byte-correct as-is. The "bandParams SIN arm" = NOT A THING in live data (the slots exist, the XML keys don't). Do NOT re-chase mGradientType | ✅ ABOUT_MATH §6 (207); CONSTANTS C179; MANIFEST X214 |
 | 77 | **The surface-band cell-solid law = "`v > 0.5`" + the classify's y = the map-y (`canvas − 24576`, C76)** — the dig-#178-flagged stand-in (A11) and the dig-#130 frame pin | **PROVEN WRONG dig #208 (X215, fresh bytes): the walk's post-classify arm @0x7930D8 = `test eax,eax; jne 0x7935F4` — THE CELL = PAINTED IFF THE CLASSIFY MATCHES (the band gate + the per-comp windows + the limit_y decide); the miss-exit 0x8F574C = `xor eax,eax` = the untouched zeroed grid = AIR. The classify's y = THE WALK-Y = THE WORLD-y (the limits' values — the soil's [−1024, 424.229], the water's [225, 512000] — are world-y bands; the map-y feed = the never-match artifact: the soil/snow/coal never painted). The v > 0.5 rule was a doubly-wrong stand-in: it called water air (the lake's fG 0.002 vs fR 0.577) and air solid (the temple_wall's 386 with zero active comps). Do NOT restore either** | ✅ ABOUT_MATH §6 (208); CONSTANTS C180; MANIFEST X215 |
+| 78 | **C152's universal — "every AIR cell of canvas row 62 renders the SKY, the backdrop starts at row 63"** (dig #177; its own OPEN said the enclosed-air case was untestable) | **PROVEN WRONG dig #212 (bytes + E1 census):** the per-chunk backdrop builder `0x72c180` clips the biome backdrop to start at `max(chunk top, background_image_height)` when `limit_background_image` is on (ctor defaults 225.0f / 1), so row-62 air renders the sky only ABOVE wy ≈ 225 (minus the 31-px `limit_y` edge band) and the backdrop below; limit-off biomes render the backdrop at every height. Capture: 0 sky px below wy 240 across all 55 bty-14 tiles in limit-on biomes; tile 15's all-air chasm shows the backdrop from wy ≈ 194 (the old law rendered 130,066 black px below wy 240 there). Do not restore the all-sky row-62 rule; the measured counts C1–C3 of dig #177 stand. | ✅ ABOUT_MATH §6 (212); CONSTANTS C184; MANIFEST X219 |
 
 ## 9. Open frontier (ranked)
 
-The single ranked work list (ISSUES.md §0 points here). State as of HEAD
-`32b0282` (2026-11-07); sources = the cited files, read 2026-11-08.
+The single ranked work list (ISSUES.md §0 points here). State as of dig #212
+(2026-11-08); sources = the cited files, read 2026-11-08.
 
 1. **Surface band — the only objective (user mandate; ISSUES §0).** The band's
    shape = the Topology lane (§8 row 75, C178); the cell law = classify-or-air
@@ -245,22 +246,19 @@ The single ranked work list (ISSUES.md §0 points here). State as of HEAD
    per-column profile `mapgen/experiments/dig212-winter-profile.mjs`).
    Remaining, in order:
    - **a. The winter band's placement class (I48 / the A4 residual):** the
-     tile-15 hole and the ±100–260 px medians. The static arms (bandParams,
+     ±100–260 px medians (tiles 17/27/18/14/12/21). The former "tile-15
+     hole" is closed: it was the backdrop clip (C184, dig #212), not terrain. The static arms (bandParams,
      insidePerlin, the band-matrix fill + resolve, the region grower) are
      port-correct (dig #212 part 1, commit `32b0282`); the open half = the
      runtime band-matrix RESOLUTION. Arbiter = a game-side capture via
      `mapgen/experiments/ce-dump-bandmatrix.lua` →
      `mapgen/experiments/parse-bandmatrix.mjs`. The insidePerlin case arms
      are NOISE and cannot move the surface line (ISSUES Notes 2026-11-03).
-   - **b. The no-table law reconciliation:** the `_EMPTY_` filler needs solid
-     cells where the capture has a plateau (tx 15), but the universal
-     `v > 0.5` no-table arm breaks the temple_wall zero-pin (§8 row 77,
-     dig #148 census) — the per-biome-class law is unread (commit `32b0282`).
-   - **c. The structure-tiles colour law (I43 + I51):** the mountain art =
+   - **b. The structure-tiles colour law (I43 + I51):** the mountain art =
      colour-keyed material masks placed by the Lua `init()`; our port paints
      the keys through blitScene's placeholder fill; the map palette ≠ the raw
      `wang_color` (ABOUT (211), I51).
-   - **d. The user's obs queue:** the lake-top island → the wang missing
+   - **c. The user's obs queue:** the lake-top island → the wang missing
      chunks → the lavalake walls / the dark-blue-at-predictable-spawns class
      (ABOUT (210)).
 2. **Below the surface band (queued behind it, ISSUES §0):** the deep-band
@@ -569,22 +567,29 @@ open work = §9 item 1.
   watchtower: `static_tile="1"` + a fixed artwork PNG, no wang header) =
   `buildStaticTileArea` (`lib/world-gen.mjs:339`).
 - **The sky = the NIGHT law:** black + stars at every altitude (C110, §8
-  row 57); every air cell of canvas row 62 renders the sky, the biome
-  cave backdrop starts at row 63 (C152, §8 row 61).
+  row 57). **Sky vs backdrop for an AIR cell = the backdrop clip (C184,
+  §8 row 78):** the biome's `background_image` starts at
+  `max(chunk top, background_image_height)` when `limit_background_image`
+  is on (defaults 225.0f / on; the `limit_y/` edge sprite fills the 31 px
+  above the height); above it the air renders the sky. Limit-off biomes
+  (coalmine, liquidcave, pyramid, …) show the backdrop at every height.
 
 **Compositor order** (`worldColorAt`, `lib/world-gen.mjs`; display frame:
 col = biome col, row = bty + 48):
 1. ty < 62: wang bin fill → template art → bin-air backdrop → the noise
    band (classify-or-air) → the sky.
 2. ty ≥ 62: wang bin fill → template art → the noise band
-   (classify-or-air) → the row-62 sky → the biome bg image → the
-   pixel-scene bg plane (air only).
+   (classify-or-air) → on row 62, the sky above the backdrop clip (C184)
+   → the biome bg image → the pixel-scene bg plane (air only).
 
 **Measured state** (entry (211); E1 meter
 `mapgen/experiments/2026-11-03-dig211-surface-line.mjs`, first solid row
-per map column, ours vs the capture of seed 78633191): 46.4% of the 3520
-sampled columns sit within 50 px of the capture, median delta −20 px; the
-mountain family (tx 35–37) is within ±1 px and the Holy Mountain columns
-(tx 52–56) at 0; the worst columns = the winter band (±100–260 px, tile 15
-+256 px = I50a). Per-column winter profile:
+per map column, ours vs the capture of seed 78633191; entry (212)): 47.5%
+of the 3520 sampled columns sit within 50 px of the capture, median delta
+−20 px; the mountain family (tx 35–37) is within ±1 px and the Holy
+Mountain columns (tx 52–56) at 0; tile 15 = −32 (its old +256 was the
+backdrop clip, not terrain); the worst columns = the winter band (tiles
+17/27/18 at −256/−240/−228 = I50a). The meter counts lum ≥ 24 on both
+sides, so backdrop art counts as "solid" — read it with C184 in mind.
+Per-column winter profile:
 `mapgen/experiments/dig212-winter-profile.mjs` (commit `32b0282`).
