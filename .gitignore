@@ -15,3 +15,6 @@ CE_GUIDE.md
 # byte-extraction dumps (path-stable, gitignored; git tracks only MANIFEST.md)
 mapgen/extractions/*
 !mapgen/extractions/MANIFEST.md
+
+# REA: the pinned RE target copy (scripts/rea-target.mjs)
+mapgen/re/target/

@@ -1,7 +1,7 @@
 {
   "comment": "the I36 count law's reference (dig #156, scripts/precommit-gates-lib.mjs): the full battery must report EXACTLY these vitest summary totals at every gated commit — any deficit = the silent-truncation class, refused with one retry allowed. Updated per dig when the committed test set changes (the dig's own battery run is the source).",
-  "filesTotal": 32,
-  "testsTotal": 426,
+  "filesTotal": 33,
+  "testsTotal": 430,
   "testsSkipped": 4,
-  "source": "npm test at dig #211 (2026-11-03, the winter-band rows law: the classify-or-air at the ty<62 arm): 32 files / 422 passed | 4 skipped (426), exit 0. The +2 over dig #210's 424 = the dig-#211 pins in tests/mapgen/world-gen.test.mjs — (1) data-free injected: a sky-row (ty<62) mask-solid cell whose classify misses = AIR (the old = the flat [106,90,68]); (2) data-gated: the winter (17,61) carries ~no flat noiseColor px (the old = 73.2%). Waited 28/28 in the suite's own run before the battery. The skip set unchanged (4)."
+  "source": "npm test at the REA-setup commit (2026-11-08): 33 files / 426 passed | 4 skipped (430). The +1 file / +4 tests over dig #211 = tests/rea-seeds.test.mjs (2 data-free seed-format pins + 2 exe-gated function-start pins; they RUN on this machine via the pinned target). Skip set unchanged (4)."
 }

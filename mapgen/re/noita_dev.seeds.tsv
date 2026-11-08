@@ -1,0 +1,105 @@
+# REA Ghidra seed file for noita_dev.exe (sha256 d2f7dbeff72b785bdadd068870343d2821cf4bd2f6c58125fe6a90a1b0900285).
+# Format (rea-agents parseGhidraSeeds): address<TAB>kind<TAB>name; '#' lines are comments.
+# Addresses = true VAs (imageBase 0x400000). Every row is a FUNCTION START verified against the exe bytes
+# by `npm run re:check` (int3/ret padding before, prologue at the address). Names are the campaign's labels
+# from the cited registry rows — a convenience for reading decompiles, NEVER evidence on their own.
+# Add a row only for a function a dig has byte-read; rename here when a registry row renames it.
+
+# Wang fill + PRNG — VERIFIED §2, §5, §7
+0x8ed490	function	CreateHerringboneWang
+0x8eda10	function	CreateHerringboneWang_Threaded
+0x8ed0f0	function	stbhw_build_tileset
+0x8ec9f0	function	stbhw_generate_image
+0x8ec710	function	stbhw_choose_tile
+0x8ec5d0	function	stbhw_place_h
+0x8ec670	function	stbhw_place_v
+0x8ec8e0	function	stbhw_reroll
+0x8ebf00	function	fill_tls_random_alloc
+0x10098c0	function	poro_Random_Next
+0x48fd30	function	poro_SetRandomSeed
+0x9119d0	function	WorldSeed_GetSeed
+
+# Area driver + finalize (hasPath family) — VERIFIED §5, §11 rows 4-6
+0x904c20	function	ProceduralTerrain_AreaDriver
+0x901780	function	hasPath_ProceduralPathFind
+0x901580	function	blockOutRooms_walker
+0x900560	function	fillBlockedRooms_C0ffeeWalker
+0x900a50	function	CheckForGaps
+0x8ed860	function	HerringboneWang_FallbackThreaded
+0x904b10	function	Area_ctor
+
+# Init / world-grid objects — VERIFIED §7, §11 rows 1-3, §8 rows 70-74
+0x905fb0	function	ProceduralTerrain_Init
+0x9233d0	function	BiomeMap_Reset
+0x922950	function	MagicNumbers_Parse
+0x904230	function	BiomeColorLookup
+0x90ce20	function	WorldGrid_ctor
+0x8f9470	function	GridEmbed_ctor
+0x904730	function	mSeed_ctor
+0x8f95c0	function	Grid_SetSize
+0x8f9ab0	function	BitmapNoise_LoadFromImageData
+0x90cfb0	function	PlaneBuilder
+0x8fa930	function	Embed_ImageLoad
+0x6dfa20	function	WorldStore_Init
+
+# Streaming + pixel scenes — VERIFIED §11 rows 9-10, §8 row 54, C181/C182
+0x90b8a0	function	ProceduralTerrain_Update
+0x910c20	function	DoBufferedPixelScenes
+0x90c1f0	function	BufferedPixelScene_Enqueue
+0x90e840	function	PixelScene_WorldGenQuery
+0x792580	function	Chunk_WalkFill
+0x793e60	function	CreateNewChunk
+0x796660	function	ChunkRange_CreateFromPxRect
+0x796210	function	ChunkRange_Walk
+0x423220	function	Plz_Dispatch
+0x422980	function	Plz_DecodeL1
+0x423010	function	Plz_DecodeL2
+
+# Surface / Topology lane — §8 rows 36, 47, 48, 75; C174, C179; dig #212 commit 32b0282
+0x90a860	function	surfaceField
+0x90b280	function	bandRampEval
+0x90b680	function	bandParams
+0x90b110	function	insidePerlin
+0x908f40	function	Surface_DriverKindArms
+0x908cb0	function	Noise_Warp
+0x8fc020	function	Noise_Case5Core
+0x8fca60	function	poro_Simplex2D
+0x9fee40	function	RegionGrower_FloodFill
+0x9fec00	function	BandMatrix_Loader
+0x9feca0	function	BandMatrix_ResolveRecord
+
+# Caves field (underground) — §8 rows 20, 39, 41, 46, 71, 72; C104, C112
+0x90d860	function	Caves_Sampler
+0x8ee750	function	Caves_Setter
+0x8ee930	function	Caves_BlendT2
+0x8eead0	function	Caves_Scatter
+0x8eec70	function	Caves_Walk
+0x8ef870	function	Caves_AlphaStamp
+0x8ef950	function	Caves_RecordStamp
+0x8f2ff0	function	BitmapCaves_fnC1
+0x8efdd0	function	BitmapCaves_Generator
+0x8fafc0	function	BytePlane_ScatterWrite
+0x7eb280	function	Config_KeyIndexFind
+
+# Classify + material-assignment layer — §8 rows 24, 28, 33, 41, 63-65; C134, C156
+0x8f5030	function	BiomeMaterials_Classify
+0x73d0c0	function	Material_GraphicsParse
+0x4b80e0	function	AssignRecord_Fetch
+0x8feff0	function	RecordArray_ctor
+0x8ff050	function	AssignStore_Pop
+0x8ff100	function	AssignStore_ctor
+0x8ff150	function	AssignStore_PoolManager
+0xa047d0	function	StdMap_InsertHint
+0xa57d90	function	StdMap_NodeCtor
+0x7644d0	function	Assign_Planter
+0x740f80	function	Assign_KindOrAir
+0x95a5e0	function	Plane_DwordAccessor
+0x9499f0	function	F32Grid_Get
+0x44d0b0	function	Crt_FloorF32
+0x10078c0	function	AssertHandler
+
+# Spawn registry — VERIFIED §6
+0x807d20	function	RegisterSpawnFunction
+0x7eb020	function	AddScriptColor
+0x85d7b0	function	SpawnQueue_Process
+0x900c70	function	SpawnQueue_Insert

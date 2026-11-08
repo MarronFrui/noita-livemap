@@ -44,6 +44,7 @@ npm run bench:diff   # score + report
 lib/          reusable code
 pipeline/     the bench, in run order (1 → 2 → 3)
 experiments/  dated one-off investigations (do NOT import from these)
+re/           REA inputs: Ghidra seed file + the pinned exe copy (target/, gitignored) — see AGENTS.md
 out/          artifacts (gitignored)
 tests/        vitest suite (repo root `tests/`: mapgen/, mapcap/, bridge/)
 ```

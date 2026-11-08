@@ -17,7 +17,11 @@
     "bench:diff": "node mapgen/pipeline/3-compare.mjs",
     "gen:server": "node mapgen/server/genmap-server.mjs",
     "gen:clear": "node mapgen/server/gen-cache-clear.mjs",
-    "test": "vitest run"
+    "test": "vitest run",
+    "re:target": "node scripts/rea-target.mjs",
+    "re:check": "node scripts/rea-target.mjs --check",
+    "re:doctor": "node scripts/rea-target.mjs && GHIDRA_INSTALL_DIR=${REA_GHIDRA_DIR:-$HOME/tools/ghidra} JAVA_HOME=${REA_JAVA_HOME:-$HOME/tools/jdk} npx -y rea-agents@6.4.0 doctor --provider ghidra --target mapgen/re/target/noita_dev.exe --format md",
+    "re:bundle": "node scripts/rea-target.mjs --bundle"
   },
   "repository": {
     "type": "git",
@@ -35,6 +39,6 @@
     "pngjs": "^7.0.0",
     "sharp": "^0.35.4",
     "vite": "^8.0.16",
-    "vitest": "latest"
+    "vitest": "^2.1.9"
   }
 }

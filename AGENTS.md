@@ -75,6 +75,36 @@ npm run build
 npm run preview
 ```
 
+### Reverse engineering with REA (MCP)
+
+The byte side of every dig reads `noita_dev.exe` through the REA MCP server
+(Ghidra provider). It is wired per-project — no global setup needed:
+
+- `.mcp.json` (Claude Code) and `opencode.json` (opencode) both launch
+  `scripts/rea-mcp.sh`, which sets the Ghidra/JDK env (defaults
+  `~/tools/ghidra`, `~/tools/jdk`; override with `REA_GHIDRA_DIR` /
+  `REA_JAVA_HOME`), pins the target, points Ghidra at the seed file and runs
+  `rea-agents@6.4.0 mcp` (override `REA_VERSION`).
+- **The target is pinned:** `npm run re:target` copies the exe to
+  `mapgen/re/target/noita_dev.exe` (gitignored) only if its sha256 equals
+  the build every registry VA refers to (`d2f7dbef…0285`); a Steam update
+  fails loudly instead of silently shifting every address. Always
+  `open_binary` that path (`node scripts/rea-target.mjs --path`).
+- **The seed file** `mapgen/re/noita_dev.seeds.tsv` names the functions the
+  campaign has byte-read (true VAs, cited to their registry rows), so
+  decompiles read `surfaceField` / `bandRampEval` instead of `FUN_0090a860`.
+  Names are reading aids, never evidence. Add a row when a dig byte-reads a
+  new function; `npm run re:check` (and `tests/rea-seeds.test.mjs`) verifies
+  every seed is a real function start. `REA_SEEDS=0` disables it.
+- `npm run re:doctor` = the pin + REA's own readiness check for Ghidra.
+- **Session loop:** `open_binary` (the first analysis of this 17 MB exe is
+  slow — the startup ceiling is 8 h) → `analyze_function` /
+  `procedure_pseudo_code` / `procedure_callers` / `xrefs` →
+  `export_evidence_bundle` into `mapgen/extractions/` (gitignored) →
+  `npm run re:bundle -- <file>` prints size + md5 for its MANIFEST row →
+  `close_binary` at session end. REA's Ghidra project is per-session (it
+  is deleted on close), so the evidence bundle is the durable artifact.
+
 - Tests: vitest battery in `tests/` (`npm test`); data-dependent suites
   auto-skip without extracted data.
 - No linter/formatter is configured at the repo root; there is no root
@@ -92,11 +122,13 @@ npm run preview
 | `src/main.ts`, `src/style.css` | Vite frontend; embeds noitamap iframe |
 | `index.html` | Vite entry point |
 | `scripts/copy-noitamap.mjs` | Copies built noitamap assets into `public/noitamap/` |
+| `scripts/rea-mcp.sh`, `scripts/rea-target.mjs`, `scripts/rea-lib.mjs` | REA MCP launcher, target pin + seed check, shared helpers |
+| `mapgen/re/` | REA inputs: `noita_dev.seeds.tsv` (tracked) + `target/` (the pinned exe copy, gitignored) |
+| `.mcp.json`, `opencode.json` | Project MCP registration of REA for Claude Code / opencode |
 | `public/noitamap/` | **Generated** — do not edit; comes from `vendor/noitamap/public` |
 | `dist/` | Build output — do not edit |
 | `vendor/noitamap/` | Git submodule (fork of acidflow-noita/noitamap) |
 | `vendor/noita-tools/` | Git submodule (TwoAbove/noita-tools) — **OBSOLETE reference**: legacy data/wasm container only; never a comparison target (see `mapgen/VERIFIED.md`) |
-| `tools/zig/` | Zig toolchain used for native tooling |
 | `ROADMAP.md` | Phased plan (Phases 0–5) |
 | `SESSION_CONTEXT.md` | **The session context loader** (gitignored by design) — read at session start; also `Current_work.md` (gitignored live P1 task tracker) |
 
@@ -248,6 +280,10 @@ rules, with the incident that motivates each in one line:
 
 - Noita install: `/mnt/e/Programmes/Steam/steamapps/common/Noita`
   (`noita_dev.exe` = the RE target, `tools_modding/` ships `wang_gen.exe`).
+- RE toolchain (REA's Ghidra provider): Ghidra 12.1.3 at `~/tools/ghidra`,
+  JDK 21 at `~/tools/jdk` (`npm run re:doctor` checks both). The repo's
+  ignored `tools/` dir only holds an unused Zig toolchain (from the obsolete
+  noitool-wasm rebuild plan) — safe to delete.
 - Extracted game data (Step 0 done, `-wizard_unpak`): `/mnt/c/Users/xan98/AppData/LocalLow/Nolla_Games_Noita/data/` — resolved via `NOITA_DATA_DIR` with that path as fallback, never copied into the repo.
 - Windows user for telemetry/bridge paths: `xan98`.
 - Noita runs on Windows; the bridge typically runs in WSL. `/mnt/c/...` paths
