@@ -207,21 +207,32 @@
         ctx.fillRect(0, 0, cv.width, cv.height);
         if (!seed) return;
         const scale = 1 / 2 ** zF;
-        const gw = Math.ceil(CHUNKS_W / 2 ** z), gh = Math.ceil(CHUNKS_H / 2 ** z);
         const w0 = cam.x - cv.width / 2 / scale, h0 = cam.y - cv.height / 2 / scale;
-        const t0x = Math.floor(w0 / (TILE * 2 ** z)), t0y = Math.floor(h0 / (TILE * 2 ** z));
-        const t1x = Math.floor((w0 + cv.width / scale) / (TILE * 2 ** z)), t1y = Math.floor((h0 + cv.height / scale) / (TILE * 2 ** z));
-        let pending = 0;
-        for (let ty = Math.max(0, t0y); ty <= Math.min(gh - 1, t1y); ty++) {
-          for (let tx = Math.max(0, t0x); tx <= Math.min(gw - 1, t1x); tx++) {
-            const t = fetchTile(tx, ty, z);
-            if (!t.ok) { pending++; continue; }
-            const sx = (tx * TILE * 2 ** z - cam.x) * scale + cv.width / 2;
-            const sy = (ty * TILE * 2 ** z - cam.y) * scale + cv.height / 2;
-            const s = TILE * 2 ** z * scale;
-            ctx.drawImage(t.img, Math.round(sx), Math.round(sy), Math.ceil(s), Math.ceil(s));
+        // one tile level over the viewport: fetch = request missing tiles
+        // (the active level); otherwise draw only what is already loaded
+        // (the placeholder levels — perf C: no black gaps while zooming)
+        const drawLevel = (L, fetch) => {
+          if (L < 0 || L > 7) return 0;
+          const gw = Math.ceil(CHUNKS_W / 2 ** L), gh = Math.ceil(CHUNKS_H / 2 ** L);
+          const span = TILE * 2 ** L;
+          const t0x = Math.floor(w0 / span), t0y = Math.floor(h0 / span);
+          const t1x = Math.floor((w0 + cv.width / scale) / span), t1y = Math.floor((h0 + cv.height / scale) / span);
+          let missing = 0;
+          for (let ty = Math.max(0, t0y); ty <= Math.min(gh - 1, t1y); ty++) {
+            for (let tx = Math.max(0, t0x); tx <= Math.min(gw - 1, t1x); tx++) {
+              const t = fetch ? fetchTile(tx, ty, L) : tiles.get(`${seed}/${L}/${tx}/${ty}`);
+              if (!t || !t.ok) { missing++; continue; }
+              const sx = (tx * span - cam.x) * scale + cv.width / 2;
+              const sy = (ty * span - cam.y) * scale + cv.height / 2;
+              const s = span * scale;
+              ctx.drawImage(t.img, Math.round(sx), Math.round(sy), Math.ceil(s), Math.ceil(s));
+            }
           }
-        }
+          return missing;
+        };
+        for (let L = z + 3; L > z; L--) drawLevel(L, false); // coarser placeholders
+        drawLevel(z - 1, false); // finer tiles already loaded (zooming out)
+        const pending = drawLevel(z, true);
         if (pending) status.textContent = `loading ${pending} tiles… (seed ${seed}, z${z})`;
         else status.textContent = `seed ${seed}, z${z} — canvas px; world px = canvas − (17920, 31744)`;
         if (showZones && zones) {

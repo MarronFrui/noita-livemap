@@ -25,6 +25,8 @@ import path from "node:path";
 import { PNG } from "pngjs";
 import { findNoitaDataDir, repoRoot } from "../lib/paths.mjs";
 import { clearGenCache } from "./gen-cache.mjs";
+import { renderTileRGBA } from "./tile-render.mjs";
+import { TileService, sourceRevision } from "./tile-service.mjs";
 import {
   ensureWorld,
   worldColorAt,
@@ -44,14 +46,22 @@ const worlds = new Map(); // seed -> { world, progress, ready }
 // bounded by the chunk cache (MAPGEN_CHUNK_CACHE) after browsing. Keep only
 // the most recently used seeds resident; in-flight requests keep their entry.
 const MAX_WORLDS = Math.max(1, Number(process.env.GENMAP_MAX_WORLDS ?? 3));
-// Bump-per-start epoch (Date.now()): every server restart invalidates the
-// browser's immutable `?e=` tile URLs, so no stale pre-fix tiles can
-// survive a deploy; /gen/clear still explicit-bumps (epoch is monotonic
-// within a session).
-let cacheEpoch = Date.now(); // bumped on every /gen/clear — the viewer appends it to tile URLs to bust the browser's immutable tile cache
-
-// the tile memory cache (LRU-ish; see the tile route)
-const tileCache = new Map();
+// The tile revision (perf C, 2026-11-08): a hash of the generator + tile-law
+// sources, the gen-cache rev and the paint-affecting env flags. Tiles persist
+// on disk under it (mapgen/out/tile-cache/<rev>/…), so a restart keeps every
+// valid tile and a code change can never serve a stale one. The viewer's
+// `?e=` epoch = `<rev>.<clears>` — /gen/clear still bumps it.
+const LIB_DIR = path.join(repoRoot, "mapgen/lib");
+const TILE_REV = sourceRevision(
+  [
+    ...fs.readdirSync(LIB_DIR).filter((f) => f.endsWith(".mjs") || f.endsWith(".js")).map((f) => path.join(LIB_DIR, f)),
+    path.join(repoRoot, "mapgen/server/tile-render.mjs"),
+    path.join(repoRoot, "mapgen/server/tile-service.mjs"),
+  ],
+  [path.basename(cacheDir), dataDir, ...["SURFACE_V2", "SURFACE_V3", "PROC_FILL", "CAPTURE_LAYER"].map((k) => `${k}=${process.env[k] ?? ""}`)].join("|")
+);
+let clears = 0;
+const epochNow = () => `${TILE_REV}.${clears}`;
 
 // ── capture-composite display layer (ISSUES A10) ───────────────────────────
 // The game's runtime-computed lanes (the splice/fixed-scene driver fills, the
@@ -141,68 +151,25 @@ function getWorld(seed) {
   return entry;
 }
 
-// Tile rendering. Zoom semantics dig (52) — the moiré fix:
-// z=0: 1:1 per world px (the canonical paint).
-// z>0: a tile's scale-block covers `scale` world px per axis. The global
-// point-sample `(y*512+j)*scale` aliases badly across lanes (art px, wang
-// cells and the old noise speckle) — it made the zoomed-out map "pop"
-// solid/air inconsistently with zoom level (the dense-rock-at-out-zoom
-// report). The honest downsample: per output pixel, enumerate the distinct
-// 10-world-px wang cells inside the block (steps of 10, cell centers),
-// count solid vs air, and emit the majority's color (air = transparent).
-function renderTile(world, z, x, y, seed, captureOn) {
-  const png = new PNG({ width: 512, height: 512 });
-  const data = png.data;
-  let p = 0;
-  if (z === 0) {
-    for (let j = 0; j < 512; j++) {
-      const wy = (y * 512 + j);
-      for (let i = 0; i < 512; i++) {
-        const wx = (x * 512 + i);
-        const c = worldColorComposedAt(world, seed, captureOn, wx, wy);
-        if (c) {
-          data[p] = c[0];
-          data[p + 1] = c[1];
-          data[p + 2] = c[2];
-        }
-        data[p + 3] = 255;
-        p += 4;
-      }
-    }
-    return PNG.sync.write(png);
-  }
-  const scale = 2 ** z;
-  const step = Math.min(scale, 10);
-  // one reused tally scratch (cleared per pixel — no 512² Map churn)
-  const tally = new Map();
-  for (let j = 0; j < 512; j++) {
-    const wy0 = (y * 512 + j) * scale;
-    for (let i = 0; i < 512; i++) {
-      const wx0 = (x * 512 + i) * scale;
-      let solid = 0, total = 0, best = null, bestN = 0;
-      tally.clear();
-      for (let sy = 0; sy < scale; sy += step) {
-        const wy = wy0 + Math.min(sy + (step >> 1), scale - 1);
-        for (let sx = 0; sx < scale; sx += step) {
-          const wx = wx0 + Math.min(sx + (step >> 1), scale - 1);
-          const c = worldColorComposedAt(world, seed, captureOn, wx, wy);
-          total++;
-          if (!c) continue;
-          solid++;
-          const key = ((c[0] >> 2) << 10) | ((c[1] >> 2) << 5) | (c[2] >> 2);
-          const it = (tally.get(key) ?? 0) + 1;
-          tally.set(key, it);
-          if (it > bestN) { bestN = it; best = c; }
-        }
-      }
-      if (solid * 2 >= total && best) {
-        data[p] = best[0]; data[p + 1] = best[1]; data[p + 2] = best[2];
-      }
-      data[p + 3] = 255;
-      p += 4;
-    }
-  }
-  return PNG.sync.write(png);
+// the tile law lives in tile-render.mjs (shared with the tile workers)
+async function renderDirect(seed, z, x, y, captureOn) {
+  const entry = getWorld(seed);
+  await entry.ready;
+  entry.progress.ready = true;
+  await new Promise((r) => setImmediate(r)); // let queued requests in between renders
+  return renderTileRGBA((wx, wy) => worldColorComposedAt(entry.world, seed, captureOn, wx, wy), z, x, y);
+}
+const tiles = new TileService({
+  root: path.join(repoRoot, "mapgen/out/tile-cache"),
+  rev: TILE_REV,
+  renderDirect,
+  gridW: WORLD_CHUNKS_W,
+  gridH: WORLD_CHUNKS_H,
+  log: (m) => console.log(m),
+});
+{
+  const gone = tiles.pruneOldRevisions();
+  if (gone.length) console.log(`[genmap] tile cache: removed ${gone.length} stale revision dir(s)`);
 }
 
 process.on("uncaughtException", (e) => console.error("[genmap] uncaught:", e));
@@ -222,31 +189,9 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(404).end("bad tile coords");
         return;
       }
-      // the tile memory cache (dig: the scroll UX — re-scrolling a visited
-      // area served from the RAM instead of the per-request re-render;
-      // LRU-capped at 512 tiles; cleared on /gen/clear via the epoch change
-      // (the epoch rides the viewer's tile urls)).
       const cParam = url.searchParams.get("c");
       const captureOn = cParam != null ? cParam !== "0" : CAPTURE_DEFAULT;
-      const tkey = `${seed}/${z}/${x}/${y}${captureOn ? "" : "/nc"}`;
-      const cached = tileCache.get(tkey);
-      if (cached && cached.epoch === cacheEpoch) {
-        res.writeHead(200, { "Content-Type": "image/png", "Cache-Control": "public, max-age=31536000, immutable" });
-        res.end(cached.buf);
-        return;
-      }
-      const entry = getWorld(seed);
-      if (!entry.progress.ready) await entry.ready;
-      entry.progress.ready = true;
-      const png = renderTile(entry.world, z, x, y, seed, captureOn);
-      tileCache.set(tkey, { buf: png, epoch: cacheEpoch });
-      if (tileCache.size > 512) {
-        // cheap eviction: drop the oldest inserted keys
-        for (const k of tileCache.keys()) {
-          tileCache.delete(k);
-          if (tileCache.size <= 384) break;
-        }
-      }
+      const png = await tiles.png(seed, z, x, y, captureOn);
       res.writeHead(200, { "Content-Type": "image/png", "Cache-Control": "public, max-age=31536000, immutable" });
       res.end(png);
       return;
@@ -255,7 +200,7 @@ const server = http.createServer(async (req, res) => {
       const seed = Number(m[1]) >>> 0;
       const entry = getWorld(seed);
       res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-cache" });
-      res.end(JSON.stringify({ ready: entry.progress.done >= entry.progress.total, epoch: cacheEpoch, capture: CAPTURE_DEFAULT && seed === CAPTURE_SEED, ...entry.progress }));
+      res.end(JSON.stringify({ ready: entry.progress.done >= entry.progress.total, epoch: epochNow(), capture: CAPTURE_DEFAULT && seed === CAPTURE_SEED, ...entry.progress }));
       return;
     }
     if ((m = url.pathname.match(/^\/gen\/clear(?:\/(-?\d+))?$/))) {
@@ -267,12 +212,13 @@ const server = http.createServer(async (req, res) => {
       const removed = clearGenCache({ seed });
       if (seed === null) worlds.clear();
       else worlds.delete(seed);
-      cacheEpoch++;
+      tiles.clear(seed);
+      clears++;
       console.log(
-        `[genmap] cache cleared (seed ${seed ?? "ALL"}, epoch ${cacheEpoch}, ${removed.length} seed dir(s) removed)${wasGenerating ? " — was mid-generation" : ""}`
+        `[genmap] cache cleared (seed ${seed ?? "ALL"}, epoch ${epochNow()}, ${removed.length} seed dir(s) removed)${wasGenerating ? " — was mid-generation" : ""}`
       );
       res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
-      res.end(JSON.stringify({ cleared: true, seed, epoch: cacheEpoch, removed: removed.length, wasGenerating }));
+      res.end(JSON.stringify({ cleared: true, seed, epoch: epochNow(), removed: removed.length, wasGenerating }));
       return;
     }
     if ((m = url.pathname.match(/^\/gen\/zones\/(-?\d+)$/))) {
