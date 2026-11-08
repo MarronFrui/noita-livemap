@@ -72,9 +72,7 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   anchor; use it to align/validate the heaven band.
 
 ### 3. The Work — hell (bottom extension band)
-- [ ] **I5. Lava band must be PURE lava** (HIGH): our render shows
-  lava/rock mixtures in the sea band; the ref shows solid orange. Fix the
-  lava-sea predicate (currently `y+512 <= 14600`, (A)).
+- [x] **I5. Lava band must be PURE lava** — CLOSED 2026-11-08: lava.xml = one `lava` MaterialComponent [−100,100], limit_y 0 ⇒ pure lava at every row, coloured by C185 ((255,96,0) flat); the invented `y+512 <= 14600` dark-matrix cutoff + 3-shade mix removed (`renderLavaFill`). E1, seed 78633191, rows 40–46 (95 lava chunks): mean |gen−capture| lava share 0.0043, max < 0.03 (was ≈0.99 at rows 42–46). Pin: `tests/mapgen/lava-band.test.mjs`. Residual: lava_90percent's rock_hard_border band (~2.3%) = A8.
 - [ ] **I6. Walls must be sinusoidal, not straight** (HIGH): the game's
   solid walls/hell-rock matrix follow noise (perlin displacement); our
   fills are flat per-chunk rectangles (A). Also user note: solid-rock walls

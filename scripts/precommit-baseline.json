@@ -1,7 +1,7 @@
 {
-  "comment": "the I36 count law's reference (dig #156, scripts/precommit-gates-lib.mjs): the full battery must report EXACTLY these vitest summary totals at every gated commit \u2014 any deficit = the silent-truncation class, refused with one retry allowed. Updated per dig when the committed test set changes (the dig's own battery run is the source).",
-  "filesTotal": 33,
-  "testsTotal": 445,
+  "comment": "the I36 count law's reference (dig #156, scripts/precommit-gates-lib.mjs): the full battery must report EXACTLY these vitest summary totals at every gated commit — any deficit = the silent-truncation class, refused with one retry allowed. Updated per dig when the committed test set changes (the dig's own battery run is the source).",
+  "filesTotal": 34,
+  "testsTotal": 448,
   "testsSkipped": 4,
-  "source": "npm test at dig #213 (2026-11-08): 33 files / 441 passed | 4 skipped (445). The +7 over dig #212 = the cell colour law pins (5 in tests/mapgen/colorize.test.mjs + 2 data-gated in tests/mapgen/world-gen.test.mjs). Skip set unchanged (4)."
+  "source": "npm test 2026-11-08 (I5 lava-band fix): 34 files / 444 passed | 4 skipped (448). The +3 over dig #213 = the lava-band pins (tests/mapgen/lava-band.test.mjs). Skip set unchanged (4)."
 }

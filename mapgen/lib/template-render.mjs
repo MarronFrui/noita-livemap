@@ -16,7 +16,7 @@
 // (blitSplicedScenes' grey branch).
 
 import { readPng, rgbToRgbaInt } from "./images.mjs";
-import { SHADES, MATERIAL_SHADE, pick, loadMaterials } from "./colorize.mjs";
+import { SHADES, MATERIAL_SHADE, pick, loadMaterials, materialColorAt } from "./colorize.mjs";
 import { seededPrng } from "./wang-js.mjs";
 import { biomeAt } from "./biomes.mjs"; // the OWNERSHIP GATE source (dig 52)
 import { surfaceFillLane, surfaceFillAt } from "./noise-terrain.mjs"; // dig #172: the driver fill lane
@@ -557,7 +557,7 @@ export function renderTemplateWorld(dataDir, config, seed) {
       }
     }
   }
-  renderWorldExtension(buffers, config, seed);
+  renderWorldExtension(buffers, dataDir, config, seed);
   blitSplicedScenes(buffers, dataDir, config, seed);
   blitFixedScenes(buffers, dataDir);
   // dig #134 (I32 p2c, the ART-CRUST for the WANG biomes): the generic
@@ -616,7 +616,7 @@ const DEEP_ROCK = [
   { rgb: [37, 21, 17], w: 6 }, { rgb: [55, 34, 29], w: 3 }, { rgb: [64, 35, 28], w: 2 }, { rgb: [98, 59, 50], w: 1 },
 ];
 
-function renderWorldExtension(buffers, config, seed) {
+function renderWorldExtension(buffers, dataDir, config, seed) {
   const { vmap, V_OFF_Y, biomes } = config;
   for (let vy = 0; vy < vmap.height; vy++) {
     const ty = vy - V_OFF_Y;
@@ -630,7 +630,7 @@ function renderWorldExtension(buffers, config, seed) {
       const cx = vx - 35; // canvas chunk x (-35..35)
       const wx = cx * 512, wy = (ty - 14) * 512;
       if (/lava\.xml$/.test(file)) {
-        if (ty >= 48) fillChunk(buffers, wx, wy, seed, LAVA_SHADES.sea);
+        if (ty >= 48) renderLavaFill(buffers, dataDir, wx, wy);
       } else if (isTowerFile(file)) {
         fillChunk(buffers, wx, wy, seed, STRIP);
       } else if (isWallFile(file)) {
@@ -744,9 +744,8 @@ export function renderTemplateChunk(buffers, dataDir, file, def, x, y, seed) {
   } else if (VOID_FILES.test(file)) {
     return; // void/sky — renders black like the reference stitch
   } else if (def.name === "lava" || file === "lava_90percent.xml") {
-    // The Work's lava: orange sea above world y≈14600 (rows ≤42), dark
-    // hell-rock matrix below (stitch-calibrated; noise-pocket detail open).
-    renderLavaFill(buffers, x, y, seed);
+    // The Work's lava sea: pure lava at every row (see renderLavaFill).
+    renderLavaFill(buffers, dataDir, x, y);
   } else if (isWallFile(file)) {
     // solid_wall border/filler columns: dark hell-rock matrix + edge strips
     // (hosted-ref calibrated: (37,21,17)/(55,34,29) family)
@@ -771,34 +770,25 @@ export function renderTemplateChunk(buffers, dataDir, file, def, x, y, seed) {
   }
 }
 
-function renderLavaFill(buffers, x, y, seed) {
+// The lava biome = ONE MaterialComponent `lava` over [−100, 100], limit_y 0
+// (data/biome/lava.xml) ⇒ every cell is lava at EVERY row; its colour = the
+// C185 cell colour law (`lava` has no <Graphics> ⇒ wang_color ffff6000 =
+// (255,96,0) flat). Measured (E1, seed 78633191, the capture's rows 42–46):
+// all 54 lava.xml chunks = 1.0000 (255,96,0) — the old `y+512 <= 14600`
+// sea cutoff painted them as a dark-rock matrix (lava share ≈ 0.006).
+// lava_90percent rides the same fill: its rock_hard_border polygon band
+// (~2.3% of the chunk, A8) stays unpainted.
+function renderLavaFill(buffers, dataDir, x, y) {
   const [cx, cy] = canvasChunk(x, y);
   const buf = chunkBuffer(buffers, cx, cy);
-  const chunkSalt = (Math.imul(cx, 0x9e3779b1) ^ Math.imul(cy, 0x85ebca6b) ^ (seed | 0)) | 0;
-  const sea = y + 512 <= 14600; // whole chunk in the orange sea band
   for (let j = 0; j < 512; j++) {
-    const wy = y + j;
     for (let i = 0; i < 512; i++) {
-      let c;
-      if (sea) {
-        c = pick(LAVA_SHADES.sea, i, j, chunkSalt);
-      } else {
-        const n = fbm2(x + i, wy, chunkSalt);
-        c = n < 0.14 ? pick(LAVA_SHADES.pocket, i, j, chunkSalt)
-          : n < 0.26 ? [4, 0, 0]
-          : pick(LAVA_SHADES.dark, i, j, chunkSalt);
-      }
+      const c = materialColorAt(dataDir, "lava", x + i, y + j);
       const o = 3 * (j * 512 + i);
       buf[o] = c[0]; buf[o + 1] = c[1]; buf[o + 2] = c[2];
     }
   }
 }
-
-const LAVA_SHADES = {
-  sea: [{ rgb: [255, 96, 0], w: 6 }, { rgb: [240, 88, 0], w: 3 }, { rgb: [224, 80, 0], w: 2 }],
-  pocket: [{ rgb: [255, 96, 0], w: 6 }, { rgb: [240, 88, 0], w: 3 }],
-  dark: [{ rgb: [37, 21, 17], w: 6 }, { rgb: [55, 34, 29], w: 3 }, { rgb: [20, 10, 10], w: 2 }, { rgb: [29, 16, 16], w: 2 }],
-};
 
 // --- procedural material fills (BIOME_PROCEDURAL banded materials) ---------
 // Full-range bands (-100..) render flat; narrow bands sample on world-seeded
