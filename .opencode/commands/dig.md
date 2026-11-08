@@ -35,12 +35,13 @@ dig and report why instead of improvising (rules = AGENTS.md charter):
    skipped); C97 v2 bit-identical unless the default render observably
    changed (cache rev review then). Report deltas vs the registry
    baselines — never vs chat memory.
-7. Docs, same commit (in place, marked OVERTURNED): ABOUT_MATH §6 entry
+7. Docs, same commit (amend in place; a superseded line is DELETED, not
+   annotated — AGENTS.md Synthesis law): ABOUT_MATH §6 entry
    (dated), CONSTANTS, ISSUES (§A rows if touched + open/close),
-   VERIFIED (§8 elimination row if a canon claim died + §12 if §12
-   status changed), the method charter (AGENTS.md) if the dig exposed
+   VERIFIED (§8 elimination row if a canon claim died + §12's state if
+   it changed), the method charter (AGENTS.md) if the dig exposed
    a process failure.
 8. Commit `dig #N: <one-line finding>`, tree ends clean, and refresh
    `SESSION_CONTEXT.md` (the loader) before finishing. Report: the
    finding, deltas, D-rows remaining on the touched lanes, and the next
-   queue item per VERIFIED §9 / Current_work's queue.
+   queue item per VERIFIED §9.

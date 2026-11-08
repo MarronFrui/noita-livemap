@@ -130,7 +130,7 @@ The byte side of every dig reads `noita_dev.exe` through the REA MCP server
 | `vendor/noitamap/` | Git submodule (fork of acidflow-noita/noitamap) |
 | `vendor/noita-tools/` | Git submodule (TwoAbove/noita-tools) — **OBSOLETE reference**: legacy data/wasm container only; never a comparison target (see `mapgen/VERIFIED.md`) |
 | `ROADMAP.md` | Phased plan (Phases 0–5) |
-| `SESSION_CONTEXT.md` | **The session context loader** (gitignored by design) — read at session start; also `Current_work.md` (gitignored live P1 task tracker) |
+| `SESSION_CONTEXT.md` | **The session context loader** (gitignored by design) — read at session start |
 
 ## Campaign method charter
 

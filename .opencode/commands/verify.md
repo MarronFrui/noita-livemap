@@ -23,8 +23,8 @@ Run the gate battery in this order and report each result explicitly
      numbers in the newest ABOUT_MATH entry — do not trust any
      summary's numbers; grep the file.
 3. Registry cross-check (grep): next-free slots are consistent across
-   all four registries; no unresolved OVERTURNED claim without a
-   correcting pointer.
+   all four registries; no superseded claim left standing beside its
+   correction (Synthesis law: the false line is deleted).
 
 Report: a table of gates, each green/red/changed, and whether the
 current work is committable.

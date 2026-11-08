@@ -13,12 +13,10 @@ Cheap facts first:
 
 Then, using the shell tool yourself (not injected):
 - last three dig commits' themes (git log),
-- the top three items of VERIFIED §9 / the Current_work P1 queue and
-  which
-  one is next,
+- the top three items of VERIFIED §9 and which one is next,
 - C97 latest baselines from the newest ABOUT_MATH entry (grep the tail),
 - anything whose only support is `SESSION_CONTEXT.md` (the gitignored
-  context loader — a pointer file, never a source) or `Current_work.md`
+  context loader — a pointer file, never a source)
   — flag it for re-derivation or migration into the registries.
 
 End with: the next dig's target AND the single question it answers.

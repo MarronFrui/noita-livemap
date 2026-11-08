@@ -63,7 +63,7 @@ Then open `http://localhost:5173/` in your browser.
 ├── scripts/             # Build helpers
 ├── src/                 # Vite frontend
 ├── vendor/noitamap/     # Forked noitamap submodule
-├── vendor/noita-tools/  # noitool submodule (PRNG + map-gen recon)
+├── vendor/noita-tools/  # noitool submodule — OBSOLETE reference (legacy data/wasm container only)
 └── ROADMAP.md           # Planned features and open questions
 ```
 
