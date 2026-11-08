@@ -12,7 +12,7 @@ status. This is the shared map of the rabbit hole — update it as we learn.
 > **Read order note (2026-09-08):** the distilled, current-only truth —
 > verified facts, eliminated-don't-retest rows, open frontier — lives in
 > `mapgen/VERIFIED.md`. This file is the research journal: new results land
-> here first (§6 evidence log is append-only), and settled conclusions are
+> here first (§6 evidence log; current state only — AGENTS.md Synthesis law), and settled conclusions are
 > distilled into `VERIFIED.md`. Where the two disagree, re-check the cited
 > sources; the newer evidence wins and both get fixed.
 

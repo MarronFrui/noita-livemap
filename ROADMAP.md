@@ -77,8 +77,8 @@ Default write path:
 - [x] Spliced pixel-scene blits (`template-render.mjs`): tree, mountains,
       boss arenas, moon/dark-moon, HM-band art — validated pixel-shape-exact
       vs capture.
-- [x] Test battery: vitest in `tests/` (13 files / 142 tests, 2026-09-18;
-      data-dependent suites auto-skip).
+- [x] Test battery: vitest in `tests/` (totals pinned in
+      `scripts/precommit-baseline.json`; data-dependent suites auto-skip).
 - [x] Issue registry phase ("purification"): all known defects enumerated as
       I1–I17 in `mapgen/ISSUES.md` with per-issue status; governance rules:
       binary-derived constants must be registered in `mapgen/CONSTANTS.md`
@@ -237,7 +237,7 @@ colors — and what seeds the fill**. Resolution (evidence: `mapgen/VERIFIED.md`
 - [~] Cross-run same-seed noise floor: foreground overlap 99.6%+ / flat-region
   RMS 0.16/255 measured from tile overlaps; dedicated recapture optional.
 
-### Phase 0.7 — Wang-model iteration ladder (current focus, 2026-09-04 →)
+### Phase 0.7 — Wang-model iteration ladder
 
 1. **L0 determinism gate** — ✅ `npm test` goldens; gen twice = byte-identical.
 2. **L1 spawn equations (decisive judge)** — ✅ **PASSED for direct triggers**
@@ -251,9 +251,9 @@ colors — and what seeds the fill**. Resolution (evidence: `mapgen/VERIFIED.md`
    masks from mapcap); pending F2 completion + anchor closure.
 
 Accept a knob only if L1 holds and L3 improves; else revert + log to the
-mismatch DB. Current work ordering follows the dependency-ranked frontier in
-`mapgen/VERIFIED.md` §11 (F-anchor → F2 → F4 → F3; details in Phase 2
-below).
+mismatch DB. The current work order lives in `mapgen/ISSUES.md` §0 and
+`mapgen/VERIFIED.md` §9 — since 2026-10 the surface band is the only
+objective (user mandate).
 
 ### Phase 1 — Map Generation Engine
 
@@ -279,7 +279,7 @@ below).
 ### Phase 2 — Reverse-Engineering Loop
 
 Current authority documents: `mapgen/VERIFIED.md` (canon + lifecycle §11 +
-ranked frontier), `mapgen/ISSUES.md` (I1–I17 defect registry),
+ranked frontier), `mapgen/ISSUES.md` (defect + §A debt registry),
 `mapgen/ghidra-ledger.md` (binary dig history), `mapgen/CONSTANTS.md`
 (constant registry — the standing rule: register before use).
 
@@ -299,12 +299,6 @@ ranked frontier), `mapgen/ISSUES.md` (I1–I17 defect registry),
 - [ ] Mismatch database — scores land in `mapgen/out/stats.json` +
       `mapgen/out/report.html` (bench) and mapcap reports; a persistent
       DB is still pending (embryonic).
-- [ ] Focus areas (superseded by the frontier order in `VERIFIED.md` §11,
-      2026-09-18): (1) F-anchor — read FUN_008e6d50 / values-write walk;
-      (2) F2 remainder — exact finalize semantics; (3) F4 — engine debug
-      flags (potential in-game wang-only ground truth); (4) F3 — poro
-      perlin noise terrain (unblocks I1/I3/I5/I6). Terrain-dependent
-      spawns remain deprioritized (not needed for visual terrain).
 
 ### Phase 3 — Livemap Integration
 

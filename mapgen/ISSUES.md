@@ -37,28 +37,11 @@
 
 ## Issue registry
 
-### 0. Priorities (2026-10-21 synthesis — the 2026-09-20 P-list retired)
-> The single ranked work list lives in `VERIFIED.md` §9 (shape-lane
-> rerank, digs #150–155). This section no longer duplicates it.
-
-Current front, in order:
-1. **Surface band shape** (the ONLY user mandate): the mask’s air must
-   match the capture’s contiguous silhouette — ours = the caves field’s
-   scattered ≤0.5 pockets (I47). Lever = the byte plane (I38 / A9); the
-   capture’s family bars at (39,62) = the E1 acceptance meter.
-2. **Deep-band soil/rock writer** (I45 — the 74,529-px lever): capture
-   rows 320–511 = soil/rock over our uniform sand; both formerly-named
-   writers eliminated; writer unidentified.
-3. **Splice-scene floor** (I39) + **blitScene config threading** (I43).
-4. The Work bands (I3/I5/I6) + the P-band liquid/edge work stay queued
-   behind the surface band (main world first; parallel worlds parked,
-   I16).
-
-The 2026-09-20 P1–P5 ranking (which carried two different `[P5]`
-items) and its “read-entry cross-links” are retired — superseded by
-digs #115–#177 (ABOUT_MATH §6) and folded into the entries below. Git
-history (pre-2026-10-21) keeps the original text.
-
+### 0. Priorities
+> The single ranked work list lives in `VERIFIED.md` §9 — this section does
+> not duplicate it. Standing order (user mandate): the surface band first;
+> everything below it (I45, I39/I43, The Work I3/I5/I6) queues behind it;
+> parallel worlds parked (I16).
 
 Legend: [ ] open · [x] fixed · (A) = approximation to replace by
 reconstruction · priority HIGH/MED/LOW, user-weighted.
@@ -568,7 +551,7 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
 - [ ] **I43. blitScene's 10 CALL SITES KEEP THE SEEDED-fBm FILL (the A5 residual): the driver law (C146) is wired into `blitSplicedScenes`' grey branch only; `blitScene` (the per-chunk template lane's grey/white placeholder fill) still runs the seeded-fBm approximation because threading `config` through blitScene's signature reaches its 10 call sites in template-render.mjs.** Fix = thread `config` (plus the lane cache) into blitScene and route its grey branch through `surfaceFillLane`/`surfaceFillAt`, same as the splice lane; count-test with the same L0/L1/L2 shape on a blitScene-hosted tile. Sources: entry (172); C146; A5 |
 - [ ] **I44. THE CLASS-Y RECORD PALETTE'S BUILDER + THE LEAF WRITERS - (a) CLOSED AT PARSE LEVEL dig #176, (b) NARROWED - THE RESIDUALS NOW OPEN:** (a) **the class question RESOLVED (dig #176, C150(1)(2)): the 224-stride record = `<VegetationComponent>`'s record.** The fill-source's head f32s (`[+0x0c] rand_seed` / `[+0x10] tree_width` / `[+0x14]/[+0x18]` radius-low/high / `[+0x1c] tree_probability`, C148(1)) are the record's OWN attr slots - byte-pinned from its attr applier 0x785f80's full window (X163: the 28 slot stores incl. the previously-uncaptured 3rd bool `is_grass` +0x06, the four string leas +0x28/+0x40/+0x58/+0x70, `material_on_top_of` +0xac → the string size at +0x80; the family = 7 chain copies, invoked indirectly through the 17-entry vtable 0x118b14c, X170). The two-vector law stands (the 224-stride vector at `[this+0x14]`, X150) and the (174)/(175) comp-attr-pass-through elimination stands - but the class gap is CLOSED: WHO builds the records = the VegetationComponent chain family, and the five head slots are plant params, not geometry/material inputs. **Residual (a):** the walker/parse loop that indexes the vtable + the record's insertion into `[mBiomeMaterials+0x14]` (zero direct `call 0x957b00`, X170); and the `tree_material` string → `[+0xd4]` id resolve (mountain_lake's 2 records carry NO `tree_material_id` attr). (b) **the leaf writers - the DISPATCH + visual + leafA READ fresh dig #176 (C150(3)(4)):** the dispatch 0x8f75c0 full window (X164) - the `[rec+0xd4]<0` guard logging the +0x58 `tree_material` string, the `[rec+0x80]` size test → the offset-subtract redirect to 0x58e530, the [+0x4]/[+0x5] arm select → 0x8f5eb0 / 0x8f6520 / 0x8f6d30 - and both read arms take ONLY `[rec+0xd4]` as the material id (method8 `*0x20` @0x8f60f1, method9 `*0x24` @0x8f6b3e; X165/X166). **Residual (b):** leafB 0x8f6d30's write mechanism (0 `0xd4` displacements, one `call 0xd15bd0`, X167), 0x58e530's semantics, and the method8/9 bodies - all unread. Reads (a)+(b) = the port dig's next extractions; **the port's acceptance bar re-aimed dig #176: this lane is judged by its vegetation write in the SURFACE band - the deep-band census shares are now I45's bar (P3 falsified, §8 row 60).** Sources: entry (174); entry (175); entry (176); C148; C149; C150; X150–X170; I42; I45; I39(a2) |
 - [ ] **I45. THE DEEP-BAND SOIL/ROCK WRITER - UNIDENTIFIED (the dig-#176 P3 falsification's re-aim; the 74,529-px lever):** capture's rows 320–511 at the mountain_lake anchor show soil→rock mixed over our uniform sand, and both formerly-named writers are eliminated - (i) the grey-fill driver classify (C146's window law: sand_static's `[0.53,0.95)` has NO y-gate → the driver returns SAND at rows 320–511, §8 row 59(a)) and (ii) the record-stamp/vegetation chain (dig #176 byte close: the chain's only material input = `[rec+0xd4]` tree_material_id ∈ {moss, grass} at the anchor, C150 - the census instrument's pre-registered line `P3 capture 320+ soil/rock vs our sand = the I44 residual` = FALSIFIED, §8 row 60). **The data-side second-writer proof STANDS (§8 row 59(c)): one uniform art grey → three capture families → a per-cell, LCG-gated writer - but whose material resolution is unread.** METER-CLASS: E1 (artifact `mapgen/out/dig173-fill-census.json`; repro `SURFACE_V3=1 node mapgen/experiments/2026-10-19-dig173-fill-census.mjs`; seed 78633191, tile 40_14, grey mask 104002 px; shares = fraction of the band's mask px, 0..1): 320–383 = 31621 px cap soil 0.8052/rock 0.1025/sand 0.0924 vs newFill sand 1.000; 384–447 = 30109 px soil 0.4848/rock 0.4179/sand 0.0958 (+ coal 0.0008, fallbackSolid 0.0007) vs 1.000; 448–511 = 12799 px rock 0.5216/soil 0.3815/sand 0.0969 vs 1.000 (the three bands sum 74529 px). **Open candidates (three):** (i) the VALUE FIELD - v's deep-row distribution (measured v = 0.54165 at row 320 → 0.63119 at row 511, dig #173) against the classify windows; (ii) the CLASSIFY-COMP windows/y-gates at fill time (mountain_lake's soil comp `limit_y=1`, y∈[−1024,424.229], straddles band 384–447); (iii) the per-cell ART-PLANE second writer (the LCG-gated stamp of §8 row 59(c), distinct from the VegetationComponent lane). **Reads = the field/classify-comp/art-plane attribution dig; acceptance = the three bands' cap shares above (E1) landing on newFill. Queued for the next dig's E1 compass decision: this attribution read vs the I44 vegetation port (the surface-band mandate ranks the port higher; the port needs I44 residuals pinned first).** Sources: entry (176); entry (173); C146; C147; C150; §8 rows 59/60; I42; I44 |
-- [ ] **I46. THE VIEWER'S EPOCH POLL STOPPED AT `ready` (diagnosed + FIXED 2026-10-20, the "floating lava / edges removed" report):** `pollStatus()` in `public/genmap.html` re-polled `/gen/status` only while `!s.ready` — with the page open across a server restart the new epoch was never adopted, so the browser's year-immutable tile URLs (`Cache-Control: public, max-age=31536000`, `?e=` unchanged) kept serving the PRE-restart renders for previously-viewed tiles. Measured mechanism (this session): the no-flag default config (no `SURFACE_V3=1`) renders tile 40/63 at 179,350/262,144 void px and 39/62 at 238,768 px void (91% = the detached fill band = the "floating lava" image), while the V3 server's 143-tile sweep (tx 35–45 × ty 62–74, z0 + z1/z2 samples) shows ZERO underground air holes — the stale tiles showed the old flag-less render beside fresh tiles from the improved pool (the mixed view). **FIXED same-session:** the poll keeps running at a 5 s cadence once ready (epoch adoption drops the tile cache + re-fetches on change). Repro: hold a rendered page, restart the server, compare the `/gen/status` epoch vs the `?e=` in the network tile URLs. Sources: this session's flag A/B (ports 8082/8083/8084) + the sweep instrument `mapgen/experiments/2026-10-20-underground-hole-sweep.mjs` (143 tiles, NONE over the air threshold); fix = `public/genmap.html` pollStatus |
+- [x] **I46. The viewer's epoch poll stopped at `ready`** — FIXED 2026-10-20 (`public/genmap.html` pollStatus keeps a 5 s poll once ready; commit `8725cab`).
 
 - [ ] **I47. THE SURFACE-BAND SHAPE — RE-FRAMED dig #205 (C178): the band's lane = the TOPOLOGY evaluator (the surfaceField — the mGradient heightmap / the topology images), NOT the caves field (§8 row 75). The hills = WORKING under the lane (0.724 raw, dyOpt 0, the honest solidity); the fix list = I50 (the winter's surfaceField, the lake's image decode); the product flip (the V2 = the surface band's lane) = after the fixes. The caves system = the underground (the user's working caves); the stamps = the cave entrances (the caves' decorations); the pixel-scene machinery = the structure drawer (105 Lua LoadPixelScene callers)** | the I50 fixes; then the product flip + the SURFACE_V2 default | the surface band | digs #201–#205 |
 - [ ] **I48. THE WINTER-FAMILY C97 DECLINE — RE-FRAMED dig #205: the winter's collapse (0.104) = the TOPOLOGY lane's broken sub-lane (the winter's surfaceField = near-all-air — the winter's band-ramp/driver params = the read, I50a); the caves-lane winter numbers (0.71–0.72) = the UNDERGROUND's business now. The G-frame/engine history = the caves-lane era's record** | the winter's Topology params read (I50a) | the surface band | digs #196–#205 |
@@ -664,6 +647,7 @@ route #183 queued, isolated A11's lever to the field's missing NEGATIVE
 region, and DELETED entry (183)'s non-existent dispatch. Sixth consecutive
 8→8; scope **RE-OPENED as dig #185**.
 No other row's lane is touched.
+
 ## Notes (2026-11-03)
 
 **Noise vs topology (recorded so it is not re-litigated):** the surfaceField

@@ -231,14 +231,16 @@ rules, with the incident that motivates each in one line:
   session**. Never carry numbers from chat memory, prior-session summaries, or
   handovers into work or docs — re-check first.
 - Map-gen documentation is **two-layered**:
-  - `mapgen/ABOUT_MATH.md` §6 is the append-only evidence log — new research
-    results (including eliminations and open hypotheses) land there first,
-    with a status tag.
+  - `mapgen/ABOUT_MATH.md` §6 is the evidence log — new research results
+    (including eliminations and open hypotheses) land there first, with a
+    status tag. Like every registry it follows the Synthesis law (above):
+    superseded text is removed, git history is the archive.
   - `mapgen/VERIFIED.md` is the distilled canon — verified truths,
     eliminated-don't-retest rows, and the ranked open frontier. When a result
     from the evidence log settles, distill it into `VERIFIED.md` (with its
-    source pointer); when new evidence overturns a canon row, move it to the
-    elimination table instead of deleting it. Feed session context from
+    source pointer); when new evidence overturns a canon row, the false claim
+    leaves the canon and becomes ONE §8 do-not-retest row (no struck-through
+    ghost left behind). Feed session context from
     `VERIFIED.md`; read `ABOUT_MATH.md`/`ghidra-ledger.md` only for the
     history of a specific claim.
 

@@ -103,19 +103,12 @@ button (`?c=1` / `?c=0` on tile URLs; the layer only fires at the captured
 seed either way). It is a display layer, not a generator: the lib lanes
 and the bench instruments always read the raw generator.
 
-### experiments/ (dated one-offs, with conclusions)
+### experiments/ (dated one-offs)
 
-| File | Question | Result |
-| ---- | -------- | ------ |
-| `2026-09-03-fit-transform.mjs` | Does a global shift/flip align gen vs capture? | No — inconsistent per-chunk shifts, zero flip votes |
-| `2026-09-03-anchor-sweep.mjs` | Does any crop anchor/phase fix it? | No — 58.3–59.7%, baseline everywhere |
-| `2026-09-03-verify-vs-noitool.mjs` | Does our wasm usage reproduce noitool exactly? | **Yes** (28/28 comparable fixtures, RGB-identical) — consistency check vs noitool, not vs the game |
-| `2026-09-03-port-validation.mjs` | Does our JS builder port match the wasm? Does position-seeded coloring help? | ~39% (hasPath re-rolls expected); positional naive test: no signal |
-| `2026-09-03-positional-sweep.mjs` | Sweep positional vertex-coloring call shapes/anchors vs capture | Flat 49–52% — hypothesis not confirmed |
-| `2026-09-03-wang-gen-template-diff.mjs` | Does our atlas walk match Nolla's official template generator? | **Yes** — dims, header bytes, 72h+72v enumeration identical; `wang_gen.exe` is template-side only (no fill); found+fixed missing variants loop in our port |
-| `2026-09-03-lua-oracle-crosscheck.mjs` | Does our JS RNG reconstruction match the running game? | **Yes — 100.00% across 4 seeds / 2.1M draws** after fixing a signedness bug (`helper2` missing `>>> 0`); probe mod: `mods/noita-livemap-rng-probe/` |
-| `2026-09-03-fill-sweep.mjs` | Is the wang fill per-vertex position-seeded? (same-seed oracle + capture) | **No** — 1,154 hypotheses (encodings × anchors), all below the noise floor; per-vertex seeding eliminated; next: per-chunk sequential fills (probe v4) |
-| `2026-09-04-chunk-fill-sweep.mjs` | Is the fill sequential per chunk, seeded at its origin? (v4 streams) | **No** — 8 variants, 49.5–52.2%, below noise floor; anchors validated 100%. Caveat: capture paint-layers may mask even a correct fill → spawn-equations (paint-immune) become the primary judge |
+`YYYY-MM-DD-<what-it-tests>.mjs` (plus `digNNN-*` instruments). Each one's
+question and conclusion live in its `ABOUT_MATH.md` §6 entry — this README
+does not duplicate them. The current surface-band instruments are named in
+the newest §6 entry and in `VERIFIED.md` §12.
 
 ### tools
 
@@ -160,24 +153,13 @@ on the repo disk (gitignored); the game disk only holds the small CSVs.
 
 ### tests/ (repo root, vitest)
 
-| File | Purpose |
-| ---- | ------- |
-| `tests/mapgen/prng.test.mjs` | NollaPrng contract + pinned vectors (game-verified port), seededPrng signedness-fix regression |
-| `tests/mapgen/wang-fill.test.mjs` | Template walk + herringbone fill on synthetic atlases; coalmine counts (s=13, 72h+72v) |
-| `tests/mapgen/golden.test.mjs` | L0 determinism + wasm/wang-js golden snapshots (migrated `mapgen/test/bench.test.mjs`) |
-| `tests/mapgen/has-path.test.mjs` | hasPath oracle-port contracts; coalmine-hax constants are live (0x006400/0x000064); marker table |
-| `tests/mapgen/world-gen.test.mjs` | 71x144 canvas, area/chunk grid mapping, per-area .bin cache format, ensureWorld from gen-cache |
-| `tests/mapgen/colorize.test.mjs` | Display pass contracts + **I8** lake_deep water regression |
-| `tests/mapgen/biomes.test.mjs` | Biome config invariants (70x48 map, clamping, flags, def shape) |
-| `tests/mapgen/coords.test.mjs` | Coordinate constants + biome-px↔chunk math |
-| `tests/mapgen/api-surface.test.mjs` | Every public export of every lib module pinned by type/arity/constant |
-| `tests/mapgen/map-format.test.mjs` | `lib/map-format.mjs` JSON spec — serialize/validate round-trip + diagnostics |
-| `tests/mapcap/artifacts.test.mjs` | manifest.json / analysis.json / chunks/ output spec of analyzed captures |
-| `tests/bridge/telemetry-format.test.mjs` | Telemetry JSON contract (Lua mod ↔ bridge ↔ frontend) |
-
-Data-dependent suites skip automatically when the extracted game data (or the
-corresponding artifacts) are absent. `node mapgen/update-golden.mjs --force`
-re-blesses the golden snapshots.
+`npm test` runs the whole battery in `tests/` (`tests/mapgen/`,
+`tests/mapcap/`, `tests/bridge/`, plus the gate-lib and dig-specific suites at
+`tests/*.test.mjs`). The expected totals are pinned in
+`scripts/precommit-baseline.json` (the pre-commit gate refuses a run that
+does not match them). Data-dependent suites skip automatically when the
+extracted game data (or the corresponding artifacts) are absent.
+`node mapgen/update-golden.mjs --force` re-blesses the golden snapshots.
 
 ### out/ (gitignored)
 
@@ -187,10 +169,3 @@ re-blesses the golden snapshots.
 | `cache/tiles/` | downloaded capture tiles (offline after first run) |
 | `report.html`, `stats.json` | comparison report |
 | `golden.json` | golden hash snapshot for the regression test |
-
-## Status (2026-09-03)
-
-Atlas format decoded, fill algorithm understood, PRNG exact — but **no tested
-coloring method reproduces the game yet**, and the capture-vs-wang comparison
-is confounded by non-wang layers (walls/scenes/edges ≈ +24% density).
-Current priorities live in `ABOUT_MATH.md` §7.

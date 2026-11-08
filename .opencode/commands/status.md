@@ -17,9 +17,8 @@ Then, using the shell tool yourself (not injected):
   which
   one is next,
 - C97 latest baselines from the newest ABOUT_MATH entry (grep the tail),
-- anything whose only support is a retired/stale handover file
-  (`SESSION_CONTEXT.md` was deleted 2026-10-12; its archive at
-  `docs/history/` is history-only) — flag it for re-derivation or
-  migration into the registries.
+- anything whose only support is `SESSION_CONTEXT.md` (the gitignored
+  context loader — a pointer file, never a source) or `Current_work.md`
+  — flag it for re-derivation or migration into the registries.
 
 End with: the next dig's target AND the single question it answers.
