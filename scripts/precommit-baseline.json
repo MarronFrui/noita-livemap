@@ -1,7 +1,7 @@
 {
   "comment": "the I36 count law's reference (dig #156, scripts/precommit-gates-lib.mjs): the full battery must report EXACTLY these vitest summary totals at every gated commit — any deficit = the silent-truncation class, refused with one retry allowed. Updated per dig when the committed test set changes (the dig's own battery run is the source).",
-  "filesTotal": 35,
-  "testsTotal": 452,
+  "filesTotal": 36,
+  "testsTotal": 459,
   "testsSkipped": 4,
-  "source": "npm test 2026-11-08 (I52 west-lake fix): 35 files / 448 passed | 4 skipped (452). The +4 over the I5 baseline = the lake-pool pins (tests/mapgen/lake-pool.test.mjs). Skip set unchanged (4)."
+  "source": "npm test 2026-11-08 (dig #215 the Work y-wrap): 36 files / 455 passed | 4 skipped (459). The +7 over the I52 baseline = the Work pins (tests/mapgen/the-work.test.mjs). Skip set unchanged (4)."
 }

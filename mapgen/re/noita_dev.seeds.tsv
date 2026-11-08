@@ -110,3 +110,5 @@
 0x7409b0	function	CellColor_Lookup
 0x740580	function	CellColor_TexturePixel
 0x7364f0	function	CellData_Parse
+0x9fe4e0	function	WangP_GetWrapped
+0x908e70	function	Work_ClassifyValue

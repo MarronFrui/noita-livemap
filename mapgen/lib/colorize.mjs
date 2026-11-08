@@ -286,14 +286,11 @@ const SHADE_OVERRIDES = {
   the_sky: { air: BLACK_AIR },
 };
 
-export function colorizeArea(map, w, h, opts) {
+// Stage 1 of colorizeArea, exported for the Work lane (the-work.mjs needs
+// the RAW atlas after the floods, before the display-shade pass).
+export function applyRandomFloods(map, w, h, opts) {
   const { dataDir, biomeName, biomeFile, seed } = opts;
-  const materials = loadMaterials(dataDir);
   const extras = loadBiomeExtras(dataDir, biomeFile ?? biomeName);
-  // per-biome display overrides (hosted-ref calibrated): the_end renders as
-  // dark hell-rock ((37,21,17) family) with pure-black air, the_sky air black.
-  const ov = SHADE_OVERRIDES[biomeFile ?? biomeName] ?? null;
-
   // 1. random-block floods: c0ffee (engine) + biome-XML RandomColors.
   //    Per contiguous region one 50/50 draw -> air-dark or white (-> fill).
   //    (exact game RNG semantics still open — approximate by choice, not stream)
@@ -336,6 +333,17 @@ export function colorizeArea(map, w, h, opts) {
   };
   scanFloods("c0ffee");
   for (const rc of extras.randomColors) scanFloods(rc.from);
+}
+
+export function colorizeArea(map, w, h, opts) {
+  const { dataDir, biomeName, biomeFile, seed } = opts;
+  const materials = loadMaterials(dataDir);
+  const extras = loadBiomeExtras(dataDir, biomeFile ?? biomeName);
+  // per-biome display overrides (hosted-ref calibrated): the_end renders as
+  // dark hell-rock ((37,21,17) family) with pure-black air, the_sky air black.
+  const ov = SHADE_OVERRIDES[biomeFile ?? biomeName] ?? null;
+
+  applyRandomFloods(map, w, h, opts);
 
   // 2. per-pixel classification -> display shades
   const noiseSalt = Math.imul(seed | 0, 2654435761) ^ 0x9e3779b9;

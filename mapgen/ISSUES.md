@@ -60,10 +60,7 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   render, the noise terrain around/behind it doesn't).
 
 ### 2. The Work — heaven (top extension band)
-- [ ] **I3. Top extension entirely incorrect** (HIGH): we render void + wall
-  columns (A). The real band has its own generation (the_sky wang area +
-  procedural walls + moon spawn). Same reconstruction need as I1 + the_sky
-  atlas art (which we have) with correct finalize.
+- [~] **I3. Top extension entirely incorrect** (HIGH) — AMENDED dig #215: the premise ("the real band has its own generation — the_sky wang area") was wrong (VERIFIED §8 row 79). The Work rows (Heaven AND Hell) re-read the MAIN band's wang image P through its wrap (period 24570 px) and the edge biome (the_sky / the_end) re-classifies P's placeholder cells (C186; `lib/the-work.mjs`). LANDED: the interior layout (E2 sentinel: Heaven 0.496 / Hell 0.415 vs the main band's own 0.387). OPEN: the side walls (I6), the Heaven palette vs the capture, the moon (I4).
 - [ ] **I4. Moon + no-spawn zones** (MED, anchor): register the moon as a
   predictible-static-anchor. NOTE 2026-09-17: the moon's ART now lands via
   the `SPLICE_PNGS` blit (moon.png @ world (0,−26112); dark moon @

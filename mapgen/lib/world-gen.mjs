@@ -9,11 +9,12 @@ import path from "node:path";
 import { loadBiomeConfig, biomeAt } from "./biomes.mjs";
 import { buildTileset } from "./wang-js.mjs";
 import { generateAreaExact } from "./generate-exact.mjs";
-import { colorizeArea } from "./colorize.mjs";
+import { colorizeArea, applyRandomFloods, loadMaterials } from "./colorize.mjs";
+import { workWrapY, workCellAt } from "./the-work.mjs"; // dig #215 (C186): the Work y-wrap law
 import { renderTemplateWorld } from "./template-render.mjs";
 import { readPng } from "./images.mjs";
 import { materialColorAt } from "./colorize.mjs"; // dig #213 (C185): the cell colour law
-import { ensureBiomeBackdrop } from "./noise-terrain.mjs"; // dig #134 bin-air backdrop
+import { ensureBiomeBackdrop, ensureSurfaceTable } from "./noise-terrain.mjs"; // dig #134 bin-air backdrop; dig #215 Work classify
 
 // dig #134: the bin-air backdrop memo (per def.filename) — the wang
 // bands' AIR cells composite the area biome's declared bg art.
@@ -103,6 +104,14 @@ export function worldColorAt(world, wx, wy) {
   const gx = wx + L3_ANCHOR.x, gy = wy + L3_ANCHOR.y;
   if (gx >= WORLD_W || gy >= WORLD_H) return null;
   const tx = Math.floor(gx / CHUNK), ty = Math.floor(gy / CHUNK);
+  // dig #215 (C186, the Work y-wrap law): the rows above/below the 48-row
+  // biome map whose (vmap-clamped) chunk biome is a wang biome — the_sky /
+  // the_end on cols 27..41 — re-read the main band's wang content at
+  // y mod 24570 px, re-classified by the chunk biome (the-work.mjs).
+  if (ty < SKY_ROWS || ty >= SKY_ROWS + 48) {
+    const w = workColorAt(world, tx, ty, gx, gy, wx, wy);
+    if (w !== undefined) return w;
+  }
   // dig #133 (I32 p2c, the SKY/Hell layer law): the SKY BAND = chunk rows
   // 0..61 (the vmap sky clamp + the biome map's rows 0..13 = the_sky/hills
   // sky region, all the way up to the Heaven end). ONE backdrop (BLACK
@@ -373,11 +382,106 @@ function buildStaticTileArea(a, dataDir) {
   return { w: a.w, h: a.h, attempt: 0, rgb };
 }
 
+// --- the Work lane (dig #215, C186; bytes in the-work.mjs) ----------------
+const WORK_BAND_TOP = SKY_ROWS * CHUNK; // canvas px of biome-map row 0 = P row 0
+// the chunk biome of a Work row = the vmap clamp of biome row 0 / 47; only
+// WANG chunk biomes take the P re-read (non-wang biomes keep their lanes).
+function workDefAt(world, tx, ty) {
+  const key = `${tx},${ty < SKY_ROWS ? 0 : 1}`;
+  world.workDefs ??= new Map();
+  if (world.workDefs.has(key)) return world.workDefs.get(key);
+  // the vmap clamp: biome row 0 above the map, row 47 below; col 70 = col 69
+  const at = biomeAt(world.config, Math.min(tx, 69), ty < SKY_ROWS ? 0 : 47);
+  const def = at?.biome?.templateFile ? at.biome : null;
+  world.workDefs.set(key, def);
+  return def;
+}
+// the RAW atlas of a main-band area (post-flood, pre-shade) — the Work
+// re-classifies its placeholder cells, so it needs the grey ramp itself.
+export function rawAreaMap(world, a) {
+  world.rawMaps ??= new Map();
+  if (world.rawMaps.has(a.key)) return world.rawMaps.get(a.key);
+  const cacheFile = world.cacheDir ? path.join(world.cacheDir, String(world.seed), "raw", `${a.key}.bin`) : null;
+  let m = cacheFile ? readCache(cacheFile) : null;
+  if (!m || m.w !== a.w || m.h !== a.h) {
+    m = null;
+    try {
+      const r = a.def.staticTile
+        ? buildStaticTileArea(a, world.dataDir)
+        : generateAreaExact(
+            buildTileset(readPng(path.join(world.dataDir, a.def.templateFile.replace(/^data\//, "")))),
+            a.w, a.h, world.seed,
+            { isCoalMine: !!a.def.isCoalMine, shouldBlockOutRooms: !!a.def.shouldBlockOutRooms, worldX: a.worldX, worldY: a.worldY },
+          );
+      if (r) {
+        applyRandomFloods(r.rgb, a.w, a.h, {
+          dataDir: world.dataDir,
+          biomeName: a.def.name,
+          biomeFile: a.def.filename.replace(/^data\/biome\//, "").replace(/\.xml$/, ""),
+          seed: world.seed,
+        });
+        m = { w: a.w, h: a.h, attempt: r.attempt, rgb: Buffer.from(r.rgb) };
+        if (cacheFile) {
+          fs.mkdirSync(path.dirname(cacheFile), { recursive: true });
+          const out = Buffer.alloc(12 + m.rgb.length);
+          out.writeUInt32LE(m.w, 0); out.writeUInt32LE(m.h, 4); out.writeUInt32LE(m.attempt, 8);
+          m.rgb.copy(out, 12);
+          fs.writeFileSync(cacheFile, out);
+        }
+      }
+    } catch {
+      m = null;
+    }
+  }
+  world.rawMaps.set(a.key, m);
+  return m;
+}
+// undefined = not a Work column (the caller's lanes run); else the colour/null.
+function workColorAt(world, tx, ty, gx, gy, wx, wy) {
+  if (!world.config || !world.dataDir) return undefined; // injected worlds: no Work lane
+  const def = workDefAt(world, tx, ty);
+  if (!def) return undefined;
+  const gyM = workWrapY(gy, WORK_BAND_TOP);
+  const idx = world.grid[Math.floor(gyM / CHUNK) * WORLD_CHUNKS_W + tx];
+  if (idx >= 0) {
+    const a = world.areas[idx];
+    const raw = rawAreaMap(world, a);
+    if (raw) {
+      const lx = gx - a.area.x1 * CHUNK, ly = gyM - (a.area.y1 + SKY_ROWS) * CHUNK;
+      if (lx >= 0 && ly >= 0 && lx < raw.w * 10 && ly < raw.h * 10) {
+        const p = 3 * (Math.floor(ly / 10) * raw.w + Math.floor(lx / 10));
+        world.workMaterials ??= loadMaterials(world.dataDir);
+        const cell = workCellAt(raw.rgb[p], raw.rgb[p + 1], raw.rgb[p + 2],
+          world.workMaterials, ensureSurfaceTable(world.dataDir, def), gx - DISPLAY_X0, gy - DISPLAY_Y0);
+        if (cell.material) return materialColorAt(world.dataDir, cell.material, wx - DISPLAY_X0, wy - DISPLAY_Y0);
+      }
+    }
+  }
+  // P air: the template lane's art (the moon altars, spliced scenes) first
+  const ttx = Math.floor(wx / CHUNK), tty = Math.floor(wy / CHUNK);
+  const tbuf = world.templates?.get(`${ttx},${tty}`);
+  if (tbuf) {
+    const o = 3 * ((wy - tty * CHUNK) * CHUNK + (wx - ttx * CHUNK));
+    if (tbuf[o] !== 9 || tbuf[o + 1] !== 9 || tbuf[o + 2] !== 9) return [tbuf[o], tbuf[o + 1], tbuf[o + 2]];
+  }
+  // then the chunk biome's backdrop (the_end = background_the_end.png, tiled
+  // per chunk — the C109 frame; limit_background_image="0"); none (the_sky =
+  // "") ⇒ the sky.
+  const bd = biomeBackdrop(def, world.dataDir);
+  if (bd) {
+    const lx = gx - tx * CHUNK, ly = gy - ty * CHUNK;
+    const q = 4 * ((ly % bd.h) * bd.w + (lx % bd.w));
+    return [bd.pixels[q], bd.pixels[q + 1], bd.pixels[q + 2]];
+  }
+  return world.skyAt?.(tx, ty, gx, gy) ?? null;
+}
+
 // Ensures all wang areas for `seed` are generated. Immediate skeleton return
 // + onProgress(done, total, key); await world.ready for completion.
 export function ensureWorld(seed, dataDir, { cacheDir = null, onProgress = () => {} } = {}) {
   const world = loadWangWorld(dataDir);
   world.dataDir = dataDir; // dig #130: the noise band's material colors resolve from here
+  world.seed = seed; world.cacheDir = cacheDir; // dig #215: the Work lane's raw-bin cache
   world.maps = new Map();
   world.templates = renderTemplateWorld(dataDir, world.config, seed); // template biomes (sync, cached art)
   attachNoiseTerrain(world, dataDir, seed); // F3 noise terrain (2026-09-20) — the seed reaches the caves-field lane (dig #30)

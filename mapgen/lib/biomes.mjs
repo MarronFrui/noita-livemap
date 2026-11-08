@@ -338,18 +338,13 @@ export function loadBiomeConfig(dataDir) {
       def.templateFile === "data/wang_tiles/excavationsite.png";
     // template biomes (no wang atlas) are drawn by the template renderer
     def.template = !def.templateFile;
-    // Wang areas are computed over the CLAMPED virtual map (edge biomes extend
-    // into sky/deep: the_end down, the_sky up, robobase down). Template-biome
-    // areas stay in-map (their renderers place content themselves).
-    const areaMap = def.templateFile ? vmap : map;
-    def.areas = computeAreas(areaMap, entry.color);
-    if (def.templateFile) {
-      // wang areas live in virtual-map rows; shift back to biome coords (y1 can be -48)
-      for (const a of def.areas) {
-        a.y1 -= V_OFF_Y;
-        a.y2 -= V_OFF_Y;
-      }
-    }
+    // dig #215 (C186, the Work y-wrap law): wang areas live IN-MAP. The game
+    // builds ONE wang image P over the 70x48 biome map only (Init 0x905fb0:
+    // grid ctor 0x8f95c0(P, floor(70*512/10), floor(48*512/10)) @0x90738f)
+    // and every read wraps (getter 0x9fe4e0), so the rows above/below the map
+    // re-read the main band (the-work.mjs) — the old vmap-extended areas
+    // (the_end 53 rows down, the_sky up) were the Work's speckle fill (I3/I6).
+    def.areas = computeAreas(map, entry.color);
     if (def.areas.length > 0) {
       biomes.set(entry.color, def);
     }

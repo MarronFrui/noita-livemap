@@ -139,7 +139,7 @@ export function ensureBiomeBackdrop(dataDir, def) {  if (!def?.filename) return 
   backdropCache.set(def.filename, bd);
   return bd;
 }
-function ensureSurfaceTable(dataDir, def) {
+export function ensureSurfaceTable(dataDir, def) {
   if (!def.filename) return null;
   if (surfaceTableCache.has(def.filename)) return surfaceTableCache.get(def.filename);
   let table = null;
