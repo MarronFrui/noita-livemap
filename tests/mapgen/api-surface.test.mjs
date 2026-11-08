@@ -159,9 +159,9 @@ describe("paths.mjs", () => {
 describe("template-render.mjs", () => {
   test("exports match the documented surface", () => {
     expect(Object.keys(templateRender).sort()).toEqual([
-      "TEMPLATE_SHADES", "blitBackdrop", "blitSplicedScenes",
+      "TEMPLATE_SHADES", "blitBackdrop", "blitScene", "blitSplicedScenes",
       "parseInitPixelScenes", "renderTemplateChunk", "renderTemplateWorld",
-    ]);
+    ]); // I54: + blitScene (the wang spawn-scene lane blits through it)
   });
 });
 

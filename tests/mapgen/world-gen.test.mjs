@@ -5,8 +5,8 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { spawnSync, spawn } from "node:child_process";
-import { describe, test, expect } from "vitest";
+import { spawnSync } from "node:child_process";
+import { describe, test, expect, afterAll } from "vitest";
 import {
   CHUNK, WORLD_CHUNKS_W, WORLD_CHUNKS_H, SKY_ROWS, WORLD_W, WORLD_H,
   loadWangWorld, worldColorAt, ensureWorld, areaKey, L3_ANCHOR,
@@ -15,6 +15,25 @@ import { blitBackdrop } from "../../mapgen/lib/template-render.mjs";
 import { writePng } from "../../mapgen/lib/images.mjs";
 import { dataDir, hasNoitaData, CAPTURE_SEED, repoRoot } from "../helpers/data.mjs";
 import { biomeByName } from "../helpers/golden.mjs";
+import { releaseWorld } from "../helpers/world.mjs";
+
+// ONE in-process world per file (memory law, 2026-11-08): an ensureWorld()
+// world is ~4.6 GB RSS (renderTemplateWorld's 4643 template chunk buffers
+// ≈ 3.8 GB + the wang bins + the spawn-scene lane). Five separate builds in
+// the singleFork worker plus child-process probes holding their own copy
+// drove the battery to an OOM kill (exit 137) and starved the whole WSL VM
+// (the VS Code server lost its ptyHost heartbeat). Every in-process test
+// shares this one world; only probes that need module-load env flags
+// (SURFACE_V3=1) still spawn a child, and they run BEFORE the shared world
+// exists (the dig #177 describe sits above the cached-generation describe).
+const SHARED_CACHE_DIR = path.join(repoRoot, "mapgen/out/gen-cache/r3j");
+let _sharedWorld = null;
+const sharedWorld = async () => {
+  _sharedWorld ??= ensureWorld(CAPTURE_SEED, dataDir, { cacheDir: SHARED_CACHE_DIR, onProgress: () => {} });
+  await _sharedWorld.ready;
+  return _sharedWorld;
+};
+afterAll(() => { releaseWorld(_sharedWorld); _sharedWorld = null; });
 
 describe("canvas constants (VERIFIED.md / mapgen/ISSUES.md verified extensions)", () => {
   test("chunk = 512 world px; world = 71x144 chunks + 48 sky rows", () => {
@@ -326,6 +345,71 @@ describe.skipIf(!hasNoitaData())("loadWangWorld — full biome/world skeleton", 
   });
 });
 
+describe.skipIf(!hasNoitaData())("surface-band sky (dig #177) — the row-62 air renders the SKY, not the cave backdrop", () => {
+  // dig #177 port (world-gen.mjs: the noise lane's air branch): the AIR
+  // cell of canvas row 62 (display y 0..511 = the surface band; capture
+  // Y14 = the C151 frame + SKY_ROWS=48) renders the SKY (black + stars,
+  // the C110 NIGHT law); rows >= 63 keep the cave backdrop (the C109
+  // per-area bg). M-grade anchor: the capture census ref/39_13..39_19 =
+  // black 237,697 / 21,669 / 0 / 0 / 0 / 0 px (repro: the family census
+  // per tile). Count laws (child probe, SURFACE_V3=1; the flags are
+  // module-load captured, and the singleFork worker env is set by other
+  // suites):
+  //   C1: tile (39,62) black px >= 1000 — FAILS under the old law (the
+  //       row-62 air fell through to bgImageAt = the hills'
+  //       background_cave_04_alt — non-black; verified fail-under-old
+  //       this session: port reverted ⇒ the probe measures black62 = 0).
+  //   C2: tile (39,63) black px = 0 — pins the measured sky/cave
+  //       boundary (the capture's Y15+ tiles carry zero black); an
+  //       over-broad fix (the sky leaking below the band) fails this.
+  //   C3: tile (39,61) (the sky-band row above, ty < 62 — the lane this
+  //       dig does NOT touch) keeps its sky: black >= 100,000 px — a
+  //       regression guard on the edit's blast radius.
+  const probe = `
+    process.env.SURFACE_V3 = "1";
+    const { findNoitaDataDir, repoRoot } = await import(process.env.PROBE_REPO + "/mapgen/lib/paths.mjs");
+    const { ensureWorld, worldColorAt } = await import(process.env.PROBE_REPO + "/mapgen/lib/world-gen.mjs");
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const dataDir = findNoitaDataDir();
+    const cacheDir = path.join(repoRoot, "mapgen/out/gen-cache/r3j");
+    const world = ensureWorld(78633191, dataDir, { cacheDir, onProgress: () => {} });
+    await world.ready;
+    const isBlack = (c) => !c || (c[0] < 3 && c[1] < 3 && c[2] < 3);
+    let black61 = 0, black62 = 0, black63 = 0;
+    for (let j = 0; j < 512; j++) {
+      for (let i = 0; i < 512; i++) {
+        if (isBlack(worldColorAt(world, 39 * 512 + i, 61 * 512 + j))) black61++;
+        if (isBlack(worldColorAt(world, 39 * 512 + i, 62 * 512 + j))) black62++;
+        if (isBlack(worldColorAt(world, 39 * 512 + i, 63 * 512 + j))) black63++;
+      }
+    }
+    process.stdout.write(JSON.stringify({ black61, black62, black63 }));
+  `;
+  const run = () => {
+    const env = { ...process.env, PROBE_REPO: repoRoot };
+    const r = spawnSync(process.execPath, ["--input-type=module", "-e", probe], {
+      env, encoding: "utf8", cwd: repoRoot, timeout: 240000,
+    });
+    expect(r.status, r.stderr).toBe(0);
+    return JSON.parse(r.stdout);
+  };
+  let s = null;
+  const stats = () => (s ??= run());
+
+  test("C1: the surface-band tile (39,62) renders sky (black) — >= 1000 px (old law: 0)", () => {
+    expect(stats().black62).toBeGreaterThanOrEqual(1000);
+  });
+
+  test("C2: the sky stops at the band — tile (39,63) renders 0 black px (the cave backdrop below)", () => {
+    expect(stats().black63).toBe(0);
+  });
+
+  test("C3: the sky-band row above (39,61) keeps its sky — black >= 100,000 px (regression guard)", () => {
+    expect(stats().black61).toBeGreaterThanOrEqual(100000);
+  });
+});
+
 describe.skipIf(!hasNoitaData())("ensureWorld — cached generation (repo gen-cache, seed 78633191)", () => {
   // Use the freshest repo-hosted cache revision that covers the reference
   // seed (genmap server artifacts); skip when no cache exists (cold gen is
@@ -344,6 +428,7 @@ describe.skipIf(!hasNoitaData())("ensureWorld — cached generation (repo gen-ca
   }
   const cacheDir = findCacheDir();
   let world = null;
+  afterAll(() => { if (world !== _sharedWorld) releaseWorld(world); world = null; });
 
   test("loads all areas from the disk cache", async () => {
     if (!cacheDir) return; // no cached seed — cold gen out of scope for the battery
@@ -361,6 +446,7 @@ describe.skipIf(!hasNoitaData())("ensureWorld — cached generation (repo gen-ca
     globalThis.setImmediate = (fn, ...args) => { ticks++; return origSetImmediate(fn, ...args); };
     try {
       world = ensureWorld(CAPTURE_SEED, dataDir, { cacheDir });
+      if (cacheDir === SHARED_CACHE_DIR) _sharedWorld ??= world; // reuse it file-wide
       await world.ready;
     } finally {
       globalThis.setImmediate = origSetImmediate;
@@ -515,130 +601,48 @@ describe.skipIf(!hasNoitaData())("winter-band rows law (dig #211) — the surfac
   // arm's law) + the miss = air. Fail-under-old: the flat family's share
   // at (17,61) was 73.2% and must now be ~0.
   test("tile (17,61) carries no flat noiseColor px (old law: 73.2%)", async () => {
-    const world = ensureWorld(CAPTURE_SEED, dataDir, { cacheDir: path.join(repoRoot, "mapgen/out/gen-cache/r3i") });
-    await world.ready;
-    let flat = 0, n = 0;
-    for (let y = 0; y < 512; y += 2) for (let x = 0; x < 512; x += 2) {
-      const c = worldColorAt(world, 17 * 512 + x, 61 * 512 + y);
-      n++;
-      if (c && c[0] === 106 && c[1] === 90 && c[2] === 68) flat++;
-    }
-    expect(n).toBeGreaterThan(0);
-    expect(flat / n).toBeLessThan(0.005);
-  });
-});
-
-describe.skipIf(!hasNoitaData())("surface-band sky (dig #177) — the row-62 air renders the SKY, not the cave backdrop", () => {
-  // dig #177 port (world-gen.mjs: the noise lane's air branch): the AIR
-  // cell of canvas row 62 (display y 0..511 = the surface band; capture
-  // Y14 = the C151 frame + SKY_ROWS=48) renders the SKY (black + stars,
-  // the C110 NIGHT law); rows >= 63 keep the cave backdrop (the C109
-  // per-area bg). M-grade anchor: the capture census ref/39_13..39_19 =
-  // black 237,697 / 21,669 / 0 / 0 / 0 / 0 px (repro: the family census
-  // per tile). Count laws (child probe, SURFACE_V3=1; the flags are
-  // module-load captured, and the singleFork worker env is set by other
-  // suites):
-  //   C1: tile (39,62) black px >= 1000 — FAILS under the old law (the
-  //       row-62 air fell through to bgImageAt = the hills'
-  //       background_cave_04_alt — non-black; verified fail-under-old
-  //       this session: port reverted ⇒ the probe measures black62 = 0).
-  //   C2: tile (39,63) black px = 0 — pins the measured sky/cave
-  //       boundary (the capture's Y15+ tiles carry zero black); an
-  //       over-broad fix (the sky leaking below the band) fails this.
-  //   C3: tile (39,61) (the sky-band row above, ty < 62 — the lane this
-  //       dig does NOT touch) keeps its sky: black >= 100,000 px — a
-  //       regression guard on the edit's blast radius.
-  const probe = `
-    process.env.SURFACE_V3 = "1";
-    const { findNoitaDataDir, repoRoot } = await import(process.env.PROBE_REPO + "/mapgen/lib/paths.mjs");
-    const { ensureWorld, worldColorAt } = await import(process.env.PROBE_REPO + "/mapgen/lib/world-gen.mjs");
-    const fs = await import("node:fs");
-    const path = await import("node:path");
-    const dataDir = findNoitaDataDir();
-    const cacheDir = path.join(repoRoot, "mapgen/out/gen-cache/r3i");
-    const world = ensureWorld(78633191, dataDir, { cacheDir, onProgress: () => {} });
-    await world.ready;
-    const isBlack = (c) => !c || (c[0] < 3 && c[1] < 3 && c[2] < 3);
-    let black61 = 0, black62 = 0, black63 = 0;
-    for (let j = 0; j < 512; j++) {
-      for (let i = 0; i < 512; i++) {
-        if (isBlack(worldColorAt(world, 39 * 512 + i, 61 * 512 + j))) black61++;
-        if (isBlack(worldColorAt(world, 39 * 512 + i, 62 * 512 + j))) black62++;
-        if (isBlack(worldColorAt(world, 39 * 512 + i, 63 * 512 + j))) black63++;
+    const world = await sharedWorld();
+      let flat = 0, n = 0;
+      for (let y = 0; y < 512; y += 2) for (let x = 0; x < 512; x += 2) {
+        const c = worldColorAt(world, 17 * 512 + x, 61 * 512 + y);
+        n++;
+        if (c && c[0] === 106 && c[1] === 90 && c[2] === 68) flat++;
       }
-    }
-    process.stdout.write(JSON.stringify({ black61, black62, black63 }));
-  `;
-  const run = () => {
-    const env = { ...process.env, PROBE_REPO: repoRoot };
-    const r = spawnSync(process.execPath, ["--input-type=module", "-e", probe], {
-      env, encoding: "utf8", cwd: repoRoot, timeout: 240000,
+      expect(n).toBeGreaterThan(0);
+      expect(flat / n).toBeLessThan(0.005);
     });
-    expect(r.status, r.stderr).toBe(0);
-    return JSON.parse(r.stdout);
-  };
-  let s = null;
-  const stats = () => (s ??= run());
-
-  test("C1: the surface-band tile (39,62) renders sky (black) — >= 1000 px (old law: 0)", () => {
-    expect(stats().black62).toBeGreaterThanOrEqual(1000);
   });
-
-  test("C2: the sky stops at the band — tile (39,63) renders 0 black px (the cave backdrop below)", () => {
-    expect(stats().black63).toBe(0);
-  });
-
-  test("C3: the sky-band row above (39,61) keeps its sky — black >= 100,000 px (regression guard)", () => {
-    expect(stats().black61).toBeGreaterThanOrEqual(100000);
-  });
-});
-
-describe.skipIf(!hasNoitaData())("backdrop clip law (dig #212, C184) — data-gated", () => {
-  // The parser carries the clip pair with the byte-read ctor defaults
-  // (0x495ecf: 225.0f, 0x495ed9: 1) and the shipped overrides.
-  test("defs: empty.xml = the defaults (limit on, 225); coalmine.xml = limit off; liquidcave.xml = height 0 + limit off", async () => {
-    const { loadBiomeConfig } = await import("../../mapgen/lib/biomes.mjs");
-    const config = loadBiomeConfig(dataDir);
-    const find = (f) => [...config.biomes.values()].find((d) => d?.filename?.endsWith(f));
-    const empty = find("/empty.xml"), coal = find("/coalmine.xml"), liq = find("/liquidcave.xml");
-    expect(empty).toBeTruthy();
-    expect(empty.limitBackgroundImage).toBe(true);
-    expect(empty.backgroundImageHeight).toBe(225);
-    expect(coal.limitBackgroundImage).toBe(false);
-    expect(liq.backgroundImageHeight).toBe(0);
-    expect(liq.limitBackgroundImage).toBe(false);
-  });
-
-  // The count law (E1, entry (212)): the capture's bty-14 tiles carry 0
-  // sky px below world y 240 in every limit-on biome. Tile 15 = the
-  // empty.xml chasm under the bridge (all air): the old all-sky law
-  // rendered 130,066 black px there below y 240; the capture has 0 and
-  // 98,619 above y 225.
-  const probe = `
-    const { findNoitaDataDir, repoRoot } = await import(process.env.PROBE_REPO + "/mapgen/lib/paths.mjs");
-    const { ensureWorld, worldColorAt } = await import(process.env.PROBE_REPO + "/mapgen/lib/world-gen.mjs");
-    const path = await import("node:path");
-    const world = ensureWorld(78633191, findNoitaDataDir(), { cacheDir: path.join(repoRoot, "mapgen/out/gen-cache/r3i"), onProgress: () => {} });
-    await world.ready;
+  describe.skipIf(!hasNoitaData())("backdrop clip law (dig #212, C184) — data-gated", () => {
+    // The parser carries the clip pair with the byte-read ctor defaults
+    // (0x495ecf: 225.0f, 0x495ed9: 1) and the shipped overrides.
+    test("defs: empty.xml = the defaults (limit on, 225); coalmine.xml = limit off; liquidcave.xml = height 0 + limit off", async () => {
+      const { loadBiomeConfig } = await import("../../mapgen/lib/biomes.mjs");
+      const config = loadBiomeConfig(dataDir);
+      const find = (f) => [...config.biomes.values()].find((d) => d?.filename?.endsWith(f));
+      const empty = find("/empty.xml"), coal = find("/coalmine.xml"), liq = find("/liquidcave.xml");
+      expect(empty).toBeTruthy();
+      expect(empty.limitBackgroundImage).toBe(true);
+      expect(empty.backgroundImageHeight).toBe(225);
+      expect(coal.limitBackgroundImage).toBe(false);
+      expect(liq.backgroundImageHeight).toBe(0);
+      expect(liq.limitBackgroundImage).toBe(false);
+    });
+    // The count law (E1, entry (212)): the capture's bty-14 tiles carry 0
+    // sky px below world y 240 in every limit-on biome. Tile 15 = the
+    // empty.xml chasm under the bridge (all air): the old all-sky law
+    // rendered 130,066 black px there below y 240; the capture has 0 and
+    // 98,619 above y 225.
+    // in-process on the shared world (it was a child probe: a second ~4.6 GB world)
+    let s = null;
+    const stats = () => (s ??= (async () => {
+    const world = await sharedWorld();
     const isBlack = (c) => !c || (c[0] < 3 && c[1] < 3 && c[2] < 3);
     let above = 0, below = 0;
     for (let j = 0; j < 512; j++) for (let i = 0; i < 512; i++) {
       if (isBlack(worldColorAt(world, 15 * 512 + i, 62 * 512 + j))) { if (j < 225) above++; else if (j >= 240) below++; }
     }
-    process.stdout.write(JSON.stringify({ above, below }));
-  `;
-  // ASYNC child (I36): a spawnSync here blocks the worker's event loop for
-  // the whole ~40 s probe and trips the 60 s birpc onTaskUpdate watchdog.
-  let s = null;
-  const stats = () => (s ??= new Promise((resolve, reject) => {
-    const env = { ...process.env, PROBE_REPO: repoRoot };
-    const child = spawn(process.execPath, ["--input-type=module", "-e", probe], { env, cwd: repoRoot });
-    let out = "", err = "";
-    child.stdout.on("data", (d) => { out += d; });
-    child.stderr.on("data", (d) => { err += d; });
-    child.on("error", reject);
-    child.on("close", (code) => (code === 0 ? resolve(JSON.parse(out)) : reject(new Error(`probe exit ${code}: ${err}`))));
-  }));
+    return { above, below };
+  })());
   test("tile (15,62): 0 black px below world y 240 (old law: 130,066)", async () => {
     expect((await stats()).below).toBe(0);
   }, 240000);
@@ -653,12 +657,10 @@ describe.skipIf(!hasNoitaData())("cell colour law in the noise band (dig #213, C
   // law painted (53,57,35) 43.6% + (82,79,45) 41.5% there; the capture's
   // 38_14 families are rock.png (39,40,45)/(62,69,85) + earth.png
   // (70,65,40)/(95,87,49).
-  const probe = `
-    const { findNoitaDataDir, repoRoot } = await import(process.env.PROBE_REPO + "/mapgen/lib/paths.mjs");
-    const { ensureWorld, worldColorAt } = await import(process.env.PROBE_REPO + "/mapgen/lib/world-gen.mjs");
-    const path = await import("node:path");
-    const world = ensureWorld(78633191, findNoitaDataDir(), { cacheDir: path.join(repoRoot, "mapgen/out/gen-cache/r3i"), onProgress: () => {} });
-    await world.ready;
+  // in-process on the shared world (it was a child probe: a second ~4.6 GB world)
+  let s = null;
+  const stats = () => (s ??= (async () => {
+    const world = await sharedWorld();
     let raw = 0, rock = 0, earth = 0;
     for (let j = 0; j < 512; j++) for (let i = 0; i < 512; i++) {
       const c = worldColorAt(world, 38 * 512 + i, 62 * 512 + j); if (!c) continue;
@@ -667,17 +669,8 @@ describe.skipIf(!hasNoitaData())("cell colour law in the noise band (dig #213, C
       if (k === "39,40,45" || k === "62,69,85") rock++;
       if (k === "70,65,40" || k === "95,87,49") earth++;
     }
-    process.stdout.write(JSON.stringify({ raw, rock, earth }));
-  `;
-  let s = null;
-  const stats = () => (s ??= new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, ["--input-type=module", "-e", probe], { env: { ...process.env, PROBE_REPO: repoRoot }, cwd: repoRoot });
-    let out = "", err = "";
-    child.stdout.on("data", (d) => { out += d; });
-    child.stderr.on("data", (d) => { err += d; });
-    child.on("error", reject);
-    child.on("close", (code) => (code === 0 ? resolve(JSON.parse(out)) : reject(new Error(`probe exit ${code}: ${err}`))));
-  }));
+    return { raw, rock, earth };
+  })());
   test("tile (38,62): 0 px of the raw wang_color pair (old law: 85.1% of the tile)", async () => {
     expect((await stats()).raw).toBe(0);
   }, 240000);

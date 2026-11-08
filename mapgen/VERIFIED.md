@@ -261,9 +261,9 @@ The single ranked work list (ISSUES.md §0 points here). State as of dig #212
      pixel). Remaining: blitScene still paints the mountain art's material
      keys through its placeholder fill (I43); the wang-bin lane's `SHADES`
      → C185; the family MIX at 38_14 (I51(b)).
-   - **c. The user's obs queue:** the lake-top island → the wang missing
-     chunks → the lavalake walls / the dark-blue-at-predictable-spawns class
-     (ABOUT (210)).
+   - **c. The user's obs queue:** the lake-top island → the lavalake walls /
+     the dark-blue-at-predictable-spawns class (ABOUT (210)). (The wang
+     missing chunks = CLOSED, I54: the wang spawn-scene lane.)
 2. **Below the surface band (queued behind it, ISSUES §0):** the deep-band
    soil/rock writer (I45), the splice-scene floor (I39), The Work bands
    (I3/I6; I5 closed dig #214). The Work's interior = the main band re-read

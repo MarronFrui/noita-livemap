@@ -190,14 +190,49 @@ const TRIGGERS = new Set([
   "00ac6e", "70d79e", "70d79f", "70d7a1", "7868ff", "ff0080", "ff00ff", "ff0aff",
 ]);
 
+// data/scripts/wang_scripts.csv — the engine's default spawn colours (rgb hex)
+let _wangCsv = null;
+function wangScriptsColors(dataDir) {
+  if (_wangCsv) return _wangCsv;
+  _wangCsv = new Set();
+  try {
+    const txt = fs.readFileSync(path.join(dataDir, "scripts/wang_scripts.csv"), "utf-8");
+    for (const line of txt.split(/\r?\n/)) {
+      const m = line.match(/^[0-9a-fA-F]{2}([0-9a-fA-F]{6}),/);
+      if (m) _wangCsv.add(m[1].toLowerCase());
+    }
+  } catch {
+    // no csv — the static TRIGGERS set below still applies
+  }
+  return _wangCsv;
+}
+
 // --- biome XML extras (RandomColors + MaterialComponents) -------------------
 const _biomeExtras = new Map();
 export function loadBiomeExtras(dataDir, biomeName) {
   const key = `${dataDir}|${biomeName}`;
   if (_biomeExtras.has(key)) return _biomeExtras.get(key);
-  const out = { randomColors: [], mainMaterial: null };
+  const out = { randomColors: [], mainMaterial: null, spawnColors: new Set() };
   try {
     const xml = fs.readFileSync(path.join(dataDir, "biome", `${biomeName}.xml`), "utf-8");
+    // the biome's spawn colours = the engine table (scripts/wang_scripts.csv)
+    // + the lua_script's RegisterSpawnFunction(colour, …) lines: an out_map
+    // cell of such a colour is a spawn TRIGGER (the function runs there; the
+    // cell holds no material ⇒ air) — the wang spawn-scene lane
+    // (wang-scenes.mjs) paints whatever art the function loads.
+    for (const hex of wangScriptsColors(dataDir)) out.spawnColors.add(hex);
+    const lua = (xml.match(/lua_script="([^"]+)"/) ?? [])[1];
+    if (lua) {
+      try {
+        const src = fs.readFileSync(path.join(dataDir, lua.replace(/^data\//, "")), "utf-8");
+        for (const line of src.split(/\r?\n/)) {
+          const m = line.match(/^\s*RegisterSpawnFunction\s*\(\s*0x[0-9a-fA-F]{2}([0-9a-fA-F]{6})\s*,/);
+          if (m && m[1].toLowerCase() !== "ffeedd") out.spawnColors.add(m[1].toLowerCase());
+        }
+      } catch {
+        // script missing — the engine table alone
+      }
+    }
     const rc = /<RandomColor\s+input_color="([0-9a-fA-F]{8})"\s+output_colors="([^"]+)"/g;
     let m;
     while ((m = rc.exec(xml))) {
@@ -376,7 +411,7 @@ export function colorizeArea(map, w, h, opts) {
       if (fam) return pick(SHADES[fam], x, y, noiseSalt ^ 8);
       return pick(SHADES.fallbackSolid, x, y, noiseSalt ^ 9);
     }
-    if (TRIGGERS.has(hex)) return pick(ov?.air ?? SHADES.airDark, x, y, noiseSalt ^ 10);
+    if (TRIGGERS.has(hex) || extras.spawnColors?.has(hex)) return pick(ov?.air ?? SHADES.airDark, x, y, noiseSalt ^ 10);
     if (ov?.solid) return pick(ov.solid, x, y, noiseSalt ^ 11); // unknown -> biome base
     return null; // unknown — keep raw
   };

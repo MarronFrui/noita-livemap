@@ -11,7 +11,8 @@ import { buildTileset } from "./wang-js.mjs";
 import { generateAreaExact } from "./generate-exact.mjs";
 import { colorizeArea, applyRandomFloods, loadMaterials } from "./colorize.mjs";
 import { workWrapY, workCellAt } from "./the-work.mjs"; // dig #215 (C186): the Work y-wrap law
-import { renderTemplateWorld } from "./template-render.mjs";
+import { renderTemplateWorld, blitScene, blitBackdrop } from "./template-render.mjs";
+import { WangLuaHost, areaSceneCalls, loadWangScriptsCsv } from "./wang-scenes.mjs"; // the wang spawn-scene lane
 import { readPng } from "./images.mjs";
 import { materialColorAt } from "./colorize.mjs"; // dig #213 (C185): the cell colour law
 import { ensureBiomeBackdrop, ensureSurfaceTable } from "./noise-terrain.mjs"; // dig #134 bin-air backdrop; dig #215 Work classify
@@ -112,6 +113,11 @@ export function worldColorAt(world, wx, wy) {
     const w = workColorAt(world, tx, ty, gx, gy, wx, wy);
     if (w !== undefined) return w;
   }
+  // the wang spawn-scene lane (wang-scenes.mjs): LoadPixelScene writes its
+  // material cells OVER whatever the wang fill left there (the blocked-out
+  // rooms are bare black until their art loads) — first among the band lanes.
+  const scene = wangSceneAt(world, gx, gy);
+  if (scene) return scene;
   // dig #133 (I32 p2c, the SKY/Hell layer law): the SKY BAND = chunk rows
   // 0..61 (the vmap sky clamp + the biome map's rows 0..13 = the_sky/hills
   // sky region, all the way up to the Heaven end). ONE backdrop (BLACK
@@ -161,7 +167,10 @@ export function worldColorAt(world, wx, wy) {
             } else if (!airDark) {
               return [r, g, b]; // the wang terrain (the boss room walls, the mines fill)
             } else {
-              // the bin air = the area def's declared bg (the C111 law)
+              // the bin air = a loaded scene's background_file when one
+              // covers the cell, else the area def's declared bg (the C111 law)
+              const sbg = wangSceneBgAt(world, gx, gy);
+              if (sbg) return sbg;
               const bd = biomeBackdrop(a.def, world.dataDir);
               if (bd) {
                 const bx = ((lx % bd.w) + bd.w) % bd.w, by = ((ly % bd.h) + bd.h) % bd.h;
@@ -238,6 +247,8 @@ export function worldColorAt(world, wx, wy) {
         const r = m.rgb[p], g = m.rgb[p + 1], b = m.rgb[p + 2];
         if ((r === 13 && g === 14 && b === 18) || (r === 12 && g === 13 && b === 17)
           || (r === 16 && g === 16 && b === 18) || (r === 21 && g === 23 && b === 30)) {
+          const sbg = wangSceneBgAt(world, gx, gy); // a loaded scene's background_file
+          if (sbg) return sbg;
           const bd = biomeBackdrop(a.def, world.dataDir);
           if (bd) {
             const bx = ((lx % bd.w) + bd.w) % bd.w, by = ((ly % bd.h) + bd.h) % bd.h;
@@ -421,13 +432,7 @@ export function rawAreaMap(world, a) {
           seed: world.seed,
         });
         m = { w: a.w, h: a.h, attempt: r.attempt, rgb: Buffer.from(r.rgb) };
-        if (cacheFile) {
-          fs.mkdirSync(path.dirname(cacheFile), { recursive: true });
-          const out = Buffer.alloc(12 + m.rgb.length);
-          out.writeUInt32LE(m.w, 0); out.writeUInt32LE(m.h, 4); out.writeUInt32LE(m.attempt, 8);
-          m.rgb.copy(out, 12);
-          fs.writeFileSync(cacheFile, out);
-        }
+        storeRawAreaMap(world, a, m);
       }
     } catch {
       m = null;
@@ -436,6 +441,78 @@ export function rawAreaMap(world, a) {
   world.rawMaps.set(a.key, m);
   return m;
 }
+const rawCacheFile = (world, a) =>
+  world.cacheDir ? path.join(world.cacheDir, String(world.seed), "raw", `${a.key}.bin`) : null;
+function storeRawAreaMap(world, a, m) {
+  world.rawMaps ??= new Map();
+  world.rawMaps.set(a.key, m);
+  const cacheFile = rawCacheFile(world, a);
+  if (!cacheFile) return;
+  try {
+    fs.mkdirSync(path.dirname(cacheFile), { recursive: true });
+    const out = Buffer.alloc(12 + m.rgb.length);
+    out.writeUInt32LE(m.w, 0); out.writeUInt32LE(m.h, 4); out.writeUInt32LE(m.attempt, 8);
+    m.rgb.copy(out, 12);
+    fs.writeFileSync(cacheFile, out);
+  } catch {
+    // the raw cache is an accelerator only
+  }
+}
+// --- the wang spawn-scene lane (wang-scenes.mjs) ---------------------------
+// The art the game LoadPixelScene()s into the wang layers from the out_map's
+// spawn colours (the blocked-out rooms + the structure pieces). Built once per
+// world from the RAW out_maps (the trigger colours are gone after the display
+// pass); blitted in the GENERATOR frame — the scene sits at the same offset
+// from its trigger cell as in the game, and the bin lane reads the generator
+// frame (gx, gy) too, so the art lands exactly in its room. Buffers keyed
+// like setWorldPx (game chunk + (35, 62) = the generator-canvas chunk).
+// Async: ONE event-loop tick per area (the I36 law, entry (173) — a raw-map
+// regeneration is ~1 s per area, and one contiguous sync span over all of
+// them starves the vitest worker's RPC / the gen server's requests).
+export async function buildWangScenes(world) {
+  const scenes = new Map();
+  const csv = loadWangScriptsCsv(world.dataDir);
+  const hosts = new Map();
+  const log = [];
+  for (const a of world.areas) {
+    if (a.def.staticTile || !a.def.luaScript) continue;
+    await new Promise((r) => setImmediate(r));
+    const raw = rawAreaMap(world, a);
+    if (!raw) continue;
+    let host = hosts.get(a.def.luaScript);
+    if (!host) {
+      host = new WangLuaHost(world.dataDir, a.def.luaScript, world.seed, csv);
+      hosts.set(a.def.luaScript, host);
+    }
+    const r = areaSceneCalls(host, a, raw);
+    // LoadPixelScene(…, skip_biome_checks = false): the scene writes only
+    // the cells inside its OWN biome (a room at
+    // an area's bottom edge must not paint into the Holy Mountain below).
+    // The biome at a pixel = GetBiomeAt with the C187 edge displacement.
+    const gate = (X, Y) => biomeAtPixel(world.config, X + 35 * CHUNK, Y + 14 * CHUNK) === a.def;
+    for (const sc of r.scenes) {
+      if (sc.mat) blitScene(scenes, world.dataDir, a.def, sc.mat, sc.vis || null, sc.x, sc.y, a.def.name, world.seed, gate);
+      if (sc.bg) blitBackdrop(scenes, world.dataDir, sc.bg, sc.x, sc.y, gate);
+    }
+    log.push({ key: a.key, calls: r.calls, scenes: r.scenes });
+  }
+  world.wangScenes = scenes;
+  world.wangSceneLog = log;
+  return scenes;
+}
+function sceneBufAt(bufs, gx, gy) {
+  if (!bufs) return null;
+  const cx = Math.floor(gx / CHUNK), cy = Math.floor(gy / CHUNK);
+  const buf = bufs.get(`${cx},${cy}`);
+  if (!buf) return null;
+  const o = 3 * ((gy - cy * CHUNK) * CHUNK + (gx - cx * CHUNK));
+  if (buf[o] === 9 && buf[o + 1] === 9 && buf[o + 2] === 9) return null;
+  return [buf[o], buf[o + 1], buf[o + 2]];
+}
+// the scene's material/visual px (fg) and its background_file px (bg)
+export const wangSceneAt = (world, gx, gy) => sceneBufAt(world.wangScenes, gx, gy);
+export const wangSceneBgAt = (world, gx, gy) => sceneBufAt(world.wangScenes?.get("bg"), gx, gy);
+
 // dig #216: the fill of the adjacent chunk whose biome = def, read at the same
 // in-chunk offset (the wall lanes are per-chunk fills; the tongue continues it).
 function neighbourFillAt(world, def, wx, wy) {
@@ -558,6 +635,18 @@ export function ensureWorld(seed, dataDir, { cacheDir = null, onProgress = () =>
                     });
                   })();
               if (r) {
+                // the RAW out_map (post-flood, pre-shade = rawAreaMap's
+                // definition) — the spawn-scene lane reads its trigger
+                // colours, which the display pass below erases.
+                const floodOpts = {
+                  dataDir,
+                  biomeName: a.def.name,
+                  biomeFile: a.def.filename.replace(/^data\/biome\//, "").replace(/\.xml$/, ""),
+                  seed,
+                };
+                const raw = Buffer.from(r.rgb);
+                if (!a.def.staticTile) applyRandomFloods(raw, a.w, a.h, floodOpts);
+                storeRawAreaMap(world, a, { w: a.w, h: a.h, attempt: r.attempt, rgb: raw });
                 // display-color pass (capture-calibrated); mutates r.rgb in place
                 const { unknown } = colorizeArea(r.rgb, a.w, a.h, {
                   dataDir,
@@ -591,6 +680,10 @@ export function ensureWorld(seed, dataDir, { cacheDir = null, onProgress = () =>
           });
         })
     )
+  ).then(() =>
+    // the wang spawn-scene lane needs every area's raw out_map (the Lua
+    // hosts are per biome script and shared across its areas)
+    buildWangScenes(world)
   );
   return world;
 }

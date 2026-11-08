@@ -8,7 +8,8 @@
 // module-load consts — set the env BEFORE the dynamic imports.
 import fs from "node:fs";
 import path from "node:path";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, afterAll } from "vitest";
+import { releaseWorld } from "../helpers/world.mjs";
 
 // dig #145 (measured leak): composed-content.test.mjs sets SURFACE_V2=1 at
 // module load; when both files land in the same vitest worker the leak
@@ -39,6 +40,7 @@ async function getWorld() {
   await sharedWorld.ready;
   return sharedWorld;
 }
+afterAll(() => { releaseWorld(sharedWorld); sharedWorld = null; });
 
 describe.skipIf(!hasData)("surface-band compositor (digs #130/#131/#132)", () => {
   test("the per-cell material classify compositor (dig #130)", async () => {

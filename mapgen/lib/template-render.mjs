@@ -84,7 +84,7 @@ const TRIGGER_HINT = new Set([
 // filled with the materials defined in the biome's <Materials>" rule) —
 // the exact band/vein noise semantics remain an open read (C32 resolver
 // family); here it is the shared seeded-approximation fill.
-function blitScene(buffers, dataDir, def, matFile, visFile, wx, wy, biomeName, seed = 0) {
+export function blitScene(buffers, dataDir, def, matFile, visFile, wx, wy, biomeName, seed = 0, gate = null) {
   const mat = art(dataDir, matFile);
   if (!mat) return 0;
   const vis = visFile ? art(dataDir, visFile) : null;
@@ -99,6 +99,7 @@ function blitScene(buffers, dataDir, def, matFile, visFile, wx, wy, biomeName, s
       const al = mat.data[q + 3];
       const r = mat.data[q], g = mat.data[q + 1], b = mat.data[q + 2];
       if (al < 128) continue; // transparent: below shows
+      if (gate && !gate(wx + i, wy + j)) continue; // the caller's biome check
       const hex = `${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
       let shade = null;
       if (r === 0 && g === 0 && b === 0) continue; // scene air: below shows
@@ -143,7 +144,7 @@ function blitScene(buffers, dataDir, def, matFile, visFile, wx, wy, biomeName, s
 // cells (the tree-west "water": capture (38,62) = airDark 1.6% / soil
 // 55.3% / rock 27.0%, our render = the bg colors CONSTANT across seeds).
 // Exported for the I49 write-path pin (tests/mapgen/world-gen.test.mjs).
-export function blitBackdrop(buffers, dataDir, file, wx, wy) {
+export function blitBackdrop(buffers, dataDir, file, wx, wy, gate = null) {
   const img = art(dataDir, file);
   if (!img) return 0;
   let bg = buffers.get("bg");
@@ -153,6 +154,7 @@ export function blitBackdrop(buffers, dataDir, file, wx, wy) {
     for (let i = 0; i < img.width; i++) {
       const q = 4 * (j * img.width + i);
       if (img.data[q + 3] < 10) continue;
+      if (gate && !gate(wx + i, wy + j)) continue;
       n += setWorldPx(bg, wx + i, wy + j, [img.data[q], img.data[q + 1], img.data[q + 2]]);
     }
   }
