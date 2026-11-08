@@ -627,3 +627,44 @@ describe.skipIf(!hasNoitaData())("backdrop clip law (dig #212, C184) — data-ga
     expect((await stats()).above).toBeGreaterThanOrEqual(90000);
   }, 240000);
 });
+
+describe.skipIf(!hasNoitaData())("cell colour law in the noise band (dig #213, C185) — data-gated", () => {
+  // The noise band paints the material TEXTURE at the world pixel, never the
+  // raw wang_color. Tile (38,62) (the tree-west cell, I51's anchor): the old
+  // law painted (53,57,35) 43.6% + (82,79,45) 41.5% there; the capture's
+  // 38_14 families are rock.png (39,40,45)/(62,69,85) + earth.png
+  // (70,65,40)/(95,87,49).
+  const probe = `
+    const { findNoitaDataDir, repoRoot } = await import(process.env.PROBE_REPO + "/mapgen/lib/paths.mjs");
+    const { ensureWorld, worldColorAt } = await import(process.env.PROBE_REPO + "/mapgen/lib/world-gen.mjs");
+    const path = await import("node:path");
+    const world = ensureWorld(78633191, findNoitaDataDir(), { cacheDir: path.join(repoRoot, "mapgen/out/gen-cache/r3i"), onProgress: () => {} });
+    await world.ready;
+    let raw = 0, rock = 0, earth = 0;
+    for (let j = 0; j < 512; j++) for (let i = 0; i < 512; i++) {
+      const c = worldColorAt(world, 38 * 512 + i, 62 * 512 + j); if (!c) continue;
+      const k = c.join(",");
+      if (k === "53,57,35" || k === "82,79,45") raw++;
+      if (k === "39,40,45" || k === "62,69,85") rock++;
+      if (k === "70,65,40" || k === "95,87,49") earth++;
+    }
+    process.stdout.write(JSON.stringify({ raw, rock, earth }));
+  `;
+  let s = null;
+  const stats = () => (s ??= new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, ["--input-type=module", "-e", probe], { env: { ...process.env, PROBE_REPO: repoRoot }, cwd: repoRoot });
+    let out = "", err = "";
+    child.stdout.on("data", (d) => { out += d; });
+    child.stderr.on("data", (d) => { err += d; });
+    child.on("error", reject);
+    child.on("close", (code) => (code === 0 ? resolve(JSON.parse(out)) : reject(new Error(`probe exit ${code}: ${err}`))));
+  }));
+  test("tile (38,62): 0 px of the raw wang_color pair (old law: 85.1% of the tile)", async () => {
+    expect((await stats()).raw).toBe(0);
+  }, 240000);
+  test("tile (38,62): the rock.png and earth.png families each cover >= 25% of the tile (old law: (70,65,40) 1.6%, (39,40,45) ~0)", async () => {
+    const st = await stats();
+    expect(st.rock).toBeGreaterThanOrEqual(0.25 * 262144);
+    expect(st.earth).toBeGreaterThanOrEqual(0.25 * 262144);
+  }, 240000);
+});

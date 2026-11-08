@@ -1,7 +1,7 @@
 {
   "comment": "the I36 count law's reference (dig #156, scripts/precommit-gates-lib.mjs): the full battery must report EXACTLY these vitest summary totals at every gated commit \u2014 any deficit = the silent-truncation class, refused with one retry allowed. Updated per dig when the committed test set changes (the dig's own battery run is the source).",
   "filesTotal": 33,
-  "testsTotal": 438,
+  "testsTotal": 445,
   "testsSkipped": 4,
-  "source": "npm test at dig #212 (2026-11-08): 33 files / 434 passed | 4 skipped (438). The +8 over the REA-setup commit = the dig #212 backdrop-clip pins in tests/mapgen/world-gen.test.mjs (5 injected + 3 data-gated). Skip set unchanged (4)."
+  "source": "npm test at dig #213 (2026-11-08): 33 files / 441 passed | 4 skipped (445). The +7 over dig #212 = the cell colour law pins (5 in tests/mapgen/colorize.test.mjs + 2 data-gated in tests/mapgen/world-gen.test.mjs). Skip set unchanged (4)."
 }

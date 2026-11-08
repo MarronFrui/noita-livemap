@@ -12,7 +12,7 @@ import { generateAreaExact } from "./generate-exact.mjs";
 import { colorizeArea } from "./colorize.mjs";
 import { renderTemplateWorld } from "./template-render.mjs";
 import { readPng } from "./images.mjs";
-import { materialColorByName } from "./colorize.mjs"; // dig #130 surface-lane colors
+import { materialColorAt } from "./colorize.mjs"; // dig #213 (C185): the cell colour law
 import { ensureBiomeBackdrop } from "./noise-terrain.mjs"; // dig #134 bin-air backdrop
 
 // dig #134: the bin-air backdrop memo (per def.filename) — the wang
@@ -93,6 +93,10 @@ export function loadWangWorld(dataDir) {
 // offset beats (0,0) in the ±16 sweep — instrument:
 // mapgen/experiments/2026-10-19-dig170-lake-band-counts.mjs).
 export const L3_ANCHOR = { x: 11, y: 12 };
+// dig #213 (C185): the display frame's world origin (the capture frame, C145):
+// world px = display px − (35·512, 62·512) — the cell colour law samples the
+// material texture at the WORLD pixel.
+export const DISPLAY_X0 = 35 * CHUNK, DISPLAY_Y0 = (SKY_ROWS + 14) * CHUNK;
 
 export function worldColorAt(world, wx, wy) {
   if (wx < 0 || wy < 0 || wx >= WORLD_W || wy >= WORLD_H) return null;
@@ -195,7 +199,7 @@ export function worldColorAt(world, wx, wy) {
       if (nzSky) {
         const matSky = world.noiseMatAt?.(gx, gy);
         if (matSky && matSky.idx !== 255 && matSky.names && matSky.names[matSky.idx] && world.dataDir) {
-          return noiseColor(world, tx, ty, nzSky, materialColorByName(world.dataDir, matSky.names[matSky.idx]));
+          return noiseColor(world, tx, ty, nzSky, materialColorAt(world.dataDir, matSky.names[matSky.idx], wx - DISPLAY_X0, wy - DISPLAY_Y0));
         }
         // the classify's miss (idx 255 / unresolvable) = AIR, the dig-#208
         // law at the sky-band rows: falls through to the sky art below —
@@ -257,7 +261,7 @@ export function worldColorAt(world, wx, wy) {
     const mat = world.noiseMatAt?.(gx, gy);
     let rgb = null;
     if (mat && mat.idx !== 255 && mat.names && mat.names[mat.idx] && world.dataDir) {
-      rgb = materialColorByName(world.dataDir, mat.names[mat.idx]);
+      rgb = materialColorAt(world.dataDir, mat.names[mat.idx], wx - DISPLAY_X0, wy - DISPLAY_Y0);
     }
     if (nz) return noiseColor(world, tx, ty, nz, rgb);
     // dig #212 (C184, the backdrop CLIP law; replaces dig #177's "every
@@ -275,7 +279,7 @@ export function worldColorAt(world, wx, wy) {
     // rest of this lane (the ≤12 px anchor strip is a known approximation).
     if (ty === 62) {
       const bd = world.noiseAt?.(tx, ty)?.backdrop ?? null;
-      const yW = wy - (SKY_ROWS + 14) * CHUNK;
+      const yW = wy - DISPLAY_Y0;
       const limit = bd?.limit ?? true, h = bd?.height ?? 225;
       if (limit && yW < h) {
         const sky = world.skyAt?.(tx, ty, gx, gy) ?? null;

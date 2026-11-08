@@ -106,3 +106,7 @@
 # Backdrop clip — CONSTANTS C184 (dig #212, X219)
 0x72c180	function	BiomeBackdrop_BuildChunk
 0x72e330	function	BackdropSprite_Place
+# Cell colour — CONSTANTS C185 (dig #213, X220)
+0x7409b0	function	CellColor_Lookup
+0x740580	function	CellColor_TexturePixel
+0x7364f0	function	CellData_Parse

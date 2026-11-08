@@ -2,7 +2,7 @@
 
 import { describe, test, expect } from "vitest";
 import {
-  loadMaterials, loadBiomeExtras, pick, colorizeArea, SHADES, MATERIAL_SHADE,
+  loadMaterials, loadBiomeExtras, pick, colorizeArea, SHADES, MATERIAL_SHADE, materialColorAt,
 } from "../../mapgen/lib/colorize.mjs";
 import { generateAreaExact } from "../../mapgen/lib/generate-exact.mjs";
 import { buildTileset } from "../../mapgen/lib/wang-js.mjs";
@@ -113,5 +113,40 @@ describe("colorizeArea — behavioral contract", () => {
     const { unknown } = colorizeArea(m, 2, 2, { dataDir, biomeName: "coalmine", biomeFile: "coalmine", seed: 1 });
     expect(unknown).toBe(1);
     expect([...m.slice(0, 3)]).toEqual([0x12, 0x34, 0x56]);
+  });
+});
+
+// dig #213 (C185, the cell colour law — cellfactory.cpp 0x7409B0/0x740580):
+// colour = the material's <Graphics texture_file> at the WORLD pixel,
+// positive-modulo wrapped; no texture ⇒ the <Graphics color> (back-filled
+// from wang_color by 0x7364f0), alpha composited over black.
+describe.skipIf(!hasNoitaData())("the cell colour law (dig #213, C185)", () => {
+  const tex = (rel) => readPng(path.join(dataDir, rel));
+  const px = (t, x, y) => { const q = 4 * (y * t.width + x); return [t.data[q], t.data[q + 1], t.data[q + 2]]; };
+  test("rock_static samples rock.png at the world pixel (old law: the raw wang_color (53,57,35))", () => {
+    const t = tex("materials_gfx/rock.png");
+    expect(materialColorAt(dataDir, "rock_static", 0, 0)).toEqual(px(t, 0, 0));
+    expect(materialColorAt(dataDir, "rock_static", 5, 7)).toEqual(px(t, 5, 7));
+    expect(materialColorAt(dataDir, "rock_static", 0, 0)).not.toEqual([53, 57, 35]);
+  });
+  test("the wrap is a POSITIVE modulo (world x = −1 → column W−1; a truncating % would read column −1)", () => {
+    const t = tex("materials_gfx/earth.png");
+    expect(materialColorAt(dataDir, "sand_static", -1, -1)).toEqual(px(t, t.width - 1, t.height - 1));
+    expect(materialColorAt(dataDir, "sand_static", t.width * 3 + 2, -t.height * 2 + 1)).toEqual(px(t, 2, 1));
+  });
+  test("every sand_static sample over one texture period lies in earth.png's palette, never the wang_color (82,79,45)", () => {
+    const t = tex("materials_gfx/earth.png");
+    const pal = new Set(); for (let y = 0; y < t.height; y++) for (let x = 0; x < t.width; x++) pal.add(px(t, x, y).join(","));
+    for (let y = 0; y < t.height; y++) for (let x = 0; x < t.width; x++) {
+      const c = materialColorAt(dataDir, "sand_static", x + 17920, y + 300).join(",");
+      expect(pal.has(c)).toBe(true);
+      expect(c).not.toBe("82,79,45");
+    }
+  });
+  test("no texture ⇒ the <Graphics color> with its alpha over black: water = (35,61,56) = the capture's flat water (wang_color would give (27,48,43))", () => {
+    expect(materialColorAt(dataDir, "water", 123, 456)).toEqual([35, 61, 56]);
+  });
+  test("no <Graphics> at all ⇒ the wang_color back-fill (0x7364f0: [cd+0x64] = [cd+0x40]): lava = ff6000", () => {
+    expect(materialColorAt(dataDir, "lava", 0, 0)).toEqual([255, 96, 0]);
   });
 });

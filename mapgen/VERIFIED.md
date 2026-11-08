@@ -254,10 +254,11 @@ The single ranked work list (ISSUES.md §0 points here). State as of dig #212
      `mapgen/experiments/ce-dump-bandmatrix.lua` →
      `mapgen/experiments/parse-bandmatrix.mjs`. The insidePerlin case arms
      are NOISE and cannot move the surface line (ISSUES Notes 2026-11-03).
-   - **b. The structure-tiles colour law (I43 + I51):** the mountain art =
-     colour-keyed material masks placed by the Lua `init()`; our port paints
-     the keys through blitScene's placeholder fill; the map palette ≠ the raw
-     `wang_color` (ABOUT (211), I51).
+   - **b. The structure-tiles colour law (I43 + I51):** the colour law
+     itself is CLOSED (C185, dig #213: material textures at the world
+     pixel). Remaining: blitScene still paints the mountain art's material
+     keys through its placeholder fill (I43); the wang-bin lane's `SHADES`
+     → C185; the family MIX at 38_14 (I51(b)).
    - **c. The user's obs queue:** the lake-top island → the wang missing
      chunks → the lavalake walls / the dark-blue-at-predictable-spawns class
      (ABOUT (210)).
@@ -563,6 +564,12 @@ open work = §9 item 1.
   (`blitBackdrop`, `lib/template-render.mjs:146`; I49 closed, entry (210)).
   The mountain family's art = colour-keyed material masks, still painted
   through placeholder fills (I43/I51, entry (211)).
+- **Cell colour = the material texture** (C185): a cell's map colour is
+  its material's `<Graphics texture_file>` at the cell's world pixel,
+  positive-modulo wrapped (`0x7409B0`/`0x740580`); no texture ⇒ the
+  `<Graphics color>`, back-filled from `wang_color` (`0x7364f0`); alpha
+  composited over black. The noise band paints this (dig #213); the
+  wang-bin lane still uses the hand-calibrated `SHADES` approximation.
 - **Static-tile biomes** (barren / darkness / boss_sky / potion_mimics /
   watchtower: `static_tile="1"` + a fixed artwork PNG, no wang header) =
   `buildStaticTileArea` (`lib/world-gen.mjs:339`).

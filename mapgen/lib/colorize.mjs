@@ -10,6 +10,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { repoRoot } from "./paths.mjs";
+import { readPng } from "./images.mjs";
 
 // --- materials.xml wang_color table (RGB, alpha-agnostic) -------------------
 let _materials = null;
@@ -43,6 +44,73 @@ export function loadMaterials(dataDir) {
   if (buf) extract(buf);
   _materials = byRgb;
   return byRgb;
+}
+
+// dig #213 (C185, the cell COLOUR law — cellfactory.cpp): a cell's rendered
+// colour = its material's <Graphics texture_file> sampled at the cell's
+// WORLD pixel, wrapped by positive modulo: 0x7409B0(celldata; ecx = world
+// x, edx = world y) → 0x740580: tex[pmod(x, W), pmod(y, H)] (ARGB from
+// RGBA bytes). No texture ([cd+0x88] == 0) ⇒ the packed colour [cd+0x64] =
+// the <Graphics color>, which the parser 0x7364f0 back-fills from the
+// parsed wang_color ([cd+0x40]) when absent. The jitter arm ([cd+0x6c] =
+// randomize_colors) has 0 shipped uses. Alpha < 255 composites over black
+// (the capture's flat water (35,61,56) = Graphics A0376259 over black).
+// Measured phase: the capture 38_14's rock/earth px match
+// tex[pmod(wx,W), pmod(wy,H)] at offset (0,0): 98.3% / 98.8% (entry (213)).
+// Scope: own <Graphics> only — no CellDataChild inheritance (none of the
+// 46 biome-classify materials needs it; the inheritance law is unread).
+let _materialGfx = null; // name -> { tex: rel|null, color: [r,g,b,a] }
+const _texCache = new Map(); // rel -> { w, h, px } | null
+const argbHex = (h) => {
+  const v = h.length === 8 ? h : "ff" + h;
+  return [Number.parseInt(v.slice(2, 4), 16), Number.parseInt(v.slice(4, 6), 16), Number.parseInt(v.slice(6, 8), 16), Number.parseInt(v.slice(0, 2), 16)];
+};
+function loadMaterialGfx(dataDir) {
+  if (_materialGfx) return _materialGfx;
+  _materialGfx = new Map();
+  const xml = fs.readFileSync(path.join(dataDir, "materials.xml"), "utf-8").replace(/<!--[\s\S]*?-->/g, "");
+  const blockRe = /<(CellData|CellDataChild|VariableData)\b([^>]*?)(\/>|>([\s\S]*?)<\/\1>)/g;
+  let m;
+  while ((m = blockRe.exec(xml))) {
+    const attrs = m[2], body = m[4] ?? "";
+    const name = (attrs.match(/\bname="([^"]+)"/) ?? [])[1];
+    if (!name || _materialGfx.has(name)) continue;
+    const wc = (attrs.match(/wang_color="([0-9a-fA-F]{6,8})"/) ?? [])[1];
+    const g = (body.match(/<Graphics\b([^>]*?)\/?>/) ?? [])[1] ?? "";
+    const tex = (g.match(/texture_file="([^"]*)"/) ?? [])[1] || null;
+    const gc = (g.match(/\bcolor="([0-9a-fA-F]{6,8})"/) ?? [])[1];
+    const hex = gc ?? wc;
+    if (!hex && !tex) continue;
+    _materialGfx.set(name, { tex, color: hex ? argbHex(hex) : null });
+  }
+  return _materialGfx;
+}
+function loadTex(dataDir, rel) {
+  if (_texCache.has(rel)) return _texCache.get(rel);
+  let t = null;
+  try {
+    const png = readPng(path.join(dataDir, rel.replace(/^data\//, "")));
+    t = { w: png.width, h: png.height, px: png.data };
+  } catch { t = null; }
+  _texCache.set(rel, t);
+  return t;
+}
+export function materialColorAt(dataDir, name, worldX, worldY) {
+  const e = loadMaterialGfx(dataDir).get(name);
+  if (!e) return null;
+  let r, g, b, a;
+  const t = e.tex ? loadTex(dataDir, e.tex) : null;
+  if (t) {
+    const x = ((Math.floor(worldX) % t.w) + t.w) % t.w;
+    const y = ((Math.floor(worldY) % t.h) + t.h) % t.h;
+    const q = 4 * (y * t.w + x);
+    [r, g, b, a] = [t.px[q], t.px[q + 1], t.px[q + 2], t.px[q + 3]];
+  } else if (e.color) {
+    [r, g, b, a] = e.color;
+  } else return null;
+  if (a >= 255) return [r, g, b];
+  const k = a / 255;
+  return [Math.round(r * k), Math.round(g * k), Math.round(b * k)];
 }
 
 // dig #130 (the surface-lane compositor): material NAME → its materials.xml
