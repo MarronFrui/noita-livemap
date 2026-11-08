@@ -363,6 +363,7 @@ function uidFrom(def, cfg) {
     addValue: n(def.mInsideAddValue, 0),         // [+0x260] ctor default 0; LIVE on 4 files = exactly the lake family (all "5.0", dig #155 sweep — the (151)-era "no live attr" line was swept on the wrong slot family)
     addNoise: NOISE_TYPE_KIND[def.noiseType] ?? 0, // [+0x220] = the noise_type enum (X104) — NOT mGradientAddNoise (that is [+0x288] mode)
     minX: cfg.minX, maxX: cfg.maxX,         // C24 lane (passed through)
+    field0: def.bitmapNoiseFile ? 0 : 1.0,  // I52 fix (A19 stand-in): the lake family's topology body ⇒ the early-zero arm (see surfaceField)
   };
 }
 

@@ -888,7 +888,15 @@ export function surfaceField(uid, x, y, seedInt) {
   //   KERNEL-0.5-floor model are the P≠NULL arm — DEAD FOR SHIPPED
   //   DATA (P-1a: mGradientType/MinY/... absent from the exe too).
   //   The port therefore no longer takes gradAt/valueOfP94 params.
-  const field0 = 1.0;                                            // const 0x11dfbf0
+  // I52 fix 2026-11-08 (FLAGGED stand-in A19): the lake family (the 4 defs that
+  // carry bitmap_noise_file → topology_lake.png, a solid body under a
+  // 2-row strip) takes the early-zero arm — field0 ≤ 0 ⇒ v = 0 ⇒ the
+  // classify's water window [−1, 0.5) ∩ limit_y [225, 512000] = the flat
+  // pool the capture shows. Without it the mode-3 slope ramp (−0.37 from
+  // x = −12000) drove v past 0.5 along a diagonal = mud/sand/air stripes.
+  // The P-grid's own per-cell value (the image bake) stays the open #170 read.
+  const field0 = uid.field0 ?? 1.0;                              // const 0x11dfbf0
+  if (field0 <= 0) return 0;                                     // the early-zero @0x90b100
   // 2) r-eval + r' (the field slot := r·field, 0x50a2e2..0x50a2fe):
   // const rRaw = noiseDispatch(uid.noiseKind, x, y);              // 0x90AA80 surrogate (flagged) — SUPERSEDED dig #142
   const rRaw = bandRampEval(uid.driver, uid, x, y);              // true 0x90B280 @0x90aadd (X82, dig #142; dig #145 I33(b) fixed the caller FRAME — world px — NOT this swap)
