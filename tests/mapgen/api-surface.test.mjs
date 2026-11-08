@@ -143,7 +143,7 @@ describe("images.mjs", () => {
 
 describe("biomes.mjs", () => {
   test("exports match the documented surface", () => {
-    expect(Object.keys(biomes).sort()).toEqual(["biomeAt", "loadBiomeConfig"]);
+    expect(Object.keys(biomes).sort()).toEqual(["biomeAt", "biomeAtPixel", "biomeChunkDef", "loadBiomeConfig"]); // dig #216: + the GetBiomeAt port (C187)
   });
 });
 

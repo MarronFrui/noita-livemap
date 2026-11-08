@@ -14,6 +14,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { readPng, rgbToRgbaInt, argbHexToRgbaInt } from "./images.mjs";
+import { simplex2DDeriv } from "./noise-proto.mjs"; // dig #216: 0x8fc020 (the biome-edge displacement)
 
 function parseAttr(tag, name) {
   const m = tag.match(new RegExp(`${name}\\s*=\\s*"([^"]*)"`));
@@ -72,6 +73,17 @@ function parseBiomeDefinition(dataDir, filename) {
   // their first-row wang header is all zeros, so the corner-type fill path
   // cannot run. Rendered by the static-tile lane in world-gen.mjs.
   const staticTile = (parseAttr(attrs, "static_tile") ?? "") === "1";
+  // dig #216 (C187, the biome-edge law): the attr arm binds
+  // noise_biome_edges / big_noise_biome_edges / fat_biome_edges -> u8
+  // [cfg+0xc4/0xc5/0xc6] (@0x49d03e / 0x49d06f / 0x49d0a0); the config ctor
+  // writes dword 0x101 to +0xc4 (@0x495efc) ⇒ defaults 1 / 1 / 0.
+  const flagAttr = (n, dflt) => {
+    const v = parseAttr(attrs, n) ?? parseAttr(rootAttrs, n);
+    return v != null ? v.trim() !== "0" : dflt;
+  };
+  const noiseBiomeEdges = flagAttr("noise_biome_edges", true);
+  const bigNoiseBiomeEdges = flagAttr("big_noise_biome_edges", true);
+  const fatBiomeEdges = flagAttr("fat_biome_edges", false);
   const name = (parseAttr(attrs, "name") || "").replace(/^\$biome_/, "");
 
   const randomMaterials = [];
@@ -116,6 +128,9 @@ function parseBiomeDefinition(dataDir, filename) {
     backgroundImage,
     backgroundImageHeight,
     limitBackgroundImage,
+    noiseBiomeEdges,
+    bigNoiseBiomeEdges,
+    fatBiomeEdges,
     luaScript: parseAttr(attrs, "lua_script"), // the per-chunk 0xffffeedd init lane
     randomMaterials: flatRandomMaterials,
 
@@ -371,4 +386,60 @@ export function biomeAt(config, tx, ty) {
   );
   if (!area) return undefined;
   return { color, biome, area };
+}
+
+// --- dig #216 (C187): GetBiomeAt 0x909da0 — THE BIOME-EDGE LAW -------------
+// The per-cell biome lookup (the field driver 0x908f40 calls it first, at
+// every cell). Frame: X = x + [this+0x38], Y = y + [this+0x40] with
+// [+0x38] = W·0.5·512 and [+0x40] = biome_offset_y·512 (Init @0x906c19..
+// 0x906c4d) ⇒ X/Y = BIOME-MAP px; in the display frame X = wx, Y = wy − 48·512.
+// Chunk fetch 0x909c70: cx = pmod(X>>9, W), cy = clamp(Y>>9, 0, H−1).
+//   B = chunk(cx, cy); !B ⇒ null; !B.noise || B.fat ⇒ B.
+//   lx = trunc(X)&511, ly = trunc(Y)&511; probe the neighbours in byte order
+//   (lx≤41: W; ly≤41: N; lx≥471: E; ly≥471: S; then NW, SW, NE, SE) — the
+//   FIRST that differs from B is N. None ⇒ B. !N.noise ⇒ B.
+//   both big: n = simplex2DDeriv(X·0.05, Y·0.05)·11
+//             X' = trunc(X + sin(Y·0.005)·30 + n), Y' = Y + cos(X·0.005)·30 + n
+//   else:     n = simplex2DDeriv(X·0.05, Y·0.05)·2.5; X' = trunc(X + n), Y' = Y + n
+//   M = chunk(X'>>9, trunc(Y')>>9); M && M.noise ⇒ M, else B.
+// consts: 0x11dfcb0 = 0.05, 0x11dff38 = 11, 0x11dfbc0 = 0.005, 0x11dff68 = 30,
+// 0x11dfe98 = 2.5 (f64); sin = 0x1033a34 → _libm_sse2_sin_precise, cos =
+// 0x1033a22 → _libm_sse2_cos_precise (IAT 0x114a520 / 0x114a514).
+export function biomeChunkDef(config, cx, cy) {
+  const W = config.map.width, H = config.map.height;
+  const x = ((cx % W) + W) % W, y = Math.min(Math.max(cy, 0), H - 1);
+  const i = 4 * (y * W + x);
+  const d = config.map.data;
+  return config.biomes.get(rgbToRgbaInt(d[i], d[i + 1], d[i + 2])) ?? null;
+}
+const EDGE_PROBES = [[-1, 0, 1, 0], [0, -1, 0, 1], [1, 0, 2, 0], [0, 1, 0, 2],
+  [-1, -1, 1, 1], [-1, 1, 1, 2], [1, -1, 2, 1], [1, 1, 2, 2]]; // dx, dy, lx test, ly test (1 = ≤41, 2 = ≥471, 0 = any)
+export function biomeAtPixel(config, X, Y) {
+  const xi = Math.trunc(X), yi = Math.trunc(Y);
+  const cx = xi >> 9, cy = yi >> 9, lx = xi & 511, ly = yi & 511;
+  const B = biomeChunkDef(config, cx, cy);
+  if (!B || !B.noiseBiomeEdges || B.fatBiomeEdges) return B;
+  // 0x909c70 re-clamps the probe row, so a probe past the map edge reads the
+  // clamped row (the byte pushes cy±1 computed from the CLAMPED cy @[esp+0xc]).
+  const ccy = Math.min(Math.max(cy, 0), config.map.height - 1);
+  const ok = (t, l) => t === 0 || (t === 1 ? l <= 41 : l >= 471);
+  let N = null;
+  for (const [dx, dy, tx, ty] of EDGE_PROBES) {
+    if (!ok(tx, lx) || !ok(ty, ly)) continue;
+    const c = biomeChunkDef(config, cx + dx, ccy + dy);
+    if (c !== B) { N = c; break; }
+  }
+  if (!N || !N.noiseBiomeEdges) return B;
+  let X2, Y2;
+  if (B.bigNoiseBiomeEdges && N.bigNoiseBiomeEdges) {
+    const n = simplex2DDeriv(X * 0.05, Y * 0.05) * 11;
+    X2 = Math.trunc(Math.sin(Y * 0.005) * 30 + n + X);
+    Y2 = Math.cos(X * 0.005) * 30 + n + Y;
+  } else {
+    const n = simplex2DDeriv(X * 0.05, Y * 0.05) * 2.5;
+    X2 = Math.trunc(n + X);
+    Y2 = n + Y;
+  }
+  const M = biomeChunkDef(config, X2 >> 9, Math.trunc(Y2) >> 9);
+  return M && M.noiseBiomeEdges ? M : B;
 }

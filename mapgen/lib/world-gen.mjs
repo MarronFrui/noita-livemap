@@ -6,7 +6,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { loadBiomeConfig, biomeAt } from "./biomes.mjs";
+import { loadBiomeConfig, biomeAt, biomeAtPixel, biomeChunkDef } from "./biomes.mjs";
 import { buildTileset } from "./wang-js.mjs";
 import { generateAreaExact } from "./generate-exact.mjs";
 import { colorizeArea, applyRandomFloods, loadMaterials } from "./colorize.mjs";
@@ -436,11 +436,37 @@ export function rawAreaMap(world, a) {
   world.rawMaps.set(a.key, m);
   return m;
 }
+// dig #216: the fill of the adjacent chunk whose biome = def, read at the same
+// in-chunk offset (the wall lanes are per-chunk fills; the tongue continues it).
+function neighbourFillAt(world, def, wx, wy) {
+  const ttx = Math.floor(wx / CHUNK), tty = Math.floor(wy / CHUNK);
+  for (const dx of [-1, 1]) {
+    if (biomeChunkDef(world.config, ttx + dx, tty - SKY_ROWS) !== def) continue;
+    const tbuf = world.templates?.get(`${ttx + dx},${tty}`);
+    if (!tbuf) return undefined;
+    const o = 3 * ((wy - tty * CHUNK) * CHUNK + (wx - ttx * CHUNK));
+    if (tbuf[o] === 9 && tbuf[o + 1] === 9 && tbuf[o + 2] === 9) return undefined;
+    return [tbuf[o], tbuf[o + 1], tbuf[o + 2]];
+  }
+  return undefined;
+}
 // undefined = not a Work column (the caller's lanes run); else the colour/null.
 function workColorAt(world, tx, ty, gx, gy, wx, wy) {
   if (!world.config || !world.dataDir) return undefined; // injected worlds: no Work lane
-  const def = workDefAt(world, tx, ty);
-  if (!def) return undefined;
+  // dig #216 (C187, the biome-edge law): the PIXEL's biome = GetBiomeAt
+  // 0x909da0 (biomeAtPixel) at biome-map px (wx, wy − 48·512) — within 41 px
+  // of a chunk edge the boundary is displaced by 30·sin/cos(·0.005) +
+  // 11·simplex (the Hell side walls' sine). E1-matched to the capture
+  // (median |edge − prediction| 0–1 px vs 20–21 px for the straight line).
+  const pix = biomeAtPixel(world.config, wx, wy - SKY_ROWS * CHUNK);
+  const def = pix?.templateFile ? pix : null;
+  if (!def) {
+    // a wang chunk's pixel taken by its non-wang neighbour (the solid_wall
+    // tongue): the neighbour chunk's own fill (its lane, unchanged here).
+    // (the display chunk's biome — the edge law is display-frame, E1-matched)
+    if (!pix || !biomeChunkDef(world.config, Math.floor(wx / CHUNK), Math.floor(wy / CHUNK) - SKY_ROWS)?.templateFile) return undefined;
+    return neighbourFillAt(world, pix, wx, wy);
+  }
   const gyM = workWrapY(gy, WORK_BAND_TOP);
   const idx = world.grid[Math.floor(gyM / CHUNK) * WORLD_CHUNKS_W + tx];
   if (idx >= 0) {
@@ -451,15 +477,21 @@ function workColorAt(world, tx, ty, gx, gy, wx, wy) {
       if (lx >= 0 && ly >= 0 && lx < raw.w * 10 && ly < raw.h * 10) {
         const p = 3 * (Math.floor(ly / 10) * raw.w + Math.floor(lx / 10));
         world.workMaterials ??= loadMaterials(world.dataDir);
+        // the classify table = the JOB biome = GetBiomeAt at the job-area
+        // centre (dispatcher 0x90d1cf..0x90d1fb) = the display chunk's own
+        // biome (the centre is ≥ 41 px from every edge ⇒ undisplaced, C187)
+        const jobDef = biomeChunkDef(world.config, Math.floor(wx / CHUNK), Math.floor(wy / CHUNK) - SKY_ROWS) ?? def;
         const cell = workCellAt(raw.rgb[p], raw.rgb[p + 1], raw.rgb[p + 2],
-          world.workMaterials, ensureSurfaceTable(world.dataDir, def), gx - DISPLAY_X0, gy - DISPLAY_Y0);
+          world.workMaterials, ensureSurfaceTable(world.dataDir, jobDef), gx - DISPLAY_X0, gy - DISPLAY_Y0);
         if (cell.material) return materialColorAt(world.dataDir, cell.material, wx - DISPLAY_X0, wy - DISPLAY_Y0);
       }
     }
   }
   // P air: the template lane's art (the moon altars, spliced scenes) first
   const ttx = Math.floor(wx / CHUNK), tty = Math.floor(wy / CHUNK);
-  const tbuf = world.templates?.get(`${ttx},${tty}`);
+  // dig #216: only the pixel biome's OWN chunk art — a the_end tongue inside a
+  // solid_wall chunk must not read that chunk's wall fill.
+  const tbuf = biomeChunkDef(world.config, ttx, tty - SKY_ROWS) === def ? world.templates?.get(`${ttx},${tty}`) : null;
   if (tbuf) {
     const o = 3 * ((wy - tty * CHUNK) * CHUNK + (wx - ttx * CHUNK));
     if (tbuf[o] !== 9 || tbuf[o + 1] !== 9 || tbuf[o + 2] !== 9) return [tbuf[o], tbuf[o + 1], tbuf[o + 2]];

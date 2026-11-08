@@ -381,6 +381,25 @@ describe.skipIf(!hasNoitaData())("ensureWorld — cached generation (repo gen-ca
     }
   });
 
+  test("dig #216 (C187): the Hell west wall's tongues follow the biome-edge law in the render", async () => {
+    if (!cacheDir || !world) return;
+    // the wall family (rock_hard / rock_hard_border textures: R ≥ 35, G ≥ 19)
+    const isWall = (c) => !!c && c[0] >= 35 && c[1] >= 19;
+    const win = (x0, x1, y0, y1) => {
+      let n = 0;
+      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (isWall(worldColorAt(world, x, y))) n++;
+      return n;
+    };
+    // capture edge at wy 70160 = line − 36: a the_end tongue INSIDE the wall
+    // chunk (old law: the chunk's wall fill = 35/35)
+    expect(win(27 * 512 - 33, 27 * 512 - 27, 70158, 70162)).toBeLessThanOrEqual(12);
+    // capture edge at wy 72080 = line + 34: a wall tongue INSIDE the_end's
+    // chunk (old law: the Work lane's interior, ~20% wall-family)
+    expect(win(27 * 512 + 27, 27 * 512 + 32, 72078, 72082)).toBeGreaterThanOrEqual(22);
+    // control: deep inside the wall chunk = all wall under both laws
+    expect(win(26 * 512 + 200, 26 * 512 + 206, 70158, 70162)).toBe(35);
+  });
+
   test("per-area .bin cache format: u32 w | u32 h | u32 attempt | rgb", async () => {
     if (!cacheDir || !world) return;
     const [key, m] = world.maps.entries().next().value;
