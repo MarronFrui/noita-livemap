@@ -383,7 +383,7 @@ function blitInitScenes(buffers, dataDir, def, x, y, seed) {
 // machinery involved. Render = plain blit at (x,y). Sources: each
 // `biome_impl/spliced/_*.bat` (verified on disk 2026-09-17) + the
 // boss_ arena 24-scene grid positions in biome_impl/spliced/boss_arena.xml.
-const SPLICE_PNGS = [
+export const SPLICE_PNGS = [
   { file: "boss_arena.png", x: 1536, y: 12288 },
   { file: "tree.png", x: -2048, y: -1324 },
   { file: "moon.png", x: 0, y: -26112 },
@@ -497,7 +497,7 @@ export function blitSplicedScenes(buffers, dataDir, config, seed = 0) {
 // lane as the spliced scenes (I9): pos_x/pos_y are constants in the game's
 // own data — seed-independent. Render = the same materials mapping; entries
 // with just_load_an_entity only (no art) are registered but not painted.
-function loadPixelSceneTable(dataDir) {
+export function loadPixelSceneTable(dataDir) {
   const key = `${dataDir}|_pixel_scenes`;
   if (!artCache.has(key)) {
     let entries = [];

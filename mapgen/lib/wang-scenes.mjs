@@ -209,6 +209,37 @@ export class WangLuaHost {
   }
 }
 
+// Spawn triggers INSIDE a placed pixel-scene image (2026-11-08, the sky-band
+// fix): the engine's spawn pass also walks the material image of a spliced /
+// fixed scene — a px whose colour is registered in the HOSTING biome's spawn
+// table calls that function at the px's world position (the spliced tree.png
+// carries one 0xc2d0b4 px = mountain_tree.lua's spawn_pillars: the six
+// pillars above the tree). `scenes` = [{ file, x, y }] in world px;
+// hostFor(world px x, y) -> a WangLuaHost | null (the biome there).
+// Returns the LoadPixelScene records the calls made.
+export function sceneImageSpawnCalls(dataDir, scenes, hostFor, readImage) {
+  const out = [];
+  for (const sc of scenes) {
+    const img = readImage(sc.file);
+    if (!img) continue;
+    for (let j = 0; j < img.height; j++) {
+      for (let i = 0; i < img.width; i++) {
+        const q = 4 * (j * img.width + i);
+        if (img.data[q + 3] < 128) continue;
+        const c = (img.data[q] << 16) | (img.data[q + 1] << 8) | img.data[q + 2];
+        if (c === 0 || c === INIT_COLOR) continue;
+        const host = hostFor(sc.x + i, sc.y + j);
+        const name = host?.table.get(c);
+        if (!name) continue;
+        const before = host.scenes.length;
+        host.call(name, sc.x + i, sc.y + j);
+        out.push(...host.scenes.slice(before));
+      }
+    }
+  }
+  return out;
+}
+
 // The scene calls for one area. `raw` = the area's out_map (RGB, w×h, the
 // generator's accepted attempt — rawAreaMap), `host` = the biome's Lua host.
 export function areaSceneCalls(host, a, raw) {

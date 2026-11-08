@@ -720,3 +720,19 @@ describe.skipIf(!hasNoitaData())("sky band (biome rows 0..13) — the cloud / st
     expect(s("90,90,95") + s("80,80,85")).toBe(0);
   }, 240000);
 });
+
+describe.skipIf(!hasNoitaData())("image-spawned scenes (the spliced tree's spawn_pillars) — 2026-11-08", () => {
+  test("tree.png's 0xc2d0b4 px runs mountain_tree.lua spawn_pillars: 6 pillars × (1 under + fade + 3 above + end) with no persistent flags (old: none)", async () => {
+    const world = await sharedWorld();
+    const pillars = world.imageSpawnLog.filter((c) => c.fn === "spawn_pillars");
+    expect(pillars.length).toBe(36);
+    expect(new Set(pillars.map((c) => c.x)).size).toBe(6);
+    // the pillar art paints over the sky above the tree (world y −1399..−1159 = canvas row 59)
+    let px = 0;
+    for (let j = 0; j < 512; j += 2) for (let i = 0; i < 512; i += 2) {
+      const c = worldColorAt(world, 31 * 512 + i, 59 * 512 + j);
+      if (c && c[2] > c[0] + 20) px++; // the teal pillar_part art
+    }
+    expect(px).toBeGreaterThan(100);
+  }, 240000);
+});

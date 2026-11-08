@@ -11,9 +11,9 @@ import { buildTileset } from "./wang-js.mjs";
 import { generateAreaExact } from "./generate-exact.mjs";
 import { colorizeArea, applyRandomFloods, loadMaterials } from "./colorize.mjs";
 import { workWrapY, workCellAt } from "./the-work.mjs"; // dig #215 (C186): the Work y-wrap law
-import { renderTemplateWorld, blitScene, blitBackdrop } from "./template-render.mjs";
+import { renderTemplateWorld, blitScene, blitBackdrop, SPLICE_PNGS, loadPixelSceneTable } from "./template-render.mjs";
 import { LazyChunkStore } from "./chunk-store.mjs";
-import { WangLuaHost, areaSceneCalls, loadWangScriptsCsv } from "./wang-scenes.mjs"; // the wang spawn-scene lane
+import { WangLuaHost, areaSceneCalls, loadWangScriptsCsv, sceneImageSpawnCalls } from "./wang-scenes.mjs"; // the wang spawn-scene lane
 import { readPng } from "./images.mjs";
 import { materialColorAt } from "./colorize.mjs"; // dig #213 (C185): the cell colour law
 import { ensureBiomeBackdrop, ensureSurfaceTable } from "./noise-terrain.mjs"; // dig #134 bin-air backdrop; dig #215 Work classify
@@ -251,6 +251,14 @@ export function worldColorAt(world, wx, wy) {
         // the old code returned the flat noiseColor here (the over-fill).
       }
     }
+    }
+    // the image-spawned scenes (the tree's pillars): fg art, then their
+    // background_file art over the sky (DISPLAY frame, like the templates)
+    {
+      const fg = sceneBufAt(world.imageSpawns, wx, wy);
+      if (fg) return fg;
+      const bgp = sceneBufAt(world.imageSpawns?.get("bg"), wx, wy);
+      if (bgp) return bgp;
     }
     return world.skyAt?.(tx, ty, gx, gy) ?? null;
   }
@@ -535,6 +543,38 @@ export async function buildWangScenes(world) {
   world.wangSceneLog = log;
   return scenes;
 }
+// The scenes spawned FROM pixel-scene images (wang-scenes.mjs
+// sceneImageSpawnCalls): the spliced scenes + the fixed _pixel_scenes table,
+// each trigger px run through the hosting biome's real Lua. Painted in the
+// DISPLAY frame (the splice lane's world px → canvas, like world.templates),
+// with no biome gate (the calls pass skip_biome_checks = true — spawn_pillars).
+// HasFlagPersistent (player progress) is a stub ⇒ false: the pillars render
+// with NO flags held (the capture's extra segments = its player's unlocks).
+function buildImageSpawns(world) {
+  const store = new LazyChunkStore();
+  const csv = loadWangScriptsCsv(world.dataDir);
+  const hosts = new Map();
+  const hostFor = (x, y) => {
+    const def = biomeAt(world.config, Math.floor(x / CHUNK) + 35, Math.floor(y / CHUNK) + 14)?.biome;
+    if (!def?.luaScript) return null;
+    let h = hosts.get(def.luaScript);
+    if (!h) { h = new WangLuaHost(world.dataDir, def.luaScript, world.seed, csv); hosts.set(def.luaScript, h); }
+    return h;
+  };
+  const images = [
+    ...SPLICE_PNGS.map((s) => ({ file: "data/biome_impl/spliced/" + s.file, x: s.x, y: s.y })),
+    ...loadPixelSceneTable(world.dataDir).filter((e) => e.material && !e.entityOnly).map((e) => ({ file: e.material, x: e.x, y: e.y })),
+  ];
+  const readImage = (rel) => { try { return readPng(path.join(world.dataDir, rel.replace(/^data\//, ""))); } catch { return null; } };
+  let calls = [];
+  try { calls = sceneImageSpawnCalls(world.dataDir, images, hostFor, readImage); } catch { calls = []; }
+  for (const sc of calls) {
+    if (sc.mat) blitScene(store, world.dataDir, { materialBands: [] }, sc.mat, sc.vis || null, sc.x, sc.y, "", world.seed);
+    if (sc.bg) blitBackdrop(store, world.dataDir, sc.bg, sc.x, sc.y);
+  }
+  world.imageSpawnLog = calls;
+  return store;
+}
 function sceneBufAt(bufs, gx, gy) {
   if (!bufs) return null;
   const cx = Math.floor(gx / CHUNK), cy = Math.floor(gy / CHUNK);
@@ -628,6 +668,7 @@ export function ensureWorld(seed, dataDir, { cacheDir = null, onProgress = () =>
   world.seed = seed; world.cacheDir = cacheDir; // dig #215: the Work lane's raw-bin cache
   world.maps = new Map();
   world.templates = renderTemplateWorld(dataDir, world.config, seed); // template biomes (sync, cached art)
+  world.imageSpawns = buildImageSpawns(world); // spawn triggers inside the spliced/fixed scene images (the tree's pillars)
   attachNoiseTerrain(world, dataDir, seed); // F3 noise terrain (2026-09-20) — the seed reaches the caves-field lane (dig #30)
   world.ready = Promise.all(
     world.areas.map(
