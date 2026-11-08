@@ -1,0 +1,28 @@
+{
+  // Keep VS Code's watcher/search/TS server off the multi-GB generated trees
+  // (gen caches, extraction dumps, the zig toolchain) — on WSL these crawls
+  // compete with the mapgen battery for the VM's RAM/IO.
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/.git/objects/**": true,
+    "**/dist/**": true,
+    "tools/**": true,
+    "vendor/**": true,
+    "mapgen/out/**": true,
+    "mapgen/extractions/**": true,
+    "mapgen/re/target/**": true,
+    "mapcap/out/**": true,
+    "public/noitamap/**": true
+  },
+  "search.exclude": {
+    "tools/**": true,
+    "vendor/**": true,
+    "mapgen/out/**": true,
+    "mapgen/extractions/**": true,
+    "mapgen/re/target/**": true,
+    "mapcap/out/**": true,
+    "public/noitamap/**": true,
+    "dist/**": true
+  },
+  "search.followSymlinks": false
+}
