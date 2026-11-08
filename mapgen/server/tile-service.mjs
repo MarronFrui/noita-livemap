@@ -75,9 +75,10 @@ export function sourceRevision(files, extra = "") {
 }
 
 export class TileService {
-  // renderDirect(seed, z, x, y, captureOn) -> Promise<Uint8Array RGBA>
-  constructor({ root, rev, renderDirect, gridW, gridH, directMaxZ = 4, maxZ = 7, memTiles = 1024, log = () => {} }) {
-    Object.assign(this, { root, rev, renderDirect, gridW, gridH, directMaxZ, maxZ, log });
+  // renderDirect(seed, z, x, y, captureOn, { key, priority }) -> Promise<Uint8Array RGBA>
+  // onBump(key): a HIGH ask joined an in-flight LOW (prewarm) render
+  constructor({ root, rev, renderDirect, gridW, gridH, directMaxZ = 4, maxZ = 7, memTiles = 1024, onBump = () => {}, log = () => {} }) {
+    Object.assign(this, { root, rev, renderDirect, gridW, gridH, directMaxZ, maxZ, onBump, log });
     this.mem = new Map(); // key -> PNG Buffer (insertion-order LRU)
     this.memCap = memTiles;
     this.inflight = new Map(); // key -> Promise<{ png, rgba }>
@@ -95,22 +96,35 @@ export class TileService {
     while (this.mem.size > this.memCap) this.mem.delete(this.mem.keys().next().value);
   }
   // PNG bytes for a tile (the HTTP path)
-  async png(seed, z, x, y, captureOn) {
+  // priority: "high" (a viewer request) | "low" (prewarm)
+  async png(seed, z, x, y, captureOn, priority = "high") {
     const k = this.key(seed, z, x, y, captureOn);
     const hit = this.mem.get(k);
     if (hit) { this.stats.mem++; this.remember(k, hit); return hit; }
-    return (await this.load(k, seed, z, x, y, captureOn)).png;
+    return (await this.load(k, seed, z, x, y, captureOn, priority)).png;
   }
   // RGBA for a tile (the pyramid's children)
-  async rgba(seed, z, x, y, captureOn) {
+  async rgba(seed, z, x, y, captureOn, priority = "high") {
     if (!this.inGrid(z, x, y)) return null;
     const k = this.key(seed, z, x, y, captureOn);
-    const r = await this.load(k, seed, z, x, y, captureOn);
+    const r = await this.load(k, seed, z, x, y, captureOn, priority);
     return r.rgba ?? new Uint8Array(PNG.sync.read(r.png).data);
   }
-  load(k, seed, z, x, y, captureOn) {
+  load(k, seed, z, x, y, captureOn, priority = "high") {
     let p = this.inflight.get(k);
-    if (p) return p;
+    if (p) {
+      if (priority === "high" && p.priority === "low") {
+        p.priority = "high";
+        this.onBump(k);
+        // a pyramid tile's children are their own in-flight renders: promote them too
+        if (z > this.directMaxZ) {
+          for (const [cx, cy] of [[2 * x, 2 * y], [2 * x + 1, 2 * y], [2 * x, 2 * y + 1], [2 * x + 1, 2 * y + 1]]) {
+            if (this.inGrid(z - 1, cx, cy)) this.load(this.key(seed, z - 1, cx, cy, captureOn), seed, z - 1, cx, cy, captureOn, "high");
+          }
+        }
+      }
+      return p;
+    }
     p = (async () => {
       const mem = this.mem.get(k);
       if (mem) return { png: mem, rgba: null };
@@ -123,14 +137,14 @@ export class TileService {
       } catch { /* not on disk — compute */ }
       let rgba;
       if (z <= this.directMaxZ) {
-        rgba = await this.renderDirect(seed, z, x, y, captureOn);
+        rgba = await this.renderDirect(seed, z, x, y, captureOn, { key: k, priority: p.priority });
         this.stats.direct++;
       } else {
         const kids = await Promise.all([
-          this.rgba(seed, z - 1, 2 * x, 2 * y, captureOn),
-          this.rgba(seed, z - 1, 2 * x + 1, 2 * y, captureOn),
-          this.rgba(seed, z - 1, 2 * x, 2 * y + 1, captureOn),
-          this.rgba(seed, z - 1, 2 * x + 1, 2 * y + 1, captureOn),
+          this.rgba(seed, z - 1, 2 * x, 2 * y, captureOn, p.priority),
+          this.rgba(seed, z - 1, 2 * x + 1, 2 * y, captureOn, p.priority),
+          this.rgba(seed, z - 1, 2 * x, 2 * y + 1, captureOn, p.priority),
+          this.rgba(seed, z - 1, 2 * x + 1, 2 * y + 1, captureOn, p.priority),
         ]);
         rgba = combineChildren(kids);
         this.stats.pyramid++;
@@ -142,6 +156,7 @@ export class TileService {
         .catch((e) => this.log(`[tiles] disk write failed ${k}: ${e.message}`));
       return { png, rgba };
     })();
+    p.priority = priority;
     this.inflight.set(k, p);
     p.finally(() => this.inflight.delete(k)).catch(() => {});
     return p;

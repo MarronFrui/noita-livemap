@@ -22,11 +22,11 @@
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
-import { PNG } from "pngjs";
 import { findNoitaDataDir, repoRoot } from "../lib/paths.mjs";
 import { clearGenCache } from "./gen-cache.mjs";
-import { renderTileRGBA } from "./tile-render.mjs";
 import { TileService, sourceRevision } from "./tile-service.mjs";
+import { CAPTURE_SEED, CAPTURE_DEFAULT } from "./capture-layer.mjs";
+import { TilePool } from "./tile-pool.mjs";
 import {
   ensureWorld,
   worldColorAt,
@@ -57,70 +57,13 @@ const TILE_REV = sourceRevision(
     ...fs.readdirSync(LIB_DIR).filter((f) => f.endsWith(".mjs") || f.endsWith(".js")).map((f) => path.join(LIB_DIR, f)),
     path.join(repoRoot, "mapgen/server/tile-render.mjs"),
     path.join(repoRoot, "mapgen/server/tile-service.mjs"),
+    path.join(repoRoot, "mapgen/server/tile-worker.mjs"),
+    path.join(repoRoot, "mapgen/server/capture-layer.mjs"),
   ],
   [path.basename(cacheDir), dataDir, ...["SURFACE_V2", "SURFACE_V3", "PROC_FILL", "CAPTURE_LAYER"].map((k) => `${k}=${process.env[k] ?? ""}`)].join("|")
 );
 let clears = 0;
 const epochNow = () => `${TILE_REV}.${clears}`;
-
-// ── capture-composite display layer (ISSUES A10) ───────────────────────────
-// The game's runtime-computed lanes (the splice/fixed-scene driver fills, the
-// deep fill bands) are only partially recovered — their cells currently show
-// approximations. At the CAPTURED seed the viewer can instead take those world
-// px straight from the capture tiles (mapgen/out/ref = noita-mapcap's own
-// output for seed 78633191 = the game's true pixels, M-grade ground truth,
-// mapcap/README). Frame law: canvas px = world px + (17920, 31744) (C145),
-// so capture `X_Y.png` (the game chunk X−35, Y−14) = canvas chunk (X, Y+48),
-// 1:1 px (empirically pinned: our tile 40_63 lava-family count = 81,897 vs
-// the capture's 40_15 = 80,268, and 40_64 = 242,351 both).
-// Scope honesty: the fill pixels are SEED-DEPENDENT, so the layer is
-// registered at the captured seed only (the world-fixed landmark ART is
-// seed-independent — I9 — but its driver fill is not). Display-only by
-// construction: it wraps worldColorAt here in the server; the lib lanes and
-// the E1/E2 instruments read the generator directly and are unaffected.
-// Default OFF (user call 2026-10-21): the layer only ever shows the
-// noitamap capture of seed 78633191 — a world that is never the live
-// run's — so it is pointless at any other seed and a per-px lookup cost
-// at this one. CAPTURE_LAYER=1 re-enables it globally (benchmark use at
-// the demo seed); the viewer overrides per request with ?c=0 / ?c=1 on
-// the tile URL. It dies when the field's noise law + the scene fill
-// laws compose at the demo seed (the dig #177+ lane work).
-const CAPTURE_SEED = 78633191;
-const CAPTURE_DIR = path.join(repoRoot, "mapgen/out/ref");
-const CAPTURE_DEFAULT = process.env.CAPTURE_LAYER === "1";
-const captureTiles = new Map(); // "tx,ty" -> Uint8Array(512*512*3) | null (absent)
-const captureLru = [];
-function captureTileAt(tx, ty) {
-  const key = `${tx},${ty}`;
-  let t = captureTiles.get(key);
-  if (t === undefined) {
-    t = null; // miss sentinel — absent tiles are not re-read per px
-    try {
-      const png = PNG.sync.read(fs.readFileSync(path.join(CAPTURE_DIR, `${tx}_${ty - 48}.png`)));
-      if (png.width === 512 && png.height === 512) {
-        const rgb = new Uint8Array(512 * 512 * 3);
-        for (let i = 0, p = 0; p < rgb.length; i += 4, p += 3) {
-          rgb[p] = png.data[i]; rgb[p + 1] = png.data[i + 1]; rgb[p + 2] = png.data[i + 2];
-        }
-        t = rgb;
-      }
-    } catch { /* no capture coverage at this chunk */ }
-    captureTiles.set(key, t);
-    captureLru.push(key);
-    if (captureLru.length > 192) captureTiles.delete(captureLru.shift());
-  }
-  return t;
-}
-function worldColorComposedAt(world, seed, captureOn, wx, wy) {
-  if (captureOn && seed === CAPTURE_SEED && wx >= 0 && wy >= 0) {
-    const t = captureTileAt(Math.floor(wx / 512), Math.floor(wy / 512));
-    if (t) {
-      const p = 3 * ((wy & 511) * 512 + (wx & 511));
-      return [t[p], t[p + 1], t[p + 2]];
-    }
-  }
-  return worldColorAt(world, wx, wy);
-}
 
 function getWorld(seed) {
   let entry = worlds.get(seed);
@@ -151,22 +94,53 @@ function getWorld(seed) {
   return entry;
 }
 
-// the tile law lives in tile-render.mjs (shared with the tile workers)
-async function renderDirect(seed, z, x, y, captureOn) {
-  const entry = getWorld(seed);
-  await entry.ready;
-  entry.progress.ready = true;
-  await new Promise((r) => setImmediate(r)); // let queued requests in between renders
-  return renderTileRGBA((wx, wy) => worldColorComposedAt(entry.world, seed, captureOn, wx, wy), z, x, y);
-}
+// Direct-law tiles render on the worker pool (perf D, tile-pool.mjs):
+// GENMAP_WORKERS threads (default 4), each with its own lazy world and a
+// GENMAP_WORKER_CHUNKS chunk cache (default 192 ≈ 150 MB).
+const pool = new TilePool({
+  size: Number(process.env.GENMAP_WORKERS ?? 4),
+  chunkCache: Number(process.env.GENMAP_WORKER_CHUNKS ?? 192),
+  dataDir,
+  cacheDir,
+  log: (m) => console.log(m),
+});
+const renderDirect = (seed, z, x, y, captureOn, { key, priority } = {}) =>
+  pool.render({ key, seed, z, x, y, captureOn, priority });
 const tiles = new TileService({
   root: path.join(repoRoot, "mapgen/out/tile-cache"),
   rev: TILE_REV,
   renderDirect,
   gridW: WORLD_CHUNKS_W,
   gridH: WORLD_CHUNKS_H,
+  onBump: (k) => pool.bump(k),
   log: (m) => console.log(m),
 });
+
+// Prewarm (perf D): the first touch of a seed queues, at LOW priority, the
+// opening view (z1 around spawn), then the whole z4 level (every zoomed-out
+// view is then a cheap pyramid of cached tiles), then z2 around spawn. The
+// tiles land in the disk cache, so each seed prewarms once per revision.
+const prewarmed = new Set();
+function prewarm(seed) {
+  const k = `${seed}`;
+  if (prewarmed.has(k)) return;
+  prewarmed.add(k);
+  const SPAWN = { x: 35 * 512, y: 62 * 512 };
+  const ring = (z, rx, ry) => {
+    const span = 512 * 2 ** z, out = [];
+    const cx = Math.floor(SPAWN.x / span), cy = Math.floor(SPAWN.y / span);
+    for (let y = cy - ry; y <= cy + ry; y++) for (let x = cx - rx; x <= cx + rx; x++) if (tiles.inGrid(z, x, y)) out.push([z, x, y]);
+    return out.sort((a, b) => Math.hypot(a[1] - cx, a[2] - cy) - Math.hypot(b[1] - cx, b[2] - cy));
+  };
+  const z4 = [];
+  for (let y = 0; y < Math.ceil(WORLD_CHUNKS_H / 16); y++) for (let x = 0; x < Math.ceil(WORLD_CHUNKS_W / 16); x++) z4.push([4, x, y]);
+  const plan = [...ring(1, 3, 2), ...z4, ...ring(2, 3, 3)];
+  const t0 = Date.now();
+  Promise.allSettled(plan.map(([z, x, y]) => tiles.png(seed, z, x, y, CAPTURE_DEFAULT, "low"))).then((r) => {
+    const failed = r.filter((x) => x.status === "rejected").length;
+    console.log(`[genmap] prewarm seed ${seed}: ${plan.length - failed}/${plan.length} tiles in ${((Date.now() - t0) / 1000).toFixed(1)} s`);
+  });
+}
 {
   const gone = tiles.pruneOldRevisions();
   if (gone.length) console.log(`[genmap] tile cache: removed ${gone.length} stale revision dir(s)`);
@@ -191,6 +165,7 @@ const server = http.createServer(async (req, res) => {
       }
       const cParam = url.searchParams.get("c");
       const captureOn = cParam != null ? cParam !== "0" : CAPTURE_DEFAULT;
+      prewarm(seed);
       const png = await tiles.png(seed, z, x, y, captureOn);
       res.writeHead(200, { "Content-Type": "image/png", "Cache-Control": "public, max-age=31536000, immutable" });
       res.end(png);
@@ -198,9 +173,10 @@ const server = http.createServer(async (req, res) => {
     }
     if ((m = url.pathname.match(/^\/gen\/status\/(-?\d+)$/))) {
       const seed = Number(m[1]) >>> 0;
-      const entry = getWorld(seed);
+      prewarm(seed); // the viewer polls status first: start the seed's workers now
+      const st = pool.progress(seed);
       res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-cache" });
-      res.end(JSON.stringify({ ready: entry.progress.done >= entry.progress.total, epoch: epochNow(), capture: CAPTURE_DEFAULT && seed === CAPTURE_SEED, ...entry.progress }));
+      res.end(JSON.stringify({ ready: st.ready, done: st.done, total: st.total, errors: [], epoch: epochNow(), capture: CAPTURE_DEFAULT && seed === CAPTURE_SEED, pool: pool.stats, tiles: tiles.stats }));
       return;
     }
     if ((m = url.pathname.match(/^\/gen\/clear(?:\/(-?\d+))?$/))) {
@@ -213,6 +189,8 @@ const server = http.createServer(async (req, res) => {
       if (seed === null) worlds.clear();
       else worlds.delete(seed);
       tiles.clear(seed);
+      pool.dropSeed(seed);
+      if (seed === null) prewarmed.clear(); else prewarmed.delete(`${seed}`);
       clears++;
       console.log(
         `[genmap] cache cleared (seed ${seed ?? "ALL"}, epoch ${epochNow()}, ${removed.length} seed dir(s) removed)${wasGenerating ? " — was mid-generation" : ""}`

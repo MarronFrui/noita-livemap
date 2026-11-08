@@ -362,6 +362,13 @@ function noiseColor(world, tx, ty, solid, materialRgb = null) {
   return [(hex >> 16) & 0xff, (hex >> 8) & 0xff, hex & 0xff];
 }
 
+// cache writes land whole or not at all (tmp + rename): the gen server's tile
+// workers build the same seed concurrently and must never read a torn .bin
+function writeFileAtomic(file, data) {
+  const tmp = `${file}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
+  fs.writeFileSync(tmp, data);
+  fs.renameSync(tmp, file);
+}
 function readCache(cacheFile) {
   try {
     const buf = fs.readFileSync(cacheFile);
@@ -454,7 +461,7 @@ function storeRawAreaMap(world, a, m) {
     const out = Buffer.alloc(12 + m.rgb.length);
     out.writeUInt32LE(m.w, 0); out.writeUInt32LE(m.h, 4); out.writeUInt32LE(m.attempt, 8);
     m.rgb.copy(out, 12);
-    fs.writeFileSync(cacheFile, out);
+    writeFileAtomic(cacheFile, out);
   } catch {
     // the raw cache is an accelerator only
   }
@@ -674,7 +681,7 @@ export function ensureWorld(seed, dataDir, { cacheDir = null, onProgress = () =>
                 out.writeUInt32LE(m.h, 4);
                 out.writeUInt32LE(m.attempt, 8);
                 m.rgb.copy(out, 12);
-                fs.writeFileSync(cacheFile, out);
+                writeFileAtomic(cacheFile, out);
               }
               onProgress(1, a.key, null, r.attempt);
             }
