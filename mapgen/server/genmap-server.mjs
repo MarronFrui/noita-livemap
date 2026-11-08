@@ -39,10 +39,11 @@ const dataDir = findNoitaDataDir();
 const cacheDir = path.join(repoRoot, "mapgen/out/gen-cache/r3j"); // r3j (r3i + the spawn-colour → air display law, wang-scenes lane): this cache dir stores ONLY the wang-area bins (world.maps, seed+area-keyed) — independent of the cave-field lane. DIG #192 PRODUCT FLIP (2026-10-23): the caves-field lane is ON by default (no env needed — `npm run gen:server` starts ALL lanes); the old opt-in belonged to the D-grade era, superseded by the C165/C166 port. SURFACE_V3=0/2=0 = the old detached lane (the instrument baselines). Bump to a fresh rev only when a cached build's output observably changes.
 
 const worlds = new Map(); // seed -> { world, progress, ready }
-// A world is ~4.6 GB RSS (renderTemplateWorld's template chunk buffers alone
-// ≈ 3.8 GB): keep only the most recently used seeds resident, or browsing a
-// few seeds exhausts the (WSL) VM. In-flight requests keep their own entry.
-const MAX_WORLDS = Math.max(1, Number(process.env.GENMAP_MAX_WORLDS ?? 1));
+// A world was ~4.6 GB RSS when the template planes rendered eagerly; with the
+// lazy chunk store (chunk-store.mjs, 2026-11-08) it is ~0.6 GB at ready and
+// bounded by the chunk cache (MAPGEN_CHUNK_CACHE) after browsing. Keep only
+// the most recently used seeds resident; in-flight requests keep their entry.
+const MAX_WORLDS = Math.max(1, Number(process.env.GENMAP_MAX_WORLDS ?? 3));
 // Bump-per-start epoch (Date.now()): every server restart invalidates the
 // browser's immutable `?e=` tile URLs, so no stale pre-fix tiles can
 // survive a deploy; /gen/clear still explicit-bumps (epoch is monotonic

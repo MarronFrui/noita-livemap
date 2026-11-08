@@ -12,6 +12,7 @@ import { generateAreaExact } from "./generate-exact.mjs";
 import { colorizeArea, applyRandomFloods, loadMaterials } from "./colorize.mjs";
 import { workWrapY, workCellAt } from "./the-work.mjs"; // dig #215 (C186): the Work y-wrap law
 import { renderTemplateWorld, blitScene, blitBackdrop } from "./template-render.mjs";
+import { LazyChunkStore } from "./chunk-store.mjs";
 import { WangLuaHost, areaSceneCalls, loadWangScriptsCsv } from "./wang-scenes.mjs"; // the wang spawn-scene lane
 import { readPng } from "./images.mjs";
 import { materialColorAt } from "./colorize.mjs"; // dig #213 (C185): the cell colour law
@@ -470,7 +471,8 @@ function storeRawAreaMap(world, a, m) {
 // regeneration is ~1 s per area, and one contiguous sync span over all of
 // them starves the vitest worker's RPC / the gen server's requests).
 export async function buildWangScenes(world) {
-  const scenes = new Map();
+  // recorded ops, per-chunk materialization (chunk-store.mjs); MAPGEN_EAGER_TEMPLATES=1 = the eager Map reference
+  const scenes = process.env.MAPGEN_EAGER_TEMPLATES === "1" ? new Map() : new LazyChunkStore();
   const csv = loadWangScriptsCsv(world.dataDir);
   const hosts = new Map();
   const log = [];

@@ -1,7 +1,7 @@
 {
   "comment": "the I36 count law's reference (dig #156, scripts/precommit-gates-lib.mjs): the full battery must report EXACTLY these vitest summary totals at every gated commit — any deficit = the silent-truncation class, refused with one retry allowed. Updated per dig when the committed test set changes (the dig's own battery run is the source).",
-  "filesTotal": 38,
-  "testsTotal": 475,
+  "filesTotal": 39,
+  "testsTotal": 482,
   "testsSkipped": 4,
-  "source": "npm test 2026-11-08 (I54, the wang spawn-scene lane + the battery memory fix): 38 files / 471 passed | 4 skipped (475). The +8 over the dig-#216 baseline = tests/mapgen/wang-scenes.test.mjs (8). Skip set unchanged (4). Battery peak RSS 5.2 GB (one shared world per file)."
+  "source": "npm test 2026-11-08 (perf A: the lazy chunk store): 39 files / 478 passed | 4 skipped (482). The +7 = tests/mapgen/chunk-store.test.mjs (7: 5 unit laws + the exhaustive lazy==eager pins). Skip set unchanged (4)."
 }

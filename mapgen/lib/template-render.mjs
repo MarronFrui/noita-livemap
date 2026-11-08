@@ -21,6 +21,17 @@ import { seededPrng } from "./wang-js.mjs";
 import { biomeAt } from "./biomes.mjs"; // the OWNERSHIP GATE source (dig 52)
 import { surfaceFillLane, surfaceFillAt } from "./noise-terrain.mjs"; // dig #172: the driver fill lane
 import path from "node:path";
+import { LazyChunkStore } from "./chunk-store.mjs"; // the lazy per-chunk planes (A, 2026-11-08)
+
+// the replay clip: [lo, hi) loop bounds of an image placed at `o` (size n)
+// against the target chunk's world-px span — full range on eager Maps
+const clipRange = (clip, o, n, axis) => {
+  if (!clip) return [0, n];
+  const lo = axis ? clip.y0 : clip.x0, hi = axis ? clip.y1 : clip.x1;
+  // integer loop indices (scene origins from Lua can be fractional): i
+  // lands in the chunk iff lo <= o + i < hi  <=>  ceil(lo - o) <= i < ceil(hi - o)
+  return [Math.max(0, Math.ceil(lo - o)), Math.min(n, Math.ceil(hi - o))];
+};
 
 // ---------------------------------------------------------------- caches ---
 const artCache = new Map();
@@ -87,14 +98,20 @@ const TRIGGER_HINT = new Set([
 export function blitScene(buffers, dataDir, def, matFile, visFile, wx, wy, biomeName, seed = 0, gate = null) {
   const mat = art(dataDir, matFile);
   if (!mat) return 0;
+  if (buffers.recording) {
+    buffers.record(wx, wy, wx + mat.width, wy + mat.height,
+      (b) => blitScene(b, dataDir, def, matFile, visFile, wx, wy, biomeName, seed, gate));
+    return 0;
+  }
   const vis = visFile ? art(dataDir, visFile) : null;
   const materials = loadMaterials(dataDir);
   const bands = (def.materialBands ?? []).filter((b) => !b.rare);
   const bandLo = bands.length ? Math.min(...bands.map((b) => b.min)) : 0;
   const bandHi = bands.length ? Math.max(...bands.map((b) => b.max)) : 1;
   let n = 0;
-  for (let j = 0; j < mat.height; j++) {
-    for (let i = 0; i < mat.width; i++) {
+  const [j0, j1] = clipRange(buffers.clip, wy, mat.height, 1), [i0, i1] = clipRange(buffers.clip, wx, mat.width, 0);
+  for (let j = j0; j < j1; j++) {
+    for (let i = i0; i < i1; i++) {
       const q = 4 * (j * mat.width + i);
       const al = mat.data[q + 3];
       const r = mat.data[q], g = mat.data[q + 1], b = mat.data[q + 2];
@@ -147,11 +164,17 @@ export function blitScene(buffers, dataDir, def, matFile, visFile, wx, wy, biome
 export function blitBackdrop(buffers, dataDir, file, wx, wy, gate = null) {
   const img = art(dataDir, file);
   if (!img) return 0;
+  if (buffers.recording) {
+    buffers.get("bg").record(wx, wy, wx + img.width, wy + img.height,
+      (b) => blitBackdrop(b, dataDir, file, wx, wy, gate));
+    return 0;
+  }
   let bg = buffers.get("bg");
   if (!bg) { bg = new Map(); buffers.set("bg", bg); }
   let n = 0;
-  for (let j = 0; j < img.height; j++) {
-    for (let i = 0; i < img.width; i++) {
+  const [j0, j1] = clipRange(buffers.clip, wy, img.height, 1), [i0, i1] = clipRange(buffers.clip, wx, img.width, 0);
+  for (let j = j0; j < j1; j++) {
+    for (let i = i0; i < i1; i++) {
       const q = 4 * (j * img.width + i);
       if (img.data[q + 3] < 10) continue;
       if (gate && !gate(wx + i, wy + j)) continue;
@@ -401,8 +424,16 @@ export function blitSplicedScenes(buffers, dataDir, config, seed = 0) {
   for (const sc of SPLICE_PNGS) {
     const img = art(dataDir, "data/biome_impl/spliced/" + sc.file);
     if (!img) continue;
-    for (let j = 0; j < img.height; j++) {
-      for (let i = 0; i < img.width; i++) {
+    if (buffers.recording) {
+      buffers.record(sc.x, sc.y, sc.x + img.width, sc.y + img.height, (b) => blitSpliceImage(b, sc, img));
+      continue;
+    }
+    blitSpliceImage(buffers, sc, img);
+  }
+  function blitSpliceImage(buffers, sc, img) {
+    const [j0, j1] = clipRange(buffers.clip, sc.y, img.height, 1), [i0, i1] = clipRange(buffers.clip, sc.x, img.width, 0);
+    for (let j = j0; j < j1; j++) {
+      for (let i = i0; i < i1; i++) {
         const q = 4 * (j * img.width + i);
         if (img.data[q + 3] < 10) continue; // transparent: below shows
         const r = img.data[q], g = img.data[q + 1], b = img.data[q + 2];
@@ -500,11 +531,16 @@ function blitFixedScenes(buffers, dataDir) {
 function blitFixedArt(buffers, dataDir, matFile, visFile, sx, sy) {
   const img = art(dataDir, matFile);
   if (!img) return 0;
+  if (buffers.recording) {
+    buffers.record(sx, sy, sx + img.width, sy + img.height, (b) => blitFixedArt(b, dataDir, matFile, visFile, sx, sy));
+    return 0;
+  }
   const vis = visFile ? art(dataDir, visFile) : null;
   const materials = loadMaterials(dataDir);
   let n = 0;
-  for (let j = 0; j < img.height; j++) {
-    for (let i = 0; i < img.width; i++) {
+  const [j0, j1] = clipRange(buffers.clip, sy, img.height, 1), [i0, i1] = clipRange(buffers.clip, sx, img.width, 0);
+  for (let j = j0; j < j1; j++) {
+    for (let i = i0; i < i1; i++) {
       const q = 4 * (j * img.width + i);
       if (img.data[q + 3] < 10) continue;
       const r = img.data[q], g = img.data[q + 1], b = img.data[q + 2];
@@ -529,8 +565,12 @@ function blitFixedArt(buffers, dataDir, matFile, visFile, sx, sy) {
 
 // Returns Map("cx,cy" -> Uint8Array 512*512*3, 9=unset) for a seed.
 // x,y passed to the biome scripts' init() = chunk world origin (top-left).
-export function renderTemplateWorld(dataDir, config, seed) {
-  const buffers = new Map();
+// LAZY by default (2026-11-08): the walk below only RECORDS the paint ops
+// (chunk-store.mjs); a chunk materializes on its first read. `eager: true`
+// (or MAPGEN_EAGER_TEMPLATES=1) = the old whole-world Map (the equivalence
+// reference, tests/mapgen/chunk-store.test.mjs).
+export function renderTemplateWorld(dataDir, config, seed, { eager = process.env.MAPGEN_EAGER_TEMPLATES === "1" } = {}) {
+  const buffers = eager ? new Map() : new LazyChunkStore();
   for (const [colorInt, def] of config.biomes) {
     if (!def.template) continue;
     const file = def.filename.replace(/^data\/biome\//, "");
@@ -652,6 +692,7 @@ function renderWorldExtension(buffers, dataDir, config, seed) {
 }
 
 function fillChunk(buffers, wx, wy, seed, shades) {
+  if (buffers.recording) { buffers.record(wx, wy, wx + 512, wy + 512, (b) => fillChunk(b, wx, wy, seed, shades)); return; }
   const [cx, cy] = canvasChunk(wx, wy);
   const buf = chunkBuffer(buffers, cx, cy);
   const salt = (Math.imul(wx >> 9, 0x9e3779b1) ^ Math.imul(wy >> 9, 0x85ebca6b) ^ (seed | 0)) | 0;
@@ -665,6 +706,7 @@ function fillChunk(buffers, wx, wy, seed, shades) {
 }
 
 function fillStrip(buffers, wx, wy, seed, leftEdge) {
+  if (buffers.recording) { buffers.record(wx, wy, wx + 512, wy + 512, (b) => fillStrip(b, wx, wy, seed, leftEdge)); return; }
   const [cx, cy] = canvasChunk(wx, wy);
   const buf = chunkBuffer(buffers, cx, cy);
   const salt = (Math.imul(wx >> 9, 0x9e3779b1) ^ Math.imul(wy >> 9, 0x85ebca6b) ^ (seed | 0)) | 0;
@@ -781,6 +823,7 @@ export function renderTemplateChunk(buffers, dataDir, file, def, x, y, seed) {
 // lava_90percent rides the same fill: its rock_hard_border polygon band
 // (~2.3% of the chunk, A8) stays unpainted.
 function renderLavaFill(buffers, dataDir, x, y) {
+  if (buffers.recording) { buffers.record(x, y, x + 512, y + 512, (b) => renderLavaFill(b, dataDir, x, y)); return; }
   const [cx, cy] = canvasChunk(x, y);
   const buf = chunkBuffer(buffers, cx, cy);
   for (let j = 0; j < 512; j++) {
@@ -822,6 +865,10 @@ function renderProceduralFill(buffers, dataDir, file, def, x, y, seed) {
   if (!bands || bands.length === 0) return;
   const main = bands.filter((b) => !b.rare);
   if (main.length === 0) return;
+  if (buffers.recording) {
+    buffers.record(x, y, x + 512, y + 512, (b) => renderProceduralFill(b, dataDir, file, def, x, y, seed));
+    return;
+  }
   const lo = Math.min(...main.map((b) => b.min));
   const hi = Math.max(...main.map((b) => b.max));
   const fullRange = lo <= -100 && hi >= 100;

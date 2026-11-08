@@ -18,8 +18,8 @@ import { biomeByName } from "../helpers/golden.mjs";
 import { releaseWorld } from "../helpers/world.mjs";
 
 // ONE in-process world per file (memory law, 2026-11-08): an ensureWorld()
-// world is ~4.6 GB RSS (renderTemplateWorld's 4643 template chunk buffers
-// ≈ 3.8 GB + the wang bins + the spawn-scene lane). Five separate builds in
+// world WAS ~4.6 GB RSS (renderTemplateWorld's 4643 eager template chunk
+// buffers ≈ 3.8 GB; lazy since chunk-store.mjs, ~0.6 GB). Five separate builds in
 // the singleFork worker plus child-process probes holding their own copy
 // drove the battery to an OOM kill (exit 137) and starved the whole WSL VM
 // (the VS Code server lost its ptyHost heartbeat). Every in-process test
@@ -632,7 +632,7 @@ describe.skipIf(!hasNoitaData())("winter-band rows law (dig #211) — the surfac
     // empty.xml chasm under the bridge (all air): the old all-sky law
     // rendered 130,066 black px there below y 240; the capture has 0 and
     // 98,619 above y 225.
-    // in-process on the shared world (it was a child probe: a second ~4.6 GB world)
+    // in-process on the shared world (it was a child probe: a second world build)
     let s = null;
     const stats = () => (s ??= (async () => {
     const world = await sharedWorld();
@@ -657,7 +657,7 @@ describe.skipIf(!hasNoitaData())("cell colour law in the noise band (dig #213, C
   // law painted (53,57,35) 43.6% + (82,79,45) 41.5% there; the capture's
   // 38_14 families are rock.png (39,40,45)/(62,69,85) + earth.png
   // (70,65,40)/(95,87,49).
-  // in-process on the shared world (it was a child probe: a second ~4.6 GB world)
+  // in-process on the shared world (it was a child probe: a second world build)
   let s = null;
   const stats = () => (s ??= (async () => {
     const world = await sharedWorld();
