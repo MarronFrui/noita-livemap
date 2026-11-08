@@ -66,6 +66,19 @@ const materialShadeFor = (dataDir, name) => {
 const FILL_SHADES = { sand_static: SHADES.sand, rock_static: SHADES.rock };
 const fillShadeFor = (dataDir, name) => FILL_SHADES[name] ?? materialShadeFor(dataDir, name);
 
+// one art px of material `name` at world (x, y): the capture-calibrated family
+// when the material has one, else the game's own cell colour law (C185 —
+// texture at the world px / Graphics colour / wang_color, alpha composited),
+// else the generic fallback. (2026-11-08, the sky-band fix: wood_tree — the
+// mountain tree — had no family and painted flat grey (90,90,95).)
+const materialPx = (dataDir, name, x, y, salt) => {
+  const fam = MATERIAL_SHADE.get(name);
+  if (fam && SHADES[fam]) return pick(SHADES[fam], x, y, salt);
+  if (TEMPLATE_SHADES[name]) return pick(TEMPLATE_SHADES[name], x, y, salt);
+  return materialColorAt(dataDir, name, x, y) ?? pick(SHADES.fallbackSolid, x, y, salt);
+};
+const fillPx = (dataDir, name, x, y, salt) => (FILL_SHADES[name] ? pick(FILL_SHADES[name], x, y, salt) : materialPx(dataDir, name, x, y, salt));
+
 // template-only display shades (capture/stitch-calibrated, seed-independent zones)
 export const TEMPLATE_SHADES = {
   templebrick_static: [ { rgb: [79, 73, 50], w: 6 }, { rgb: [81, 76, 52], w: 3 }, { rgb: [76, 71, 48], w: 2 } ],
@@ -134,11 +147,11 @@ export function blitScene(buffers, dataDir, def, matFile, visFile, wx, wy, biome
         const use = active.length ? active : bands;
         const v = bandLo + fbm2(wx + i, wy + j, seed | 0) * (bandHi - bandLo);
         const chosen = use.filter((b) => v >= b.min && v < b.max).pop() ?? use[use.length - 1];
-        shade = pick(materialShadeFor(dataDir, chosen.name), wx + i, wy + j, 0x51ce3f);
+        shade = materialPx(dataDir, chosen.name, wx + i, wy + j, 0x51ce3f);
       } else {
         const mname = materials.get(hex);
         if (!mname) { if (TRIGGER_HINT.has(hex)) continue; continue; }
-        shade = pick(materialShadeFor(dataDir, mname), wx + i, wy + j, 0x51ce3f);
+        shade = materialPx(dataDir, mname, wx + i, wy + j, 0x51ce3f);
       }
       let color = shade;
       if (vis) {
@@ -449,7 +462,7 @@ export function blitSplicedScenes(buffers, dataDir, config, seed = 0) {
           if (!lane) continue;
           const comp = surfaceFillAt(lane, gx, gy);
           if (!comp) continue;
-          color = pick(fillShadeFor(dataDir, comp.name), gx, gy, 0x51ce3f);
+          color = fillPx(dataDir, comp.name, gx, gy, 0x51ce3f);
         } else {
           const hex = `${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
           const mname = materials.get(hex);
@@ -467,7 +480,7 @@ export function blitSplicedScenes(buffers, dataDir, config, seed = 0) {
             // other raw colors keep this skip.
             continue;
           }
-          color = pick(materialShadeFor(dataDir, mname), gx, gy, 0x51ce3f);
+          color = materialPx(dataDir, mname, gx, gy, 0x51ce3f);
         }
         setWorldPx(buffers, gx, gy, color);
       }
@@ -549,7 +562,7 @@ function blitFixedArt(buffers, dataDir, matFile, visFile, sx, sy) {
       const mname = materials.get(hex);
       let color;
       if (mname) {
-        color = pick(materialShadeFor(dataDir, mname), sx + i, sy + j, 0x51ce3f);
+        color = materialPx(dataDir, mname, sx + i, sy + j, 0x51ce3f);
       } else {
         color = [r, g, b]; // raw art detail
       }

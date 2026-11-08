@@ -161,6 +161,16 @@ export const SHADES = {
   gold: [S([146, 116, 60], 5), S([120, 94, 48], 2)],
   radioactive: [S([96, 157, 64], 5), S([84, 140, 56], 2)],
   fallbackSolid: [S([90, 90, 95], 5), S([80, 80, 85], 2)],
+  // the clouds biome's cloud cells (capture census 2026-11-08, every capture
+  // chunk of the clouds areas 4..14×1..5: (48,48,52) = 21.31% flat, the only
+  // cloud-hued colour; (21,21,23) 0.52% = unattributed). The C185 alpha law
+  // would give (87,87,95) from wang_color 7fAFAFBF — the gas cells' map
+  // colour is NOT the alpha-composited wang_color (the gas render law unread).
+  cloud: [S([48, 48, 52], 1)],
+  // the_sky's cloud_lighter cells (capture census 2026-11-08, the 15 the_sky
+  // chunks 27..41×0: (48,48,63) = 6.95%) — the same 70/255 gas factor as
+  // cloud: (175,175,229)·70/255 = (48,48,62.9)
+  cloudLighter: [S([48, 48, 63], 1)],
 };
 
 // material name -> display shade family (capture-calibrated where marked ✅)
@@ -175,6 +185,8 @@ export const MATERIAL_SHADE = new Map([
   ["gunpowder_explosive", "gunpowder"], // ✅ red
   ["gold", "gold"],
   ["rock_static_radioactive", "radioactive"],
+  ["cloud", "cloud"], // ✅ (48,48,52) flat — the clouds capture census
+  ["cloud_lighter", "cloudLighter"], // ✅ (48,48,63) flat — the the_sky capture census
 ]);
 
 // spawn-trigger / scene-marker colors consumed at generation (never visible).
@@ -214,7 +226,10 @@ export function loadBiomeExtras(dataDir, biomeName) {
   if (_biomeExtras.has(key)) return _biomeExtras.get(key);
   const out = { randomColors: [], mainMaterial: null, spawnColors: new Set() };
   try {
-    const xml = fs.readFileSync(path.join(dataDir, "biome", `${biomeName}.xml`), "utf-8");
+    // data/biome/<name>.xml, or a full "data/…" path (the static tiles live in
+    // data/biome_impl/static_tile/ — their materials were never read before)
+    const rel = biomeName.startsWith("data/") ? `${biomeName.replace(/^data\//, "")}.xml` : path.join("biome", `${biomeName}.xml`);
+    const xml = fs.readFileSync(path.join(dataDir, rel), "utf-8");
     // the biome's spawn colours = the engine table (scripts/wang_scripts.csv)
     // + the lua_script's RegisterSpawnFunction(colour, …) lines: an out_map
     // cell of such a colour is a spawn TRIGGER (the function runs there; the
@@ -245,7 +260,13 @@ export function loadBiomeExtras(dataDir, biomeName) {
     const comps = [...xml.matchAll(/<MaterialComponent[\s\S]*?<\/MaterialComponent>/g)]
       .map((b) => {
         const g = (k) => { const x = b[0].match(new RegExp(`${k}="([^"]*)"`)); return x ? Number(x[1]) : null; };
-        return { name: (b[0].match(/material_name="([^"]*)"/) ?? [])[1], min: g("material_min"), max: g("material_max"), rare: (b[0].match(/is_rare="([^"]*)"/) ?? [])[1] === "1" };
+        return {
+          name: (b[0].match(/material_name="([^"]*)"/) ?? [])[1], min: g("material_min"), max: g("material_max"),
+          rare: (b[0].match(/is_rare="([^"]*)"/) ?? [])[1] === "1",
+          // the classify's y gate (surface-level.mjs, @0x8f53f0): limit_y on ⇒ the
+          // component applies only on the CLOSED world-y window [limit_min_y, limit_max_y]
+          limitY: (b[0].match(/\blimit_y="([^"]*)"/) ?? [])[1] === "1", limitMinY: g("limit_min_y"), limitMaxY: g("limit_max_y"),
+        };
       })
       .filter((c) => c.name && !c.rare && c.min != null && c.max != null);
     comps.sort((a, b) => (b.max - b.min) - (a.max - a.min));
@@ -389,11 +410,44 @@ export function colorizeArea(map, w, h, opts) {
     extras.materials?.length === 1 && !extras.materials[0].rare
       ? extras.materials[0].name
       : null;
+  // ... and its y-gated generalization (2026-11-08, the sky-band fix): when
+  // the area's world origin is known, the placeholder takes the biome's ONE
+  // non-rare component whose limit_y gate admits the cell's world y (the
+  // classify's own gate) — the clouds' cloud_lighter is gated to
+  // [-1024, 424.229], so the cloud rows (world y < -4096) are cloud-only.
+  const worldY0 = opts.worldY0, worldX0 = opts.worldX0;
+  // C185 (the cell colour law) at the cell's world px — for materials with no
+  // capture-calibrated family (the bin lane paints one colour per 10-px cell;
+  // the cell's top-left world px samples the texture). Needs the world origin.
+  const c185 = (name, xCell, yCell) =>
+    worldX0 == null || worldY0 == null ? null : materialColorAt(dataDir, name, worldX0 + 10 * xCell, worldY0 + 10 * yCell);
+  // the DISTINCT non-rare materials whose y gate admits the cell (several
+  // windows of one material count once: the clouds' cloud ×2)
+  const yActive = (yCell) => {
+    if (worldY0 == null || !extras.materials?.length) return [];
+    const wy = worldY0 + 10 * yCell;
+    const names = [];
+    for (const c of extras.materials) {
+      if (c.limitY && !(wy >= (c.limitMinY ?? -Infinity) && wy <= (c.limitMaxY ?? Infinity))) continue;
+      if (!names.includes(c.name)) names.push(c.name);
+    }
+    return names;
+  };
   const shadeFor = (r, g, b, x, y) => {
     if (r === 0 && g === 0 && b === 0) return pick(ov?.air ?? SHADES.airDark, x, y, noiseSalt ^ 1);
     if (r === g && g === b) { // grey ramp placeholder
       if (singleMaterial && SHADES[MATERIAL_SHADE.get(singleMaterial) ?? ""]) {
         return pick(SHADES[MATERIAL_SHADE.get(singleMaterial)], x, y, noiseSalt ^ 3);
+      }
+      const ya = yActive(y);
+      if (ya.length === 1 && SHADES[MATERIAL_SHADE.get(ya[0]) ?? ""]) return pick(SHADES[MATERIAL_SHADE.get(ya[0])], x, y, noiseSalt ^ 3);
+      // the classify picks ONE of the active materials (its noise windows are
+      // not ported in this lane) — when every candidate renders the SAME C185
+      // colour at the cell (the static tiles: templeslab_static and
+      // templeslab_crumbling_static share templeslab.png), the pick is moot
+      if (ya.length >= 1) {
+        const c0 = c185(ya[0], x, y);
+        if (c0 && ya.every((n) => { const c = c185(n, x, y); return c && c[0] === c0[0] && c[1] === c0[1] && c[2] === c0[2]; })) return c0;
       }
       if (ov?.solid) return pick(ov.solid, x, y, noiseSalt ^ 3);
       if (g <= 100) return pick(SHADES.airDark, x, y, noiseSalt ^ 2);
@@ -409,6 +463,8 @@ export function colorizeArea(map, w, h, opts) {
     if (mat) {
       const fam = MATERIAL_SHADE.get(mat);
       if (fam) return pick(SHADES[fam], x, y, noiseSalt ^ 8);
+      const c = c185(mat, x, y); // no calibrated family: the game's own cell colour law
+      if (c) return c;
       return pick(SHADES.fallbackSolid, x, y, noiseSalt ^ 9);
     }
     if (TRIGGERS.has(hex) || extras.spawnColors?.has(hex)) return pick(ov?.air ?? SHADES.airDark, x, y, noiseSalt ^ 10);

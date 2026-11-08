@@ -109,7 +109,7 @@ describe.skipIf(!hasNoitaData())("lazy == eager, exhaustively (capture seed) —
   let world = null;
   afterAll(() => { releaseWorld(world); world = null; });
   test("the wang spawn-scene planes: lazy == eager (fractional Lua origins included)", async () => {
-    world = ensureWorld(CAPTURE_SEED, dataDir, { cacheDir: path.join(repoRoot, "mapgen/out/gen-cache/r3j"), onProgress: () => {} });
+    world = ensureWorld(CAPTURE_SEED, dataDir, { cacheDir: path.join(repoRoot, "mapgen/out/gen-cache/r3m"), onProgress: () => {} });
     await world.ready;
     const lazy = world.wangScenes;
     expect(lazy).toBeInstanceOf(LazyChunkStore);

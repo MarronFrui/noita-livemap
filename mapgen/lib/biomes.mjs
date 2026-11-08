@@ -73,6 +73,18 @@ function parseBiomeDefinition(dataDir, filename) {
   // their first-row wang header is all zeros, so the corner-type fill path
   // cannot run. Rendered by the static-tile lane in world-gen.mjs.
   const staticTile = (parseAttr(attrs, "static_tile") ?? "") === "1";
+  // the static tile's background mask (attr @0x49bb39 → [cfg+0x1fc]; its
+  // consumer is unread): E1-measured 2026-11-08 on barren / darkness /
+  // potion_mimics — an fg-AIR cell under a BLACK mask px renders the sky
+  // (capture black 99.4 / 99.0 / 98.7 %), under a WHITE px the biome's
+  // background_image (capture black 1.1 %). world-gen.mjs staticBgMasked.
+  const staticTileBgMask = parseAttr(attrs, "static_tile_bg_mask") || null;
+  // the Topology's generator TYPE (word-anchored: parseAttr would match the
+  // "type" inside noise_type). roadblock.xml is the ONE shipped biome typed
+  // BIOME_WANG_TILE without a wang_template_file — E1 (2026-11-08): its
+  // chunk (33,11) is 100.0% sky in the capture, so it generates NO terrain
+  // (noise-terrain.mjs noiseChunkMask skips it).
+  const topologyType = (attrs.match(/(?:^|\s)type\s*=\s*"([^"]*)"/) ?? [])[1] ?? null;
   // dig #216 (C187, the biome-edge law): the attr arm binds
   // noise_biome_edges / big_noise_biome_edges / fat_biome_edges -> u8
   // [cfg+0xc4/0xc5/0xc6] (@0x49d03e / 0x49d06f / 0x49d0a0); the config ctor
@@ -125,6 +137,8 @@ function parseBiomeDefinition(dataDir, filename) {
     name: name || path.basename(filename, ".xml"),
     templateFile,
     staticTile,
+    staticTileBgMask,
+    topologyType,
     backgroundImage,
     backgroundImageHeight,
     limitBackgroundImage,

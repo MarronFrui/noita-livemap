@@ -78,3 +78,17 @@ describe.skipIf(!hasNoitaData())("biome map (game-truth parser)", () => {
     }
   });
 });
+
+describe.skipIf(!hasNoitaData())("Topology type + static-tile bg mask (the sky-band fix, 2026-11-08)", () => {
+  test("the template-less BIOME_WANG_TILE rooms (roadblock, lavalake…) parse their type; noise_type never leaks into topologyType", async () => {
+    const { loadBiomeConfig } = await import("../../mapgen/lib/biomes.mjs");
+    const cfg = loadBiomeConfig(dataDir);
+    const defs = [...cfg.biomes.values()];
+    const typedNoTemplate = defs.filter((d) => d.topologyType === "BIOME_WANG_TILE" && !d.templateFile).map((d) => d.filename);
+    expect(typedNoTemplate).toContain("data/biome/roadblock.xml");
+    expect(typedNoTemplate).toContain("data/biome/lavalake.xml"); // the room family (42 defs) — A21 gates by altitude, not type alone
+    expect(defs.some((d) => d.topologyType === "SIN_CAPPED_SIMPLEX")).toBe(false);
+    const pm = defs.find((d) => /biome_potion_mimics\.xml$/.test(d.filename));
+    expect(pm.staticTileBgMask).toBe("data/biome_impl/static_tile/temples-assets/potion_mimics_bg.png");
+  });
+});

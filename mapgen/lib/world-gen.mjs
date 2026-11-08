@@ -21,6 +21,24 @@ import { ensureBiomeBackdrop, ensureSurfaceTable } from "./noise-terrain.mjs"; /
 // dig #134: the bin-air backdrop memo (per def.filename) — the wang
 // bands' AIR cells composite the area biome's declared bg art.
 const binBackdrops = new Map();
+// the static tile's bg mask (biomes.mjs staticTileBgMask; the E1 law there):
+// true ⇒ the area cell (ax, ay) shows NO backdrop (the sky / what lies below)
+const staticMasks = new Map(); // rel -> { w, h, px } | null
+function staticBgMasked(def, dataDir, ax, ay) {
+  const rel = def?.staticTileBgMask;
+  if (!rel) return false;
+  let m = staticMasks.get(rel);
+  if (m === undefined) {
+    try {
+      const img = readPng(path.join(dataDir, rel.replace(/^data\//, "")));
+      m = { w: img.width, h: img.height, px: img.data };
+    } catch { m = null; }
+    staticMasks.set(rel, m);
+  }
+  if (!m) return false;
+  if (ax < 0 || ay < 0 || ax >= m.w || ay >= m.h) return true; // the area's spill past the mask = outside the room
+  return m.px[4 * (ay * m.w + ax)] < 128;
+}
 function biomeBackdrop(def, dataDir) {
   if (!def?.filename || !dataDir) return null;
   const key = def.filename;
@@ -172,7 +190,15 @@ export function worldColorAt(world, wx, wy) {
               // covers the cell, else the area def's declared bg (the C111 law)
               const sbg = wangSceneBgAt(world, gx, gy);
               if (sbg) return sbg;
-              const bd = biomeBackdrop(a.def, world.dataDir);
+              // C184 (the backdrop clip law, byte-read 0x72c180): a limit-on
+              // biome's background_image draws only at world y >= its height
+              // (default 225); above it the air IS the sky. Every sky-band
+              // cell sits at world y < 0, so a limit-on biome's bin air here
+              // = the sky (measured: the clouds' air = capture (0,0,0) 77.4%,
+              // the old law painted background_cave_02 over it).
+              const clipped = (a.def.limitBackgroundImage !== false && wy - 62 * CHUNK < (a.def.backgroundImageHeight ?? 225))
+                || staticBgMasked(a.def, world.dataDir, ax, ay); // a static tile's black mask px = no backdrop
+              const bd = clipped ? null : biomeBackdrop(a.def, world.dataDir);
               if (bd) {
                 const bx = ((lx % bd.w) + bd.w) % bd.w, by = ((ly % bd.h) + bd.h) % bd.h;
                 const q = 4 * (by * bd.w + bx);
@@ -250,7 +276,7 @@ export function worldColorAt(world, wx, wy) {
           || (r === 16 && g === 16 && b === 18) || (r === 21 && g === 23 && b === 30)) {
           const sbg = wangSceneBgAt(world, gx, gy); // a loaded scene's background_file
           if (sbg) return sbg;
-          const bd = biomeBackdrop(a.def, world.dataDir);
+          const bd = staticBgMasked(a.def, world.dataDir, ax, ay) ? null : biomeBackdrop(a.def, world.dataDir); // the static tile mask
           if (bd) {
             const bx = ((lx % bd.w) + bd.w) % bd.w, by = ((ly % bd.h) + bd.h) % bd.h;
             const q = 4 * (by * bd.w + bx);
@@ -662,6 +688,8 @@ export function ensureWorld(seed, dataDir, { cacheDir = null, onProgress = () =>
                   biomeName: a.def.name,
                   biomeFile: a.def.filename.replace(/^data\/biome\//, "").replace(/\.xml$/, ""),
                   seed,
+                  worldX0: (a.area.x1 - 35) * CHUNK, // the area's world origin (the y-gated placeholder law +
+                  worldY0: (a.area.y1 - 14) * CHUNK, //   the C185 colour of family-less materials)
                 });
                 r.unknown = unknown;
               }

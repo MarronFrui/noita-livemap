@@ -461,6 +461,16 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
   const at = biomeAt(config, tx, ty - SKY_ROWS);
   const def = at?.biome;
   if (!def || def.templateFile) return null; // wang/template chunks handled elsewhere
+  // A21 (registered approximation, 2026-11-08): a template-less
+  // BIOME_WANG_TILE room ABOVE the surface (world y < 0 ⇔ canvas ty < 62)
+  // gets no noise terrain. E1 on every captured chunk of such defs: the 4
+  // sky-band ones improve (roadblock 5→100 %, ocarina 89→99, song_room
+  // 86→92, essenceroom_air 90→96 % solid/air agreement) while the
+  // underground ones NEED the solid lane (skipping them all: lavalake
+  // 100→29, lavalake_pit 100→12, watercave 100→5 %). The engine mechanism is
+  // unread (candidate: the topology gradient mGradientStartY = −1024, which
+  // the kind-0 lane drops — dig #146).
+  if (def.topologyType === "BIOME_WANG_TILE" && ty < 62) return null;
   const mask = new Uint8Array(52 * 52);
   const matIdx = new Uint8Array(52 * 52); // 255 = air/unclassified; else the comp index (dig #130)
   const cfg = biomeCfg(def);

@@ -26,7 +26,7 @@ import { releaseWorld } from "../helpers/world.mjs";
 // shares this one world; only probes that need module-load env flags
 // (SURFACE_V3=1) still spawn a child, and they run BEFORE the shared world
 // exists (the dig #177 describe sits above the cached-generation describe).
-const SHARED_CACHE_DIR = path.join(repoRoot, "mapgen/out/gen-cache/r3j");
+const SHARED_CACHE_DIR = path.join(repoRoot, "mapgen/out/gen-cache/r3m");
 let _sharedWorld = null;
 const sharedWorld = async () => {
   _sharedWorld ??= ensureWorld(CAPTURE_SEED, dataDir, { cacheDir: SHARED_CACHE_DIR, onProgress: () => {} });
@@ -372,7 +372,7 @@ describe.skipIf(!hasNoitaData())("surface-band sky (dig #177) — the row-62 air
     const fs = await import("node:fs");
     const path = await import("node:path");
     const dataDir = findNoitaDataDir();
-    const cacheDir = path.join(repoRoot, "mapgen/out/gen-cache/r3j");
+    const cacheDir = path.join(repoRoot, "mapgen/out/gen-cache/r3m");
     const world = ensureWorld(78633191, dataDir, { cacheDir, onProgress: () => {} });
     await world.ready;
     const isBlack = (c) => !c || (c[0] < 3 && c[1] < 3 && c[2] < 3);
@@ -678,5 +678,45 @@ describe.skipIf(!hasNoitaData())("cell colour law in the noise band (dig #213, C
     const st = await stats();
     expect(st.rock).toBeGreaterThanOrEqual(0.25 * 262144);
     expect(st.earth).toBeGreaterThanOrEqual(0.25 * 262144);
+  }, 240000);
+});
+
+// THE SKY-BAND FIX (2026-11-08, biome rows 0..13 = canvas 48..61: the band
+// between the Work's heaven end and the surface — clouds, the static sky
+// rooms, the floating island, the mountain tree). Count laws on the capture
+// seed; every pin FAILS under the old law (measured on HEAD 2026-11-08,
+// old values in the titles).
+describe.skipIf(!hasNoitaData())("sky band (biome rows 0..13) — the cloud / static-room / roadblock / art-colour laws", () => {
+  const share = async (tx, ty) => {
+    const world = await sharedWorld();
+    const m = new Map(); let n = 0;
+    for (let j = 0; j < 512; j += 2) for (let i = 0; i < 512; i += 2) {
+      const c = worldColorAt(world, tx * 512 + i, ty * 512 + j);
+      const k = !c || (c[0] < 3 && c[1] < 3 && c[2] < 3) ? "sky" : c.join(",");
+      m.set(k, (m.get(k) ?? 0) + 1); n++;
+    }
+    return (k) => (m.get(k) ?? 0) / n;
+  };
+
+  test("clouds (6,50): air = the sky (C184: limit-on backdrop never above world y 225), cloud = (48,48,52) (old: navy backdrop 80 %, cloud 0)", async () => {
+    const s = await share(6, 50);
+    expect(s("sky")).toBeGreaterThanOrEqual(0.7); // capture 0.764
+    expect(s("48,48,52")).toBeGreaterThanOrEqual(0.18); // capture 0.223
+    expect(s("12,16,25")).toBe(0);
+  }, 240000);
+
+  test("roadblock (33,59): a BIOME_WANG_TILE with no template generates no terrain — all sky (old: sky 5 %)", async () => {
+    expect((await share(33, 59))("sky")).toBeGreaterThanOrEqual(0.99); // capture 1.000
+  }, 240000);
+
+  test("potion_mimics (30,51): the bg mask's black px = sky, the solids = templeslab.png (old: sky 0, backdrop 56 %, templeslab 0)", async () => {
+    const s = await share(30, 51);
+    expect(s("sky")).toBeGreaterThanOrEqual(0.6);
+    expect(s("78,67,67")).toBeGreaterThanOrEqual(0.03); // templeslab.png's main colour
+  }, 240000);
+
+  test("the mountain tree (31,60): wood_tree paints its C185 texture, never the flat fallback grey (old: (90,90,95) 55 % + (80,80,85) 22 %)", async () => {
+    const s = await share(31, 60);
+    expect(s("90,90,95") + s("80,80,85")).toBe(0);
   }, 240000);
 });

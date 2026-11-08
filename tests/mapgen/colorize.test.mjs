@@ -150,3 +150,27 @@ describe.skipIf(!hasNoitaData())("the cell colour law (dig #213, C185)", () => {
     expect(materialColorAt(dataDir, "lava", 0, 0)).toEqual([255, 96, 0]);
   });
 });
+
+// the sky-band fix (2026-11-08): the placeholder material laws
+describe.skipIf(!hasNoitaData())("placeholder material — the y gate, the static-tile path, the shared-texture rule", () => {
+  const white = () => Buffer.from([255, 255, 255, 255, 255, 255]); // a 2×1 all-placeholder map
+  test("clouds at their altitude: cloud_lighter is y-gated out ⇒ the placeholder = cloud (48,48,52); without the world origin the old generic mix stays", () => {
+    const m = white();
+    colorizeArea(m, 2, 1, { dataDir, biomeName: "clouds", biomeFile: "clouds", seed: 1, worldX0: -15872, worldY0: -6656 });
+    expect([m[0], m[1], m[2]]).toEqual([48, 48, 52]);
+    const old = white();
+    colorizeArea(old, 2, 1, { dataDir, biomeName: "clouds", biomeFile: "clouds", seed: 1 });
+    expect([old[0], old[1], old[2]]).not.toEqual([48, 48, 52]);
+  });
+
+  test("a static tile's biome XML resolves under data/biome_impl (its materials were never read)", () => {
+    const e = loadBiomeExtras(dataDir, "data/biome_impl/static_tile/biome_potion_mimics");
+    expect((e.materials ?? []).map((c) => c.name).sort()).toEqual(["templeslab_crumbling_static", "templeslab_static"]);
+  });
+
+  test("two active materials sharing one texture (templeslab.png) ⇒ the C185 texture colour", () => {
+    const m = white();
+    colorizeArea(m, 2, 1, { dataDir, biomeName: "x", biomeFile: "data/biome_impl/static_tile/biome_potion_mimics", seed: 1, worldX0: 0, worldY0: 0 });
+    expect([m[0], m[1], m[2]]).toEqual(materialColorAt(dataDir, "templeslab_static", 0, 0));
+  });
+});
