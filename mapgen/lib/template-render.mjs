@@ -152,6 +152,11 @@ export function blitScene(buffers, dataDir, def, matFile, visFile, wx, wy, biome
       } else {
         const mname = materials.get(hex);
         if (!mname) { if (TRIGGER_HINT.has(hex)) continue; continue; }
+        // dig #225 (C143's 'air' arm, as in the splice lane): an air-keyed
+        // cell (wang 000042) is EMPTY — the backdrop / the lanes below show;
+        // it was painted as air's own colour (the dark-blue air at the HM
+        // top pools, the temple rooms)
+        if (mname === "air") continue;
         shade = materialPx(dataDir, mname, wx + i, wy + j, 0x51ce3f);
       }
       let color = shade;

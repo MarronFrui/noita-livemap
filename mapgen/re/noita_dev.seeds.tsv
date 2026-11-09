@@ -122,3 +122,5 @@
 0x66bfb0	function	CellRaytrace_Walk
 0x7edc90	function	Lua_RaytraceHelper
 0x8227d0	function	Lua_RaytracePlatforms
+0x832be0	function	Lua_SetRandomSeed
+0x832f00	function	Lua_Random

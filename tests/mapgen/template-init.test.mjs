@@ -70,3 +70,27 @@ describe.skipIf(!hasNoitaData())("dig #219 — init() runs as Lua", () => {
     expect(left.x).toBe(posX - 100 - 20);
   });
 });
+
+// dig #225 (C143's 'air' arm in blitScene): an air-keyed art cell (wang
+// 000042) is EMPTY — the backdrop / the lanes below show. The old law painted
+// air's own colour (0,0,66): the dark-blue pools of the HM tops.
+describe.skipIf(!hasNoitaData())("dig #225 — blitScene skips air-keyed cells", () => {
+  test("altar_top.png: its 25,589 air px leave the buffer unset (old law: painted (0,0,66))", async () => {
+    const { blitScene } = await import("../../mapgen/lib/template-render.mjs");
+    const { readPng } = await import("../../mapgen/lib/images.mjs");
+    const img = readPng(`${dataDir}/biome_impl/temple/altar_top.png`);
+    let air = 0, opaque = 0;
+    for (let i = 0; i < img.data.length; i += 4) {
+      if (img.data[i + 3] < 128) continue;
+      if (img.data[i] === 0 && img.data[i + 1] === 0 && img.data[i + 2] === 66) air++;
+      else if (!(img.data[i] === 0 && img.data[i + 1] === 0 && img.data[i + 2] === 0)) opaque++;
+    }
+    expect(air).toBe(25589);
+    const buffers = new Map();
+    const n = blitScene(buffers, dataDir, { materialBands: [] }, "data/biome_impl/temple/altar_top.png", null, 0, 0, "t", 1);
+    let blue = 0;
+    for (const [, b] of buffers) for (let o = 0; o < b.length; o += 3) if (b[o] === 0 && b[o + 1] === 0 && b[o + 2] === 66) blue++;
+    expect(blue).toBe(0);
+    expect(n).toBeLessThanOrEqual(opaque); // the air px are not written
+  });
+});

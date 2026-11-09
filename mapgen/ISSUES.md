@@ -138,17 +138,10 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   - Dumps: `mapgen/extractions/dig168-plz-loader-90e220-90e676.asm`, `mapgen/extractions/dig168-plz-dispatch-423220-423260.asm`, `mapgen/extractions/dig168-plz-l1-422980-422b4c.asm`, `mapgen/extractions/dig168-plz-l2-423010-42321b.asm`.
   - NEXT (moved to I39/I40): the visual layers (`*_visual.plz`) are not
     applied; the floor the art wraps into = the I39 fill-spawn read.
-- [ ] **I10. Holy Mountain right side of shop = noise** (MED): template
-  scene blit covers left part; right side likely another scene/piece
-  (shop_second_row / altar_right pieces) not ported.
-- [ ] **I11. Portal to Holy Mountains = noise** (MED): missing element/
-  scene (portal template pieces).
-- [ ] **I12. Teleportatium ball below HM = noise** (MED): missing element —
-  supports the "we don't render every element" theory; likely a pixel scene
-  or material blob placed by lua.
-- [ ] **I13. Black boxes in level 1** (MED): tiles not processed — the known
-  vertical-domino teal-pool tank issue (water-pool v-tiles render empty) +
-  possibly unsupported atlas areas; enumerate exact chunks.
+- [x] **I10. Holy Mountain right side of shop = noise — CLOSED 2026-11-09 (visual check, seed 78633191, tiles 32..36_16 ours vs capture):** the shop row, the right-side corridor and the cage room land on the capture's shapes; the temple arms' art renders (the air-keyed cells fixed dig #225).
+- [ ] **I11. Portal to Holy Mountains (re-scoped 2026-11-09, LOW):** the HM top pool rooms' TERRAIN now matches (dig #225: their air cells were painted dark blue); the purple ring in the capture is the portal ENTITY's sprite (`EntityLoad`), which the generator does not draw (entities are not map cells). Open: whether the live map should overlay entity sprites at their seeded positions. Also open: the pool VARIANT pick (spawn_altar_top: SetRandomSeed(x, y) + Random(1, 50), both bindings byte-read dig #225 = the port) gives lava at 32_16 where the capture shows the plain top, and the capture's blood (33_16) / oil (36_16) are not reproduced by any call offset within ±60 px (6 hits of 14,641 = chance) — the capture may be player-altered, or init's (x, y) for the temple chunks differs.
+- [ ] **I12. Teleportatium ball below HM (re-scoped 2026-11-09, LOW):** the small chamber renders in place; the ball inside is an entity sprite, same class as I11.
+- [x] **I13. Black boxes in level 1 — CLOSED 2026-11-09 (measured):** over the level-1 tiles 32..38 × 14..15 (seed 78633191), 10-px cells fully black in our render where the capture is < 50 % black = 0 in every coalmine tile; the only residuals (33_14: 389, 34_14: 58) are hills / mountain_left_stub sky rows where the capture's surface sits higher = I57.
 - [ ] **I14. HM has good resolution, rest is coarse** (LOW for now, user:
   fix shapes first): expected — HM is a pixel scene (art), the rest is
   noise-filled wang; will converge as I1 lands.
@@ -185,23 +178,7 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
 > `start_x=0x8e` constant (understood as the stairs-band search, C20).
 
 ### 6. Bench pipeline coverage
-- [ ] **I17. Bench wang-layer script skips all template biomes** (LOW,
-  registered 2026-09-19 after user sanity check): `2-generate.mjs`
-  (`npm run bench:gen`) used to CRASH on the first template biome in the
-  window (`templateFile` undefined); now it records them in the manifest as
-  `{ biome, template: true }` and emits no PNG — so `3-compare.mjs`
-  scores wang chunks only. Affected default-window biomes: winter,
-  _EMPTY_/mountain_tree, desert, orbroom, holymountain. This is CORRECT
-  scope for the bench (it measures the wang layer), but it means:
-  (a) bench reports cannot validate template-biome rendering — that
-  validation lives in the genmap pipeline (`template-render.mjs`;
-  captured tiles). (b) The underlying knowledge gaps are the existing
-  open issues: poro-noise procedural terrain = **I1** (Ghidra RE, not yet
-  done), static spliced scenes = I9-family (partially rendered),
-  HM band template pieces = I10/I11. No new RE target; close this issue
-  when I1-family lands and 2-generate can be pointed at the full
-  pipeline if wanted (e.g. a `--template` flag delegating to
-  template-render.mjs).
+- [x] **I17. Bench wang-layer script skips template biomes — CLOSED 2026-11-09 (scope note, not a defect):** `bench:gen` is the LEGACY lane (AGENTS.md: noitool's obsolete wasm, a regression baseline only); template rendering is validated by the genmap pipeline + the capture instruments (C97, C151).
 
 ### 7. Registry/doc defects
 
