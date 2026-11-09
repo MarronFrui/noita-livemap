@@ -964,3 +964,28 @@ describe.skipIf(!hasNoitaData())("I63 — the lava lake's placeholder rock is fi
     expect(solid / n).toBeGreaterThan(0.95);
   }, 240000);
 });
+
+// I64 (2026-11-09): the world-edge cursed rock (solid_wall_tower, columns 0 /
+// 69) = rock_static_cursed's C185 texture, its edge with the solid_wall
+// column = the biome-edge law (biomeAtPixel). Old: a hand pink speckle + a
+// straight 32-px strip inside the wall chunk.
+describe.skipIf(!hasNoitaData())("I64 — the cursed rock's texture and displaced edge", () => {
+  test("rows of 0_20 | 1_20: every px whose biomeAtPixel is the tower = rock_static_cursed's texture, the wall side is not", async () => {
+    const world = await sharedWorld();
+    const { materialColorAt } = await import("../../mapgen/lib/colorize.mjs");
+    const { biomeAtPixel } = await import("../../mapgen/lib/biomes.mjs");
+    let tower = 0, wall = 0, towerOk = 0, wallOk = 0, displaced = 0;
+    for (let j = 0; j < 512; j += 16) for (let X = 440; X < 600; X += 2) {
+      const Y = 20 * CHUNK + j;
+      const isTower = /solid_wall_tower\.xml$/.test(biomeAtPixel(world.config, X, Y)?.filename ?? "");
+      if (isTower !== (X < 512)) displaced++;
+      const got = worldColorAt(world, X, Y + SKY_ROWS * CHUNK);
+      const tex = materialColorAt(dataDir, "rock_static_cursed", X - 35 * CHUNK, Y - 14 * CHUNK);
+      const same = !!got && got[0] === tex[0] && got[1] === tex[1] && got[2] === tex[2];
+      if (isTower) { tower++; towerOk += same; } else { wall++; wallOk += !same; }
+    }
+    expect(displaced).toBeGreaterThan(50); // the edge is displaced, not the chunk line
+    expect(towerOk / tower).toBeGreaterThan(0.98);
+    expect(wallOk / wall).toBeGreaterThan(0.95);
+  }, 240000);
+});

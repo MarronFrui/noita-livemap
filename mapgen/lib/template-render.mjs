@@ -16,9 +16,9 @@
 // (blitSplicedScenes' grey branch).
 
 import { readPng, rgbToRgbaInt } from "./images.mjs";
-import { SHADES, MATERIAL_SHADE, pick, loadMaterials, materialColorAt, materialRenderClass } from "./colorize.mjs";
+import { SHADES, MATERIAL_SHADE, pick, loadMaterials, materialColorAt, materialRenderClass, materialTexSize } from "./colorize.mjs";
 import { seededPrng } from "./wang-js.mjs";
-import { biomeAt } from "./biomes.mjs"; // the OWNERSHIP GATE source (dig 52)
+import { biomeAt, biomeAtPixel, biomeChunkDef } from "./biomes.mjs"; // the OWNERSHIP GATE source (dig 52); I64: the edge law
 import { ensureSurfaceTable } from "./noise-terrain.mjs"; // I63: the classify table of the P-empty arm
 import { workCellAt } from "./the-work.mjs";
 import path from "node:path";
@@ -675,7 +675,7 @@ export function renderTemplateWorld(dataDir, config, seed, { eager = process.env
           if (!at || at.biome !== def) continue;
           const wx = (tx - 35) * 512, wy = (ty - 14) * 512;
           try {
-            renderTemplateChunk(buffers, dataDir, file, def, wx, wy, seed);
+            renderTemplateChunk(buffers, dataDir, file, def, wx, wy, seed, config);
           } catch (e) {
             if (process.env.TEMPLATE_DEBUG) console.error('[template-render]', file, tx, ty, String(e.stack ?? e).split("\n").slice(0, 3).join(" | "));
             // leave chunk black on composition errors
@@ -757,15 +757,11 @@ function renderWorldExtension(buffers, dataDir, config, seed) {
       if (/lava\.xml$/.test(file)) {
         if (ty >= 48) renderLavaFill(buffers, dataDir, wx, wy);
       } else if (isTowerFile(file)) {
-        fillChunk(buffers, wx, wy, seed, STRIP);
+        towerEdgeFill(buffers, dataDir, config, wx, wy, seed, ty <= -1 ? WALL_BG : DEEP_ROCK); // I64
       } else if (isWallFile(file)) {
-        if (ty <= -1) {
-          fillChunk(buffers, wx, wy, seed, WALL_BG);
-          if (cx === -34 || cx === 33) fillStrip(buffers, wx, wy, seed, cx === -34);
-        } else {
-          fillChunk(buffers, wx, wy, seed, DEEP_ROCK);
-          if (cx === -34 || cx === 33) fillStrip(buffers, wx, wy, seed, cx === -34);
-        }
+        const base = ty <= -1 ? WALL_BG : DEEP_ROCK;
+        if (towerBeside(config, vx, ty)) towerEdgeFill(buffers, dataDir, config, wx, wy, seed, base); // I64: the cursed rock's displaced edge
+        else fillChunk(buffers, wx, wy, seed, base);
       } else if (/lake\.xml$/.test(file)) {
         if (ty <= -1 && cx === -31) fillStrip(buffers, wx, wy, seed, true); // lake west wall
       }
@@ -773,6 +769,63 @@ function renderWorldExtension(buffers, dataDir, config, seed) {
     }
   }
 }
+
+// I64 (2026-11-09): the world-edge CURSED ROCK. solid_wall_tower (map
+// columns 0 and 69) holds ONE material, rock_static_cursed (window
+// [−100, 3.95], solid_wall_tower.xml), coloured by C185 (rock_cursed.png at
+// the world px); its boundary with the solid_wall columns is the biome-edge
+// law (GetBiomeAt 0x909da0 = biomeAtPixel, C187: the 30·sin/cos + 11·simplex
+// displacement inside 41 px). The old paint = a hand pink speckle (STRIP) over
+// the whole tower chunk + a STRAIGHT 32-px strip in the wall chunk.
+// Per px: the pixel's biome is the tower ⇒ cursed rock; solid_wall ⇒ `base`
+// (the wall's own fill, unchanged); any other biome ⇒ left unset (its lanes).
+// the cursed texture over one period (C185 wraps at the texture size,
+// rock_cursed.png = 96×96) — materialPx per px cost ~55 s over the eager
+// world render
+const _cursedTile = new Map();
+function cursedTile(dataDir) {
+  let t = _cursedTile.get(dataDir);
+  if (!t) {
+    const sz = materialTexSize(dataDir, "rock_static_cursed") ?? { w: 1, h: 1 };
+    t = { w: sz.w, h: sz.h, px: new Uint8Array(sz.w * sz.h * 3) };
+    for (let y = 0; y < sz.h; y++) for (let x = 0; x < sz.w; x++) t.px.set(materialPx(dataDir, "rock_static_cursed", x, y, 0), 3 * (y * sz.w + x));
+    _cursedTile.set(dataDir, t);
+  }
+  return t;
+}
+function towerEdgeFill(buffers, dataDir, config, wx, wy, seed, base) {
+  if (buffers.recording) { buffers.record(wx, wy, wx + 512, wy + 512, (b) => towerEdgeFill(b, dataDir, config, wx, wy, seed, base)); return; }
+  const [cx, cy] = canvasChunk(wx, wy);
+  const buf = chunkBuffer(buffers, cx, cy);
+  const salt = (Math.imul(wx >> 9, 0x9e3779b1) ^ Math.imul(wy >> 9, 0x85ebca6b) ^ (seed | 0)) | 0;
+  const X0 = wx + 35 * 512, Y0 = wy + 14 * 512; // game world px → biome-map px (C145)
+  // fast path: biomeAtPixel only differs from the chunk's own def inside the
+  // 41-px probe band facing a neighbour chunk of another biome (its probes)
+  const tx = X0 >> 9, ty = Y0 >> 9, own = biomeChunkDef(config, tx, ty);
+  const tile = cursedTile(dataDir);
+  const kind = new Map(); // def → 1 tower / 2 wall / 0 other (no regex per px)
+  const kindOf = (d) => { let k = kind.get(d); if (k === undefined) { const f = d?.filename ?? ""; k = isTowerFile(f) ? 1 : isWallFile(f) ? 2 : 0; kind.set(d, k); } return k; };
+  const nb = (dx, dy) => biomeChunkDef(config, tx + dx, Math.min(Math.max(ty, 0), config.map.height - 1) + dy) !== own;
+  const L = nb(-1, 0) || nb(-1, -1) || nb(-1, 1), R = nb(1, 0) || nb(1, -1) || nb(1, 1);
+  const U = nb(0, -1) || nb(-1, -1) || nb(1, -1), Dn = nb(0, 1) || nb(-1, 1) || nb(1, 1);
+  for (let j = 0; j < 512; j++) {
+    for (let i = 0; i < 512; i++) {
+      const probe = (L && i <= 41) || (R && i >= 471) || (U && j <= 41) || (Dn && j >= 471);
+      const d = probe ? biomeAtPixel(config, X0 + i, Y0 + j) : own;
+      const k = kindOf(d);
+      const o = 3 * (j * 512 + i);
+      if (k === 1) {
+        const q = 3 * ((((wy + j) % tile.h + tile.h) % tile.h) * tile.w + (((wx + i) % tile.w + tile.w) % tile.w));
+        buf[o] = tile.px[q]; buf[o + 1] = tile.px[q + 1]; buf[o + 2] = tile.px[q + 2];
+      } else if (k === 2) {
+        const c = pick(base, wx + i, wy + j, salt);
+        buf[o] = c[0]; buf[o + 1] = c[1]; buf[o + 2] = c[2];
+      }
+    }
+  }
+}
+// a solid_wall chunk whose left/right neighbour column is the tower
+const towerBeside = (config, tx, ty) => !!config && [-1, 1].some((dx) => isTowerFile(biomeChunkDef(config, tx + dx, ty)?.filename ?? ""));
 
 function fillChunk(buffers, wx, wy, seed, shades) {
   if (buffers.recording) { buffers.record(wx, wy, wx + 512, wy + 512, (b) => fillChunk(b, wx, wy, seed, shades)); return; }
@@ -808,7 +861,7 @@ function fillStrip(buffers, wx, wy, seed, leftEdge) {
 // family's name attr is literally "_EMPTY_" and they render real scene art).
 const VOID_FILES = /(?:biome_)?(?:barren|darkness|potion_mimics|boss_sky|sky_light_injector)\.xml$/;
 
-export function renderTemplateChunk(buffers, dataDir, file, def, x, y, seed) {
+export function renderTemplateChunk(buffers, dataDir, file, def, x, y, seed, config = null) {
   const T = "data/biome_impl/temple/";
   if (file === "temple_wall.xml") {
     // temple_wall.lua init -> spawn_altar_top(x, y, true)
@@ -876,12 +929,13 @@ export function renderTemplateChunk(buffers, dataDir, file, def, x, y, seed) {
   } else if (isWallFile(file)) {
     // solid_wall border/filler columns: dark hell-rock matrix + edge strips
     // (hosted-ref calibrated: (37,21,17)/(55,34,29) family)
-    fillChunk(buffers, x, y, seed, DEEP_ROCK);
-    const ccx = Math.floor(x / 512) + 35; // canvas chunk x == biome tx
-    if (ccx === 1 || ccx === 68) fillStrip(buffers, x, y, seed, ccx === 1);
+    const tx = Math.floor(x / 512) + 35, ty = Math.floor(y / 512) + 14;
+    if (towerBeside(config, tx, ty)) towerEdgeFill(buffers, dataDir, config, x, y, seed, DEEP_ROCK); // I64: the cursed rock's displaced edge
+    else fillChunk(buffers, x, y, seed, DEEP_ROCK);
+  } else if (isTowerFile(file) && config) {
+    towerEdgeFill(buffers, dataDir, config, x, y, seed, DEEP_ROCK); // I64: rock_static_cursed (C185) + the edge law
   } else if (isTowerFile(file)) {
-    // border tower columns: full pink-speckle wall strip
-    fillChunk(buffers, x, y, seed, STRIP);
+    fillChunk(buffers, x, y, seed, STRIP); // no config (direct callers): the old speckle
   } else if (blitInitScenes(buffers, dataDir, def, x, y, seed)) {
     // generic per-chunk init() LoadPixelScene lane (mountain/pyramid
     // pieces, floating island, halls, bosses — the game's own art,

@@ -119,6 +119,12 @@ function loadTex(dataDir, rel) {
   _texCache.set(rel, t);
   return t;
 }
+// the C185 texture's period (its w×h), or null when the material has none
+export function materialTexSize(dataDir, name) {
+  const e = loadMaterialGfx(dataDir).get(name);
+  const t = e?.tex ? loadTex(dataDir, e.tex) : null;
+  return t ? { w: t.w, h: t.h } : null;
+}
 export function materialColorAt(dataDir, name, worldX, worldY) {
   const e = loadMaterialGfx(dataDir).get(name);
   if (!e) return null;
