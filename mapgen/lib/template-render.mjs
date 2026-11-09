@@ -19,7 +19,8 @@ import { readPng, rgbToRgbaInt } from "./images.mjs";
 import { SHADES, MATERIAL_SHADE, pick, loadMaterials, materialColorAt, materialRenderClass } from "./colorize.mjs";
 import { seededPrng } from "./wang-js.mjs";
 import { biomeAt } from "./biomes.mjs"; // the OWNERSHIP GATE source (dig 52)
-import { surfaceFillLane, surfaceFillAt } from "./noise-terrain.mjs"; // dig #172: the driver fill lane
+import { ensureSurfaceTable } from "./noise-terrain.mjs"; // I63: the classify table of the P-empty arm
+import { workCellAt } from "./the-work.mjs";
 import path from "node:path";
 import { LazyChunkStore } from "./chunk-store.mjs"; // the lazy per-chunk planes (A, 2026-11-08)
 import { WangLuaHost, loadWangScriptsCsv } from "./wang-scenes.mjs"; // dig #219: init() runs as the real biome Lua
@@ -474,6 +475,8 @@ export const SPLICE_PNGS = [
 
 export function blitSplicedScenes(buffers, dataDir, config, seed = 0) {
   const materials = loadMaterials(dataDir);
+  // SUPERSEDED I63 (2026-11-09): the grey fill below is now the P-empty arm
+  // (see the placeholder branch); the dig #172 note is kept for its history.
   // dig #172 (I39(d) fix; A5's splice half retired, blitScene keeps the
   // approximation): the grey-placeholder fill = the game's per-cell DRIVER
   // LAW, byte-pinned this session — the 512-chunk scene walk calls the
@@ -494,21 +497,6 @@ export function blitSplicedScenes(buffers, dataDir, config, seed = 0) {
   // entry (170)'s census + this dig's E1 profile: the capture on art-grey
   // cells is solid terrain 104002/104002 with a soil→rock stratification;
   // art-BLACK stays "below shows").
-  const laneCache = new Map();
-  const laneOf = (gx, gy) => {
-    if (!config) return null;
-    // game frame -> biome chunk: display = game + (35·512, 62·512) and
-    // biome = display chunk with the 48 sky rows removed (C145 frame law)
-    const at = biomeAt(config, Math.floor(gx / 512) + 35, Math.floor(gy / 512) + 14);
-    const def = at?.biome;
-    if (!def) return null;
-    let lane = laneCache.get(def);
-    if (lane === undefined) {
-      lane = surfaceFillLane(config, def, seed);
-      laneCache.set(def, lane);
-    }
-    return lane;
-  };
   for (const sc of SPLICE_PNGS) {
     const img = art(dataDir, "data/biome_impl/spliced/" + sc.file);
     if (!img) continue;
@@ -533,11 +521,19 @@ export function blitSplicedScenes(buffers, dataDir, config, seed = 0) {
           // the law above). No lane (unread core / no config) or no
           // classify match (the walk's NULL arm): the cell KEEPS its
           // content — the base lane shows through.
-          const lane = laneOf(gx, gy);
-          if (!lane) continue;
-          const comp = surfaceFillAt(lane, gx, gy);
-          if (!comp) continue;
-          color = fillPx(dataDir, comp.name, gx, gy, 0x51ce3f);
+          // I63 (2026-11-09): the placeholder = the P-empty arm (the Work
+          // lane's and the bins' law, C186/C199): field = the grey's
+          // luminance, ≤ 0.5 ⇒ keep, else the hosting biome's classify at
+          // v = 0x908e70(x, y, field). The dig #172 driver lane (kind-0
+          // surfaceField) left lavalake2.png's white cells unfilled (no
+          // classify match) where the capture is solid rock_hard: lava lake
+          // chunks 0.24–0.65 → 0.96–0.999 solid agreement; all 18 splice
+          // tiles that change improve, the mountain_lake anchor included.
+          const def = config ? biomeAt(config, Math.floor(gx / 512) + 35, Math.floor(gy / 512) + 14)?.biome : null;
+          if (!def) continue;
+          const cell = workCellAt(r, g, b, materials, ensureSurfaceTable(dataDir, def), gx, gy);
+          if (!cell.material) continue;
+          color = fillPx(dataDir, cell.material, gx, gy, 0x51ce3f);
         } else {
           const hex = `${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
           const mname = materials.get(hex);

@@ -941,3 +941,26 @@ describe.skipIf(!hasNoitaData())("I62 — the per-biome rooms are not filled wit
     expect(same / n).toBeGreaterThan(0.9);
   }, 240000);
 });
+
+// I63 (2026-11-09): the lava lake's rock = lavalake2.png's white placeholder
+// cells run the P-empty arm (lavalake's classify ⇒ rock_hard /
+// rock_hard_border); the old driver fill matched nothing there and the chunk
+// rendered as backdrop (41_16 solid agreement 0.24 → 0.98).
+describe.skipIf(!hasNoitaData())("I63 — the lava lake's placeholder rock is filled", () => {
+  test("41_16: lavalake2.png's white cells render solid (old law: ≈0 %)", async () => {
+    const world = await sharedWorld();
+    const { readPng } = await import("../../mapgen/lib/images.mjs");
+    const img = readPng(path.join(dataDir, "biome_impl/spliced/lavalake2.png"));
+    const X0 = (41 - 35) * CHUNK - 2048, Y0 = (16 - 14) * CHUNK; // lavalake2.png sits at world (2048, 0)
+    let n = 0, solid = 0;
+    for (let j = 20; j < 492; j += 9) for (let i = 20; i < 492; i += 9) {
+      const q = 4 * ((Y0 + j) * img.width + X0 + i);
+      if (!(img.data[q] === 255 && img.data[q + 1] === 255 && img.data[q + 2] === 255)) continue;
+      n++;
+      const c = worldColorAt(world, 41 * CHUNK + i, (16 + SKY_ROWS) * CHUNK + j);
+      if (c && 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2] >= 24) solid++;
+    }
+    expect(n).toBeGreaterThan(1000);
+    expect(solid / n).toBeGreaterThan(0.95);
+  }, 240000);
+});

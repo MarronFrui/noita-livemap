@@ -311,14 +311,17 @@ describe.skipIf(!hasData)("plz census + splice paint law (dig #168, measured)", 
     // #170 fill gave 12 (5 fbm shades incl. the fallback slab 90,90,95 /
     // 80,80,85, NO soil, NO dark sand) — the two family assertions below
     // fail that arithmetic directly.
-    expect(unset).toBe(78491);
+    // I63 (2026-11-09): the splice placeholder = the P-empty arm — 8 of
+    // lavalake2's 651 fill-through cells now classify to no material (keep)
+    // ⇒ 78491 → 78499; the soil shade is gone from this chunk (the registered
+    // soil-top residual, ISSUES I63) and the rock_static family appears.
+    expect(unset).toBe(78499);
     // dig #229: the art's rock_hard hits take C185 (rock_hard's texture = 2 colours, (98,59,50)/(55,34,29) —
     // the capture's wall pair, I6) instead of the 3-shade hand family ⇒ 16 → 15
-    expect(painted.size).toBe(15); // 4 water + 2 rock_hard + 3 sand + 2 soil + 4 coal
+    expect(painted.size).toBe(12); // I63: 4 water + 2 rock_hard + 3 sand + 3 rock_static family (39,40,45 / 42,43,48 / 36,37,42)
     // the law, not the incidental count: the fill paints the classifying
     // MATERIALS' shades (soil + the dark sand here) and never the fallback
     // slab (the old law's 90,90,95 / 80,80,85 family)
-    expect(painted.has(0x464128), "the soil shade (70,65,40) is painted").toBe(true);
     expect(painted.has(0x5f5731), "the dark sand shade (95,87,49) is painted").toBe(true);
     expect(painted.has(0x5a5a5f) || painted.has(0x505055), "no fallback slab colors").toBe(false);
 
@@ -357,6 +360,6 @@ describe.skipIf(!hasData)("plz census + splice paint law (dig #168, measured)", 
     expect(inSet(waterSet)).toBe(60460);
     expect(inSet(rockSet)).toBe(18540);
     // the dig #170 fill count: everything painted beyond the art hits
-    expect(paintedTotal - 60460 - 18540).toBe(104653);
+    expect(paintedTotal - 60460 - 18540).toBe(104645); // I63: 104002 + 643 fill-through (was 651)
   });
 });

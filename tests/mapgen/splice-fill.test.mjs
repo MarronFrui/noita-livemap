@@ -118,22 +118,46 @@ describe.skipIf(!hasData)("splice fill lane (dig #172)", () => {
     expect(surfaceFillAt(lane, ANCHOR.wx + 100, -5000)).toBeNull();
   });
 
-  test("L1: the terrain-top grey band paints the soil family (fail-under-old: ~0 soil)", async () => {
-    const { top, topPainted } = await setup();
-    expect(top.greyN, "the art-grey mask in rows 128-191").toBeGreaterThan(500);
-    // nearly every grey cell painted (the anchor's measured coverage = 100%)
-    expect(topPainted.painted / top.greyN).toBeGreaterThanOrEqual(0.99);
-    // the N-path: the soil band. Old law: soil ≈ 1 px of 104002 → fails.
-    expect(top.share).toBeGreaterThanOrEqual(0.9);
-  });
+  // I63 (2026-11-09): the splice placeholder = the P-empty arm (field = the
+  // grey's luminance; ≤ 0.5 ⇒ keep; else classify at 0x908e70's v). The old
+  // L1/L2 (the driver fill's soil-top / sand-foot families) are replaced by
+  // capture-agreement pins on the same anchor (exact colour on the art-grey
+  // cells, tile 40_14): rows 192-447 old 0.138 → 0.161, rows 448-511 old
+  // 0.038 → 0.345. Known residual: the 716-px soil top band (128-191) the
+  // old law matched better (0.462 vs 0.117) — ISSUES I63.
+  const capExact = async ([y0, y1]) => {
+    const { readPng } = await import("../../mapgen/lib/images.mjs");
+    const path = await import("node:path");
+    const cap = readPng(path.join(process.cwd(), "mapgen/out/ref/40_14.png"));
+    const artImg = readPng(DATA_DIR + "/biome_impl/spliced/mountain_lake.png");
+    const { loadBiomeConfig } = await import("../../mapgen/lib/biomes.mjs");
+    const { blitSplicedScenes } = await import("../../mapgen/lib/template-render.mjs");
+    const m = new Map(); blitSplicedScenes(m, DATA_DIR, loadBiomeConfig(DATA_DIR), SEED);
+    const buf = m.get(`${ANCHOR.tx},${ANCHOR.ty}`);
+    let n = 0, ex = 0, painted = 0;
+    for (let j = y0; j <= y1; j++) for (let i = 0; i < CHUNK; i++) {
+      const q = 4 * (j * artImg.width + i);
+      const r = artImg.data[q], g = artImg.data[q + 1], b = artImg.data[q + 2];
+      if (!(artImg.data[q + 3] >= 10 && r === g && g === b && r > 0)) continue;
+      n++;
+      const p = 3 * (j * CHUNK + i), k = 4 * (j * CHUNK + i);
+      if (!(buf[p] === 9 && buf[p + 1] === 9 && buf[p + 2] === 9)) painted++;
+      if (buf[p] === cap.data[k] && buf[p + 1] === cap.data[k + 1] && buf[p + 2] === cap.data[k + 2]) ex++;
+    }
+    return { n, exact: ex / n, painted: painted / n };
+  };
+  const hasCap = fs.existsSync("mapgen/out/ref/40_14.png");
 
-  test("L2: the stratification flip + the dark-sand shade (fail-under-old: row-invariant)", async () => {
-    const { top, bottomSoil, bottomSand } = await setup();
-    expect(bottomSoil.greyN, "the art-grey mask in rows 448-511").toBeGreaterThan(500);
-    // the fill is banded: soil on top, NO soil at the foot. Old law was
-    // row-invariant (delta ≈ 0) → fails; sand_static went to the LIGHT
-    // template shade → the SHADES.sand share ≈ 0 → fails.
-    expect(top.share - bottomSoil.share).toBeGreaterThanOrEqual(0.9);
-    expect(bottomSand.share).toBeGreaterThanOrEqual(0.9);
-  });
+  test.skipIf(!hasCap)("L1 (I63): the mid band's grey cells match the capture's colour (old driver fill 0.138)", async () => {
+    const r = await capExact([192, 447]);
+    expect(r.n).toBeGreaterThan(50000);
+    expect(r.painted).toBeGreaterThanOrEqual(0.99);
+    expect(r.exact).toBeGreaterThanOrEqual(0.15);
+  }, 120000);
+
+  test.skipIf(!hasCap)("L2 (I63): the foot band's grey cells match the capture's colour (old driver fill 0.038)", async () => {
+    const r = await capExact(BOTTOM);
+    expect(r.n).toBeGreaterThan(5000);
+    expect(r.exact).toBeGreaterThanOrEqual(0.3);
+  }, 120000);
 });
