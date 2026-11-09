@@ -312,7 +312,9 @@ describe.skipIf(!hasData)("plz census + splice paint law (dig #168, measured)", 
     // 80,80,85, NO soil, NO dark sand) — the two family assertions below
     // fail that arithmetic directly.
     expect(unset).toBe(78491);
-    expect(painted.size).toBe(16); // 4 water + 3 rock_hard + 3 sand + 2 soil + 4 coal
+    // dig #229: the art's rock_hard hits take C185 (rock_hard's texture = 2 colours, (98,59,50)/(55,34,29) —
+    // the capture's wall pair, I6) instead of the 3-shade hand family ⇒ 16 → 15
+    expect(painted.size).toBe(15); // 4 water + 2 rock_hard + 3 sand + 2 soil + 4 coal
     // the law, not the incidental count: the fill paints the classifying
     // MATERIALS' shades (soil + the dark sand here) and never the fallback
     // slab (the old law's 90,90,95 / 80,80,85 family)
@@ -350,9 +352,8 @@ describe.skipIf(!hasData)("plz census + splice paint law (dig #168, measured)", 
       (SHADES[MATERIAL_SHADE.get("water")] ?? []).map((s) =>
         (s.rgb[0] << 16) | (s.rgb[1] << 8) | s.rgb[2])
     );
-    const rockSet = new Set(
-      TEMPLATE_SHADES.rock_hard.map((s) => (s.rgb[0] << 16) | (s.rgb[1] << 8) | s.rgb[2])
-    );
+    // dig #229: rock_hard (solid) paints C185 = its texture pair
+    const rockSet = new Set([(98 << 16) | (59 << 8) | 50, (55 << 16) | (34 << 8) | 29]);
     expect(inSet(waterSet)).toBe(60460);
     expect(inSet(rockSet)).toBe(18540);
     // the dig #170 fill count: everything painted beyond the art hits

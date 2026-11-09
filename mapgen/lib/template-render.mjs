@@ -16,7 +16,7 @@
 // (blitSplicedScenes' grey branch).
 
 import { readPng, rgbToRgbaInt } from "./images.mjs";
-import { SHADES, MATERIAL_SHADE, pick, loadMaterials, materialColorAt } from "./colorize.mjs";
+import { SHADES, MATERIAL_SHADE, pick, loadMaterials, materialColorAt, materialRenderClass } from "./colorize.mjs";
 import { seededPrng } from "./wang-js.mjs";
 import { biomeAt } from "./biomes.mjs"; // the OWNERSHIP GATE source (dig 52)
 import { surfaceFillLane, surfaceFillAt } from "./noise-terrain.mjs"; // dig #172: the driver fill lane
@@ -72,13 +72,28 @@ const fillShadeFor = (dataDir, name) => FILL_SHADES[name] ?? materialShadeFor(da
 // texture at the world px / Graphics colour / wang_color, alpha composited),
 // else the generic fallback. (2026-11-08, the sky-band fix: wood_tree — the
 // mountain tree — had no family and painted flat grey (90,90,95).)
-const materialPx = (dataDir, name, x, y, salt) => {
+// the pre-#229 family-first law — kept for the DRIVER FILL (fillPx): at the
+// mountain_lake anchor the capture-calibrated families stand in for the
+// fill's unresolved material assignment (its 'soil' cells show sand_static's
+// texture in the capture; C146 / I42), so C185 there would trade a known
+// stand-in for a wrong colour.
+const familyPx = (dataDir, name, x, y, salt) => {
   const fam = MATERIAL_SHADE.get(name);
   if (fam && SHADES[fam]) return pick(SHADES[fam], x, y, salt);
   if (TEMPLATE_SHADES[name]) return pick(TEMPLATE_SHADES[name], x, y, salt);
   return materialColorAt(dataDir, name, x, y) ?? pick(SHADES.fallbackSolid, x, y, salt);
 };
-const fillPx = (dataDir, name, x, y, salt) => (FILL_SHADES[name] ? pick(FILL_SHADES[name], x, y, salt) : materialPx(dataDir, name, x, y, salt));
+// dig #229 (C195 in the template lane): a SOLID scene-art material px = C185
+// (its texture at the world px); gases / flowing liquids keep the families
+// (A23).
+const materialPx = (dataDir, name, x, y, salt) => {
+  if (materialRenderClass(dataDir, name) === "solid") {
+    const c = materialColorAt(dataDir, name, x, y);
+    if (c) return c;
+  }
+  return familyPx(dataDir, name, x, y, salt);
+};
+const fillPx = (dataDir, name, x, y, salt) => (FILL_SHADES[name] ? pick(FILL_SHADES[name], x, y, salt) : familyPx(dataDir, name, x, y, salt));
 
 // template-only display shades (capture/stitch-calibrated, seed-independent zones)
 export const TEMPLATE_SHADES = {

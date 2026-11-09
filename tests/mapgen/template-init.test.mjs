@@ -146,3 +146,21 @@ describe.skipIf(!hasNoitaData())("dig #228 — an air px clears earlier paint", 
     fs.rmSync(dir, { recursive: true, force: true });
   });
 });
+
+// dig #229 (C195 in the template lane): a SOLID scene material px = C185
+// (its texture at the world px) — templebrick_static was a hand family
+// (79,73,50)/(81,76,52); the capture (and C185) = (81,74,49)/(64,58,41)…
+describe.skipIf(!hasNoitaData())("dig #229 — scene solids take C185", () => {
+  test("a templebrick px of altar_top.png = templebrick_static's texture at that world px", async () => {
+    const { blitScene } = await import("../../mapgen/lib/template-render.mjs");
+    const { materialColorAt } = await import("../../mapgen/lib/colorize.mjs");
+    const { readPng } = await import("../../mapgen/lib/images.mjs");
+    const img = readPng(`${dataDir}/biome_impl/temple/altar_top.png`);
+    let px = -1; for (let i = 0; i < img.width * img.height; i++) if (img.data[4 * i] === 120 && img.data[4 * i + 1] === 108 && img.data[4 * i + 2] === 66) { px = i; break; }
+    const x = px % img.width, y = Math.floor(px / img.width);
+    const buffers = new Map();
+    blitScene(buffers, dataDir, { materialBands: [] }, "data/biome_impl/temple/altar_top.png", null, 0, 0, "t", 1);
+    const b = buffers.get("35,62"); const o = 3 * (y * 512 + x);
+    expect([b[o], b[o + 1], b[o + 2]]).toEqual(materialColorAt(dataDir, "templebrick_static", x, y));
+  });
+});
