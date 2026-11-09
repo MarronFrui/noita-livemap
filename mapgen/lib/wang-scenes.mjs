@@ -167,6 +167,12 @@ export class WangLuaHost {
       this.scenes.push({ fn: this.current, mat, vis, bg, x, y });
       return undefined;
     });
+    // the per-chunk init's background pieces (template-render's lane)
+    this.backdrops = [];
+    reg("LoadBackgroundSprite", (Ls) => {
+      this.backdrops.push({ fn: this.current, bg: argStr(Ls, 1), x: argNum(Ls, 2), y: argNum(Ls, 3) });
+      return undefined;
+    });
     this.runFile(scriptRel);
   }
   run(src, name) {
@@ -189,8 +195,9 @@ export class WangLuaHost {
     }
     return this.run(src, rel);
   }
-  // call name(x, y) — returns false when the global is not a function
-  call(name, x, y) {
+  // call name(x, y, ...extra) — returns false when the global is not a
+  // function (the per-chunk init takes (x, y, w, h))
+  call(name, x, y, ...extra) {
     const L = this.L;
     lua.lua_getglobal(L, to_luastring(name));
     if (lua.lua_type(L, -1) !== lua.LUA_TFUNCTION) {
@@ -200,7 +207,8 @@ export class WangLuaHost {
     this.current = name;
     pushJs(L, x);
     pushJs(L, y);
-    if (lua.lua_pcall(L, 2, 0, 0) !== lua.LUA_OK) {
+    for (const v of extra) pushJs(L, v);
+    if (lua.lua_pcall(L, 2 + extra.length, 0, 0) !== lua.LUA_OK) {
       if (this.errors.length < 50) this.errors.push(`${name}(${x},${y}): ${to_jsstring(lua.lua_tostring(L, -1) ?? to_luastring("?"))}`);
       lua.lua_pop(L, 1);
     }

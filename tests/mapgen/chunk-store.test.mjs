@@ -1,6 +1,6 @@
 // The lazy chunk store (mapgen/lib/chunk-store.mjs) — the per-chunk
 // materialization must be BYTE-IDENTICAL to the eager whole-world render it
-// replaced (renderTemplateWorld's eager Map, 4642 fg + 192 bg chunks for the
+// replaced (renderTemplateWorld's eager Map, 4642 fg + 186 bg chunks for the
 // capture seed; the wang spawn-scene planes). Unit laws first, then the
 // exhaustive data-gated equivalence.
 
@@ -93,7 +93,7 @@ async function comparePlanes(eager, lazy) {
 }
 
 describe.skipIf(!hasNoitaData())("lazy == eager, exhaustively (capture seed) — data-gated", () => {
-  test("renderTemplateWorld: every fg + bg chunk byte-identical (4642 + 192)", async () => {
+  test("renderTemplateWorld: every fg + bg chunk byte-identical (4642 + 186)", async () => {
     const { config } = loadWangWorld(dataDir);
     const lazy = renderTemplateWorld(dataDir, config, CAPTURE_SEED, { eager: false });
     await new Promise((r) => setImmediate(r));
@@ -103,7 +103,7 @@ describe.skipIf(!hasNoitaData())("lazy == eager, exhaustively (capture seed) —
     const bg = await comparePlanes(eager.get("bg"), lazy.get("bg"));
     eager.get("bg")?.clear(); eager.clear(); eager = null; lazy.clear(); // ~3.5 GB back
     expect(fg).toEqual({ ok: 4642, bad: 0, missing: 0, extra: 0 });
-    expect(bg).toEqual({ ok: 192, bad: 0, missing: 0, extra: 0 });
+    expect(bg).toEqual({ ok: 186, bad: 0, missing: 0, extra: 0 }); // dig #219: 192 → 186 — init() runs as Lua, the unchosen branches' background art (the second side cavern, …) no longer loads
   }, 240000);
 
   let world = null;

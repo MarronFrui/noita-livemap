@@ -22,6 +22,7 @@ import { biomeAt } from "./biomes.mjs"; // the OWNERSHIP GATE source (dig 52)
 import { surfaceFillLane, surfaceFillAt } from "./noise-terrain.mjs"; // dig #172: the driver fill lane
 import path from "node:path";
 import { LazyChunkStore } from "./chunk-store.mjs"; // the lazy per-chunk planes (A, 2026-11-08)
+import { WangLuaHost, loadWangScriptsCsv } from "./wang-scenes.mjs"; // dig #219: init() runs as the real biome Lua
 
 // the replay clip: [lo, hi) loop bounds of an image placed at `o` (size n)
 // against the target chunk's world-px span — full range on eager Maps
@@ -360,16 +361,55 @@ function getPixelScenes(dataDir, def) {
   return parsed;
 }
 
+// dig #219 (the user's "the level-4 hourglass room appears on both sides"):
+// the per-chunk init(x, y, w, h) RUNS as the real biome Lua (the wang-scenes
+// host: fengari + the byte-exact SetRandomSeed / Random / ProceduralRandom*
+// ports), so its branches decide — snowcastle_cavern's side_cavern_left XOR
+// _right on `ProceduralRandom(0,0) > 0.5`, lavalake_pit's cracked XOR intact
+// piece on y, solid_wall_hidden_cavern's ONE seeded location of four,
+// snowcave's 8 seeded statue hands. The old law = parseInitPixelScenes, a
+// static text parse that took every LoadPixelScene line in the body
+// regardless of its branch (both caverns, both lava pieces, every cavern
+// location) and dropped every dynamic offset (the statue hands). Known gap:
+// engine queries against generated terrain (RaytracePlatforms — the
+// rainforest hint statues) are stubs; the calls recorded before such an
+// error are kept (ISSUES I58).
+const initHosts = new Map(); // `${dataDir}|${seed}|${luaScript}` -> WangLuaHost
+const initRuns = new Map();  // `${dataDir}|${seed}|${file}|${x},${y}` -> { scenes, backdrops }
+export function runInitScenes(dataDir, def, seed, x, y) {
+  if (!def.luaScript) return null;
+  const k = `${dataDir}|${seed}|${def.filename}|${x},${y}`;
+  if (initRuns.has(k)) return initRuns.get(k);
+  const hk = `${dataDir}|${seed}|${def.luaScript}`;
+  let host = initHosts.get(hk);
+  if (!host) {
+    host = new WangLuaHost(dataDir, def.luaScript, seed, loadWangScriptsCsv(dataDir));
+    initHosts.set(hk, host);
+  }
+  const n0 = host.scenes.length, b0 = host.backdrops.length;
+  host.call("init", x, y, 512, 512);
+  const out = {
+    scenes: host.scenes.slice(n0).map((sc) => ({ mat: sc.mat, vis: sc.vis || null, bg: sc.bg || null, x: sc.x, y: sc.y })),
+    backdrops: host.backdrops.slice(b0).map((bd) => ({ bg: bd.bg, x: bd.x, y: bd.y })),
+  };
+  initRuns.set(k, out);
+  return out;
+}
+
+// the temple family's init() is hand-ported in renderTemplateChunk's arms
+const TEMPLE_ARMS = /(?:^|\/)temple_(?:wall|altar|altar_left|altar_right)\.xml$/;
+
 function blitInitScenes(buffers, dataDir, def, x, y, seed) {
-  const parsed = getPixelScenes(dataDir, def);
-  if (process.env.TEMPLATE_DEBUG) console.log('[blitInitScenes]', def.name, def.filename, 'scenes:', parsed?.scenes.length ?? 'no-parse', 'backdrops:', parsed?.backdrops?.length ?? 0);
-  if (!parsed || parsed.scenes.length === 0) return false;
+  if (TEMPLE_ARMS.test(def.filename)) return false;
+  const run = runInitScenes(dataDir, def, seed, x, y);
+  if (process.env.TEMPLATE_DEBUG) console.log('[blitInitScenes]', def.name, def.filename, 'scenes:', run?.scenes.length ?? 'no-lua', 'backdrops:', run?.backdrops.length ?? 0);
+  if (!run || (run.scenes.length === 0 && run.backdrops.length === 0)) return false;
   // the bg pieces first (the LoadBackgroundSprite layers, dig #134), then
   // the scenes over them
-  for (const bd of parsed.backdrops ?? []) blitBackdrop(buffers, dataDir, bd.bg, x + bd.dx, y + bd.dy);
-  for (const sc of parsed.scenes) {
-    if (sc.bg) blitBackdrop(buffers, dataDir, sc.bg, x + sc.dx, y + sc.dy);
-    blitScene(buffers, dataDir, def, sc.mat, sc.vis, x + sc.dx, y + sc.dy, def.name, seed);
+  for (const bd of run.backdrops) blitBackdrop(buffers, dataDir, bd.bg, bd.x, bd.y);
+  for (const sc of run.scenes) {
+    if (sc.bg) blitBackdrop(buffers, dataDir, sc.bg, sc.x, sc.y);
+    blitScene(buffers, dataDir, def, sc.mat, sc.vis, sc.x, sc.y, def.name, seed);
   }
   return true;
 }
@@ -633,12 +673,10 @@ export function renderTemplateWorld(dataDir, config, seed, { eager = process.env
     // templateFile = undefined (def.template = true) — the first gate
     // skipped exactly them. The luaScene parser handles their
     // chunk-local (x, y) forms.
+    // dig #219: every def whose script registers an init() (the Lua decides
+    // per chunk what loads; the temple arms are excluded in blitInitScenes)
     const parsed = getPixelScenes(dataDir, def);
-    if (!parsed || parsed.scenes.length === 0) continue;
-    // NOTE: parsed.dynamic counts only the UNRESOLVABLE callsites (which
-    // parseInitPixelScenes already drops from the scenes list) — a nonzero
-    // count must NOT skip the blit (the pyramid's mixed static/dynamic
-    // init lost its whole art set to this gate in the first cut).
+    if (!parsed || parsed.noInitHook) continue;
     for (const area of def.areas ?? []) {
       for (let ty = area.y1; ty <= area.y2; ty++) {
         for (let tx = area.x1; tx <= area.x2; tx++) {
