@@ -121,6 +121,6 @@ describe.skipIf(!hasNoitaData())("lazy == eager, exhaustively (capture seed) —
     const bg = await comparePlanes(eager.get("bg"), lazy.get("bg"));
     expect(fg.bad + fg.missing + fg.extra).toBe(0);
     expect(bg.bad + bg.missing + bg.extra).toBe(0);
-    expect(fg.ok + bg.ok).toBe(521); // the measured scene-chunk count (2026-11-08)
+    expect(fg.ok + bg.ok).toBe(519); // the measured scene-chunk count (dig #220: 521 → 519 under the C191 call position)
   }, 240000);
 });

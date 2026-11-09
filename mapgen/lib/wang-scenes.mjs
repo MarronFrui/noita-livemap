@@ -15,9 +15,8 @@
 //     defaults: ffff0aff load_pixel_scene, ffff0080 load_pixel_scene2, …)
 //     overridden by the biome script's RegisterSpawnFunction(colour, name);
 //     0xffffeedd "init" = the per-chunk init, owned by template-render.mjs.
-//   - the call = name(x, y) with (x, y) = the cell's world position:
-//     (area.x1 − 35)·512 + 10·i, (area.y1 − 14)·512 + 10·j (the frame the
-//     hasPath main-path window uses, generate-exact's worldX/worldY).
+//   - the call = name(x, y) with (x, y) = the engine's spawn-record position
+//     10·t − 5 − G (0x909370, C191; see areaSceneCalls below).
 //   - the functions run as the REAL biome Lua (fengari VM), with the engine
 //     API the scene path needs backed by the byte-exact ports: SetRandomSeed /
 //     Random / ProceduralRandom* = wang-js.mjs seededPrng (the Lua-oracle-
@@ -250,9 +249,31 @@ export function sceneImageSpawnCalls(dataDir, scenes, hostFor, readImage) {
 
 // The scene calls for one area. `raw` = the area's out_map (RGB, w×h, the
 // generator's accepted attempt — rawAreaMap), `host` = the biome's Lua host.
+//
+// The call position = the engine's spawn-record law (0x909370, the wang
+// spawn collector; C191): per wang cell t of the biome's map-wide image,
+// world_pos = (10·tx − 5 − (int)G2, 10·ty − 5 − (int)G1) with G2 = 17920,
+// G1 = 7168 (C170) — the record's {x, y} is what CallSpawnFunction hands the
+// Lua function (and so what ProceduralRandom(x, y) seeds on). The area's
+// out_map pixel i sits at global cell tx = trunc(x1·51.2) + i (the per-term
+// GetWidthFromPix frame, world-gen widthCells), so the call is NOT the old
+// `(x1 − 35)·512 + 10·i` (off by −5 − 10·frac(x1·51.2) = −5..−13 px — enough
+// to reseed every load_random_pixel_scene pick: the wrong-variant report).
+// The returned scenes are translated into the GENERATOR frame the bin lane
+// renders (cell i at (x1 − 35)·512 + 10·i): the scene keeps the game's offset
+// from its trigger cell (−5, −5); `callX/callY` = the game-frame position.
+export const SPAWN_G2 = 17920, SPAWN_G1 = 7168;
+export function spawnCallOrigin(x1, y1) {
+  return {
+    x: 10 * Math.trunc((x1 * 512) / 10) - 5 - SPAWN_G2,
+    y: 10 * Math.trunc((y1 * 512) / 10) - 5 - SPAWN_G1,
+  };
+}
 export function areaSceneCalls(host, a, raw) {
   const before = host.scenes.length;
-  const ox = (a.area.x1 - 35) * 512, oy = (a.area.y1 - 14) * 512;
+  const call = spawnCallOrigin(a.area.x1, a.area.y1);
+  // generator-frame cell origin − game-frame cell origin (0..8 px per axis)
+  const dx = (a.area.x1 - 35) * 512 - (call.x + 5), dy = (a.area.y1 - 14) * 512 - (call.y + 5);
   const { w, h, rgb } = raw;
   let calls = 0;
   for (let j = 0; j < h; j++) {
@@ -262,8 +283,9 @@ export function areaSceneCalls(host, a, raw) {
       if (c === INIT_COLOR) continue;
       const name = host.table.get(c);
       if (!name) continue;
-      if (host.call(name, ox + 10 * i, oy + 10 * j)) calls++;
+      if (host.call(name, call.x + 10 * i, call.y + 10 * j)) calls++;
     }
   }
-  return { calls, scenes: host.scenes.slice(before) };
+  const scenes = host.scenes.slice(before).map((s) => ({ ...s, callX: s.x, callY: s.y, x: s.x + dx, y: s.y + dy }));
+  return { calls, scenes };
 }
