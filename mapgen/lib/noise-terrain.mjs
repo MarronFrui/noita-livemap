@@ -1016,3 +1016,45 @@ export function noiseSolidAt(world, wx, wy) {
   if (lx < 0 || ly < 0 || lx >= 51 || ly >= 51) return 0;
   return ch.mask[52 * Math.floor(ly) + Math.floor(lx)];
 }
+
+// dig #218 (I53, C187 in the MAIN band): the noise lane evaluated for an
+// ARBITRARY biome at one canvas pixel — the pixel's biome from GetBiomeAt
+// 0x909da0 (biomeAtPixel) may differ from its chunk's within 41 px of an
+// edge, and the field driver 0x908f40 then runs the kind-0 arm with THAT
+// biome's config: surfaceField(config) → BiomeMaterials_Classify (X223).
+// Mirrors noiseChunkMask's V2 branch exactly (the 10-px cell centre, the
+// world-px field frame, classify-or-air), so an undisplaced pixel returns the
+// chunk mask's own verdict. Returns null when the lane does not apply (a
+// wang/template def, no table, the opt-in caves lane, no data dir), else
+// { solid, name } (name = the classified material, null when air).
+const pixelUidCache = new Map(); // `${seed}|${file}` → { uid, table } | null
+export function noisePixelFor(config, def, seed, gx, gy, dataDir = dataDirRef.dataDir) {
+  if (!def || def.templateFile) return null;
+  const SKY_ROWS = 48;
+  const ty = Math.floor(gy / CHUNK);
+  if (SURFACE_V3 && def.bitmapCaves && def.bitmapCaves.sizeX && ty >= SKY_ROWS + 15) return null;
+  // the data dir is the CALLER's (world.dataDir): the module-global
+  // dataDirRef is shared by every suite in the single test fork
+  if (!dataDir) { try { dataDir = findNoitaDataDir(); } catch { return null; } }
+  const key = `${seed}|${dataDir}|${def.filename}`;
+  let lane = pixelUidCache.get(key);
+  if (lane === undefined) {
+    lane = null;
+    const table = ensureSurfaceTable(dataDir, def);
+    if (table) {
+      const uid = uidFrom(def, biomeCfg(def));
+      uid.driver = makeBandDriver(config, seed);
+      lane = { uid, table };
+    }
+    pixelUidCache.set(key, lane);
+  }
+  if (!lane) return null;
+  const tx = Math.floor(gx / CHUNK);
+  const cx = Math.floor((gx - tx * CHUNK) / 10), cy = Math.floor((gy - ty * CHUNK) / 10);
+  const x = tx * CHUNK + cx * 10 + 5, y = ty * CHUNK + cy * 10 + 5;
+  const worldX0 = 35 * CHUNK, worldY0 = (SKY_ROWS + 14) * CHUNK;
+  const v = surfaceField(lane.uid, x - worldX0, y - worldY0, DEF_SEED);
+  const rec = classify(lane.table, x, y - worldY0, v);
+  if (!rec) return { solid: 0, name: null };
+  return { solid: 1, name: lane.table.components[rec.i]?.material_name ?? null };
+}

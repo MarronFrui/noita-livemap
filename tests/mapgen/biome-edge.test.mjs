@@ -88,3 +88,32 @@ describe.skipIf(!hasNoitaData())("the biome-edge law — data (E1, seed 78633191
     expect(at(72080, 40)).toBe("data/biome/the_end.xml");
   });
 });
+
+// dig #218 (I53): the noise lane evaluated for the PIXEL's biome — the field
+// driver 0x908f40's kind-0 arm takes GetBiomeAt's config (X223). The per-pixel
+// evaluator must reproduce the chunk mask exactly where the pixel biome = the
+// chunk biome (an undisplaced pixel keeps its verdict), and decline wang defs.
+describe.skipIf(!hasNoitaData())("dig #218 — noisePixelFor mirrors the chunk mask", async () => {
+  const { noiseChunkMask, noisePixelFor } = await import("../../mapgen/lib/noise-terrain.mjs");
+  const { loadBiomeConfig } = await import("../../mapgen/lib/biomes.mjs");
+  test("0 mismatches over the hills / desert surface chunks; wang defs → null", () => {
+    const c = loadBiomeConfig(dataDir);
+    let n = 0, bad = 0, solid = 0;
+    for (const [tx, ty] of [[41, 62], [43, 61], [45, 62]]) {
+      const m = noiseChunkMask(c, tx, ty, 78633191);
+      expect(m).not.toBeNull();
+      const def = biomeChunkDef(c, tx, ty - 48);
+      for (let cy = 0; cy < 51; cy += 2) for (let cx = 0; cx < 51; cx += 2) {
+        const r = noisePixelFor(c, def, 78633191, tx * 512 + cx * 10 + 3, ty * 512 + cy * 10 + 7, dataDir);
+        n++; solid += r.solid;
+        if (r.solid !== m.mask[52 * cy + cx]) bad++;
+      }
+    }
+    expect(n).toBe(3 * 26 * 26);
+    expect(solid).toBeGreaterThan(200);
+    expect(bad).toBe(0);
+    const lake = biomeChunkDef(c, 5, 18); // lake_deep = a wang biome
+    expect(lake.templateFile).toBeTruthy();
+    expect(noisePixelFor(c, lake, 78633191, 5 * 512 + 100, (18 + 48) * 512 + 100, dataDir)).toBeNull();
+  });
+});

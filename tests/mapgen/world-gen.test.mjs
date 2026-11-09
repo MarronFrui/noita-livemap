@@ -486,6 +486,26 @@ describe.skipIf(!hasNoitaData())("ensureWorld — cached generation (repo gen-ca
     expect(win(26 * 512 + 200, 26 * 512 + 206, 70158, 70162)).toBe(35);
   });
 
+  test("dig #218 (I53): a main-band solid_wall tongue inside the lake_deep chunk renders as rock", async () => {
+    if (!cacheDir || !world) return;
+    // the rock family is red-dominant (rock_hard / rock_hard_border textures);
+    // lake water (39,67,63) is teal — the dig-#216 predicate (R ≥ 35, G ≥ 19)
+    // would count it, so this pin uses R > G
+    const isRock = (c) => !!c && c[0] >= 35 && c[0] > c[1];
+    const win = (x0, x1, y0, y1) => {
+      let n = 0;
+      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (isRock(worldColorAt(world, x, y))) n++;
+      return n;
+    };
+    // the solid_wall | lake_deep line at x 2048 (map row 18): at map y 9624 the
+    // law pushes the wall 33 px into the lake chunk (old law: the lake's own
+    // wang fill = 0/45 rock)
+    expect(win(2062, 2076, 34199, 34201)).toBeGreaterThanOrEqual(40);
+    // controls: the lake interior stays lake, the wall interior stays wall
+    expect(win(2300, 2314, 34199, 34201)).toBe(0);
+    expect(win(1800, 1814, 34199, 34201)).toBe(45);
+  });
+
   test("per-area .bin cache format: u32 w | u32 h | u32 attempt | rgb", async () => {
     if (!cacheDir || !world) return;
     const [key, m] = world.maps.entries().next().value;

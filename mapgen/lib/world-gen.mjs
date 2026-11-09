@@ -16,7 +16,7 @@ import { LazyChunkStore } from "./chunk-store.mjs";
 import { WangLuaHost, areaSceneCalls, loadWangScriptsCsv, sceneImageSpawnCalls } from "./wang-scenes.mjs"; // the wang spawn-scene lane
 import { readPng } from "./images.mjs";
 import { materialColorAt } from "./colorize.mjs"; // dig #213 (C185): the cell colour law
-import { ensureBiomeBackdrop, ensureSurfaceTable } from "./noise-terrain.mjs"; // dig #134 bin-air backdrop; dig #215 Work classify
+import { ensureBiomeBackdrop, ensureSurfaceTable, noisePixelFor } from "./noise-terrain.mjs"; // dig #134 bin-air backdrop; dig #215 Work classify
 
 // dig #134: the bin-air backdrop memo (per def.filename) — the wang
 // bands' AIR cells composite the area biome's declared bg art.
@@ -137,6 +137,13 @@ export function worldColorAt(world, wx, wy) {
   // rooms are bare black until their art loads) — first among the band lanes.
   const scene = wangSceneAt(world, gx, gy);
   if (scene) return scene;
+  // dig #218 (I53, C187 in the main band): within 41 px of a chunk edge the
+  // pixel's biome (GetBiomeAt 0x909da0) may be the neighbour's; when that
+  // biome is a noise biome, the field driver 0x908f40 runs ITS kind-0 arm here.
+  if (ty >= 62 && ty < SKY_ROWS + 48) {
+    const e = edgePixelAt(world, gx, gy, wx, wy);
+    if (e !== undefined) return e;
+  }
   // dig #133 (I32 p2c, the SKY/Hell layer law): the SKY BAND = chunk rows
   // 0..61 (the vmap sky clamp + the biome map's rows 0..13 = the_sky/hills
   // sky region, all the way up to the Heaven end). ONE backdrop (BLACK
@@ -587,6 +594,48 @@ function sceneBufAt(bufs, gx, gy) {
 // the scene's material/visual px (fg) and its background_file px (bg)
 export const wangSceneAt = (world, gx, gy) => sceneBufAt(world.wangScenes, gx, gy);
 export const wangSceneBgAt = (world, gx, gy) => sceneBufAt(world.wangScenes?.get("bg"), gx, gy);
+
+// dig #218 (I53): the main band's displaced-edge pixel. undefined = the pixel
+// keeps its chunk's lanes (undisplaced, or displaced into a wang/template
+// biome — the global P outside a wang area is unread, ISSUES I53 residual);
+// else the pixel biome's noise verdict: the classified material's colour, or
+// AIR = that biome's backdrop (tiled in the chunk frame, C109). The chunk's
+// own scene art (the template lane) still wins: LoadPixelScene writes over
+// the terrain.
+function edgePixelAt(world, gx, gy, wx, wy) {
+  if (!world.config || !world.dataDir || !world.noiseAt) return undefined;
+  const Y = wy - SKY_ROWS * CHUNK;
+  const ccx = Math.floor(wx / CHUNK), ccy = Math.floor(wy / CHUNK);
+  const lx = wx - ccx * CHUNK, ly = wy - ccy * CHUNK;
+  // the law reads the DISPLAY frame (dig #216's E1 match); the lanes below
+  // read the GENERATOR frame (gx = wx + L3_ANCHOR) — compare against the
+  // chunk the lanes would actually serve, so the 11/12-px anchor strip
+  // takes the pixel biome's verdict too
+  const gcx = Math.floor(gx / CHUNK), gcy = Math.floor(gy / CHUNK);
+  const near = (v) => v <= 41 + L3_ANCHOR.x || v >= 471 - L3_ANCHOR.x;
+  if (!near(lx) && !near(ly)) return undefined; // interior: no probe fires
+  const laneDef = biomeChunkDef(world.config, gcx, gcy - SKY_ROWS);
+  const pix = biomeAtPixel(world.config, wx, Y);
+  if (!pix || pix === laneDef) return undefined;
+  const r = noisePixelFor(world.config, pix, world.seed ?? 0, gx, gy, world.dataDir);
+  if (!r) return undefined;
+  const tbuf = biomeChunkDef(world.config, ccx, ccy - SKY_ROWS) === pix ? null : world.templates?.get(`${ccx},${ccy}`);
+  if (tbuf) {
+    const o = 3 * (ly * CHUNK + lx);
+    if (tbuf[o] !== 9 || tbuf[o + 1] !== 9 || tbuf[o + 2] !== 9) return [tbuf[o], tbuf[o + 1], tbuf[o + 2]];
+  }
+  if (r.solid) {
+    const rgb = r.name ? materialColorAt(world.dataDir, r.name, wx - DISPLAY_X0, wy - DISPLAY_Y0) : null;
+    return noiseColor(world, Math.floor(gx / CHUNK), Math.floor(gy / CHUNK), 1, rgb);
+  }
+  const bd = biomeBackdrop(pix, world.dataDir);
+  if (!bd) return null;
+  if (bd.fill) return bd.fill;
+  if (!bd.pixels) return null;
+  const bx = (((gx % CHUNK) % bd.w) + bd.w) % bd.w, by = (((gy % CHUNK) % bd.h) + bd.h) % bd.h;
+  const q = 4 * (by * bd.w + bx);
+  return [bd.pixels[q], bd.pixels[q + 1], bd.pixels[q + 2]];
+}
 
 // dig #216: the fill of the adjacent chunk whose biome = def, read at the same
 // in-chunk offset (the wall lanes are per-chunk fills; the tongue continues it).
