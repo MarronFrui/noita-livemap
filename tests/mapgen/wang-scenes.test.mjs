@@ -5,7 +5,7 @@
 
 import { describe, test, expect } from "vitest";
 import {
-  CHUNK, WORLD_CHUNKS_W, WORLD_CHUNKS_H, L3_ANCHOR, worldColorAt, wangSceneAt, wangSceneBgAt,
+  CHUNK, WORLD_CHUNKS_W, WORLD_CHUNKS_H, binAnchor, worldColorAt, wangSceneAt, wangSceneBgAt,
 } from "../../mapgen/lib/world-gen.mjs";
 import { WangLuaHost, areaSceneCalls, loadWangScriptsCsv, INIT_COLOR, spawnCallOrigin } from "../../mapgen/lib/wang-scenes.mjs";
 import { loadBiomeExtras } from "../../mapgen/lib/colorize.mjs";
@@ -122,7 +122,7 @@ describe("wang spawn-scene lane — worldColorAt precedence (injected world, no 
 
   test("a scene px beats the wang bin; an unset (9) scene px falls through to the bin", () => {
     const w = mkWorld();
-    const { x: AX, y: AY } = L3_ANCHOR;
+    const { x: AX, y: AY } = binAnchor(w.areas[0]); // the scene buffers ride the bin frame (C192)
     const buf = sceneBuf(9);
     buf.set([200, 10, 10], 3 * (5 * CHUNK + 5)); // generator px (35·512+5, 62·512+5)
     w.wangScenes = new Map([["35,62", buf]]);
@@ -135,7 +135,7 @@ describe("wang spawn-scene lane — worldColorAt precedence (injected world, no 
 
   test("a scene's background_file paints the bin AIR cells only", () => {
     const w = mkWorld();
-    const { x: AX, y: AY } = L3_ANCHOR;
+    const { x: AX, y: AY } = binAnchor(w.areas[0]);
     const m = w.maps.get("a").rgb;
     m[0] = 13; m[1] = 14; m[2] = 18; // cell (0,0) = bin air (airDark)
     w.wangScenes = new Map([["bg", new Map([["35,62", sceneBuf(33)]])]]);

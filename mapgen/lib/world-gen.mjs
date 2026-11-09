@@ -114,6 +114,36 @@ export function loadWangWorld(dataDir) {
 // offset beats (0,0) in the ±16 sweep — instrument:
 // mapgen/experiments/2026-10-19-dig170-lake-band-counts.mjs).
 export const L3_ANCHOR = { x: 11, y: 12 };
+// dig #222 (C192, I60): the WANG BIN lane's registration is per AREA, not the
+// C78 constant: the game's P read rounds (0x8fae40) and an area's cells start
+// at (x1·512)/10 truncating (Init 0x907673), so out_map cell i sits at canvas
+// 10·(trunc(x1·51.2) + i) − 5 while the generator draws it at x1·512 + 10·i
+// ⇒ the display reads the generator at +5 + 10·frac(x1·51.2) (5..13 px; same
+// in y). The wang-scene buffers ride the same generator frame. The noise /
+// edge / Work lanes keep C78; the template lane keeps the display frame (C145).
+export function binSampleAt(world, wx, wy, tx, ty, gx, gy) {
+  const grid = world.grid, areas = world.areas;
+  if (!grid || !areas) return { idx: -1, x: gx, y: gy, hit: false };
+  let own = null; // the C78 chunk's own area (fallback: its bounds check fails, the lanes below decide)
+  for (const [dx, dy] of BIN_CANDIDATES) {
+    const cx = tx + dx, cy = ty + dy;
+    if (cx < 0 || cy < 0 || cx >= WORLD_CHUNKS_W || cy >= WORLD_CHUNKS_H) continue;
+    const idx = grid[cy * WORLD_CHUNKS_W + cx];
+    if (idx < 0) continue;
+    const a = areas[idx];
+    if (!a?.area) continue;
+    const an = binAnchor(a);
+    const x = wx + an.x, y = wy + an.y;
+    if (dx === 0 && dy === 0) own = { idx, x, y };
+    const lx = x - a.area.x1 * CHUNK, ly = y - (a.area.y1 + SKY_ROWS) * CHUNK;
+    if (lx < 0 || ly < 0 || lx >= a.w * 10 || ly >= a.h * 10) continue;
+    const sx = Math.floor(x / CHUNK), sy = Math.floor(y / CHUNK);
+    if (sx >= 0 && sy >= 0 && sx < WORLD_CHUNKS_W && sy < WORLD_CHUNKS_H && grid[sy * WORLD_CHUNKS_W + sx] === idx) return { idx, x, y, hit: true };
+  }
+  return own ? { ...own, hit: false } : { idx: -1, x: gx, y: gy, hit: false };
+}
+const BIN_CANDIDATES = [[0, 0], [-1, 0], [0, -1], [-1, -1], [1, 0], [0, 1], [1, 1], [1, -1], [-1, 1]];
+export const binAnchor = (a) => ({ x: 5 + ((a.area.x1 * 512) % 10), y: 5 + ((a.area.y1 * 512) % 10) });
 // dig #213 (C185): the display frame's world origin (the capture frame, C145):
 // world px = display px − (35·512, 62·512) — the cell colour law samples the
 // material texture at the WORLD pixel.
@@ -121,9 +151,25 @@ export const DISPLAY_X0 = 35 * CHUNK, DISPLAY_Y0 = (SKY_ROWS + 14) * CHUNK;
 
 export function worldColorAt(world, wx, wy) {
   if (wx < 0 || wy < 0 || wx >= WORLD_W || wy >= WORLD_H) return null;
-  const gx = wx + L3_ANCHOR.x, gy = wy + L3_ANCHOR.y;
+  let gx = wx + L3_ANCHOR.x, gy = wy + L3_ANCHOR.y;
   if (gx >= WORLD_W || gy >= WORLD_H) return null;
-  const tx = Math.floor(gx / CHUNK), ty = Math.floor(gy / CHUNK);
+  let tx = Math.floor(gx / CHUNK), ty = Math.floor(gy / CHUNK);
+  // the bin-lane sample point (C192): the wang area whose map holds the
+  // display px under ITS anchor (the true area boundary sits up to ±6 px from
+  // the C78 chunk boundary, so the neighbours are candidates too)
+  const { idx: binIdx, x: bx, y: by } = binSampleAt(world, wx, wy, tx, ty, gx, gy);
+  // the px's chunk = the chunk its per-area sample falls in (a hit: the
+  // area's own chunk; a miss from a wang chunk: the neighbour). When it is not
+  // the C78 chunk, the px lies in the ≤ 6 px strip between the two
+  // boundaries: the other lanes (which keep the C78 frame) read in that
+  // chunk, clamped to its edge, and the branch choice follows it.
+  if (binIdx >= 0) {
+    const sx = Math.floor(bx / CHUNK), sy = Math.floor(by / CHUNK);
+    if (sx < tx) gx = tx * CHUNK - 1; else if (sx > tx) gx = (tx + 1) * CHUNK;
+    if (sy < ty) gy = ty * CHUNK - 1; else if (sy > ty) gy = (ty + 1) * CHUNK;
+    if (gx < 0 || gy < 0 || gx >= WORLD_W || gy >= WORLD_H) return null;
+    tx = Math.floor(gx / CHUNK); ty = Math.floor(gy / CHUNK);
+  }
   // dig #215 (C186, the Work y-wrap law): the rows above/below the 48-row
   // biome map whose (vmap-clamped) chunk biome is a wang biome — the_sky /
   // the_end on cols 27..41 — re-read the main band's wang content at
@@ -135,7 +181,7 @@ export function worldColorAt(world, wx, wy) {
   // the wang spawn-scene lane (wang-scenes.mjs): LoadPixelScene writes its
   // material cells OVER whatever the wang fill left there (the blocked-out
   // rooms are bare black until their art loads) — first among the band lanes.
-  const scene = wangSceneAt(world, gx, gy);
+  const scene = wangSceneAt(world, bx, by);
   if (scene) return scene;
   // dig #218 (I53, C187 in the main band): within 41 px of a chunk edge the
   // pixel's biome (GetBiomeAt 0x909da0) may be the neighbour's; when that
@@ -171,12 +217,12 @@ export function worldColorAt(world, wx, wy) {
     // cave-bg = still NOT in the sky (only the VOID bgs route here).
     let binPx = null, voidChunk = false;
     {
-      const idxB = world.grid[ty * WORLD_CHUNKS_W + tx];
+      const idxB = binIdx;
       if (idxB >= 0) {
         const a = world.areas[idxB];
         const m = world.maps.get(a.key);
         if (m) {
-          const lx = gx - a.area.x1 * CHUNK, ly = gy - (a.area.y1 + SKY_ROWS) * CHUNK;
+          const lx = bx - a.area.x1 * CHUNK, ly = by - (a.area.y1 + SKY_ROWS) * CHUNK;
           if (lx >= 0 && ly >= 0 && lx < m.w * 10 && ly < m.h * 10) {
             const ax = Math.floor(lx / 10), ay = Math.floor(ly / 10);
             const p = 3 * (ay * m.w + ax);
@@ -195,7 +241,7 @@ export function worldColorAt(world, wx, wy) {
             } else {
               // the bin air = a loaded scene's background_file when one
               // covers the cell, else the area def's declared bg (the C111 law)
-              const sbg = wangSceneBgAt(world, gx, gy);
+              const sbg = wangSceneBgAt(world, bx, by);
               if (sbg) return sbg;
               // C184 (the backdrop clip law, byte-read 0x72c180): a limit-on
               // biome's background_image draws only at world y >= its height
@@ -269,12 +315,12 @@ export function worldColorAt(world, wx, wy) {
     }
     return world.skyAt?.(tx, ty, gx, gy) ?? null;
   }
-  const idx = world.grid[ty * WORLD_CHUNKS_W + tx];
+  const idx = binIdx;
   if (idx >= 0) {
     const a = world.areas[idx];
     const m = world.maps.get(a.key);
     if (m) {
-      const lx = gx - a.area.x1 * CHUNK, ly = gy - (a.area.y1 + SKY_ROWS) * CHUNK;
+      const lx = bx - a.area.x1 * CHUNK, ly = by - (a.area.y1 + SKY_ROWS) * CHUNK;
       // area maps are in atlas px: 1 atlas px = 10 world px
       if (lx >= 0 && ly >= 0 && lx < m.w * 10 && ly < m.h * 10) {
         const ax = Math.floor(lx / 10), ay = Math.floor(ly / 10);
@@ -289,7 +335,7 @@ export function worldColorAt(world, wx, wy) {
         const r = m.rgb[p], g = m.rgb[p + 1], b = m.rgb[p + 2];
         if ((r === 13 && g === 14 && b === 18) || (r === 12 && g === 13 && b === 17)
           || (r === 16 && g === 16 && b === 18) || (r === 21 && g === 23 && b === 30)) {
-          const sbg = wangSceneBgAt(world, gx, gy); // a loaded scene's background_file
+          const sbg = wangSceneBgAt(world, bx, by); // a loaded scene's background_file
           if (sbg) return sbg;
           const bd = staticBgMasked(a.def, world.dataDir, ax, ay) ? null : biomeBackdrop(a.def, world.dataDir); // the static tile mask
           if (bd) {

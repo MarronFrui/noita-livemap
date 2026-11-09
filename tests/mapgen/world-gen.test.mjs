@@ -9,7 +9,7 @@ import { spawnSync } from "node:child_process";
 import { describe, test, expect, afterAll } from "vitest";
 import {
   CHUNK, WORLD_CHUNKS_W, WORLD_CHUNKS_H, SKY_ROWS, WORLD_W, WORLD_H,
-  loadWangWorld, worldColorAt, ensureWorld, areaKey, L3_ANCHOR,
+  loadWangWorld, worldColorAt, ensureWorld, areaKey, L3_ANCHOR, binAnchor,
 } from "../../mapgen/lib/world-gen.mjs";
 import { blitBackdrop } from "../../mapgen/lib/template-render.mjs";
 import { writePng } from "../../mapgen/lib/images.mjs";
@@ -69,16 +69,23 @@ describe("worldColorAt — injected world (no data needed)", () => {
     expect(L3_ANCHOR).toEqual({ x: 11, y: 12 });
   });
 
-  test("samples the area map with 1 atlas px = 10 world px scale (anchor applied)", () => {
+  test("C192 the bin anchor per area: +5 + 10·frac(c·51.2) on each axis (dig #222)", () => {
+    expect(binAnchor({ area: { x1: 35, y1: 14 } })).toEqual({ x: 5, y: 13 }); // 1792 exact / 716.8
+    expect(binAnchor({ area: { x1: 34, y1: 15 } })).toEqual({ x: 13, y: 5 }); // 1740.8 / 768 exact
+    expect(binAnchor({ area: { x1: 36, y1: 17 } })).toEqual({ x: 7, y: 9 }); // 1843.2 / 870.4
+  });
+
+  test("samples the area map with 1 atlas px = 10 world px scale (the C192 per-area anchor)", () => {
     const w = mkWorld();
-    const { x: AX, y: AY } = L3_ANCHOR;
+    const { x: AX, y: AY } = binAnchor(w.areas[0]); // (5, 13)
     // back-shifted display: display origin − anchor samples content exactly at
     // the area's world origin: biome (35,14) -> canvas (35, 62) -> world (17920, 31744)
     expect(worldColorAt(w, 35 * CHUNK - AX, 62 * CHUNK - AY)).toEqual([1, 2, 3]);
     expect(worldColorAt(w, 35 * CHUNK + 15 - AX, 62 * CHUNK + 5 - AY)).toEqual([4, 5, 6]); // cell x=1
     expect(worldColorAt(w, 35 * CHUNK + 5 - AX, 62 * CHUNK + 15 - AY)).toEqual([7, 8, 9]); // cell y=1
-    // unshifted display now reads content 11/12 px further = atlas cell (1,1)
-    expect(worldColorAt(w, 35 * CHUNK, 62 * CHUNK)).toEqual([10, 11, 12]);
+    // unshifted display reads content 5/13 px further = atlas cell (0,1)
+    // (the C78 constant (11,12) read cell (1,1) = [10,11,12] here)
+    expect(worldColorAt(w, 35 * CHUNK, 62 * CHUNK)).toEqual([7, 8, 9]);
   });
 
   test("returns null outside the canvas", () => {
@@ -140,18 +147,19 @@ describe("worldColorAt — injected world (no data needed)", () => {
     const buf = new Uint8Array(CHUNK * CHUNK * 3).fill(9);
     buf[0] = 77; buf[1] = 78; buf[2] = 79; // template sentinel at display local (0,0)
     w.templates.set("35,62", buf);
-    // display (35*512, 62*512) -> generator (+11,+12) = atlas cell (1,1) = [10,11,12]
+    // display (35*512, 62*512) -> generator (+5,+13) (C192) = atlas cell (0,1) = [7,8,9]
     // (non-airDark ⇒ the wang terrain); the bin lane precedes the template
     // lane, so the sentinel [77,78,79] must NOT surface (old-law order:
     // template first ⇒ [77,78,79]).
-    expect(worldColorAt(w, 35 * CHUNK, 62 * CHUNK)).toEqual([10, 11, 12]);
+    expect(worldColorAt(w, 35 * CHUNK, 62 * CHUNK)).toEqual([7, 8, 9]);
   });
 
   test("bin airDark px with no backdrop source (no def.filename, then no dataDir) leaks the raw rgb (I49 pre-fix pin, the bd-null arm)", () => {
     const w = mkWorld();
     const m = w.maps.get("coalmine_29_14");
     m.rgb[0] = 13; m.rgb[1] = 14; m.rgb[2] = 18; // atlas cell (0,0) = the airDark family
-    const at = () => worldColorAt(w, 35 * CHUNK - L3_ANCHOR.x, 62 * CHUNK - L3_ANCHOR.y);
+    const an = binAnchor(w.areas[0]);
+    const at = () => worldColorAt(w, 35 * CHUNK - an.x, 62 * CHUNK - an.y);
     // guard 1: no declared bg filename -> biomeBackdrop null (world-gen.mjs:22)
     expect(at()).toEqual([13, 14, 18]);
     // guard 2: filename declared but world.dataDir unset -> still null

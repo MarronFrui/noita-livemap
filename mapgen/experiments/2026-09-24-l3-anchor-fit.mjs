@@ -257,7 +257,7 @@ function fitAxis(ys, coords, phaseFn) {
 
 // --- main ---------------------------------------------------------------------
 const refDir = path.join(repoRoot, "mapgen/out/ref");
-const cacheDir = path.join(repoRoot, "mapgen/out/gen-cache/r3i");
+const cacheDir = process.env.ANCHOR_FIT_CACHE ?? path.join(repoRoot, "mapgen/out/gen-cache/r3i"); // dig #222: ANCHOR_FIT_CACHE=mapgen/out/gen-cache/r3m for the current cache
 console.log(`seed ${CAPTURE_SEED} · cache ${path.relative(repoRoot, cacheDir)} · default render`);
 const world = ensureWorld(CAPTURE_SEED, findNoitaDataDir(), { cacheDir });
 await world.ready;
@@ -435,7 +435,7 @@ for (const m of METRICS) {
   console.log(`${m.name.padEnd(5)} median (${medianDx},${medianDy}) ${inside ? "INSIDE" : "OUTSIDE"} certified bound (VERIFIED:1083)`);
 }
 
-const outPath = path.join(repoRoot, "mapgen/out/l3-anchor-2026-09-24.json");
+const outPath = process.env.ANCHOR_FIT_OUT ?? path.join(repoRoot, "mapgen/out/l3-anchor-2026-09-24.json"); // dig #222: ANCHOR_FIT_OUT keeps the dated baselines
 fs.writeFileSync(outPath, JSON.stringify({
   seed: CAPTURE_SEED,
   scan: { dx: [DX0, DX1], dy: [DY0, DY1], airThreshold: AIR_THRESHOLD, edgeThreshold: EDGE_THRESHOLD },
