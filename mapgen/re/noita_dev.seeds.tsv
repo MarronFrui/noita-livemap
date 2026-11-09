@@ -114,3 +114,5 @@
 0x908e70	function	Work_ClassifyValue
 0x909da0	function	GetBiomeAt
 0x909c70	function	BiomeGrid_ChunkAt
+0x452ba0	function	poro_Random_Ctor
+0x8ed3a0	function	WorldSeed_StoreGlobalF64
