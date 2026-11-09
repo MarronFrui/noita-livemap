@@ -313,6 +313,18 @@ export function worldColorAt(world, wx, wy) {
       const bgp = sceneBufAt(world.imageSpawns?.get("bg"), wx, wy);
       if (bgp) return bgp;
     }
+    // dig #227: the template lane's background plane (the init()
+    // LoadBackgroundSprite / background_file art) over the sky too — an
+    // explicit backdrop sprite is art, not the biome's clipped
+    // background_image (C184): the pyramid hallway's init loads
+    // background_pyramid.png twice, and the capture shows it there
+    {
+      const tbg = world.templates?.get("bg")?.get(`${ttx},${tty}`);
+      if (tbg) {
+        const o = 3 * ((wy - tty * CHUNK) * CHUNK + (wx - ttx * CHUNK));
+        if (tbg[o] !== 9 || tbg[o + 1] !== 9 || tbg[o + 2] !== 9) return [tbg[o], tbg[o + 1], tbg[o + 2]];
+      }
+    }
     return world.skyAt?.(tx, ty, gx, gy) ?? null;
   }
   const idx = binIdx;

@@ -314,15 +314,16 @@ describe("worldColorAt — injected world (no data needed)", () => {
     expect(worldColorAt(w, 40 * CHUNK + 7, 62 * CHUNK + 5)).toEqual([44, 45, 46]);
   });
 
-  test("I49 fix: the bg plane never paints the sky band (ty < 62 lanes untouched; fails under old law)", () => {
+  test("dig #227 (replaces I49's sky-band clause): the bg plane shows over the sky band when no fg art / terrain owns the px", () => {
     const buffers = new Map();
     // game y -507 -> canvas chunk row 61 (floor(-507/512) = -1 -> 61), local 5
     blitFixtureBg(buffers, 2567, -507);
     const w = mkWorld();
     w.templates = buffers;
-    // old law: the fg buffer "40,61" carried the px and the sky branch's
-    // fg-template lane returned [13,14,18]; new law: sky/noise own the band
-    expect(worldColorAt(w, 40 * CHUNK + 7, 61 * CHUNK + 5)).toBeNull();
+    // I49's clause returned null (the sky) here; the capture shows the init
+    // LoadBackgroundSprite art in the sky-band rows (the pyramid hallway
+    // 53_13: exact px 2,337 → 30,550; 11 tiles 449,278 → 517,165, ABOUT (227))
+    expect(worldColorAt(w, 40 * CHUNK + 7, 61 * CHUNK + 5)).toEqual([13, 14, 18]);
   });
 });
 
@@ -763,4 +764,20 @@ describe.skipIf(!hasNoitaData())("image-spawned scenes (the spliced tree's spawn
     }
     expect(px).toBeGreaterThan(100);
   }, 240000);
+});
+
+// dig #227: the template background plane (init LoadBackgroundSprite art)
+// shows over the SKY band too — the old law returned the sky (null) there.
+describe("worldColorAt — the template bg plane in the sky band (dig #227, no data)", () => {
+  test("a sky-band px with no fg art reads the bg plane before the sky", () => {
+    const world = {
+      grid: new Int16Array(WORLD_CHUNKS_W * WORLD_CHUNKS_H).fill(-1),
+      errors: new Map(), templates: new Map(), maps: new Map(), areas: [], ready: Promise.resolve(),
+    };
+    const bg = new Uint8Array(CHUNK * CHUNK * 3).fill(9);
+    bg.set([26, 26, 36], 3 * (100 * CHUNK + 100));
+    world.templates.set("bg", new Map([["53,61", bg]]));
+    expect(worldColorAt(world, 53 * CHUNK + 100, 61 * CHUNK + 100)).toEqual([26, 26, 36]);
+    expect(worldColorAt(world, 53 * CHUNK + 101, 61 * CHUNK + 100)).toBeNull(); // unset = the sky (no skyAt here)
+  });
 });
