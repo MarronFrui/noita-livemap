@@ -253,7 +253,7 @@ export function worldColorAt(world, wx, wy) {
                 || staticBgMasked(a.def, world.dataDir, ax, ay); // a static tile's black mask px = no backdrop
               const bd = clipped ? null : biomeBackdrop(a.def, world.dataDir);
               if (bd) {
-                const bx = ((lx % bd.w) + bd.w) % bd.w, by = ((ly % bd.h) + bd.h) % bd.h;
+                const bx = ((wx % bd.w) + bd.w) % bd.w, by = ((wy % bd.h) + bd.h) % bd.h; // dig #230: the backdrop's phase = the DISPLAY px (capture: phase (0,0), 4/4 tiles exact)
                 const q = 4 * (by * bd.w + bx);
                 binPx = [bd.pixels[q], bd.pixels[q + 1], bd.pixels[q + 2]];
               }
@@ -351,7 +351,7 @@ export function worldColorAt(world, wx, wy) {
           if (sbg) return sbg;
           const bd = staticBgMasked(a.def, world.dataDir, ax, ay) ? null : biomeBackdrop(a.def, world.dataDir); // the static tile mask
           if (bd) {
-            const bx = ((lx % bd.w) + bd.w) % bd.w, by = ((ly % bd.h) + bd.h) % bd.h;
+            const bx = ((wx % bd.w) + bd.w) % bd.w, by = ((wy % bd.h) + bd.h) % bd.h; // dig #230: the backdrop's phase = the DISPLAY px (capture: phase (0,0), 4/4 tiles exact)
             const q = 4 * (by * bd.w + bx);
             return [bd.pixels[q], bd.pixels[q + 1], bd.pixels[q + 2]];
           }
@@ -427,7 +427,7 @@ export function worldColorAt(world, wx, wy) {
     // "") fills its `biome_color` (the pale blue the byte map carries).
     // The backdrop tiles in the CHUNK frame (per 512×512 cell region —
     // the game's own per-area parallax is a later lane; tagged).
-    const bgr = world.bgImageAt?.(tx, ty, gx, gy);
+    const bgr = world.bgImageAt?.(tx, ty, wx, wy); // dig #230: sampled at the display px (the backdrop's phase)
     if (bgr) return bgr;
   }
   // I49 (dig #210 obs-1 fix): pixel-scene background art (the LoadPixelScene

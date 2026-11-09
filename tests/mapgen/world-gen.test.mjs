@@ -781,3 +781,25 @@ describe("worldColorAt — the template bg plane in the sky band (dig #227, no d
     expect(worldColorAt(world, 53 * CHUNK + 101, 61 * CHUNK + 100)).toBeNull(); // unset = the sky (no skyAt here)
   });
 });
+
+// dig #230: the backdrop is sampled at the DISPLAY px (the capture's phase
+// (0,0), 4/4 pyramid tiles exact) — the bin-air read used the per-area
+// sample point (+5..13 px) and so drew the backdrop shifted.
+describe("worldColorAt — the bin-air backdrop phase (dig #230, no data)", () => {
+  test("a bin-air cell shows backdrop px (wx mod w, wy mod h), not the anchor-shifted one", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "bgph-"));
+    const pixels = new Uint8Array(4 * 4 * 4); for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) pixels.set([x, y, 200, 255], 4 * (y * 4 + x));
+    writePng(path.join(dir, "bgphase.png"), 4, 4, pixels);
+    const world = {
+      grid: new Int16Array(WORLD_CHUNKS_W * WORLD_CHUNKS_H).fill(-1),
+      errors: new Map(), templates: new Map(), maps: new Map(), ready: Promise.resolve(), dataDir: dir,
+    };
+    const rgb = Buffer.alloc(3 * 52 * 52); for (let p = 0; p < rgb.length; p += 3) { rgb[p] = 13; rgb[p + 1] = 14; rgb[p + 2] = 18; } // all bin air
+    world.grid[63 * WORLD_CHUNKS_W + 36] = 0;
+    world.areas = [{ key: "a", def: { filename: `data/biome/bgphase-${Date.now()}.xml`, backgroundImage: "data/bgphase.png" }, area: { x1: 36, y1: 15 }, w: 52, h: 52 }];
+    world.maps.set("a", { w: 52, h: 52, attempt: 0, rgb });
+    const wx = 36 * CHUNK + 101, wy = 63 * CHUNK + 102;
+    expect(worldColorAt(world, wx, wy)).toEqual([wx % 4, wy % 4, 200]);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+});
