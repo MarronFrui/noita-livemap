@@ -7,7 +7,7 @@ import { describe, test, expect } from "vitest";
 import {
   CHUNK, WORLD_CHUNKS_W, WORLD_CHUNKS_H, binAnchor, worldColorAt, wangSceneAt, wangSceneBgAt,
 } from "../../mapgen/lib/world-gen.mjs";
-import { WangLuaHost, areaSceneCalls, loadWangScriptsCsv, INIT_COLOR, spawnCallOrigin } from "../../mapgen/lib/wang-scenes.mjs";
+import { WangLuaHost, areaSceneCalls, loadWangScriptsCsv, INIT_COLOR, spawnCallOrigin, raytracePlatforms } from "../../mapgen/lib/wang-scenes.mjs";
 import { loadBiomeExtras } from "../../mapgen/lib/colorize.mjs";
 import { seededPrng } from "../../mapgen/lib/wang-js.mjs";
 import { dataDir, hasNoitaData } from "../helpers/data.mjs";
@@ -142,5 +142,30 @@ describe("wang spawn-scene lane — worldColorAt precedence (injected world, no 
     expect(wangSceneBgAt(w, 35 * CHUNK, 62 * CHUNK)).toEqual([33, 33, 33]);
     expect(worldColorAt(w, 35 * CHUNK + 2 - AX, 62 * CHUNK + 2 - AY)).toEqual([33, 33, 33]); // air cell
     expect(worldColorAt(w, 35 * CHUNK + 12 - AX, 62 * CHUNK + 2 - AY)).toEqual([70, 65, 40]); // soil cell
+  });
+});
+
+describe("C194 RaytracePlatforms — the tracer 0x66bfb0 law (no data)", () => {
+  test("miss: out = p2 (the walk ends without a blocking cell)", () => {
+    expect(raytracePlatforms(10, 5, -90, 5, () => false)).toEqual([false, -90, 5]);
+  });
+  test("hit: out = the last position whose cell passed; only NEW integer cells are tested", () => {
+    const seen = [];
+    const r = raytracePlatforms(10, 5, -90, 5, (x, y) => { seen.push(x); return x <= -20; });
+    expect(r).toEqual([true, -19, 5]);
+    expect(seen[0]).toBe(9); // p1's own cell is never tested
+    expect(new Set(seen).size).toBe(seen.length); // each cell once (trunc toward zero merges −0.x into 0)
+  });
+  test("the first new cell blocks: out = p1", () => {
+    expect(raytracePlatforms(10, 5, 110, 5, (x) => x >= 11)).toEqual([true, 10, 5]);
+  });
+  test("zero length: out = p1, hit = blocks(trunc p2)", () => {
+    expect(raytracePlatforms(3.7, 3.2, 3.7, 3.2, () => true)).toEqual([true, Math.fround(3.7), Math.fround(3.2)]);
+    expect(raytracePlatforms(3, 3, 3, 3, () => false)).toEqual([false, 3, 3]);
+  });
+  test("the 2^20 distance cap: a 2000-px ray ends after 1024 steps (miss, out = p2)", () => {
+    let n = 0;
+    expect(raytracePlatforms(0, 0, 0, 2000, () => { n++; return false; })).toEqual([false, 0, 2000]);
+    expect(n).toBe(1024);
   });
 });

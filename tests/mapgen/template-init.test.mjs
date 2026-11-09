@@ -56,4 +56,17 @@ describe.skipIf(!hasNoitaData())("dig #219 — init() runs as Lua", () => {
       expect(loads.length).toBeLessThanOrEqual(1);
     }
   });
+
+  test("C194 rainforest: init() runs clean with RaytracePlatforms (dig #219 left 5 Lua errors) — 4 hint statues + the portal hole, statues at the ray end + the script offset (no terrain probe, A22)", async () => {
+    const { WangLuaHost, loadWangScriptsCsv } = await import("../../mapgen/lib/wang-scenes.mjs");
+    const h = new WangLuaHost(dataDir, "data/scripts/biomes/rainforest.lua", 78633191, loadWangScriptsCsv(dataDir));
+    for (let cx = -6; cx <= 4; cx++) for (let cy = 12; cy <= 16; cy++) h.call("init", cx * 512, cy * 512, 512, 512);
+    expect(h.errors).toEqual([]);
+    const st = h.scenes.filter((x) => /rainforest_statue_0/.test(x.mat));
+    expect(st).toHaveLength(4);
+    // statue 1 left: ray (−1, 0) × 100 misses ⇒ x2 = pos_x − 100, then −20
+    const left = st.find((x) => /statue_01/.test(x.mat) && x.x < 0);
+    const posX = seededPrng(78633191, 87, -254).random(-2450, -2250);
+    expect(left.x).toBe(posX - 100 - 20);
+  });
 });

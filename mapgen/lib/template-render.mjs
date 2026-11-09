@@ -370,10 +370,11 @@ function getPixelScenes(dataDir, def) {
 // snowcave's 8 seeded statue hands. The old law = parseInitPixelScenes, a
 // static text parse that took every LoadPixelScene line in the body
 // regardless of its branch (both caverns, both lava pieces, every cavern
-// location) and dropped every dynamic offset (the statue hands). Known gap:
-// engine queries against generated terrain (RaytracePlatforms — the
-// rainforest hint statues) are stubs; the calls recorded before such an
-// error are kept (ISSUES I58).
+// location) and dropped every dynamic offset (the statue hands).
+// RaytracePlatforms (the rainforest hint statues) = the byte-exact tracer
+// (C194, wang-scenes.mjs) with NO terrain probe: nothing blocks, so it
+// returns the engine's miss output (A22 — the init lane runs before the
+// terrain exists).
 const initHosts = new Map(); // `${dataDir}|${seed}|${luaScript}` -> WangLuaHost
 const initRuns = new Map();  // `${dataDir}|${seed}|${file}|${x},${y}` -> { scenes, backdrops }
 export function runInitScenes(dataDir, def, seed, x, y) {

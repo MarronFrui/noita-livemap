@@ -41,6 +41,38 @@ const { lua, lauxlib, lualib, to_luastring, to_jsstring } = fengari;
 
 export const INIT_COLOR = 0xffeedd; // the per-chunk init — template-render's lane
 
+// The engine's platform raytrace (C194; X226): the binding 0x7edc90 reads the
+// four args as f32 and pre-sets out = (0, 0); the tracer 0x66bfb0 steps a unit
+// vector from p1, testing each NEW integer cell (trunc, toward zero) with the
+// predicate, while |pos − p1|² < min(round(|d|²), 2^20), at most 1024 steps:
+//   - |d|² rounds to 0: out = p1, hit = blocks(trunc p2);
+//   - a blocking cell: hit, out = the last position whose cell passed (p1 if
+//     the first new cell blocks);
+//   - the walk ends: miss, out = p2; > 1024 steps: miss, out stays (0, 0).
+// Returns [did_hit, hit_x, hit_y].
+export function raytracePlatforms(x1, y1, x2, y2, blocks) {
+  const f = Math.fround;
+  x1 = f(x1); y1 = f(y1); x2 = f(x2); y2 = f(y2);
+  const dx = f(x2 - x1), dy = f(y2 - y1);
+  const len2 = f(f(dx * dx) + f(dy * dy));
+  const n = Math.trunc(f(len2 + 0.5));
+  const len = f(Math.sqrt(len2));
+  const ux = len > 0 ? f(dx / len) : 0, uy = len > 0 ? f(dy / len) : 0;
+  if (n <= 0) return [!!blocks(Math.trunc(x2), Math.trunc(y2)), x1, y1];
+  const lim = f(Math.min(n, 0x100000));
+  let px = x1, py = y1, lastX = x1, lastY = y1;
+  const d2 = () => { const a = f(px - x1), b = f(py - y1); return f(f(a * a) + f(b * b)); };
+  for (let i = 1; d2() < lim; i++) {
+    if (i > 0x400) return [false, 0, 0];
+    px = f(px + ux); py = f(py + uy);
+    const cx = Math.trunc(px), cy = Math.trunc(py);
+    if (cx === Math.trunc(lastX) && cy === Math.trunc(lastY)) continue;
+    if (blocks(cx, cy)) return [true, lastX, lastY];
+    lastX = px; lastY = py;
+  }
+  return [false, x2, y2];
+}
+
 // data/scripts/wang_scripts.csv → Map(rgb24 → function name)
 export function loadWangScriptsCsv(dataDir) {
   const out = new Map();
@@ -154,6 +186,14 @@ export class WangLuaHost {
     reg("ProceduralRandomf", proc(false));
     reg("ProceduralRandomi", proc(true));
     reg("GetParallelWorldPosition", () => [0, 0]); // the main world
+    // RaytracePlatforms (0x8227d0 → 0x7edc90 → the tracer 0x66bfb0, C194):
+    // the byte-exact walk; the cell predicate ("a cell a character can stand
+    // on") = this.blocksAt(x, y) when a terrain probe is attached, else
+    // nothing blocks (A22: the init lane runs before the terrain exists) ⇒
+    // the engine's miss output (false, x2, y2).
+    this.blocksAt = null;
+    reg("RaytracePlatforms", (Ls) =>
+      raytracePlatforms(argNum(Ls, 1), argNum(Ls, 2), argNum(Ls, 3), argNum(Ls, 4), this.blocksAt ?? (() => false)));
     reg("SessionNumbersGetValue", () => "0");
     reg("LoadPixelScene", (Ls) => {
       const mat = argStr(Ls, 1), vis = argStr(Ls, 2);
