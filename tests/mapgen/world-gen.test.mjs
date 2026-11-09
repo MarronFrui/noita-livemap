@@ -803,3 +803,31 @@ describe("worldColorAt — the bin-air backdrop phase (dig #230, no data)", () =
     fs.rmSync(dir, { recursive: true, force: true });
   });
 });
+
+// dig #231 (C185 per pixel in the bin lane): an explicit solid material cell
+// = its texture at the DISPLAY px, varying inside the 10-px cell (the old
+// law: one colorized colour for the whole cell).
+describe.skipIf(!hasNoitaData())("worldColorAt — per-pixel C185 for solid bin cells (dig #231)", () => {
+  test("a wood_static cell shows wood's texture px by px", async () => {
+    const { materialColorAt, materialColorByName } = await import("../../mapgen/lib/colorize.mjs");
+    const [wr, wg, wb] = materialColorByName(dataDir, "wood_static");
+    const world = {
+      grid: new Int16Array(WORLD_CHUNKS_W * WORLD_CHUNKS_H).fill(-1),
+      errors: new Map(), templates: new Map(), maps: new Map(), rawMaps: new Map(), ready: Promise.resolve(), dataDir,
+    };
+    world.grid[63 * WORLD_CHUNKS_W + 36] = 0;
+    world.areas = [{ key: "a", def: {}, area: { x1: 36, y1: 15 }, w: 52, h: 52 }];
+    const col = Buffer.alloc(3 * 52 * 52, 77), raw = Buffer.alloc(3 * 52 * 52);
+    for (let p = 0; p < raw.length; p += 3) { raw[p] = wr; raw[p + 1] = wg; raw[p + 2] = wb; }
+    world.maps.set("a", { w: 52, h: 52, attempt: 0, rgb: col });
+    world.rawMaps.set("a", { w: 52, h: 52, attempt: 0, rgb: raw });
+    const seen = new Set();
+    for (let k = 0; k < 10; k++) {
+      const wx = 36 * CHUNK + 200, wy = 63 * CHUNK + 200 + k; // wood = horizontal planks: vary y
+      const c = worldColorAt(world, wx, wy);
+      expect(c).toEqual(materialColorAt(dataDir, "wood_static", wx - 35 * CHUNK, wy - 62 * CHUNK));
+      seen.add(c.join());
+    }
+    expect(seen.size).toBeGreaterThan(1); // varies inside one cell (old law: one colour [77,77,77])
+  });
+});

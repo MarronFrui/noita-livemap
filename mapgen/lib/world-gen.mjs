@@ -15,7 +15,7 @@ import { renderTemplateWorld, blitScene, blitBackdrop, SPLICE_PNGS, loadPixelSce
 import { LazyChunkStore } from "./chunk-store.mjs";
 import { WangLuaHost, areaSceneCalls, loadWangScriptsCsv, sceneImageSpawnCalls, spawnCallOrigin } from "./wang-scenes.mjs"; // the wang spawn-scene lane
 import { readPng } from "./images.mjs";
-import { materialColorAt } from "./colorize.mjs"; // dig #213 (C185): the cell colour law
+import { materialColorAt, materialRenderClass } from "./colorize.mjs"; // dig #213 (C185): the cell colour law
 import { ensureBiomeBackdrop, ensureSurfaceTable, noisePixelFor } from "./noise-terrain.mjs"; // dig #134 bin-air backdrop; dig #215 Work classify
 
 // dig #134: the bin-air backdrop memo (per def.filename) — the wang
@@ -143,6 +143,23 @@ export function binSampleAt(world, wx, wy, tx, ty, gx, gy) {
   return own ? { ...own, hit: false } : { idx: -1, x: gx, y: gy, hit: false };
 }
 const BIN_CANDIDATES = [[0, 0], [-1, 0], [0, -1], [-1, -1], [1, 0], [0, 1], [1, 1], [1, -1], [-1, 1]];
+// the raw out_map cell's explicit solid material → C185 at the display px
+const _solidHex = new Map();
+function solidCellPx(world, a, ax, ay, wx, wy) {
+  const raw = world.rawMaps?.get(a.key);
+  if (!raw || !world.dataDir || ax >= raw.w || ay >= raw.h) return null;
+  const p = 3 * (ay * raw.w + ax);
+  const rr = raw.rgb[p], gg = raw.rgb[p + 1], bb = raw.rgb[p + 2];
+  if (rr === gg && gg === bb) return null; // black air / the grey placeholder ramp
+  const hex = (rr << 16) | (gg << 8) | bb;
+  let name = _solidHex.get(hex);
+  if (name === undefined) {
+    const m = loadMaterials(world.dataDir).get(hex.toString(16).padStart(6, "0"));
+    name = m && m !== "air" && materialRenderClass(world.dataDir, m) === "solid" ? m : null;
+    _solidHex.set(hex, name);
+  }
+  return name ? materialColorAt(world.dataDir, name, wx - DISPLAY_X0, wy - DISPLAY_Y0) : null;
+}
 export const binAnchor = (a) => ({ x: 5 + ((a.area.x1 * 512) % 10), y: 5 + ((a.area.y1 * 512) % 10) });
 // dig #213 (C185): the display frame's world origin (the capture frame, C145):
 // world px = display px − (35·512, 62·512) — the cell colour law samples the
@@ -356,6 +373,11 @@ export function worldColorAt(world, wx, wy) {
             return [bd.pixels[q], bd.pixels[q + 1], bd.pixels[q + 2]];
           }
         }
+        // dig #231 (C185 per PIXEL): an explicit SOLID material cell takes
+        // its texture at THIS display px (the game colours every pixel; the
+        // colorized bin holds one colour per 10-px cell)
+        const pxc = solidCellPx(world, a, ax, ay, wx, wy);
+        if (pxc) return pxc;
         return [r, g, b];
       }
     }
