@@ -471,6 +471,20 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
 - [x] **I59. The wang spawn-scene VARIANTS were the wrong ones (user, 2026-11-09: placement right, choice wrong) — CLOSED dig #220:** the host called the spawn functions at the old cell corner instead of the engine's spawn-record position `10·t − 5 − G` (C191, §8 row 84), so every `ProceduralRandom(x, y)` pick was re-seeded. Pin: `tests/mapgen/wang-scenes.test.mjs`.
 - [x] **I60. The bin lane read the generator at the constant C78 anchor instead of the per-area law — CLOSED dig #222:** the bin + wang-scene reads use `binAnchor` = `+5 + 10·frac(c·51.2)` per area (C192/C193); clean A/B on the C78 instrument: the constant's per-chunk residual = the law's prediction, the port's ≈ (0, 0), zero-shift scores up on all three metrics (ABOUT (222)).
 
+### 8. User observations 2026-11-09 (registered for the next session)
+
+- [ ] **I62. REGRESSION (HIGHEST — do first): predictable-spawn rooms are filled with dense rock.** The rooms' chunks are visibly filled solid while traces of their props remain at the right positions, so the placement is right and something now paints solid over the room interiors. Rooms reported (not a complete list):
+  - the chunk connecting level 1 to the alchemist area;
+  - the Dragon Egg room;
+  - the Teleporter room;
+  - the Hourglass room;
+  - the "Friend rooms" (6 rooms inside walls across the map; one holds the friendly boss the rooms are named after);
+  - Karl's room.
+  **Suspects (not verified, bisect first):** dig #233 `5145644` (main-band placeholder cells now run the P-empty arm: field > 0.5 ⇒ the biome's classify ⇒ solid, so a scene room's placeholder/air-keyed cells may now come out as rock; the commit measured only level-1/deep tiles and reported "shape unchanged"), then dig #232 `396d300` (grey placeholder cells paint biome materials), then #231 `26e7854`. Plan: render one reported room at each of `5145644^`, `396d300^`, `26e7854^`, and compare its solid share against the capture; once the culprit is found, fix the cell law for scene-room cells rather than reverting the measured gains elsewhere. Add a regression pin: the solid share inside the reported room rects must not go up.
+- [ ] **I63. The chunks around the lava lake are still wrong** (related: VERIFIED §9 1c "the lavalake walls"; check the overlap with I53 and I43's lavalake_racing).
+- [ ] **I64. No sinusoid shape on the cursed rock.** The biome-edge law (C187, I6) lands on the Work's solid_wall | the_end edge but not on the cursed-rock boundary. Check whether GetBiomeAt `0x909da0` displaces that biome's edge too, and whether the main-band lane calls the edge law there (see I53).
+- [ ] **I65. The Cauldron room is missing** (it does not render at all, unlike the I62 rooms, which are placed but filled).
+
 ## Strategy (agreed)
 
 The working method lives in `AGENTS.md` (the campaign charter) — one home
