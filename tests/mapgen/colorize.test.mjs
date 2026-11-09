@@ -2,7 +2,7 @@
 
 import { describe, test, expect } from "vitest";
 import {
-  loadMaterials, loadBiomeExtras, pick, colorizeArea, SHADES, MATERIAL_SHADE, materialColorAt,
+  loadMaterials, loadBiomeExtras, pick, colorizeArea, SHADES, MATERIAL_SHADE, materialColorAt, materialColorByName, materialRenderClass,
 } from "../../mapgen/lib/colorize.mjs";
 import { generateAreaExact } from "../../mapgen/lib/generate-exact.mjs";
 import { buildTileset } from "../../mapgen/lib/wang-js.mjs";
@@ -172,5 +172,48 @@ describe.skipIf(!hasNoitaData())("placeholder material — the y gate, the stati
     const m = white();
     colorizeArea(m, 2, 1, { dataDir, biomeName: "x", biomeFile: "data/biome_impl/static_tile/biome_potion_mimics", seed: 1, worldX0: 0, worldY0: 0 });
     expect([m[0], m[1], m[2]]).toEqual(materialColorAt(dataDir, "templeslab_static", 0, 0));
+  });
+});
+
+// dig #224 (I51(c)): with the world origin known, a SOLID material cell of the
+// bin lane takes C185 at its world px; the hand families stay for the GAS and
+// FLOWING-LIQUID materials that have one (their render laws unread, A23) and
+// for the no-origin path.
+describe.skipIf(!hasNoitaData())("C185 in the bin lane (dig #224)", () => {
+  const cellsOf = (name, n = 4) => {
+    const [r, g, b] = materialColorByName(dataDir, name);
+    const m = Buffer.alloc(3 * n * n);
+    for (let i = 0; i < n * n; i++) { m[3 * i] = r; m[3 * i + 1] = g; m[3 * i + 2] = b; }
+    return m;
+  };
+  const run = (name, x0, y0) => {
+    const m = cellsOf(name);
+    colorizeArea(m, 4, 4, { dataDir, biomeName: "coalmine", biomeFile: "coalmine", seed: 1, worldX0: x0, worldY0: y0 });
+    return m;
+  };
+  test("flowing-liquid water keeps its capture-calibrated family (the coalmine wang water ≠ C185's flat (35,61,56), A23)", () => {
+    const m = run("water", -5, -13);
+    const fam = new Set(SHADES.water.map((s) => s.rgb.join()));
+    for (let i = 0; i < 16; i++) expect(fam.has([m[3 * i], m[3 * i + 1], m[3 * i + 2]].join())).toBe(true);
+  });
+  test("the render class: water/oil/lava = flow, cloud = gas, gold/coal/steel_static/rock_static_wet = solid (_parent inherited)", () => {
+    for (const n of ["water", "oil", "lava"]) expect(materialRenderClass(dataDir, n)).toBe("flow");
+    expect(materialRenderClass(dataDir, "cloud")).toBe("gas");
+    for (const n of ["gold", "coal", "steel_static", "rock_static_wet"]) expect(materialRenderClass(dataDir, n)).toBe("solid");
+  });
+  test("a family-less flowing liquid keeps C185 (lava = (255,96,0))", () => {
+    const m = run("lava", 0, 0);
+    expect([m[0], m[1], m[2]]).toEqual(materialColorAt(dataDir, "lava", 0, 0));
+  });
+  test("gold cells = gold's texture at each cell's world px (x0 + 10·i, y0 + 10·j)", () => {
+    const m = run("gold", 1235, 777);
+    for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) {
+      const q = 3 * (j * 4 + i);
+      expect([m[q], m[q + 1], m[q + 2]]).toEqual(materialColorAt(dataDir, "gold", 1235 + 10 * i, 777 + 10 * j));
+    }
+  });
+  test("cloud keeps the capture-calibrated gas shade (48,48,52), not C185 (87,87,95)", () => {
+    const m = run("cloud", 0, -5000);
+    expect([m[0], m[1], m[2]]).toEqual([48, 48, 52]);
   });
 });

@@ -80,10 +80,34 @@ function loadMaterialGfx(dataDir) {
     const tex = (g.match(/texture_file="([^"]*)"/) ?? [])[1] || null;
     const gc = (g.match(/\bcolor="([0-9a-fA-F]{6,8})"/) ?? [])[1];
     const hex = gc ?? wc;
+    const at = (k) => (attrs.match(new RegExp(`\\b${k}="([^"]*)"`)) ?? [])[1];
+    _materialKind.set(name, { cellType: at("cell_type"), sand: at("liquid_sand"), stat: at("liquid_static"), parent: at("_parent") });
     if (!hex && !tex) continue;
     _materialGfx.set(name, { tex, color: hex ? argbHex(hex) : null });
   }
   return _materialGfx;
+}
+// the material's render class (materials.xml; a CellDataChild inherits each
+// unset attribute from its _parent): "gas", "flow" (a flowing liquid:
+// cell_type liquid, neither liquid_sand nor liquid_static) or "solid"
+// (powders, static solids and the rest).
+const _materialKind = new Map();
+export function materialRenderClass(dataDir, name) {
+  loadMaterialGfx(dataDir);
+  const get = (k) => {
+    let n = name;
+    for (let d = 0; n && d < 8; d++) {
+      const e = _materialKind.get(n);
+      if (!e) return undefined;
+      if (e[k] !== undefined) return e[k];
+      n = e.parent;
+    }
+    return undefined;
+  };
+  const ct = get("cellType");
+  if (ct === "gas" || ct === "fire") return "gas";
+  if (ct === "liquid" && get("sand") !== "1" && get("stat") !== "1") return "flow";
+  return "solid";
 }
 function loadTex(dataDir, rel) {
   if (_texCache.has(rel)) return _texCache.get(rel);
@@ -173,6 +197,16 @@ export const SHADES = {
   cloudLighter: [S([48, 48, 63], 1)],
 };
 
+// dig #224 (C185 in the bin lane, I51(c)): a SOLID material cell's colour =
+// C185 (its texture at the cell's world px) whenever the world origin is
+// known. The families below remain (a) as the fallback without an origin and
+// (b) for the GAS and FLOWING-LIQUID materials, whose map colour is NOT C185:
+// the capture's cloud = (48,48,52) vs C185 (87,87,95); the coalmine wang
+// water = (39,67,63)/(42,70,67)/(45,73,71) vs C185's flat (35,61,56) (which
+// only the pixel-scene art water shows) — their render laws are unread (A23).
+// (a gas / flowing liquid with NO calibrated family keeps C185 — the pre-#224
+// law for family-less materials; lava's (255,96,0) is capture-confirmed, I5)
+const c185Applies = (dataDir, name) => materialRenderClass(dataDir, name) === "solid" || !MATERIAL_SHADE.has(name);
 // material name -> display shade family (capture-calibrated where marked ✅)
 export const MATERIAL_SHADE = new Map([
   ["rock_static_wet", "rock"], // ✅ (39,40,45) 47%
@@ -436,11 +470,17 @@ export function colorizeArea(map, w, h, opts) {
   const shadeFor = (r, g, b, x, y) => {
     if (r === 0 && g === 0 && b === 0) return pick(ov?.air ?? SHADES.airDark, x, y, noiseSalt ^ 1);
     if (r === g && g === b) { // grey ramp placeholder
-      if (singleMaterial && SHADES[MATERIAL_SHADE.get(singleMaterial) ?? ""]) {
-        return pick(SHADES[MATERIAL_SHADE.get(singleMaterial)], x, y, noiseSalt ^ 3);
+      if (singleMaterial) {
+        const c = c185Applies(dataDir, singleMaterial) ? c185(singleMaterial, x, y) : null;
+        if (c) return c;
+        if (SHADES[MATERIAL_SHADE.get(singleMaterial) ?? ""]) return pick(SHADES[MATERIAL_SHADE.get(singleMaterial)], x, y, noiseSalt ^ 3);
       }
       const ya = yActive(y);
-      if (ya.length === 1 && SHADES[MATERIAL_SHADE.get(ya[0]) ?? ""]) return pick(SHADES[MATERIAL_SHADE.get(ya[0])], x, y, noiseSalt ^ 3);
+      if (ya.length === 1) {
+        const c = c185Applies(dataDir, ya[0]) ? c185(ya[0], x, y) : null;
+        if (c) return c;
+        if (SHADES[MATERIAL_SHADE.get(ya[0]) ?? ""]) return pick(SHADES[MATERIAL_SHADE.get(ya[0])], x, y, noiseSalt ^ 3);
+      }
       // the classify picks ONE of the active materials (its noise windows are
       // not ported in this lane) — when every candidate renders the SAME C185
       // colour at the cell (the static tiles: templeslab_static and
@@ -461,10 +501,10 @@ export function colorizeArea(map, w, h, opts) {
     if (hex === "00ff33") return pick(SHADES.moss, x, y, noiseSalt ^ 7); // engine scene marker
     const mat = materials.get(hex);
     if (mat) {
+      const c = c185Applies(dataDir, mat) ? c185(mat, x, y) : null; // the game's own cell colour law
+      if (c) return c;
       const fam = MATERIAL_SHADE.get(mat);
       if (fam) return pick(SHADES[fam], x, y, noiseSalt ^ 8);
-      const c = c185(mat, x, y); // no calibrated family: the game's own cell colour law
-      if (c) return c;
       return pick(SHADES.fallbackSolid, x, y, noiseSalt ^ 9);
     }
     if (TRIGGERS.has(hex) || extras.spawnColors?.has(hex)) return pick(ov?.air ?? SHADES.airDark, x, y, noiseSalt ^ 10);

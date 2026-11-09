@@ -26,7 +26,7 @@ import { releaseWorld } from "../helpers/world.mjs";
 // shares this one world; only probes that need module-load env flags
 // (SURFACE_V3=1) still spawn a child, and they run BEFORE the shared world
 // exists (the dig #177 describe sits above the cached-generation describe).
-const SHARED_CACHE_DIR = path.join(repoRoot, "mapgen/out/gen-cache/r3m");
+const SHARED_CACHE_DIR = path.join(repoRoot, "mapgen/out/gen-cache/r3n");
 let _sharedWorld = null;
 const sharedWorld = async () => {
   _sharedWorld ??= ensureWorld(CAPTURE_SEED, dataDir, { cacheDir: SHARED_CACHE_DIR, onProgress: () => {} });
@@ -380,7 +380,7 @@ describe.skipIf(!hasNoitaData())("surface-band sky (dig #177) — the row-62 air
     const fs = await import("node:fs");
     const path = await import("node:path");
     const dataDir = findNoitaDataDir();
-    const cacheDir = path.join(repoRoot, "mapgen/out/gen-cache/r3m");
+    const cacheDir = path.join(repoRoot, "mapgen/out/gen-cache/r3n");
     const world = ensureWorld(78633191, dataDir, { cacheDir, onProgress: () => {} });
     await world.ready;
     const isBlack = (c) => !c || (c[0] < 3 && c[1] < 3 && c[2] < 3);

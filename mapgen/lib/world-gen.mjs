@@ -13,7 +13,7 @@ import { colorizeArea, applyRandomFloods, loadMaterials } from "./colorize.mjs";
 import { workWrapY, workCellAt } from "./the-work.mjs"; // dig #215 (C186): the Work y-wrap law
 import { renderTemplateWorld, blitScene, blitBackdrop, SPLICE_PNGS, loadPixelSceneTable } from "./template-render.mjs";
 import { LazyChunkStore } from "./chunk-store.mjs";
-import { WangLuaHost, areaSceneCalls, loadWangScriptsCsv, sceneImageSpawnCalls } from "./wang-scenes.mjs"; // the wang spawn-scene lane
+import { WangLuaHost, areaSceneCalls, loadWangScriptsCsv, sceneImageSpawnCalls, spawnCallOrigin } from "./wang-scenes.mjs"; // the wang spawn-scene lane
 import { readPng } from "./images.mjs";
 import { materialColorAt } from "./colorize.mjs"; // dig #213 (C185): the cell colour law
 import { ensureBiomeBackdrop, ensureSurfaceTable, noisePixelFor } from "./noise-terrain.mjs"; // dig #134 bin-air backdrop; dig #215 Work classify
@@ -824,8 +824,11 @@ export function ensureWorld(seed, dataDir, { cacheDir = null, onProgress = () =>
                   biomeName: a.def.name,
                   biomeFile: a.def.filename.replace(/^data\/biome\//, "").replace(/\.xml$/, ""),
                   seed,
-                  worldX0: (a.area.x1 - 35) * CHUNK, // the area's world origin (the y-gated placeholder law +
-                  worldY0: (a.area.y1 - 14) * CHUNK, //   the C185 colour of family-less materials)
+                  // the area's first cell origin in the game frame (C192:
+                  // 10·trunc(c·51.2) − 5 − G) — the y-gated placeholder law
+                  // and the C185 colour of every material cell (dig #224)
+                  worldX0: spawnCallOrigin(a.area.x1, a.area.y1).x,
+                  worldY0: spawnCallOrigin(a.area.x1, a.area.y1).y,
                 });
                 r.unknown = unknown;
               }
