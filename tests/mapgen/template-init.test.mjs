@@ -94,3 +94,31 @@ describe.skipIf(!hasNoitaData())("dig #225 — blitScene skips air-keyed cells",
     expect(n).toBeLessThanOrEqual(opaque); // the air px are not written
   });
 });
+
+// dig #226: the same air arm in the fixed-scene lane (_pixel_scenes.xml art,
+// blitFixedArt) and in the wang-bin colours (colorizeArea) — air-keyed px
+// are empty. A synthetic 3×1 art: air | templebrick | air.
+describe.skipIf(!hasNoitaData())("dig #226 — air-keyed px are empty in blitFixedArt and the bins", () => {
+  test("blitFixedArt writes only the non-air px (old law: all 3, air as (0,0,66))", async () => {
+    const fs = await import("node:fs");
+    const os = await import("node:os");
+    const path = await import("node:path");
+    const { writePng } = await import("../../mapgen/lib/images.mjs");
+    const { blitFixedArt } = await import("../../mapgen/lib/template-render.mjs");
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "air-"));
+    fs.mkdirSync(path.join(dir, "biome_impl"), { recursive: true });
+    fs.copyFileSync(path.join(dataDir, "materials.xml"), path.join(dir, "materials.xml"));
+    writePng(path.join(dir, "biome_impl", "t.png"), 3, 1, Uint8Array.from([0, 0, 66, 255, 120, 108, 66, 255, 0, 0, 66, 255]));
+    const buffers = new Map();
+    expect(blitFixedArt(buffers, dir, "data/biome_impl/t.png", null, 0, 0)).toBe(1);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+  test("colorizeArea: an air-keyed bin cell = the bin-air shade (old law: air's colour (0,0,66))", async () => {
+    const { colorizeArea, SHADES } = await import("../../mapgen/lib/colorize.mjs");
+    const m = Buffer.from([0, 0, 66, 0, 0, 66, 0, 0, 66, 0, 0, 66]);
+    colorizeArea(m, 2, 2, { dataDir, biomeName: "coalmine", biomeFile: "coalmine", seed: 1, worldX0: 0, worldY0: 0 });
+    const air = new Set(SHADES.airDark.map((s) => s.rgb.join()));
+    for (let i = 0; i < 4; i++) expect(air.has([m[3 * i], m[3 * i + 1], m[3 * i + 2]].join())).toBe(true);
+  });
+});
+

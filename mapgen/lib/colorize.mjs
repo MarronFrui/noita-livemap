@@ -500,6 +500,11 @@ export function colorizeArea(map, w, h, opts) {
     const hex = ((r << 16) | (g << 8) | b).toString(16).padStart(6, "0");
     if (hex === "00ff33") return pick(SHADES.moss, x, y, noiseSalt ^ 7); // engine scene marker
     const mat = materials.get(hex);
+    // dig #226 (C143's 'air' arm in the bin lane): an air-keyed cell (wang
+    // 000042) is EMPTY — it takes the bin-air shade, so worldColorAt's bin-air
+    // backdrop law shows the biome's background_image there (it was painted
+    // air's own colour (0,0,66): the pyramid's dark-blue rooms)
+    if (mat === "air") return pick(ov?.air ?? SHADES.airDark, x, y, noiseSalt ^ 1);
     if (mat) {
       const c = c185Applies(dataDir, mat) ? c185(mat, x, y) : null; // the game's own cell colour law
       if (c) return c;

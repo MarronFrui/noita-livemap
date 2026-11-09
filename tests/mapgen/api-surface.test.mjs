@@ -159,9 +159,9 @@ describe("paths.mjs", () => {
 describe("template-render.mjs", () => {
   test("exports match the documented surface", () => {
     expect(Object.keys(templateRender).sort()).toEqual([
-      "SPLICE_PNGS", "TEMPLATE_SHADES", "blitBackdrop", "blitScene", "blitSplicedScenes",
+      "SPLICE_PNGS", "TEMPLATE_SHADES", "blitBackdrop", "blitFixedArt", "blitScene", "blitSplicedScenes",
       "loadPixelSceneTable", "parseInitPixelScenes", "renderTemplateChunk", "renderTemplateWorld", "runInitScenes",
-    ]); // dig #219: + runInitScenes (init() runs as Lua); I54: + blitScene (the wang spawn-scene lane blits through it); I55: + SPLICE_PNGS + loadPixelSceneTable (the image-spawn lane scans them)
+    ]); // dig #219: + runInitScenes (init() runs as Lua); I54: + blitScene (the wang spawn-scene lane blits through it); I55: + SPLICE_PNGS + loadPixelSceneTable (the image-spawn lane scans them); dig #226: + blitFixedArt (its air-skip pin)
   });
 });
 

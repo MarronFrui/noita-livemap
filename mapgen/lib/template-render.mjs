@@ -587,7 +587,7 @@ function blitFixedScenes(buffers, dataDir) {
 // says the raw paint is likely wrong here too — but _pixel_scenes entries
 // are UNMEASURED against the capture, so the behavior is kept (registered,
 // not silently changed) until a capture window pins its classification.
-function blitFixedArt(buffers, dataDir, matFile, visFile, sx, sy) {
+export function blitFixedArt(buffers, dataDir, matFile, visFile, sx, sy) {
   const img = art(dataDir, matFile);
   if (!img) return 0;
   if (buffers.recording) {
@@ -606,6 +606,7 @@ function blitFixedArt(buffers, dataDir, matFile, visFile, sx, sy) {
       if (r === 0 && g === 0 && b === 0) continue; // scene air: below shows
       const hex = `${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
       const mname = materials.get(hex);
+      if (mname === "air") continue; // dig #226 (C143's air arm, C196): empty — below shows
       let color;
       if (mname) {
         color = materialPx(dataDir, mname, sx + i, sy + j, 0x51ce3f);

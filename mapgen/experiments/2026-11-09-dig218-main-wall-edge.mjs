@@ -13,7 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { repoRoot } from '../lib/paths.mjs';
 import { ensureWorld, worldColorAt } from '../lib/world-gen.mjs';
-const world = ensureWorld(78633191, findNoitaDataDir(), { cacheDir: path.join(repoRoot, 'mapgen/out/gen-cache/r3n') }); await world.ready;
+const world = ensureWorld(78633191, findNoitaDataDir(), { cacheDir: path.join(repoRoot, 'mapgen/out/gen-cache/r3o') }); await world.ready;
 const cfg = loadBiomeConfig(findNoitaDataDir());
 const nm = (d) => d?.filename.split('/').pop().replace('.xml', '');
 const isWall = (r, g, b) => r >= 35 && g >= 19 && r <= 110 && g <= 70 && b <= 60 && r > g && g >= b; // the rock_hard family (dig #216 census)
