@@ -122,3 +122,27 @@ describe.skipIf(!hasNoitaData())("dig #226 — air-keyed px are empty in blitFix
   });
 });
 
+
+// dig #228 (C143: an `air` hit WRITES air): a later scene's air px clears an
+// earlier scene's paint at that cell (the pyramid's boss_limbs.png over
+// reward.png: the radioactive cells under boss_limbs' air were left green).
+describe.skipIf(!hasNoitaData())("dig #228 — an air px clears earlier paint", () => {
+  test("brick then air at the same px ⇒ the cell is unset again (old law: the brick stays)", async () => {
+    const fs = await import("node:fs");
+    const os = await import("node:os");
+    const path = await import("node:path");
+    const { writePng } = await import("../../mapgen/lib/images.mjs");
+    const { blitFixedArt } = await import("../../mapgen/lib/template-render.mjs");
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "air2-"));
+    fs.mkdirSync(path.join(dir, "biome_impl"), { recursive: true });
+    fs.copyFileSync(path.join(dataDir, "materials.xml"), path.join(dir, "materials.xml"));
+    writePng(path.join(dir, "biome_impl", "a.png"), 1, 1, Uint8Array.from([120, 108, 66, 255]));
+    writePng(path.join(dir, "biome_impl", "b.png"), 1, 1, Uint8Array.from([0, 0, 66, 255]));
+    const buffers = new Map();
+    blitFixedArt(buffers, dir, "data/biome_impl/a.png", null, 0, 0);
+    expect(buffers.get("35,62")[0]).not.toBe(9);
+    blitFixedArt(buffers, dir, "data/biome_impl/b.png", null, 0, 0);
+    expect([...buffers.get("35,62").slice(0, 3)]).toEqual([9, 9, 9]);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+});

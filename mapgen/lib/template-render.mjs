@@ -156,7 +156,7 @@ export function blitScene(buffers, dataDir, def, matFile, visFile, wx, wy, biome
         // cell (wang 000042) is EMPTY — the backdrop / the lanes below show;
         // it was painted as air's own colour (the dark-blue air at the HM
         // top pools, the temple rooms)
-        if (mname === "air") continue;
+        if (mname === "air") { n += clearWorldPx(buffers, wx + i, wy + j); continue; }
         shade = materialPx(dataDir, mname, wx + i, wy + j, 0x51ce3f);
       }
       let color = shade;
@@ -201,6 +201,17 @@ export function blitBackdrop(buffers, dataDir, file, wx, wy, gate = null) {
     }
   }
   return n;
+}
+
+// dig #228 (C143: an `air` hit WRITES air): reset a written cell to unset
+// (9) so an earlier scene's paint there is gone; no buffer = nothing to clear
+function clearWorldPx(buffers, wx, wy) {
+  const ccx = Math.floor(wx / 512) + 35, ccy = Math.floor(wy / 512) + 62;
+  const buf = buffers.get(`${ccx},${ccy}`);
+  if (!buf) return 0;
+  const o = 3 * ((wy - (ccy - 62) * 512) * 512 + (wx - (ccx - 35) * 512));
+  buf[o] = 9; buf[o + 1] = 9; buf[o + 2] = 9;
+  return 0;
 }
 
 function setWorldPx(buffers, wx, wy, [r, g, b]) {
@@ -606,7 +617,7 @@ export function blitFixedArt(buffers, dataDir, matFile, visFile, sx, sy) {
       if (r === 0 && g === 0 && b === 0) continue; // scene air: below shows
       const hex = `${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
       const mname = materials.get(hex);
-      if (mname === "air") continue; // dig #226 (C143's air arm, C196): empty — below shows
+      if (mname === "air") { n += clearWorldPx(buffers, sx + i, sy + j); continue; } // dig #226/#228 (C143's air arm, C196): the cell becomes air — an earlier scene's paint is cleared, the lanes below / the backdrop show
       let color;
       if (mname) {
         color = materialPx(dataDir, mname, sx + i, sy + j, 0x51ce3f);
