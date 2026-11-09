@@ -257,7 +257,7 @@ of these mechanisms, cite the row instead of re-running it.
 The single ranked work list (ISSUES.md §0 points here). State as of dig #212
 (2026-11-08); sources = the cited files, read 2026-11-08.
 
-0. **REGRESSION FIRST (user, 2026-11-09): ISSUES I62.** Predictable-spawn rooms are filled with dense rock (props still in place). Bisect suspects #233 → #232 → #231 before any other work. Then the new user queue: I63 (the chunks around the lava lake), I64 (no sinusoid on the cursed rock), I65 (the Cauldron room is missing).
+0. **User queue (2026-11-09):** I62 FIXED (rooms filled with rock: the air state, the image-spawn lane, A24). Open: I63 (the chunks around the lava lake), I64 (no sinusoid on the cursed rock), I65 (the Cauldron room is missing).
 1. **Surface band — the only objective (user mandate; ISSUES §0).** The band's
    shape = the Topology lane (§8 row 75, C178); the cell law = classify-or-air
    (C180, C183). The left-to-right meter (E1) =

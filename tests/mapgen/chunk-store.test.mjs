@@ -93,7 +93,7 @@ async function comparePlanes(eager, lazy) {
 }
 
 describe.skipIf(!hasNoitaData())("lazy == eager, exhaustively (capture seed) — data-gated", () => {
-  test("renderTemplateWorld: every fg + bg chunk byte-identical (4635 + 186)", async () => {
+  test("renderTemplateWorld: every fg + bg chunk byte-identical (4644 + 186)", async () => {
     const { config } = loadWangWorld(dataDir);
     const lazy = renderTemplateWorld(dataDir, config, CAPTURE_SEED, { eager: false });
     await new Promise((r) => setImmediate(r));
@@ -102,7 +102,7 @@ describe.skipIf(!hasNoitaData())("lazy == eager, exhaustively (capture seed) —
     const fg = await comparePlanes(eager, lazy);
     const bg = await comparePlanes(eager.get("bg"), lazy.get("bg"));
     eager.get("bg")?.clear(); eager.clear(); eager = null; lazy.clear(); // ~3.5 GB back
-    expect(fg).toEqual({ ok: 4635, bad: 0, missing: 0, extra: 0 }); // dig #223: 4642 → 4644 (the rainforest hint statues, C194); dig #225: → 4635 (air-only scene chunks no longer painted, C196)
+    expect(fg).toEqual({ ok: 4644, bad: 0, missing: 0, extra: 0 }); // I62: → 4644 (an air write creates its chunk buffer, TPL_AIR); dig #223: 4642 → 4644 (the rainforest hint statues, C194); dig #225: → 4635 (air-only scene chunks no longer painted, C196)
     expect(bg).toEqual({ ok: 186, bad: 0, missing: 0, extra: 0 }); // dig #219: 192 → 186 — init() runs as Lua, the unchosen branches' background art (the second side cavern, …) no longer loads
   }, 240000);
 

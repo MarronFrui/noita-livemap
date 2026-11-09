@@ -220,12 +220,15 @@ export function blitBackdrop(buffers, dataDir, file, wx, wy, gate = null) {
 
 // dig #228 (C143: an `air` hit WRITES air): reset a written cell to unset
 // (9) so an earlier scene's paint there is gone; no buffer = nothing to clear
+// I62 (C196 amended): an `air` hit WRITES AIR (C143: "an air hit ⇒ the cell
+// is air") — a distinct buffer state, not "unset". Unset lets the lanes below
+// paint (the noise terrain, the bins); the old clear-to-unset made every
+// air-keyed room (friendroom, teleroom, …: wang 000042 over a noise chunk)
+// show the noise rock — the user's "rooms filled with dense rock".
+// Consumers: AIR = the backdrop arm (world-gen tplAir).
+export const TPL_AIR = [9, 9, 10];
 function clearWorldPx(buffers, wx, wy) {
-  const ccx = Math.floor(wx / 512) + 35, ccy = Math.floor(wy / 512) + 62;
-  const buf = buffers.get(`${ccx},${ccy}`);
-  if (!buf) return 0;
-  const o = 3 * ((wy - (ccy - 62) * 512) * 512 + (wx - (ccx - 35) * 512));
-  buf[o] = 9; buf[o + 1] = 9; buf[o + 2] = 9;
+  setWorldPx(buffers, wx, wy, TPL_AIR);
   return 0;
 }
 

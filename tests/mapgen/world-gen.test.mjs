@@ -873,3 +873,71 @@ describe.skipIf(!hasNoitaData())("worldColorAt — the placeholder cell = the P-
     expect(c).not.toEqual([89, 83, 59]);
   });
 });
+
+// I62 (2026-11-09, the user's "predictable-spawn rooms filled with dense rock"):
+// (a) an air-keyed scene px WRITES AIR (TPL_AIR) — the noise rock below no
+// longer shows (friendroom / teleroom = wang 000042 over a noise chunk);
+// (b) a template-less BIOME_WANG_TILE room chunk has no terrain of its own
+// (A24): its scene's black (a C143 miss) shows air (dragoncave);
+// (c) the image-spawned scenes paint in the main band (the watercave's
+// random_layout inside spliced watercave.png); (d) a scene's background_file
+// draws over the biome backdrop in its air cells (orbroom_background.png).
+describe.skipIf(!hasNoitaData())("I62 — the per-biome rooms are not filled with rock", () => {
+  const lum = (c) => (c ? 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2] : 0);
+  const art = async (f) => (await import("../../mapgen/lib/images.mjs")).readPng(path.join(dataDir, "biome_impl", f));
+  // the share of the scene's px matching `pick` that render as air (lum < 24)
+  const airShare = async (world, cx, cy, png, pick) => {
+    const img = await art(png);
+    let n = 0, air = 0;
+    for (let j = 40; j < 472; j += 7) for (let i = 40; i < 472; i += 7) {
+      const q = 4 * (j * 512 + i);
+      if (!pick(img.data[q], img.data[q + 1], img.data[q + 2], img.data[q + 3])) continue;
+      n++; if (lum(worldColorAt(world, cx * CHUNK + i, (cy + SKY_ROWS) * CHUNK + j)) < 24) air++;
+    }
+    return { n, share: air / n };
+  };
+  test("friend_1 (41_25): friendroom.png's air-keyed px render air (old law: the noise rock, ≈0 %)", async () => {
+    const world = await sharedWorld();
+    const r = await airShare(world, 41, 25, "friendroom.png", (r, g, b, a) => a > 128 && r === 0 && g === 0 && b === 66);
+    expect(r.n).toBeGreaterThan(200);
+    expect(r.share).toBeGreaterThan(0.95);
+  }, 240000);
+  test("dragoncave (39_28): the scene's black cave interior renders air (old law: the noise rock, ≈0 %)", async () => {
+    const world = await sharedWorld();
+    const r = await airShare(world, 39, 28, "dragoncave.png", (r, g, b, a) => a > 128 && r === 0 && g === 0 && b === 0);
+    expect(r.n).toBeGreaterThan(200);
+    expect(r.share).toBeGreaterThan(0.9);
+  }, 240000);
+  test("watercave (31_15): the image-spawned random_layout paints the main band (old law: never read below the sky band)", async () => {
+    const world = await sharedWorld();
+    const isb = world.imageSpawns.get(`31,${15 + SKY_ROWS}`);
+    expect(isb).toBeTruthy();
+    let n = 0, same = 0;
+    for (let j = 60; j < 452; j += 9) for (let i = 60; i < 452; i += 9) {
+      const o = 3 * (j * 512 + i);
+      if (isb[o] === 9 && isb[o + 1] === 9) continue; // unset / air
+      n++;
+      const c = worldColorAt(world, 31 * CHUNK + i, (15 + SKY_ROWS) * CHUNK + j);
+      if (c && c[0] === isb[o] && c[1] === isb[o + 1] && c[2] === isb[o + 2]) same++;
+    }
+    expect(n).toBeGreaterThan(500);
+    expect(same / n).toBeGreaterThan(0.95);
+  }, 240000);
+  test("orbroom_06 (27_33): an air px under orbroom_background.png shows the background art (old law: the biome backdrop)", async () => {
+    const world = await sharedWorld();
+    const bg = world.templates.get("bg").get(`27,${33 + SKY_ROWS}`);
+    expect(bg).toBeTruthy();
+    const mat = await art("orbroom.png");
+    let n = 0, same = 0;
+    for (let j = 40; j < 472; j += 7) for (let i = 40; i < 472; i += 7) {
+      const q = 4 * (j * 512 + i), o = 3 * (j * 512 + i);
+      const black = mat.data[q + 3] > 128 && mat.data[q] === 0 && mat.data[q + 1] === 0 && mat.data[q + 2] === 0;
+      if (!black || (bg[o] === 9 && bg[o + 1] === 9)) continue;
+      n++;
+      const c = worldColorAt(world, 27 * CHUNK + i, (33 + SKY_ROWS) * CHUNK + j);
+      if (c && c[0] === bg[o] && c[1] === bg[o + 1] && c[2] === bg[o + 2]) same++;
+    }
+    expect(n).toBeGreaterThan(200);
+    expect(same / n).toBeGreaterThan(0.9);
+  }, 240000);
+});

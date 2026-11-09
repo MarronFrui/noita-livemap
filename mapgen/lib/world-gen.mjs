@@ -149,6 +149,11 @@ const BIN_CANDIDATES = [[0, 0], [-1, 0], [0, -1], [-1, -1], [1, 0], [0, 1], [1, 
 // v = 0x908e70(x, y, field), per PIXEL (game world px), coloured by C185.
 // (Replaces dig #232's family pairing, which kept colorize's hashed choice.)
 export const AIR_CELL = Object.freeze({ air: true });
+// I62 (C196 amended): the template buffers' three px states — (9,9,9) unset
+// (the lanes below paint), (9,9,10) = TPL_AIR (a scene wrote AIR: the lanes
+// below are blocked, the backdrop shows), else the art colour.
+const tplUnset = (b, o) => b[o] === 9 && b[o + 1] === 9 && b[o + 2] === 9;
+const tplAir = (b, o) => b[o] === 9 && b[o + 1] === 9 && b[o + 2] === 10;
 function placeholderPx(world, a, ax, ay, wx, wy, rr, gg, bb) {
   if (!a.def?.filename || !world.dataDir) return null;
   const table = ensureSurfaceTable(world.dataDir, a.def);
@@ -299,9 +304,11 @@ export function worldColorAt(world, wx, wy) {
     // comment); the bin lane above and skyAt below keep the generator frame.
     const ttx = Math.floor(wx / CHUNK), tty = Math.floor(wy / CHUNK);
     const tbuf = world.templates?.get(`${ttx},${tty}`);
+    let skyAir = false; // I62: a scene's written AIR blocks the noise terrain
     if (tbuf) {
       const o = 3 * ((wy - tty * CHUNK) * CHUNK + (wx - ttx * CHUNK));
-      if (tbuf[o] !== 9) return [tbuf[o], tbuf[o + 1], tbuf[o + 2]];
+      skyAir = tplAir(tbuf, o);
+      if (!skyAir && !tplUnset(tbuf, o)) return [tbuf[o], tbuf[o + 1], tbuf[o + 2]];
     }
     if (!voidChunk && binPx) return binPx;
     // dig #192 (C165/X205): the noise-biome terrain serves the sky band's
@@ -315,7 +322,7 @@ export function worldColorAt(world, wx, wy) {
     // covers the rest). Precedence AFTER the template/bin art = the same
     // order as the ty≥62 arm.
     {
-      const nzSky = world.noiseSolidAt?.(gx, gy);
+      const nzSky = skyAir ? null : world.noiseSolidAt?.(gx, gy);
       if (nzSky != null) {
       // dig #211 (the winter-band rows law): bty 6..13 = the surface band's
       // SKY-row rows (display 54..61) = the winter/mountain's own noise band,
@@ -355,7 +362,7 @@ export function worldColorAt(world, wx, wy) {
       const tbg = world.templates?.get("bg")?.get(`${ttx},${tty}`);
       if (tbg) {
         const o = 3 * ((wy - tty * CHUNK) * CHUNK + (wx - ttx * CHUNK));
-        if (tbg[o] !== 9 || tbg[o + 1] !== 9 || tbg[o + 2] !== 9) return [tbg[o], tbg[o + 1], tbg[o + 2]];
+        if (!tplUnset(tbg, o) && !tplAir(tbg, o)) return [tbg[o], tbg[o + 1], tbg[o + 2]];
       }
     }
     return world.skyAt?.(tx, ty, gx, gy) ?? null;
@@ -403,16 +410,38 @@ export function worldColorAt(world, wx, wy) {
   // dig #170 (C145): template lane = DISPLAY frame (anchor comment).
   const ttx = Math.floor(wx / CHUNK), tty = Math.floor(wy / CHUNK);
   const buf = world.templates?.get(`${ttx},${tty}`);
-  if (buf) {
+  let sceneAir = false; // I62: a scene wrote AIR here — the terrain lanes are blocked
+  // I62: the scenes spawned FROM scene images (buildImageSpawns: the
+  // watercave's random_layout trigger 0xffb539 inside spliced watercave.png,
+  // the tree's pillars) — loaded after their host image, so they paint over
+  // it. This store was read in the sky band only: the underground watercave
+  // layout (31_15) never rendered.
+  const isb = world.imageSpawns?.get(`${ttx},${tty}`);
+  if (isb) {
     const o = 3 * ((wy - tty * CHUNK) * CHUNK + (wx - ttx * CHUNK));
-    if (buf[o] !== 9 || buf[o + 1] !== 9 || buf[o + 2] !== 9) {
+    if (tplAir(isb, o)) sceneAir = true;
+    else if (!tplUnset(isb, o)) return [isb[o], isb[o + 1], isb[o + 2]];
+  }
+  if (buf && !sceneAir) {
+    const o = 3 * ((wy - tty * CHUNK) * CHUNK + (wx - ttx * CHUNK));
+    sceneAir = tplAir(buf, o);
+    if (!sceneAir && !tplUnset(buf, o)) {
       return [buf[o], buf[o + 1], buf[o + 2]];
     }
   }
   // F3 noise-terrain (2026-09-20, ABOUT_MATH (15)/(16)): procedural biomes
   // get the binary evaluator chain per wang cell (shape-first priority:
   // the >0.5 gate value decides solidity, material naming is config-side).
-  const nz = world.noiseSolidAt?.(gx, gy);
+  // I62: scene AIR = the scene's own background_file px first (the bin lane's
+  // wangSceneBgAt law), else a noise AIR cell (the air arm: C184, the backdrop)
+  if (sceneAir) {
+    for (const sb of [world.imageSpawns?.get("bg")?.get(`${ttx},${tty}`), world.templates?.get("bg")?.get(`${ttx},${tty}`)]) {
+      if (!sb) continue;
+      const o = 3 * ((wy - tty * CHUNK) * CHUNK + (wx - ttx * CHUNK));
+      if (!tplUnset(sb, o) && !tplAir(sb, o)) return [sb[o], sb[o + 1], sb[o + 2]];
+    }
+  }
+  const nz = sceneAir || roomChunkAir(world, tx, ty) ? 0 : world.noiseSolidAt?.(gx, gy);
   if (nz != null) {
     // dig #130 (the surface-lane compositor): the art band's ground = the
     // biome <Materials> classify per cell (C76 frame) → the material's
@@ -466,6 +495,13 @@ export function worldColorAt(world, wx, wy) {
     // "") fills its `biome_color` (the pale blue the byte map carries).
     // The backdrop tiles in the CHUNK frame (per 512×512 cell region —
     // the game's own per-area parallax is a later lane; tagged).
+    // I62: a loaded scene's background_file (orbroom_background.png, the
+    // racing track's) is drawn over the biome backdrop in its air cells
+    for (const sb of [world.imageSpawns?.get("bg")?.get(`${ttx},${tty}`), world.templates?.get("bg")?.get(`${ttx},${tty}`)]) {
+      if (!sb) continue;
+      const o = 3 * ((wy - tty * CHUNK) * CHUNK + (wx - ttx * CHUNK));
+      if (!tplUnset(sb, o) && !tplAir(sb, o)) return [sb[o], sb[o + 1], sb[o + 2]];
+    }
     const bgr = world.bgImageAt?.(tx, ty, wx, wy); // dig #230: sampled at the display px (the backdrop's phase)
     if (bgr) return bgr;
   }
@@ -479,13 +515,26 @@ export function worldColorAt(world, wx, wy) {
   const bgBuf = world.templates?.get("bg")?.get(`${ttx},${tty}`);
   if (bgBuf) {
     const o = 3 * ((wy - tty * CHUNK) * CHUNK + (wx - ttx * CHUNK));
-    if (bgBuf[o] !== 9 || bgBuf[o + 1] !== 9 || bgBuf[o + 2] !== 9) {
+    if (!tplUnset(bgBuf, o) && !tplAir(bgBuf, o)) {
       return [bgBuf[o], bgBuf[o + 1], bgBuf[o + 2]];
     }
   }
   return null;
 }
 
+// I62 / A24 (approximation, E1-measured; extends A21 below the surface): a
+// template-less BIOME_WANG_TILE chunk — the per-biome ROOMS (dragoncave,
+// secret_lab, mystery_teleport, the orb rooms, …) — generates NO terrain of
+// its own: its init()/spliced scene is the room, and the scene's black (C143:
+// a miss = keep the content) shows AIR, not the noise lane's rock. E1 over all
+// 75 such chunks (seed 78633191, solid/air agreement vs capture): sum +1.23,
+// dragoncave 0.75 → 0.99; the only losses = the lavalake chunks (−0.02..−0.03,
+// I63). The engine mechanism for an empty-template wang biome is unread.
+function roomChunkAir(world, tx, ty) {
+  if (!world.config?.map) return false; // injected worlds: no biome map
+  const d = biomeChunkDef(world.config, tx, ty - SKY_ROWS);
+  return !!d && !d.templateFile && d.topologyType === "BIOME_WANG_TILE";
+}
 // Noise-terrain display color (shape-first, user mandate 2026-09-20):
 // solid cells get their classified material's wang_color (dig #130) when
 // available, else one baseline shade per band (the pre-#130 shape-first
@@ -685,7 +734,7 @@ function sceneBufAt(bufs, gx, gy) {
   const buf = bufs.get(`${cx},${cy}`);
   if (!buf) return null;
   const o = 3 * ((gy - cy * CHUNK) * CHUNK + (gx - cx * CHUNK));
-  if (buf[o] === 9 && buf[o + 1] === 9 && buf[o + 2] === 9) return null;
+  if (tplUnset(buf, o) || tplAir(buf, o)) return null; // I62: AIR in the wang-scene planes keeps the old "below shows" (unmeasured there)
   return [buf[o], buf[o + 1], buf[o + 2]];
 }
 // the scene's material/visual px (fg) and its background_file px (bg)
@@ -717,11 +766,13 @@ function edgePixelAt(world, gx, gy, wx, wy) {
   const r = noisePixelFor(world.config, pix, world.seed ?? 0, gx, gy, world.dataDir);
   if (!r) return undefined;
   const tbuf = biomeChunkDef(world.config, ccx, ccy - SKY_ROWS) === pix ? null : world.templates?.get(`${ccx},${ccy}`);
+  let edgeAir = false;
   if (tbuf) {
     const o = 3 * (ly * CHUNK + lx);
-    if (tbuf[o] !== 9 || tbuf[o + 1] !== 9 || tbuf[o + 2] !== 9) return [tbuf[o], tbuf[o + 1], tbuf[o + 2]];
+    edgeAir = tplAir(tbuf, o); // I62: the chunk's scene wrote AIR over the terrain
+    if (!edgeAir && !tplUnset(tbuf, o)) return [tbuf[o], tbuf[o + 1], tbuf[o + 2]];
   }
-  if (r.solid) {
+  if (r.solid && !edgeAir) {
     const rgb = r.name ? materialColorAt(world.dataDir, r.name, wx - DISPLAY_X0, wy - DISPLAY_Y0) : null;
     return noiseColor(world, Math.floor(gx / CHUNK), Math.floor(gy / CHUNK), 1, rgb);
   }
@@ -743,7 +794,7 @@ function neighbourFillAt(world, def, wx, wy) {
     const tbuf = world.templates?.get(`${ttx + dx},${tty}`);
     if (!tbuf) return undefined;
     const o = 3 * ((wy - tty * CHUNK) * CHUNK + (wx - ttx * CHUNK));
-    if (tbuf[o] === 9 && tbuf[o + 1] === 9 && tbuf[o + 2] === 9) return undefined;
+    if (tplUnset(tbuf, o) || tplAir(tbuf, o)) return undefined;
     return [tbuf[o], tbuf[o + 1], tbuf[o + 2]];
   }
   return undefined;
@@ -792,7 +843,7 @@ function workColorAt(world, tx, ty, gx, gy, wx, wy) {
   const tbuf = biomeChunkDef(world.config, ttx, tty - SKY_ROWS) === def ? world.templates?.get(`${ttx},${tty}`) : null;
   if (tbuf) {
     const o = 3 * ((wy - tty * CHUNK) * CHUNK + (wx - ttx * CHUNK));
-    if (tbuf[o] !== 9 || tbuf[o + 1] !== 9 || tbuf[o + 2] !== 9) return [tbuf[o], tbuf[o + 1], tbuf[o + 2]];
+    if (!tplUnset(tbuf, o) && !tplAir(tbuf, o)) return [tbuf[o], tbuf[o + 1], tbuf[o + 2]];
   }
   // then the chunk biome's backdrop (the_end = background_the_end.png, tiled
   // per chunk — the C109 frame; limit_background_image="0"); none (the_sky =
