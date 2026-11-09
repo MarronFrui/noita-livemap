@@ -9,7 +9,7 @@ import path from "node:path";
 import { loadBiomeConfig, biomeAt, biomeAtPixel, biomeChunkDef } from "./biomes.mjs";
 import { buildTileset } from "./wang-js.mjs";
 import { generateAreaExact } from "./generate-exact.mjs";
-import { colorizeArea, applyRandomFloods, loadMaterials, loadBiomeExtras, SHADES } from "./colorize.mjs";
+import { colorizeArea, applyRandomFloods, loadMaterials, SHADES } from "./colorize.mjs";
 import { workWrapY, workCellAt } from "./the-work.mjs"; // dig #215 (C186): the Work y-wrap law
 import { renderTemplateWorld, blitScene, blitBackdrop, SPLICE_PNGS, loadPixelSceneTable } from "./template-render.mjs";
 import { LazyChunkStore } from "./chunk-store.mjs";
@@ -143,40 +143,20 @@ export function binSampleAt(world, wx, wy, tx, ty, gx, gy) {
   return own ? { ...own, hit: false } : { idx: -1, x: gx, y: gy, hit: false };
 }
 const BIN_CANDIDATES = [[0, 0], [-1, 0], [0, -1], [-1, -1], [1, 0], [0, 1], [1, 1], [1, -1], [-1, 1]];
-// dig #232: a grey PLACEHOLDER cell keeps colorize's family decision (the
-// shade family it was painted with — the A5/I43 stand-in for the classify's
-// material choice) but is coloured per pixel by the biome's own material
-// whose C185 texture holds that family's dominant colour (the capture's
-// placeholder solids = exactly earth.png / rock.png texels: (70,65,40)+(95,87,49)
-// and (39,40,45)+(62,69,85)). No such material ⇒ the colorized cell.
-const _famOf = new Map();
-for (const fam of ["rock", "soil", "sand"]) for (const s of SHADES[fam]) if (!_famOf.has(s.rgb.join())) _famOf.set(s.rgb.join(), fam);
-const _famMat = new Map(); // def.filename|fam -> material name | null
-function placeholderPx(world, a, ax, ay, wx, wy) {
-  const m = world.maps.get(a.key);
-  if (!m) return null;
-  const q = 3 * (ay * m.w + ax);
-  const fam = _famOf.get(`${m.rgb[q]},${m.rgb[q + 1]},${m.rgb[q + 2]}`);
-  if (!fam || !a.def?.filename) return null;
-  const k = `${a.def.filename}|${fam}`;
-  let name = _famMat.get(k);
-  if (name === undefined) {
-    name = null;
-    const dom = SHADES[fam][0].rgb;
-    const biomeFile = a.def.filename.replace(/^data\/biome\//, "").replace(/\.xml$/, "");
-    const mats = (loadBiomeExtras(world.dataDir, biomeFile).materials ?? []).filter((c) => !c.rare).map((c) => c.name);
-    for (const n of mats) {
-      if (materialRenderClass(world.dataDir, n) !== "solid") continue;
-      let hit = false;
-      for (let y = 0; y < 64 && !hit; y++) for (let x = 0; x < 64 && !hit; x++) {
-        const c = materialColorAt(world.dataDir, n, x, y);
-        if (c && c[0] === dom[0] && c[1] === dom[1] && c[2] === dom[2]) hit = true;
-      }
-      if (hit) { name = n; break; }
-    }
-    _famMat.set(k, name);
-  }
-  return name ? materialColorAt(world.dataDir, name, wx - DISPLAY_X0, wy - DISPLAY_Y0) : null;
+// dig #233: a grey PLACEHOLDER cell = the game's P-empty arm (the same law
+// as the Work lane, the-work.mjs header, C186): field = the grey's
+// luminance; field ≤ 0.5 ⇒ AIR; else the cell's OWN biome classify at
+// v = 0x908e70(x, y, field), per PIXEL (game world px), coloured by C185.
+// (Replaces dig #232's family pairing, which kept colorize's hashed choice.)
+export const AIR_CELL = Object.freeze({ air: true });
+function placeholderPx(world, a, ax, ay, wx, wy, rr, gg, bb) {
+  if (!a.def?.filename || !world.dataDir) return null;
+  const table = ensureSurfaceTable(world.dataDir, a.def);
+  world.workMaterials ??= loadMaterials(world.dataDir);
+  const x = wx - DISPLAY_X0, y = wy - DISPLAY_Y0;
+  const cell = workCellAt(rr, gg, bb, world.workMaterials, table, x, y);
+  if (cell.air) return table ? AIR_CELL : null; // no table ⇒ the colorized cell (unknown biome)
+  return materialColorAt(world.dataDir, cell.material, x, y);
 }
 // the raw out_map cell's explicit solid material → C185 at the display px
 const _solidHex = new Map();
@@ -186,7 +166,7 @@ function solidCellPx(world, a, ax, ay, wx, wy) {
   const p = 3 * (ay * raw.w + ax);
   const rr = raw.rgb[p], gg = raw.rgb[p + 1], bb = raw.rgb[p + 2];
   if (rr === 0 && gg === 0 && bb === 0) return null; // black = air
-  if (rr === gg && gg === bb) return placeholderPx(world, a, ax, ay, wx, wy); // the grey placeholder ramp
+  if (rr === gg && gg === bb) return placeholderPx(world, a, ax, ay, wx, wy, rr, gg, bb); // the grey placeholder ramp
   const hex = (rr << 16) | (gg << 8) | bb;
   let name = _solidHex.get(hex);
   if (name === undefined) {
@@ -398,8 +378,12 @@ export function worldColorAt(world, wx, wy) {
         // (each def declares its bg); the sky band never reaches here
         // (the ty<62 sky-first branch).
         const r = m.rgb[p], g = m.rgb[p + 1], b = m.rgb[p + 2];
-        if ((r === 13 && g === 14 && b === 18) || (r === 12 && g === 13 && b === 17)
-          || (r === 16 && g === 16 && b === 18) || (r === 21 && g === 23 && b === 30)) {
+        const airDark = (r === 13 && g === 14 && b === 18) || (r === 12 && g === 13 && b === 17)
+          || (r === 16 && g === 16 && b === 18) || (r === 21 && g === 23 && b === 30);
+        // dig #231/#233: the per-pixel cell law (explicit solids = C185; grey
+        // placeholders = the P-empty classify, which may also yield AIR)
+        const pxc = airDark ? null : solidCellPx(world, a, ax, ay, wx, wy);
+        if (airDark || pxc === AIR_CELL) {
           const sbg = wangSceneBgAt(world, bx, by); // a loaded scene's background_file
           if (sbg) return sbg;
           const bd = staticBgMasked(a.def, world.dataDir, ax, ay) ? null : biomeBackdrop(a.def, world.dataDir); // the static tile mask
@@ -408,11 +392,8 @@ export function worldColorAt(world, wx, wy) {
             const q = 4 * (by * bd.w + bx);
             return [bd.pixels[q], bd.pixels[q + 1], bd.pixels[q + 2]];
           }
+          return airDark ? [r, g, b] : SHADES.airDark[0].rgb;
         }
-        // dig #231 (C185 per PIXEL): an explicit SOLID material cell takes
-        // its texture at THIS display px (the game colours every pixel; the
-        // colorized bin holds one colour per 10-px cell)
-        const pxc = solidCellPx(world, a, ax, ay, wx, wy);
         if (pxc) return pxc;
         return [r, g, b];
       }

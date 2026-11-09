@@ -1,7 +1,7 @@
 {
   "comment": "the I36 count law's reference (dig #156, scripts/precommit-gates-lib.mjs): the full battery must report EXACTLY these vitest summary totals at every gated commit — any deficit = the silent-truncation class, refused with one retry allowed. Updated per dig when the committed test set changes (the dig's own battery run is the source).",
   "filesTotal": 43,
-  "testsTotal": 537,
+  "testsTotal": 538,
   "testsSkipped": 4,
-  "source": "npm test 2026-11-09 (dig #232): 42 passed | 1 skipped files (43) / 533 passed | 4 skipped (537). +1 = world-gen.test.mjs (placeholder textures). Skip set unchanged (4)."
+  "source": "npm test 2026-11-09 (dig #233): 42 passed | 1 skipped files (43) / 534 passed | 4 skipped (538). +1 net = world-gen.test.mjs (the #232 test replaced by two P-empty tests). Skip set unchanged (4)."
 }

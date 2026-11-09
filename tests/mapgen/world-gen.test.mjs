@@ -832,25 +832,44 @@ describe.skipIf(!hasNoitaData())("worldColorAt — per-pixel C185 for solid bin 
   });
 });
 
-// dig #232: a grey placeholder bin cell painted with the soil family is
-// coloured per pixel by the biome's material whose texture holds that
-// family's dominant colour (coalmine: (70,65,40) ⇒ sand_static / earth.png).
-describe.skipIf(!hasNoitaData())("worldColorAt — placeholder cells take the matching material's texture (dig #232)", () => {
-  test("coalmine soil-family cell = sand_static's texture px by px (old law: the hashed family colour)", async () => {
-    const { materialColorAt } = await import("../../mapgen/lib/colorize.mjs");
+// dig #233 (the P-empty arm in the main band, the Work lane's law C186): a
+// grey placeholder bin cell = field (its luminance); ≤ 0.5 ⇒ air (the
+// backdrop), else the cell's own biome classify at v = 0x908e70(x, y, field),
+// per pixel, coloured by C185. (dig #232's family pairing replaced.)
+describe.skipIf(!hasNoitaData())("worldColorAt — the placeholder cell = the P-empty classify (dig #233)", () => {
+  const mk = (grey) => {
     const world = {
       grid: new Int16Array(WORLD_CHUNKS_W * WORLD_CHUNKS_H).fill(-1),
       errors: new Map(), templates: new Map(), maps: new Map(), rawMaps: new Map(), ready: Promise.resolve(), dataDir,
     };
     world.grid[63 * WORLD_CHUNKS_W + 36] = 0;
     world.areas = [{ key: "a", def: { filename: "data/biome/coalmine.xml" }, area: { x1: 36, y1: 15 }, w: 52, h: 52 }];
-    const col = Buffer.alloc(3 * 52 * 52), raw = Buffer.alloc(3 * 52 * 52, 200); // raw = grey 200
-    for (let p = 0; p < col.length; p += 3) { col[p] = 89; col[p + 1] = 83; col[p + 2] = 59; } // a soil-family shade
+    const col = Buffer.alloc(3 * 52 * 52); for (let p = 0; p < col.length; p += 3) { col[p] = 89; col[p + 1] = 83; col[p + 2] = 59; }
     world.maps.set("a", { w: 52, h: 52, attempt: 0, rgb: col });
-    world.rawMaps.set("a", { w: 52, h: 52, attempt: 0, rgb: raw });
+    world.rawMaps.set("a", { w: 52, h: 52, attempt: 0, rgb: Buffer.alloc(3 * 52 * 52, grey) });
+    return world;
+  };
+  test("grey 200 (field 0.78): each px = C185 of classify(coalmine, x, y, v) (old law: the hashed family colour)", async () => {
+    const { materialColorAt, loadMaterials } = await import("../../mapgen/lib/colorize.mjs");
+    const { workCellAt } = await import("../../mapgen/lib/the-work.mjs");
+    const { ensureSurfaceTable } = await import("../../mapgen/lib/noise-terrain.mjs");
+    const world = mk(200);
+    const table = ensureSurfaceTable(dataDir, world.areas[0].def);
+    const mats = loadMaterials(dataDir);
+    let solid = 0;
     for (let k = 0; k < 12; k++) {
       const wx = 36 * CHUNK + 150 + 3 * k, wy = 63 * CHUNK + 160 + k;
-      expect(worldColorAt(world, wx, wy)).toEqual(materialColorAt(dataDir, "sand_static", wx - 35 * CHUNK, wy - 62 * CHUNK));
+      const x = wx - 35 * CHUNK, y = wy - 62 * CHUNK;
+      const cell = workCellAt(200, 200, 200, mats, table, x, y);
+      const got = worldColorAt(world, wx, wy);
+      if (cell.material) { solid++; expect(got).toEqual(materialColorAt(dataDir, cell.material, x, y)); }
+      expect(got).not.toEqual([89, 83, 59]);
     }
+    expect(solid).toBeGreaterThan(0);
+  });
+  test("grey 110 (field 0.43 ≤ 0.5) = AIR — never a material colour (old law: the soil family)", () => {
+    const world = mk(110);
+    const c = worldColorAt(world, 36 * CHUNK + 150, 63 * CHUNK + 160);
+    expect(c).not.toEqual([89, 83, 59]);
   });
 });
