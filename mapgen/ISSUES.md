@@ -47,17 +47,8 @@ Legend: [ ] open · [x] fixed · (A) = approximation to replace by
 reconstruction · priority HIGH/MED/LOW, user-weighted.
 
 ### 1. Surface band (top, sky → hills) — "not figured out yet"
-- [ ] **I1. Surface generation missing entirely** (HIGH): holy mountain
-  (surface), giant tree, watchtower, desert sand shapes, pyramid (partial),
-  ice lands (west) all missing or noise. Root cause: template/procedural
-  biomes (hills.lua, winter, desert, lake, mountain*) use the game's
-  **poro noise terrain** (mGradient/mInsidePerlin* XML params) which we have
-  NOT reconstructed — current banded fBm fills are (A). Need the Ghidra
-  reconstruction of the procedural-terrain noise (which poro function, which
-  params, seeded how) — see ghidra-ledger `mSeed`/per-cell generator objects
-  (FUN_0090ce20 → FUN_008f9470, float grid + u16 material grid).
-- [ ] **I2. Pyramid partial** (MED): part of I1 (its static template pieces
-  render, the noise terrain around/behind it doesn't).
+- [x] **I1. Surface generation missing entirely — CLOSED 2026-11-09 (synthesis: superseded).** The surface band now renders through the Topology lane (C178, digs #205–#218); the open surface defects are owned by I47 (shape), I48 (winter), I50 (the topology fix list), I57 (the surface line).
+- [ ] **I2. Pyramid partial → re-owned by I61** (2026-11-09: the pyramid's own wang chunks render; the defect is the wedge / top / hallway chunks around them).
 
 ### 2. The Work — heaven (top extension band)
 - [~] **I3. Top extension entirely incorrect** (HIGH) — AMENDED dig #215: the premise ("the real band has its own generation — the_sky wang area") was wrong (VERIFIED §8 row 79). The Work rows (Heaven AND Hell) re-read the MAIN band's wang image P through its wrap (period 24570 px) and the edge biome (the_sky / the_end) re-classifies P's placeholder cells (C186; `lib/the-work.mjs`). LANDED: the interior layout (E2 sentinel: Heaven 0.496 / Hell 0.415 vs the main band's own 0.387). OPEN: the side walls (I6), the Heaven palette vs the capture, the moon (I4).
@@ -71,73 +62,11 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
 ### 3. The Work — hell (bottom extension band)
 - [x] **I5. Lava band must be PURE lava** — CLOSED 2026-11-08: lava.xml = one `lava` MaterialComponent [−100,100], limit_y 0 ⇒ pure lava at every row, coloured by C185 ((255,96,0) flat); the invented `y+512 <= 14600` dark-matrix cutoff + 3-shade mix removed (`renderLavaFill`). E1, seed 78633191, rows 40–46 (95 lava chunks): mean |gen−capture| lava share 0.0043, max < 0.03 (was ≈0.99 at rows 42–46). Pin: `tests/mapgen/lava-band.test.mjs`. Residual: lava_90percent's rock_hard_border band (~2.3%) = A8.
 - [~] **I6 — AMENDED dig #216:** the sinusoid = THE BIOME-EDGE LAW (C187, §8 row 80): GetBiomeAt `0x909da0` displaces the solid_wall | the_end boundary by `30·sin/cos(0.005·) + 11·simplex` inside a 41-px strip — LANDED in the Work lane (E1: the Hell wall edges' median |capture − port| 1 / 0 px vs 20 / 21 px straight). OPEN: the wall INTERIOR = `DEEP_ROCK` random speckle (A) — the game's = solid_wall's classify (`rock_hard` [−100, 0.95] / `rock_hard_border` [−0.25, 3.5]) painted with their C185 textures (the capture's wall families = exactly those texture pairs); the "walls everywhere" note below = the main-band half of the edge law (I53).
-- [ ] **I6. Walls must be sinusoidal, not straight** (HIGH): the game's
-  solid walls/hell-rock matrix follow noise (perlin displacement); our
-  fills are flat per-chunk rectangles (A). Also user note: solid-rock walls
-  should appear **everywhere** on the map (they currently only spawn below
-  the lava layer — an artifact of the last prompt's painter scope).
 - [ ] **I7. Dark moon + no-spawn zones** (MED, anchor): same as I4 for hell.
 
 ### 4. Main band defects
 - [x] **I8. West lake renders as dirt, should be water** — CLOSED 2026-09-17: root cause = `lake_deep` is a single-material biome; `lib/colorize.mjs` now detects `materials.length===1 && !rare` and shades the grey placeholder ramp with that material (test `bench.test.mjs "I8"`; cache r3b→r3c).
-- [ ] **I9. Yomi (adventure boss area) not loaded — noise** (HIGH): biome
-  not in our generated set or unsupported atlas; identify its biome entry,
-  atlas type, and generation path.
-  **DIAGNOSED 2026-09-17 (corrected):** "Yomi" = the **boss_arena** region
-  (`boss_arena.xml`, biome-map px 38–42 × 38–40 = world cx 3..7, cy 24..26;
-  capture-confirmed: golden brick + shop + dark arena + bridge —
-  `mapgen/out/ref-bossarena/` ref_40_38/40_39). Content class:
-  **PREDICTABLE ZONE** (already in `mapcap/PREDICTABLE_ZONES.md`:
-  `boss_arena(_top)`) — the 24 `PixelScene` entries of
-  `data/biome_impl/spliced/boss_arena.xml` are placed at FIXED absolute
-  world positions (pos_x 1536..4096, pos_y 12288..13824, constants in the
-  XML), like the giant tree, mountains and the moon. Seed-independent
-  static content ⇒ our renderer can blit it directly from the game's own
-  scene data; no seed-mechanism involved. (Same family: tree, mountains,
-  HM bands, moon — cf. template biomes already handled.)
-  Implementation gap: `template-render.mjs` renders this biome as generic
-  procedural noise because the spliced-scene loader is deferred.
-  **STRUCTURALLY FIXED 2026-09-17** (`lib/template-render.mjs`
-  `SPLICE_PNGS` / `blitSplicedScenes`): the splice tool
-  (`biome_impl/spliced/_*.bat`: `wizard_physics.exe -splice_pixel_scene
-  <name>.png -x <wx> -y <wy>`) proves every scene's source art is ONE
-  pre-colored PNG (the splice output N.plz/N_visual.plz pieces are merely
-  512-splits of it, placed at the SAME fixed origin). So the renderer
-  blits each source PNG at its origin and maps palette colors through
-  materials.xml like the rest of the pipeline (air/alpha → below shows;
-  ~~unmatched palette colors drawn raw~~ — **PROVEN WRONG dig #168: a
-  non-materials.xml color = a MISS = the cell is SKIPPED, the terrain
-  below shows — 404/404 samples, C143 / §8 row 54**). Zones covered in one go:
-  boss_arena (1536,12288), giant tree (−2048,−1324), moon (0,−26112),
-  dark moon (0,37512), skull (14645,18395), watercave (−2048,0),
-  lake_statue (−14848,0), lavalake2 (2048,0), gourd_room (−16896,−7168),
-  mountain_lake (2560,0), lavalake_pit_bottom (2560,3072).
-  Validated vs capture (ref-bossarena, seed 78633191): arena shapes land
-  pixel-exact (bridge/stalactites/lava lake); 40.8% of ref fg within
-  ±20 per channel — residual = material TEXTURE detail (rock_hard
-  speckle/tint), the same shade-approximation class as the rest of the
-  colorize layer, tracked under the generic texture refinement, not I9's
-  structure. Cache r3c → r3d.
-  Per-scene art lives in: material `N.plz`, visual `N_visual.plz`,
-  background `N_background.png` (plain PNG for the background).
-  `.plz` facts (**REPRODUCED dig #168 — full-window byte law, C143,
-  MANIFEST X137/X138/X139, `mapgen/lib/plz.mjs`; the earlier
-  "no decoder claims" caution below is RETIRED — the codec now decodes
-  97/97 shipped files length-exact with two content pins**):
-  - header: `u32 1 | u32 w | u32 h | u32 bpp | u32 compLen | u32 rawLen`
-    (24 B; fields loaded raw — the loader's dims check is UNSIGNED
-    ≤ 0x10000 ⇒ the 5 negative-dim files [gourd_room/6-8, lavalake2/23-24,
-    w = h = −511 / −511,−343, XML-referenced] are REFUSED in-game; our
-    decoder ignores w/h). `rawLen == |w|·|h|·4` 97/97; file = 24+compLen
-    EXACTLY 97/97 — **the old "+4-byte trailer" and "i32 w = mirrored on
-    load" claims = wrong (§8 row 54's family; the loader does no abs/mirror)**.
-  - payload = Nollagames' own LZ: loader raw gate @0x90E644 (rawLen < 128
-    ⇒ verbatim copy, no decode — the shipped lavalake2/4.plz), else the
-    dispatcher 0x423220 (level = payload[0]>>5 + 1 → L1 0x422980 /
-    L2 0x423010); both level decoders byte-closed (X139) and ported.
-  - Dumps: `mapgen/extractions/dig168-plz-loader-90e220-90e676.asm`, `mapgen/extractions/dig168-plz-dispatch-423220-423260.asm`, `mapgen/extractions/dig168-plz-l1-422980-422b4c.asm`, `mapgen/extractions/dig168-plz-l2-423010-42321b.asm`.
-  - NEXT (moved to I39/I40): the visual layers (`*_visual.plz`) are not
-    applied; the floor the art wraps into = the I39 fill-spawn read.
+- [x] **I9. Yomi / boss_arena not loaded — CLOSED (synthesis 2026-11-09):** structurally fixed 2026-09-17 by the spliced-scene lane (`SPLICE_PNGS` / `blitSplicedScenes`, fixed art at fixed world positions); the `.plz` codec = C143 (dig #168); the residuals = I39 (the floor under splice scenes) and I40 (the splice stand-ins).
 - [x] **I10. Holy Mountain right side of shop = noise — CLOSED 2026-11-09 (visual check, seed 78633191, tiles 32..36_16 ours vs capture):** the shop row, the right-side corridor and the cage room land on the capture's shapes; the temple arms' art renders (the air-keyed cells fixed dig #225).
 - [ ] **I11. Portal to Holy Mountains (re-scoped 2026-11-09, LOW):** the HM top pool rooms' TERRAIN now matches (dig #225: their air cells were painted dark blue); the purple ring in the capture is the portal ENTITY's sprite (`EntityLoad`), which the generator does not draw (entities are not map cells). Open: whether the live map should overlay entity sprites at their seeded positions. Also open: the pool VARIANT pick (spawn_altar_top: SetRandomSeed(x, y) + Random(1, 50), both bindings byte-read dig #225 = the port) gives lava at 32_16 where the capture shows the plain top, and the capture's blood (33_16) / oil (36_16) are not reproduced by any call offset within ±60 px (6 hits of 14,641 = chance) — the capture may be player-altered, or init's (x, y) for the temple chunks differs.
 - [ ] **I12. Teleportatium ball below HM (re-scoped 2026-11-09, LOW):** the small chamber renders in place; the ball inside is an entity sprite, same class as I11.
@@ -538,6 +467,7 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
 - [ ] **I56. The sky-band wang SHAPES (clouds_4_1, clouds_53_3, the row-0 boss_victoryroom area) do not reproduce** — the colours now match (I55) but the solid/air blobs are uncorrelated with the capture: IoU 0.25 at offset 0 (independent masks ≈ 0.14), no frame offset in ±480 px peaks (best 0.28), NO attempt among the first 100 matches (best 0.29 / 0.31), the bounding-box-area hypothesis fails (0.24). Every wang area the port verified sits underground; these are the only wang areas at world y < 0 — the generator input that differs there is unread (needs a REA dig on the area driver). Un-voiding the_sky's bins with the right colours LOWERED its chunks 83.7 → 71.5 % (wrong blobs score worse than sky), so the_sky stays void until this lands. **Narrowed 2026-11-09:** (a) the mismatch is PATCHY, not global — per-chunk IoU 0.09–0.60 (e.g. (7,1) 0.60, (4,4) 0.56 vs most 0.15–0.30), whole blobs coincide exactly in places; (b) no per-chunk drift (best local offsets scatter to the ±200 px search edge) and no width/seed variant helps (W±12, 8 seeds × 4 attempts: best 0.281); (c) **the capture's cloud edges are NOT on the 10-px cell grid** — edge phase mod 10 over all 55 cloud chunks: x 7.0–13.1 %, y 5.7–11.8 % per phase (uniform = 10 %) ⇒ the game's world px come from a PER-PIXEL law over the wang cells (the cell → px materialization — the same law the user scoped OUT of the perf work as item 5, 2026-11-08), which reshapes every outline. The sky band is the FIRST clean geometric test of the wang lane (black air); underground the backdrop confounds solid/air, and the fill itself was validated by spawn equations, never geometry (VERIFIED §5 / line 124). **Eliminated 2026-11-09 (the cell→px dig, first pass):** the C167/C168 warp-displaced ±1-snapped P read (`caves-field.mjs` cavesShapedCellAt's math, flip 1.0, G = (17920, 7168), area cell i = P col trunc(x1·512/10)+i) over our accepted out_map scores IoU **0.268 vs 0.262 unwarped** — the warp explains the off-grid edges but NOT the blob mismatch ⇒ the game's CELLS differ from our out_map for this area (the fill input, not the materialization). Warp call-site census follow-up: `0x64a0f6` = a debug-draw site (amplitude xorps 0) and the `0x909451` function = an assert-validation path (amplitude 0, assert line 0xad7) — neither is a chunk writer. **THE CROSS-BUILD CONFOUND (2026-11-09, untested — blocks the judgement):** the only capture of the sky band is the noitamap stitch = **game build 2024-08-12** (mapcap/README), while the generator reads the INSTALLED data (files dated 2026-09-03; the in-game captures are build 2025-09-25). The 2025 captures (frozen91–93, run1b) cover only game chunks x −6..12 × y −3..5 — the clouds (x −31..−21, y −13..−9) were never captured on a current build. The wang fill was validated by spawn equations on the current build, so a build-to-build change in the sky band (template, biome map, or area driver) would produce exactly this picture. **Unblock = one noita-mapcap capture of the clouds region (game chunks x −32..−20, y −14..−8) on the current build, any seed** — then the generator is judged against same-build ground truth. Also eliminated 2026-11-09: the `wang_map_width/height` fill WRAPPED over the area (256×256, attempts 0..19): IoU 0.207 (clouds_4_1) / 0.261 (clouds_53_3) — no better than chance. Next: the generator input for the sky-band areas — the spawn-equation judge (VERIFIED §5) has no cloud-area facts yet; an entity dump of clouds_4_1's spawns (wraith/thundermage trigger cells) would pin whether our out_map or our area rect is wrong.
 - [ ] **I57. The surface line — the positional residual at game chunks x 8–9 (re-scoped dig #217).** The hills' surface = the band ramp's r = 0.51 contour (C188) and its seed phase (xBase) is confirmed (§8 row 81: rank 0.7 % / 23.2 % / 3.0 % of 401 phases on the three same-build captures). The old "67.5 px vs run1b" figure measured the first coloured pixel, and 69 % of those in the hills are vegetation (I44) — that number is retired. **Current state (METER-CLASS: E2, terrain-only line — skip green/pink px, require a ≥ 16-px-wide × 20-px-deep solid mass; per-chunk median |dy| ours vs frozen91/92/93):** cx 3 13/61/14, cx 4 8/30/12, cx 6 106/26/16, cx 7 29/21/39, **cx 8 106/86/65**, cx 9 36/161/57, cx 10 6/4/37, cx 11 12/7/7 px (cx 5 = mountain_lake 107, the A19/I52 lane). **Open:** (a) cx 8 is off on every seed — seed-independent, so a positional cause (candidates: what the game stamps or draws at biome col 43; the BitmapCaves band from y = 0 — its top edge coincides with seed …192's flat plateau at y ≈ 0, but our caves port is also solid in the matched valleys, so a plain union is not the law); (b) seed …192's cx 8–9 cliff + plateau, which a smooth contour cannot draw; (c) the vegetation layer itself (I44) — needed before any first-pixel meter is meaningful. **Observation 2026-11-09 (post-dig, METER-CLASS: E2, UNATTRIBUTED — evidence for nothing until a byte read explains it):** shifting our contour y = A(x+dx) + 0.51·(B − A) by one dx shared by all three seeds, the joint median |dy| optimum is dx ≈ 0 at the control chunks (cx 4: +16 → 21/36/13; cx 7: +16 → 34/12/41) but **dx ≈ −3860 at cx 8 (104/86/64 → 22/31/37) and ≈ −3736 at cx 9 (35/159/53 → 30/20/44)**, with seeds …191/…192 picking the same dx to within 4 px on their own at cx 9 (−3736 / −3732); not one rigid offset (cx 8 vs 9 differ by 124 px; cx 6 splits by seed: …191 −3660, …193 0). Read as: the game draws a DIFFERENT noise slice over cx 8–9 that a shifted window imitates — not yet a frame law. Position notes: biome map row 15 col 43 (under cx 8) = `orbroom_07` (ffffd107), col 44 = solid_wall; rows 12–14 cols 41–44 = plain hills; no biome modifier touches topology (biome_modifiers.lua writes vegetation/materials/physics only). **That read (2026-11-09, X1 + REA, non-dig): NO positional mechanism in the code.** (i) the field driver `0x908f40`: GetBiomeAt → kind 0 ⇒ `surfaceField(x+0.5, y+0.5)` → classify — identical at cx 7 and cx 8; its other two call sites `0x7938d1`/`0x7938fe` = the vegetation stamp's x−1/x+1 probes (record `+0xa8`/`+0xd4`), not terrain; (ii) the walk origin `0x794187..0x79419b` = `chunk.x << 9`, `chunk.y << 9` for every chunk (A18's closure re-confirmed); (iii) the band matrix's source image (Init `0x906b17..0x906e49`) = the map loaded through `magic_numbers.xml` BIOME_MAP = `data/scripts/biome_map.lua`, which only does `BiomeMapSetSize(70, 48)` + `BiomeMapLoadImage(0, 0, biome_map.png)` (the Init branch gated by `[ebp−0x249]` = this Lua path: strings `0x1174728` = "BiomeMapLuaManager", `0x1174804` = "temptemp/biome_map_lua.png" — the script's output image feeds the matrix) (`scripts/biomes/biome_map_gen.lua` has no users); (iv) no `_pixel_scenes.xml` entry over x 3000..5800, no biome modifier writes topology. **The capture side (E2):** the SAME seed 78633191 captured by noitamap (the 2024 stitch) and in-game (frozen91, 2026-09-04 on the installed exe dated 2025-01-26) disagrees across the hills — terrain-only median |Δy| cx 3 73, cx 4 134, cx 6 167, cx 7 189, cx 8 122, cx 9 30 px — while the fixed lake (cx 5) agrees to 0 px; frozen92 is byte-identical to run1b and run1 has the parallax on ⇒ the project holds NO independent same-seed same-build capture pair, so whether the hills surface is a pure function of the seed is UNTESTED. **Next = runtime truth:** a fresh noita-mapcap capture of seed 78633191 or 78633192 (game chunks x 3..11, y −2..1, parallax OFF) — it tests determinism against frozen91/run1b AND re-judges cx 8–9; or a CE dump of the band matrix (`experiments/ce-dump-bandmatrix.lua`, offsets to re-check first). Repro: `SURFACE_V2=1 SEED=… REF=frozen9… MODE=chunks TERRAIN=1 CX=3,11 node mapgen/experiments/2026-11-09-dig217-surface-phase.mjs`. Sources: entry (217); C188.
 - [x] **I58. init() engine queries against generated terrain were stubs — CLOSED dig #223:** `RaytracePlatforms` = the byte-exact tracer (C194); the rainforest init runs clean (5 Lua errors → 0; 4 hint statues + the portal hole). The cell predicate has no terrain to read in the init lane ⇒ A22.
+- [ ] **I61. The pyramid's non-wang chunks show holes and solid wedges (opened 2026-11-09, seed 78633191, tiles 51..57 × 11..14 ours vs capture):** pyramid_left / pyramid_right / pyramid_top / pyramid_hallway (`SIN_CAPPED_SIMPLEX`, init() = `left.png` etc., 162,359 of left.png's px = black = 'keep what is below', C143) render as empty cells (no lane: 53_12 ~19k of ~35k sampled px null) and wall triangles, where the capture shows the pyramid's maze continuing. Tested and REJECTED: the content below = the pyramid area's wang bins over its bbox (52..56 × 12..14) — bin-vs-capture air agreement on the hole px 0.637 (53_12), 0.523 (55_12), 0.385 (53_13), below the capture's own majority class (air 0.874 / 0.860; solid 0.875 at 53_13). Next read: what the driver produces for a kind-0 SIN_CAPPED_SIMPLEX chunk whose biome XML has no materials (the walk's NULL arm vs a neighbour's P), and the pyramid_*.lua init's other calls.
 - [x] **I59. The wang spawn-scene VARIANTS were the wrong ones (user, 2026-11-09: placement right, choice wrong) — CLOSED dig #220:** the host called the spawn functions at the old cell corner instead of the engine's spawn-record position `10·t − 5 − G` (C191, §8 row 84), so every `ProceduralRandom(x, y)` pick was re-seeded. Pin: `tests/mapgen/wang-scenes.test.mjs`.
 - [x] **I60. The bin lane read the generator at the constant C78 anchor instead of the per-area law — CLOSED dig #222:** the bin + wang-scene reads use `binAnchor` = `+5 + 10·frac(c·51.2)` per area (C192/C193); clean A/B on the C78 instrument: the constant's per-chunk residual = the law's prediction, the port's ≈ (0, 0), zero-shift scores up on all three metrics (ABOUT (222)).
 
