@@ -9,7 +9,7 @@ import path from "node:path";
 import { loadBiomeConfig, biomeAt, biomeAtPixel, biomeChunkDef } from "./biomes.mjs";
 import { buildTileset } from "./wang-js.mjs";
 import { generateAreaExact } from "./generate-exact.mjs";
-import { colorizeArea, applyRandomFloods, loadMaterials } from "./colorize.mjs";
+import { colorizeArea, applyRandomFloods, loadMaterials, loadBiomeExtras, SHADES } from "./colorize.mjs";
 import { workWrapY, workCellAt } from "./the-work.mjs"; // dig #215 (C186): the Work y-wrap law
 import { renderTemplateWorld, blitScene, blitBackdrop, SPLICE_PNGS, loadPixelSceneTable } from "./template-render.mjs";
 import { LazyChunkStore } from "./chunk-store.mjs";
@@ -143,6 +143,41 @@ export function binSampleAt(world, wx, wy, tx, ty, gx, gy) {
   return own ? { ...own, hit: false } : { idx: -1, x: gx, y: gy, hit: false };
 }
 const BIN_CANDIDATES = [[0, 0], [-1, 0], [0, -1], [-1, -1], [1, 0], [0, 1], [1, 1], [1, -1], [-1, 1]];
+// dig #232: a grey PLACEHOLDER cell keeps colorize's family decision (the
+// shade family it was painted with — the A5/I43 stand-in for the classify's
+// material choice) but is coloured per pixel by the biome's own material
+// whose C185 texture holds that family's dominant colour (the capture's
+// placeholder solids = exactly earth.png / rock.png texels: (70,65,40)+(95,87,49)
+// and (39,40,45)+(62,69,85)). No such material ⇒ the colorized cell.
+const _famOf = new Map();
+for (const fam of ["rock", "soil", "sand"]) for (const s of SHADES[fam]) if (!_famOf.has(s.rgb.join())) _famOf.set(s.rgb.join(), fam);
+const _famMat = new Map(); // def.filename|fam -> material name | null
+function placeholderPx(world, a, ax, ay, wx, wy) {
+  const m = world.maps.get(a.key);
+  if (!m) return null;
+  const q = 3 * (ay * m.w + ax);
+  const fam = _famOf.get(`${m.rgb[q]},${m.rgb[q + 1]},${m.rgb[q + 2]}`);
+  if (!fam || !a.def?.filename) return null;
+  const k = `${a.def.filename}|${fam}`;
+  let name = _famMat.get(k);
+  if (name === undefined) {
+    name = null;
+    const dom = SHADES[fam][0].rgb;
+    const biomeFile = a.def.filename.replace(/^data\/biome\//, "").replace(/\.xml$/, "");
+    const mats = (loadBiomeExtras(world.dataDir, biomeFile).materials ?? []).filter((c) => !c.rare).map((c) => c.name);
+    for (const n of mats) {
+      if (materialRenderClass(world.dataDir, n) !== "solid") continue;
+      let hit = false;
+      for (let y = 0; y < 64 && !hit; y++) for (let x = 0; x < 64 && !hit; x++) {
+        const c = materialColorAt(world.dataDir, n, x, y);
+        if (c && c[0] === dom[0] && c[1] === dom[1] && c[2] === dom[2]) hit = true;
+      }
+      if (hit) { name = n; break; }
+    }
+    _famMat.set(k, name);
+  }
+  return name ? materialColorAt(world.dataDir, name, wx - DISPLAY_X0, wy - DISPLAY_Y0) : null;
+}
 // the raw out_map cell's explicit solid material → C185 at the display px
 const _solidHex = new Map();
 function solidCellPx(world, a, ax, ay, wx, wy) {
@@ -150,7 +185,8 @@ function solidCellPx(world, a, ax, ay, wx, wy) {
   if (!raw || !world.dataDir || ax >= raw.w || ay >= raw.h) return null;
   const p = 3 * (ay * raw.w + ax);
   const rr = raw.rgb[p], gg = raw.rgb[p + 1], bb = raw.rgb[p + 2];
-  if (rr === gg && gg === bb) return null; // black air / the grey placeholder ramp
+  if (rr === 0 && gg === 0 && bb === 0) return null; // black = air
+  if (rr === gg && gg === bb) return placeholderPx(world, a, ax, ay, wx, wy); // the grey placeholder ramp
   const hex = (rr << 16) | (gg << 8) | bb;
   let name = _solidHex.get(hex);
   if (name === undefined) {
