@@ -259,9 +259,13 @@ export function sceneImageSpawnCalls(dataDir, scenes, hostFor, readImage) {
 // GetWidthFromPix frame, world-gen widthCells), so the call is NOT the old
 // `(x1 − 35)·512 + 10·i` (off by −5 − 10·frac(x1·51.2) = −5..−13 px — enough
 // to reseed every load_random_pixel_scene pick: the wrong-variant report).
-// The returned scenes are translated into the GENERATOR frame the bin lane
-// renders (cell i at (x1 − 35)·512 + 10·i): the scene keeps the game's offset
-// from its trigger cell (−5, −5); `callX/callY` = the game-frame position.
+// The record position IS the game cell's origin: the bin content samples P
+// through the C167 ±1 snap (s(f) ≥ 0.5 ⇒ +1 = rounding), so cell t covers
+// [10·t − 5, 10·t + 5) − G — the per-area C78 fit confirms it (dx ≈ 5 +
+// 10·frac(x1·51.2), dy ≈ 5 + 10·frac(y1·51.2); I60). The returned scenes are
+// translated into the GENERATOR frame the bin lane renders (cell i at
+// (x1 − 35)·512 + 10·i), keeping the game's zero offset from the trigger
+// cell; `callX/callY` = the game-frame position.
 export const SPAWN_G2 = 17920, SPAWN_G1 = 7168;
 export function spawnCallOrigin(x1, y1) {
   return {
@@ -272,8 +276,8 @@ export function spawnCallOrigin(x1, y1) {
 export function areaSceneCalls(host, a, raw) {
   const before = host.scenes.length;
   const call = spawnCallOrigin(a.area.x1, a.area.y1);
-  // generator-frame cell origin − game-frame cell origin (0..8 px per axis)
-  const dx = (a.area.x1 - 35) * 512 - (call.x + 5), dy = (a.area.y1 - 14) * 512 - (call.y + 5);
+  // generator-frame cell origin − game-frame cell origin (5..13 px per axis)
+  const dx = (a.area.x1 - 35) * 512 - call.x, dy = (a.area.y1 - 14) * 512 - call.y;
   const { w, h, rgb } = raw;
   let calls = 0;
   for (let j = 0; j < h; j++) {

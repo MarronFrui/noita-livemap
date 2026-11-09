@@ -50,11 +50,12 @@ describe.skipIf(!hasNoitaData)("wang spawn-scene lane — the Lua host (game dat
     const one = areaSceneCalls(h, COALMINE_AREA, mkRaw(8, 8, [[2, 3, OILTANK]]));
     expect(one.calls).toBe(1);
     expect(one.scenes).toHaveLength(1);
-    // game frame: 10·t − 5 − G (t = 1740 + 2, 716 + 3); generator frame: cell − (5, 5)
-    expect(one.scenes[0]).toMatchObject({ fn: "load_oiltank", callX: -505, callY: 17, x: -512 + 20 - 5, y: 30 - 5 });
+    // game frame: 10·t − 5 − G (t = 1740 + 2, 716 + 3) = the game cell origin;
+    // generator frame: the generator cell origin (zero offset from the trigger cell)
+    expect(one.scenes[0]).toMatchObject({ fn: "load_oiltank", callX: -505, callY: 17, x: -512 + 20, y: 30 });
     const n = areaSceneCalls(h, COALMINE_AREA, mkRaw(64, 8, [[10, 1, OILTANK], [30, 1, OILTANK], [50, 1, OILTANK]]));
     expect(n.calls).toBe(3);
-    expect(n.scenes.map((s) => s.x)).toEqual([-417, -217, -17]);
+    expect(n.scenes.map((s) => s.x)).toEqual([-412, -212, -12]);
     expect(n.scenes.map((s) => s.callX)).toEqual([-425, -225, -25]);
   });
 

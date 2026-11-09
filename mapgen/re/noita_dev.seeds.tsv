@@ -118,3 +118,4 @@
 0x8ed3a0	function	WorldSeed_StoreGlobalF64
 0x909370	function	Wang_CollectSpawnRecords
 0x834170	function	Lua_ProceduralRandom
+0x8fae40	function	WangP_ReadRounded
