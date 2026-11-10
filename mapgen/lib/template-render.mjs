@@ -940,14 +940,6 @@ export function renderTemplateChunk(buffers, dataDir, file, def, x, y, seed, con
     // generic per-chunk init() LoadPixelScene lane (mountain/pyramid
     // pieces, floating island, halls, bosses — the game's own art,
     // data-side; dynamic-offset callsites are still skipped, see §12).
-  } else if (PROC_FILL) {
-    // procedural material-band fill (full-range + banded routes) = the
-    // A-flagged approximation family: it paints every non-art pixel a
-    // material band (flat rock in air: the west winter / east desert
-    // surface bands, the pyramid surroundings, the _EMPTY_-named unique
-    // areas). No-guessing mandate: NOT shipping by default — honest air
-    // until the caves-field lane (fn B) lands. Verify with PROC_FILL=1.
-    renderProceduralFill(buffers, dataDir, file, def, x, y, seed);
   }
 }
 
@@ -972,18 +964,6 @@ function renderLavaFill(buffers, dataDir, x, y) {
   }
 }
 
-// --- procedural material fills (BIOME_PROCEDURAL banded materials) ---------
-// Full-range bands (-100..) render flat; narrow bands sample on world-seeded
-// fBm (shape approximation pending the poro noise port). Noise is periodic on
-// the 512px chunk lattice so tiled chunks stay seamless.
-// OPT-IN since the 2026-09-21 air-overfill fix (dig 52): the fill paints
-// every non-art pixel of its biome rect — inside AIR regions too (the
-// mountain-tree rectangle, the desert around the pyramid, the west winter /
-// east desert surface bands). Honest default = air; the real shape lives in
-// the caves-field lane (fn B read). A/B with PROC_FILL=1.
-const PROC_FILL = process.env.PROC_FILL === "1";
-const fillPatterns = new Map(); // biome file -> shared 512x512x3 pattern (flat fills)
-
 function chunkBuffer(buffers, ccx, ccy) {
   const key = `${ccx},${ccy}`;
   let buf = buffers.get(key);
@@ -997,64 +977,7 @@ function chunkBuffer(buffers, ccx, ccy) {
 // world px -> canvas chunk (canvas = world + (35, 62) chunks)
 const canvasChunk = (wx, wy) => [Math.floor(wx / 512) + 35, Math.floor(wy / 512) + 62];
 
-function renderProceduralFill(buffers, dataDir, file, def, x, y, seed) {
-  const bands = def.materialBands; // [{name, min, max, rare, limitMinY, limitMaxY}]
-  if (!bands || bands.length === 0) return;
-  const main = bands.filter((b) => !b.rare);
-  if (main.length === 0) return;
-  if (buffers.recording) {
-    buffers.record(x, y, x + 512, y + 512, (b) => renderProceduralFill(b, dataDir, file, def, x, y, seed));
-    return;
-  }
-  const lo = Math.min(...main.map((b) => b.min));
-  const hi = Math.max(...main.map((b) => b.max));
-  const fullRange = lo <= -100 && hi >= 100;
-  const [cx, cy] = canvasChunk(x, y);
-  const buf = chunkBuffer(buffers, cx, cy);
-  const chunkSalt = (Math.imul(cx, 0x9e3779b1) ^ Math.imul(cy, 0x85ebca6b) ^ (seed | 0)) | 0;
-
-  if (fullRange) {
-    // shared pattern per biome (position-jittered texture, chunk-independent)
-    let pat = fillPatterns.get(file);
-    if (!pat) {
-      pat = new Uint8Array(512 * 512 * 3);
-      for (let j = 0; j < 512; j++) {
-        const anyLimit = main.some((b) => b.limitMinY != null || b.limitMaxY != null);
-        for (let i = 0; i < 512; i++) {
-          const c = pick(materialShadeFor(dataDir, main[0].name), i, j, 0x3ad55e1f);
-          const o = 3 * (j * 512 + i);
-          pat[o] = c[0]; pat[o + 1] = c[1]; pat[o + 2] = c[2];
-        }
-        void anyLimit;
-      }
-      fillPatterns.set(file, pat);
-    }
-    buf.set(pat);
-    return;
-  }
-
-  // banded fill: per-px noise value -> component by [min,max) + world-y gates
-  for (let j = 0; j < 512; j++) {
-    const wy = y + j;
-    const active = main.filter(
-      (b) => (b.limitMinY == null || wy >= b.limitMinY) && (b.limitMaxY == null || wy <= b.limitMaxY)
-    );
-    if (active.length === 0) continue;
-    for (let i = 0; i < 512; i++) {
-      const wx = x + i;
-      const v = lo + fbm2(wx, wy, chunkSalt) * (hi - lo);
-      let chosen = null;
-      for (const b of active) {
-        if (v >= b.min && v < b.max) chosen = b;
-      }
-      if (!chosen) continue;
-      const c = pick(materialShadeFor(dataDir, chosen.name), i, j, chunkSalt);
-      const o = 3 * (j * 512 + i);
-      buf[o] = c[0]; buf[o + 1] = c[1]; buf[o + 2] = c[2];
-    }
-  }
-}
-
+// Seeded value noise (A5 stand-in, used by the grey placeholder fill):
 function fbm2(x, y, salt) {
   // periodic value noise on the 512px lattice (two octaves) -> [0,1)
   const h = (a, b, s) => {

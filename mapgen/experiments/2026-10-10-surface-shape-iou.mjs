@@ -11,8 +11,7 @@
 //
 // Lane gate (C97; the INVERSE of C79): any combo of SURFACE_V2/SURFACE_V3
 // is accepted and recorded — neither flag means the noise branch never
-// attaches (noise-terrain.mjs:383) ⇒ all-air masks ⇒ refuse. PROC_FILL
-// refused (template-band lane; C79 parity). One lane per process: the
+// attaches (noise-terrain.mjs:383) ⇒ all-air masks ⇒ refuse. One lane per process: the
 // flags are module-load-time consts (noise-terrain.mjs:96-97) and the V2
 // block early-returns before the V3 classify chain (:219) with its
 // caves-field gradAt gated on the SURFACE_V3 conjunct (:231) — see C97.
@@ -31,10 +30,6 @@ const LANE_V2 = process.env.SURFACE_V2 === "1";
 const LANE_V3 = process.env.SURFACE_V3 === "1";
 if (!LANE_V2 && !LANE_V3) {
   console.error("refusing: SURFACE_V2=1 and/or SURFACE_V3=1 required — neither attaches the noise branch (noise-terrain.mjs:383, CONSTANTS.md::C97)");
-  process.exit(2);
-}
-if (process.env.PROC_FILL) {
-  console.error("refusing: PROC_FILL set — the template-band lane must stay at its default (C79 parity, CONSTANTS.md::C97)");
   process.exit(2);
 }
 const LANE = LANE_V2 && LANE_V3 ? "v2v3" : LANE_V2 ? "v2" : "v3";
@@ -343,7 +338,7 @@ for (const [fam, tiles] of Object.entries(byFamily)) {
 // --- JSON + console summary -------------------------------------------------
 const summary = {
   spec: "CONSTANTS.md::C97", instrument: "2026-10-10-surface-shape-iou.mjs",
-  env: { SURFACE_V2: LANE_V2 ? "1" : null, SURFACE_V3: LANE_V3 ? "1" : null, PROC_FILL: null },
+  env: { SURFACE_V2: LANE_V2 ? "1" : null, SURFACE_V3: LANE_V3 ? "1" : null },
   lane: LANE,
   seed: CAPTURE_SEED, refDir: "mapgen/out/ref", anchor: "+11 +12 world px (C78)",
   p1Scanned, scorableTiles: scorable.length, c79Check,

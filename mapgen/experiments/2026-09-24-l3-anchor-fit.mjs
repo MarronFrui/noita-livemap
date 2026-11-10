@@ -24,7 +24,7 @@
 // Frame (verified in experiments/2026-09-21-surface-shape.mjs:66 this
 // session): ref = mapgen/out/ref/<tx>_<bty>.png (biome coords, 512×512);
 // gen = worldColorAt(world, tx*512+x, (bty+SKY_ROWS)*512+y), SKY_ROWS=48
-// (world-gen.mjs:20). Default render only — SURFACE_V2/V3/PROC_FILL lanes
+// (world-gen.mjs:20). Default render only — SURFACE_V2/V3 lanes
 // are env-gated and MUST stay off (this script refuses to run with them on).
 //
 // Scan range: certified spawn-constraint bound x∈[−1..3], y∈[0..2] ATLAS px
@@ -63,7 +63,7 @@ function arg(name, fb) {
 const LIMIT = Number(arg("limit", 0)); // 0 = all enumerated chunks
 
 // env-gate guard: measure the DEFAULT render only (AGENTS/ABOUT_MATH (52))
-for (const k of ["SURFACE_V2", "SURFACE_V3", "PROC_FILL"]) {
+for (const k of ["SURFACE_V2", "SURFACE_V3"]) {
   if (process.env[k]) {
     console.error(`refusing: ${k}=1 — the anchor fit must measure the default render`);
     process.exit(2);

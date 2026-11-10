@@ -3,7 +3,7 @@
 // worldColorAt sampling. Metric spec = CONSTANTS.md::C79.
 //
 // Env gate (C79): SURFACE_V3=1 REQUIRED (the candidate lane whose
-// default-ization Phase 5 gates), SURFACE_V2/PROC_FILL REFUSED so the
+// default-ization Phase 5 gates), SURFACE_V2 REFUSED so the
 // measurement isolates exactly what step 3 would drop the gate from
 // (noise-terrain.mjs:297 attach gate off ⇒ the classify chain at
 // noise-terrain.mjs:241 runs).
@@ -27,8 +27,8 @@ if (process.env.SURFACE_V3 !== "1") {
   console.error("refusing: SURFACE_V3=1 required (candidate-lane measurement, CONSTANTS.md::C79)");
   process.exit(2);
 }
-if (process.env.SURFACE_V2 || process.env.PROC_FILL) {
-  console.error("refusing: SURFACE_V2/PROC_FILL set — isolate the V3 candidate (CONSTANTS.md::C79)");
+if (process.env.SURFACE_V2) {
+  console.error("refusing: SURFACE_V2 set — isolate the V3 candidate (CONSTANTS.md::C79)");
   process.exit(2);
 }
 
@@ -275,7 +275,7 @@ for (const s of stats) (byRow[s.bty] ??= []).push(s);
 
 const summary = {
   spec: "CONSTANTS.md::C79", instrument: "2026-09-24-surface-y-iou.mjs",
-  env: { SURFACE_V3: "1", SURFACE_V2: null, PROC_FILL: null },
+  env: { SURFACE_V3: "1", SURFACE_V2: null },
   seed: CAPTURE_SEED, refDir: "mapgen/out/ref", anchor: "+11 +12 world px (C78)",
   p1Scanned, scorableTiles: scorable.length,
   overall: agg(stats),

@@ -239,7 +239,7 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   currently measures this lane's rendered shape. **[③ CLOSED dig #118
   (entry (118), C97):** `2026-10-10-surface-shape-iou.mjs` measures the
   full 512×512 solid mask under ANY lane combo (C79-inverted gate;
-  neither-flag and PROC_FILL refused) on C79's exact 56-tile set
+  neither-flag refused) on C79's exact 56-tile set
   (cross-checked match, 0 missing / 0 extra). Three-lane baseline —
   overall iou **v2 0.23391 / v2v3 0.25183 / v3 0.24644**, iouShift
   gains ≤ +0.008 (dyOpt median 0) ⇒ **lane choice and vertical

@@ -3,8 +3,7 @@
 // (md5 8b611494212a69492dd0a4527d9c92e0). dig #96 (Phase 4 step 2):
 // module-as-library + tests; dig #97 (Phase 4 step 3) wires these into
 // noise-terrain.mjs's SURFACE_V3 default branch (attach-gated @:235;
-// chain + classify-frame cites CONSTANTS C76). The PROC_FILL lane
-// (template-render.mjs:661) stays unwired until Phase 5.
+// chain + classify-frame cites CONSTANTS C76).
 //
 // Every address/byte/constant below was read/verified THIS session from
 // /tmp/opencode/fulltext86.asm or PE reads of the exe (.rdata file = VA −

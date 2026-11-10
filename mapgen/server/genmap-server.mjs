@@ -62,7 +62,7 @@ const TILE_REV = sourceRevision(
     path.join(repoRoot, "mapgen/server/tile-worker.mjs"),
     path.join(repoRoot, "mapgen/server/capture-layer.mjs"),
   ],
-  [path.basename(cacheDir), dataDir, ...["SURFACE_V2", "SURFACE_V3", "PROC_FILL", "CAPTURE_LAYER"].map((k) => `${k}=${process.env[k] ?? ""}`)].join("|")
+  [path.basename(cacheDir), dataDir, ...["SURFACE_V2", "SURFACE_V3", "CAPTURE_LAYER"].map((k) => `${k}=${process.env[k] ?? ""}`)].join("|")
 );
 let clears = 0;
 const epochNow = () => `${TILE_REV}.${clears}`;
