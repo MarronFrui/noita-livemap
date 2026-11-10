@@ -122,3 +122,18 @@ body,
   font-size: 11px;
   color: #888;
 }
+
+/* bridge link state (src/live-link.mjs describe() tones) */
+#status[data-tone='ok'] {
+  color: #7ce38b;
+}
+#status[data-tone='warn'] {
+  color: #ffd479;
+}
+#status[data-tone='error'] {
+  color: #ff8f8f;
+}
+#telemetry-overlay[data-link='stale'] .value,
+#telemetry-overlay[data-link='retrying'] .value {
+  opacity: 0.55;
+}

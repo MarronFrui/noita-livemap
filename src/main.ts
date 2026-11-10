@@ -1,10 +1,4 @@
-type Telemetry = {
-  seed: number | string;
-  x: number;
-  y: number;
-  biome: string;
-  ts: number;
-};
+import { createLiveLink, describe } from './live-link.mjs';
 
 // Seed used for the regular-main-branch tile capture on noitamap.com.
 // Source: vendor/noitamap/src/data/map_definitions.json + tilesources.json
@@ -16,11 +10,10 @@ const positionEl = document.getElementById('position')!;
 const statusEl = document.getElementById('status')!;
 const warningEl = document.getElementById('seed-warning')!;
 const iframe = document.getElementById('noitamap-frame') as HTMLIFrameElement;
+const telemetryOverlay = document.getElementById('telemetry-overlay')!;
 
 let followPlayer = false;
-let iframeReady = false;
-let ws: WebSocket | null = null;
-let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let iframeReady = iframe.contentDocument?.readyState === 'complete';
 let lastCenterTime = 0;
 const FOLLOW_CENTER_INTERVAL = 2000; // ms
 
@@ -30,124 +23,61 @@ function sendToNoitamap(data: unknown) {
   }
 }
 
-iframe.addEventListener('load', () => {
-  iframeReady = true;
-  updateStatus();
-});
-
-// In case the iframe is already loaded when this script runs.
-if (iframe.contentDocument?.readyState === 'complete') {
-  iframeReady = true;
-}
-
-function updateStatus() {
-  if (!ws) {
-    statusEl.textContent = 'Connecting to bridge…';
-    return;
-  }
-
-  switch (ws.readyState) {
-    case WebSocket.CONNECTING:
-      statusEl.textContent = 'Connecting to bridge…';
-      break;
-    case WebSocket.OPEN:
-      statusEl.textContent = iframeReady
-        ? 'Connected to bridge'
-        : 'Connected to bridge, waiting for map…';
-      break;
-    case WebSocket.CLOSING:
-    case WebSocket.CLOSED:
-      statusEl.textContent = 'Disconnected from bridge';
-      break;
-  }
-}
-
 const BRIDGE_HOST = window.location.hostname || 'localhost';
 const BRIDGE_URL = `ws://${BRIDGE_HOST}:8080`;
 
-function connectWebSocket() {
-  if (ws) {
-    return;
+// The bridge connection is the explicit state machine in live-link.mjs
+// (off/connecting/waiting/live/stale/retrying); this page only renders it.
+const link = createLiveLink({
+  url: BRIDGE_URL,
+  log: (m: string) => console.log(`[noita-live-map] ${m}`),
+  onChange: (model: any, prev: any) => {
+    if (model.telemetry && model.telemetry !== prev.telemetry) onTelemetry(model.telemetry);
+    renderStatus();
+  },
+});
+
+function renderStatus() {
+  const model = link.model;
+  const { text, tone } = describe(model);
+  let line = text;
+  if (model.state === 'live' && model.telemetry?.ts != null) {
+    line = `Live · updated ${new Date(model.telemetry.ts * 1000).toLocaleTimeString()}`;
   }
+  if (!iframeReady) line += ' · waiting for map…';
+  statusEl.textContent = line;
+  statusEl.dataset.tone = tone;
+  telemetryOverlay.dataset.link = model.state;
+}
 
-  console.log(`[noita-live-map] Connecting to ${BRIDGE_URL}`);
-  ws = new WebSocket(BRIDGE_URL);
-  updateStatus();
+function onTelemetry(t: { seed: number | null; seedText: string; x: number; y: number; biome: string }) {
+  seedEl.textContent = t.seedText;
+  biomeEl.textContent = t.biome;
+  positionEl.textContent = `${t.x}, ${t.y}`;
+  warningEl.style.display = t.seed != null && t.seed !== MAP_CAPTURE_SEED ? 'block' : 'none';
 
-  window.addEventListener(
-    'beforeunload',
-    () => {
-      if (ws) {
-        ws.close();
-        ws = null;
-      }
-    },
-    { once: true },
-  );
+  sendToNoitamap({ type: 'noita-live-map:telemetry', x: t.x, y: t.y });
 
-  ws.addEventListener('open', () => {
-    console.log('[noita-live-map] WebSocket connected');
-    updateStatus();
-  });
-
-  ws.addEventListener('message', (event) => {
-    try {
-      const data: Telemetry = JSON.parse(event.data);
-      const currentSeed = Number(data.seed);
-
-      seedEl.textContent = String(data.seed);
-      biomeEl.textContent = data.biome;
-      positionEl.textContent = `${data.x}, ${data.y}`;
-      statusEl.textContent = `Last update: ${new Date(data.ts * 1000).toLocaleTimeString()}`;
-
-      if (!Number.isNaN(currentSeed) && currentSeed !== MAP_CAPTURE_SEED) {
-        warningEl.style.display = 'block';
-      } else {
-        warningEl.style.display = 'none';
-      }
-
-      sendToNoitamap({
-        type: 'noita-live-map:telemetry',
-        x: data.x,
-        y: data.y,
-      });
-
-      if (followPlayer) {
-        const now = Date.now();
-        if (now - lastCenterTime >= FOLLOW_CENTER_INTERVAL) {
-          lastCenterTime = now;
-          sendToNoitamap({ type: 'noita-live-map:center-on-player' });
-        }
-      }
-    } catch (err) {
-      console.error('[noita-live-map] Failed to parse telemetry:', err);
+  if (followPlayer) {
+    const now = Date.now();
+    if (now - lastCenterTime >= FOLLOW_CENTER_INTERVAL) {
+      lastCenterTime = now;
+      sendToNoitamap({ type: 'noita-live-map:center-on-player' });
     }
-  });
-
-  ws.addEventListener('close', () => {
-    console.warn('[noita-live-map] WebSocket closed');
-    ws = null;
-    updateStatus();
-    scheduleReconnect();
-  });
-
-  ws.addEventListener('error', (err) => {
-    console.error('[noita-live-map] WebSocket error:', err);
-    statusEl.textContent = 'Bridge connection error';
-  });
-}
-
-function scheduleReconnect() {
-  if (reconnectTimer) {
-    return;
   }
-  reconnectTimer = setTimeout(() => {
-    reconnectTimer = null;
-    connectWebSocket();
-  }, 2000);
 }
 
-connectWebSocket();
+iframe.addEventListener('load', () => {
+  iframeReady = true;
+  // replay the last known position: telemetry that arrived before the map loaded was dropped
+  const t = link.model.telemetry;
+  if (t) sendToNoitamap({ type: 'noita-live-map:telemetry', x: t.x, y: t.y });
+  renderStatus();
+});
+
+window.addEventListener('beforeunload', () => link.stop(), { once: true });
+
+link.start();
 
 // Map controls
 const controlsContainer = document.createElement('div');
@@ -174,7 +104,6 @@ followLabel.querySelector('input')!.addEventListener('change', (ev) => {
 });
 controlsContainer.appendChild(followLabel);
 
-const telemetryOverlay = document.getElementById('telemetry-overlay')!;
 telemetryOverlay.appendChild(controlsContainer);
 
 // Collapse/expand telemetry panel
