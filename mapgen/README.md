@@ -135,16 +135,10 @@ node -e 'import("./mapgen/lib/wang-template-writer.mjs").then(async W => { const
 
 # recover vertex grids from the dumps
 node mapgen/experiments/2026-09-04-lab-vertex-recovery.mjs
-
-# automated hypothesis search (two exits: 100% match → auto-verify 92/93,
-# or timeout in minutes; journal: out/oracle/optimizer-log.jsonl)
-node --max-old-space-size=4096 mapgen/experiments/2026-09-04-lab-optimizer.mjs 60
 ```
 
-Resource notes: optimizer RSS ≈ 72 MB (no OOM risk in v2 — v1 OOMed by
-journaling every candidate; v2 journals new bests/survivors only). Full S1
-exhaustive sweep ≈ 94M candidates ≈ 35 min single-threaded. Artifacts live
-on the repo disk (gitignored); the game disk only holds the small CSVs.
+Artifacts live on the repo disk (gitignored); the game disk only holds the
+small CSVs.
 
 ### tests/ (repo root, vitest)
 

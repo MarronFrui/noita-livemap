@@ -54,7 +54,6 @@ npm run bench:diff   # score chunks, write stats.json + report.html
 npm run gen:server   # generated-map tile server on :8082 (mapgen/server/genmap-server.mjs)
 npm run gen:clear    # wipe the generated-world cache (-- --seed N scopes to one seed)
 node mapgen/experiments/2026-09-03-fit-transform.mjs       # cross-correlate gen vs ref masks
-node mapgen/experiments/2026-09-03-verify-vs-noitool.mjs   # (OBSOLETE) historical check vs noitool fixtures
 
 # Capture analysis (see mapcap/README.md; artifacts in mapcap/out/, gitignored)
 node mapcap/analyze-capture.mjs --name <run> --seed <seed> [--stitched <png>] [--chunks true]
@@ -63,7 +62,6 @@ node mapcap/diff-vs-reference.mjs --name <run>
 
 # Wang Lab (controlled fill experiments; see mapgen/README.md + ABOUT_MATH §7.6)
 node mapgen/experiments/2026-09-04-lab-vertex-recovery.mjs          # dumps → vertex grids
-node --max-old-space-size=4096 mapgen/experiments/2026-09-04-lab-optimizer.mjs 60  # hypothesis search (timeout min)
 
 # Tests (vitest; data-dependent suites auto-skip without extracted data)
 npm test             # full battery: API surface, PRNG, wang fill, hasPath
