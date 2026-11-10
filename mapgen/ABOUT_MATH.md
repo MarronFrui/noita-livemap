@@ -1,20 +1,14 @@
 # Noita Map-Gen Math — Working Notes
 
-> **File note (2026-09-03)**: the `mapgen/` folder was reorganized after this
-> document was partly written (`wang.mjs`→`lib/wang-wasm.mjs`, `wangjs.mjs`→
-> `lib/wang-js.mjs`, `pngio.mjs`→`lib/images.mjs`, pipeline + dated
-> experiments). Evidence-log entries may cite the old filenames; the current
-> layout and each file's purpose live in `mapgen/README.md`.
+> **File note:** cited old filenames map to the current layout as
+> `wang.mjs`→`lib/wang-wasm.mjs`, `wangjs.mjs`→`lib/wang-js.mjs`,
+> `pngio.mjs`→`lib/images.mjs`; each file's purpose lives in `mapgen/README.md`.
 
 Everything we know about the map-generation math, with sources and verification
-status. This is the shared map of the rabbit hole — update it as we learn.
-
-> **Read order note (2026-09-08):** the distilled, current-only truth —
-> verified facts, eliminated-don't-retest rows, open frontier — lives in
-> `mapgen/VERIFIED.md`. This file is the research journal: new results land
-> here first (§6 evidence log; current state only — AGENTS.md Synthesis law), and settled conclusions are
-> distilled into `VERIFIED.md`. Where the two disagree, re-check the cited
-> sources; the newer evidence wins and both get fixed.
+status. The distilled current-only truth (verified facts, do-not-retest rows,
+open frontier) lives in `mapgen/VERIFIED.md`; this file is the evidence journal
+(§6; current state only — AGENTS.md Synthesis law). Where the two disagree,
+re-check the cited sources; the newer evidence wins and both get fixed.
 
 Legend: ✅ verified (we ran it / byte-compared) · 🔎 plausible (code read, not
 empirically tested) · 🔗 cross-confirmed (multiple independent sources agree,
@@ -30,7 +24,7 @@ but no direct in-game probe yet) · ❓ hypothesis · upstream refs are
 | --- | --- | --- | --- |
 | **World px** | game pixel | capture spans x −53760..+53759 (3 DZI segments, incl. parallel worlds); **main world = 70 chunks, x −35..+34** (−17920..+17919); origin = left edge of biome-map px 35 | — |
 | **Chunk** | 512 world px | world is 71×144 chunks in the capture (−35..+35, −62..+81) | `cx = floorDiv512(worldX)` |
-| **Biome-map px** | 1 px = 1 chunk | 70×48 (`data/biome_impl/biome_map.png`; re-verified on disk 2026-09-04 — also disproves the "64×64 / 96×55 chunks / 35714 px" figures that circulated in a session handover) | `cx = tx − 35`, `cy = ty − 14` 🔗 (offset 14 = game's own `biome_offset_y` ✅; conversion = noitool's decompilation + capture alignment; **not yet probed in-game**) |
+| **Biome-map px** | 1 px = 1 chunk | 70×48 (`data/biome_impl/biome_map.png`, verified on disk; disproves "64×64 / 96×55 chunks / 35714 px") | `cx = tx − 35`, `cy = ty − 14` 🔗 (offset 14 = game's own `biome_offset_y` ✅; conversion = noitool's decompilation + capture alignment; **not yet probed in-game**) |
 | **Wang cell** | 10 world px | lattice of the wang layer | `cell ≈ worldPx / 10` — **non-integer ratio 512/10 = 51.2, see §4** |
 | **Atlas px** | 1 px in `data/wang_tiles/<biome>.png` | coalmine 348×448, excavationsite 344×440 … | 1 atlas px = 1 wang cell ✅ (iterateMap `cb(gx + px*10, …)`, mapWasm.ts:182) |
 | **bigMap px** | per-area cell grid ×10 | `w*10 × h*10` where `w,h` = area dims in cells | anchored at **area origin**, not world origin (noitool choice) |
@@ -45,7 +39,7 @@ GetWidthFromPix(a,b) = (b*512)/10 − (a*512)/10;   // C TRUNCATING division ✅
 ```
 
 Empirical check ✅: `GetGlobalPosX(34,14) = −512` = exact chunk border of the
-spawn Mines area (bench manifest, 2026-09-03).
+spawn Mines area (bench manifest).
 
 ## 2. The PRNG (exact, ✅ from nr/:15-70)
 
@@ -95,7 +89,7 @@ Each `data/wang_tiles/<biome>.png` is a self-describing stbhw template:
 
 **Binary header** = last 9 RGB bytes of the image's FIRST row, decoded as
 `header[i] = byte[w*3-1-i] ^ (i*55)` — **truncated to uint8** (C semantics;
-a JS port must `& 0xFF` — this exact bug produced garbage once).
+a JS port must `& 0xFF`).
 
 - `header[7] == 0xC0` → **corner-type**: `num_color[0..3] = header[0..3]`,
   `vary_x = header[4]`, `vary_y = header[5]`, `short_side_len = header[6]`
@@ -107,7 +101,7 @@ constraints (a,b,c top/left, d,e,f bottom/right).
 
 Verified decode of all 31 atlases (dims recompute exactly via the template
 size formula): **all corner-type except winter_caves (edge-type)**. Sparse
-per-vertex-class color counts exactly as article 2 predicts: coalmine
+per-vertex-class color counts as article 2 predicts: coalmine
 `(1,2,1,2)` vary 3/3 short 13 → 72h+72v tiles; excavationsite `(1,2,1,2)`
 short 20 → 32h+32v; liquidcave `(1,2,1,2)` short 20; snowcave `(1,2,1,2)`
 short 26; crypt `(2,1,3,1)` short 22; fungicave `(3,1,3,1)` short 13 …
@@ -119,10 +113,9 @@ grid; the only randomness is the vertex coloring itself.
 ## 3.2. The fill algorithm (corner mode, read in full)
 
 1. Vertex grid `xmax = w/s+6`, `ymax = h/s+6`; **class `p = (i−j+1)&3`**
-   (settled — VERIFIED §8 row 6; the same-day 2026-09-07 "(i+j)&3
-   correction" misread the decrementing row counter, asm 0x8eca4b `MOV
-   EBX,1` … 0x8ecacd `DEC EBX`; the lab's binary-class rule
-   `(I−J)&3 ∈ {0,2}` has the same parity classes).
+   (settled — VERIFIED §8 row 6; "(i+j)&3" misread the decrementing row
+   counter, asm 0x8eca4b `MOV EBX,1` … 0x8ecacd `DEC EBX`; the lab's
+   binary-class rule `(I−J)&3 ∈ {0,2}` has the same parity classes).
    `c_color[j][i] = rand() % cc[p]` — **one RNG draw per vertex, scan order**.
 2. Repetition-reduction pass (default ON): re-colors vertices where a 3×2
    neighborhood matches fully (extra RNG draws, order-dependent).
@@ -135,11 +128,10 @@ grid; the only randomness is the vertex coloring itself.
 
 ## 4. The alignment problem — the actual frontier
 
-**The two grids disagree.** Wang cells are 10 px; chunks are 512 px;
-`512/10 = 51.2` cells per chunk. Two grids with an irrational-ish (non-integer)
-ratio cannot stay aligned without re-anchoring. This is where "wang → game
-space" (noitool's declared unsolved part) lives, and where the user's principle
-applies:
+Wang cells are 10 px; chunks are 512 px; `512/10 = 51.2` cells per chunk —
+two grids with a non-integer ratio cannot stay aligned without re-anchoring.
+This is where "wang → game space" (noitool's declared unsolved part) lives.
+Principle (user):
 
 > **A constant offset is only valid if the drift it corrects is zero or
 > sawtooth-shaped. Any linear (multiplier) component makes a constant wrong
@@ -147,22 +139,18 @@ applies:
 
 Known facts:
 
-- `GetGlobalPos` has **no phase at all** (pure `512*(x−35)`) — chunk corners are
-  assumed exactly on cell boundaries ×512... which 512 does NOT satisfy (512 ≢ 0 mod 10).
+- `GetGlobalPos` has **no phase** (pure `512*(x−35)`) — assumes chunk corners on
+  cell boundaries, which 512 does NOT satisfy (512 ≢ 0 mod 10).
 - `GetWidthFromPix` = `worldPx/10` with **truncating** division → on negative
-  world px, trunc ≠ floor: cell boundaries are asymmetric around x=0. Example:
-  `(−512)/10` truncates to **−51**, floor would give **−52**.
+  world px, trunc ≠ floor: `(−512)/10` truncates to **−51**, floor gives **−52**.
 - Under noitool's anchoring, per-chunk cell counts sawtooth between 51 and 52
-  (period 5 chunks, since 512k mod 10 cycles 2,4,6,8,0), and bigMap px drift
-  up to ±10 px from world px at internal chunk boundaries. Measured ✅: chunk
-  35 of the spawn area crops at bigMap x=520 while its true world offset is 512 (+8).
-- The `+5/+13` magic in `drawImageData` (`w/:858-867`): chunk assignment for
-  pixel scenes uses `(gx+5)/512`, `(gy+13)/512`.
-  - `+5` = half a cell (10 px): assign by cell *center* → fixes cell-straddles.
-    Defensible, not a drift fix.
-  - `+13` = `+5 + 8`: an 8 px vertical phase with no derivation. Empirical patch ❓.
-  - User's critique stands: if real drift is linear, these constants only work
-    near where the author measured them.
+  (period 5 chunks, 512k mod 10 cycles 2,4,6,8,0), and bigMap px drift up to
+  ±10 px from world px at internal chunk boundaries. Measured ✅: chunk 35 of
+  the spawn area crops at bigMap x=520 while its true world offset is 512 (+8).
+- The `+5/+13` magic in `drawImageData` (`w/:858-867`): pixel-scene chunk
+  assignment uses `(gx+5)/512`, `(gy+13)/512`. `+5` = half a cell (assign by
+  cell center); `+13` = `+5 + 8`, an underived 8 px vertical phase ❓. If real
+  drift is linear, these constants only work near where they were measured.
 
 **Hypotheses for the true anchoring:**
 
@@ -172,66 +160,50 @@ Known facts:
 | H2 | Game re-anchors the lattice at each chunk boundary | sawtooth error vs any global model, amplitude ≤10 px, period 1 chunk |
 | H3 | noitool: per-area anchor at `(area.x1*512)/10` trunc | deviates from H1 by the trunc-phase of the area origin; consistent per area, varies between areas |
 
-**Discriminating experiment:** fit per-chunk best shift as a function of
-distance from the area origin (and from world 0). Sawtooth (H2) → alternating
-signs; linear → monotonic growth; H1 vs H3 → single-cell steps at negative coords.
+**Discriminating experiment:** fit per-chunk best shift vs distance from the
+area origin (and world 0). Sawtooth (H2) → alternating signs; linear →
+monotonic growth; H1 vs H3 → single-cell steps at negative coords.
 
 **Related oddities (unexplained, record-only):**
 
-- `GetBiomeOffsetX()` (`w/:113`): derives a seed-dependent offset
-  (`NewNollaPrng(worldSeed)`, 3rd `Next()`, scaled to ±100 000) — **dead code**,
-  never called in the wasm path. Either an unused game mechanic (biome-map
-  shift per seed?) or an abandoned experiment. Worth checking against the game.
+- `GetBiomeOffsetX()` (`w/:113`): seed-dependent offset (`NewNollaPrng(worldSeed)`,
+  3rd `Next()`, scaled to ±100 000) — **dead code** in the wasm path; unused
+  game mechanic or abandoned experiment. Worth checking against the game.
 - `BIOME_PATH_FIND_WORLD_POS_MIN_X/MAX_X = 159/223` (`w/:105-106`) — beyond the
   70-wide map; parallel-world east coordinates?
 
 ## 4.1. Herringbone theory — the nothings.org articles (read 2026-09-03)
 
-Sources (now fully read, linked from https://nothings.org/gamedev/herringbone/):
+Sources (linked from https://nothings.org/gamedev/herringbone/):
 `herringbone_tiles.html` (2011) and `more_herringbone_tiles.html` (2014).
-
-**Critical fact: `wang.cpp` includes `stb_hbwang.h` — Barrett's own library
-companion to these articles.** This is not analogous theory; it documents the
-exact algorithm family inside Noita.
-
-Layering of the two mechanisms (no contradiction):
+**`wang.cpp` includes `stb_hbwang.h`** — Barrett's own library companion to
+these articles, i.e. the exact algorithm family inside Noita.
 
 ```
 outer loop (rejection sampling):   do { candidate = wang_fill(rng2); accept if hasPath() } ≤ 100×
 inner generator (herringbone wang): fill the WHOLE lattice in one pass, edge-constrained, from rng2
 ```
 
-Wang tiling = which tile colors go at which lattice cell (cell space).
-Rejection sampling = keep/discard whole candidates (also cell space).
-Neither moves the lattice relative to world px — the alignment problem (§4)
-lives entirely in the cell↔world mapping functions. A candidate re-roll
-changes *content*, never *grid position*. Sub-cell measured shifts (−2,−4 px)
-point at rounding modes, not fill behavior; whole-cell (10k px) shifts would
-point at generation windowing (see below).
+Both live in cell space; neither moves the lattice relative to world px — the
+alignment problem (§4) lives entirely in the cell↔world mapping. A re-roll
+changes *content*, never *grid position*. Sub-cell shifts (−2,−4 px) point at
+rounding modes; whole-cell (10k px) shifts would point at generation windowing.
 
-Key theory takeaways relevant to Noita:
+Takeaways:
 
-1. **Complete stochastic set**: if the tileset has every edge-combination
-   variant, filling is trivially left-to-right/top-to-bottom with no
-   backtracking — and, crucially, the generator can respect *pre-placed*
+1. **Complete stochastic set**: with every edge-combination variant, filling is
+   left-to-right/top-to-bottom with no backtracking and respects *pre-placed*
    constraints without a solver.
-2. **Large/multi-tile structures** ("special content wider than one tile"):
-   place them FIRST (pre-placement), express them with unique boundary colors
-   forcing co-placement, then fill around them. This is almost certainly how
-   Noita does multi-chunk structures (Holy Mountains, wide rooms, Tower) —
-   and noitool's `shouldBlockOutRooms` / `blockedColors`
-   (coalmine, excavationsite, solid_wall_tower_1/2) is his reconstruction of
-   exactly that pre-placement step.
+2. **Multi-tile structures**: placed FIRST with unique boundary colors forcing
+   co-placement, then filled around — likely how Noita does Holy Mountains,
+   wide rooms, Tower; noitool's `shouldBlockOutRooms` / `blockedColors`
+   (coalmine, excavationsite, solid_wall_tower_1/2) reconstructs that step.
 3. **Herringbone structure** (article 2): 6 edge classes, **4 vertex classes**
    with independently choosable color counts (e.g. `(2,2,2,1)` reduces tile
-   count 2-4×). When we parse `stbhw_build_tileset_from_image` / the atlases,
-   expect this per-class color structure. The 4 vertex classes also explain
-   why horizontal and vertical phase behavior can differ (relevant to +5 vs +13).
-4. **Suspect carried forward** (user's instinct, sharpened): the generation
-   WINDOW — stbhw generates `height+4` rows and noitool discards the top 4
-   (§3 step 6). If the game's window/start-corner parity differs, content
-   shifts by whole cells → looks like misalignment. Test after the
-   trunc-vs-floor experiment.
+   count 2-4×); may explain differing horizontal/vertical phase (+5 vs +13).
+4. **Suspect:** the generation WINDOW — stbhw generates `height+4` rows and
+   noitool discards the top 4 (§3 step 6); a window/start-corner parity
+   difference would shift content by whole cells.
 
 ## 5. Knobs we control (bench)
 
@@ -246,8 +218,7 @@ Key theory takeaways relevant to Noita:
 
 ## 5.1. Special areas & connectivity — constraint ruleset
 
-How unique (pre-placed) areas relate to the randomized wang fill. Layer model,
-each layer with what we know and what we don't:
+Layer model:
 
 ```
 L0  biome partition      static biome_map.png → chunk → biome (per seed? see GetBiomeOffsetX, §4)
@@ -257,19 +228,13 @@ L3  connectivity check   the whole candidate is validated (JPS hasPath) → reje
 L4  pixel scenes/decor   overlays (LoadPixelScene pools), spawn functions
 ```
 
-**The exit↔corridor constraint** (the reason L3 exists at all): a pre-placed
-structure has fixed doors/exits at fixed lattice positions; the fill must
-produce walkable continuity between those doors and the randomized tiles
-around them, otherwise the candidate is rejected and re-rolled. Per the
-herringbone articles (§4.1), the game can enforce this two ways:
+**Exit↔corridor constraint** (why L3 exists): a pre-placed structure has fixed
+doors at fixed lattice positions; the fill must connect them or the candidate
+is re-rolled. Enforcement is either **in-lattice** (structure authored as wang
+tiles with unique boundary colors — L2 handles it) or **post-hoc** (regions
+carved/blocked after filling, L3 guarantees connection).
 
-- **in-lattice**: the structure is authored *as wang tiles* with unique
-  boundary colors that force co-placement and guarantee corridor matches
-  (article 1's "large tiles" mechanism) — then L2 handles it for free;
-- **post-hoc**: regions are carved/blocked out of the candidate *after*
-  filling, and the path check (L3) is what guarantees the exits still connect.
-
-Known code artifacts mapped to layers (upstream, mostly 🔎 unread):
+Code artifacts mapped to layers (upstream, mostly 🔎 unread):
 
 | Artifact | Layer | Status |
 | --- | --- | --- |
@@ -281,18 +246,15 @@ Known code artifacts mapped to layers (upstream, mostly 🔎 unread):
 | atlas unique boundary colors (co-placement forcing) | L1/L2 | expected per articles; not yet inspected in atlases |
 | discarded `+4` rows in stbhw output | L2 windowing | unexplained |
 
-Open questions specific to this ruleset:
+Open questions:
 
-1. Is pre-placement **in-lattice** (atlas colors) or **post-hoc** (carving)?
+1. Pre-placement **in-lattice** (atlas colors) or **post-hoc** (carving)?
    `coalmine_hax.cpp` + `blockedColors` likely hold the answer.
-2. Where does the *selection* of special structures consume RNG — the same
-   `GetRNG` stream before wang filling, or a separate one? (Order matters.)
-3. Does the game enforce **cross-biome continuity** (a biome's exit must meet
-   the next biome's entrance), or does each area's own `hasPath` suffice?
-   Holy Mountains are the hand-placed inter-biome connectors — likely fixed
-   geometry, but unverified.
-4. Do rejected candidates re-use the same pre-placements (L1 fixed per seed,
-   only L2/L3 re-rolled) or re-place structures too?
+2. Does special-structure *selection* consume the same `GetRNG` stream before
+   wang filling, or a separate one?
+3. Is **cross-biome continuity** enforced, or does each area's `hasPath`
+   suffice? (Holy Mountains = hand-placed connectors, likely fixed geometry.)
+4. Do rejected candidates re-use the same pre-placements?
 
 ## 6. Evidence log
 
@@ -479,301 +441,168 @@ Open questions specific to this ruleset:
 
 - **2026-09-08 (late) — HASPATH PORTED + ORACLE-VALIDATED** (`lib/has-path.mjs`,
   `lib/generate-exact.mjs`, `experiments/2026-09-08-haspath-oracle.mjs`).
-  Exact port of noitool's decompilation-derived rejection rule (Search =
-  greedy best-first flood, priority |y−goalRow| then FIFO, neighbors
-  up/left/right/down, visited cells painted PURPLE and state PERSISTS across
-  the top-row scan; traversable = black/coffee/0xcff7c8/0x8aff80;
-  blockOutRooms (9 pixel-scene colors → white rects, scan sees its own
-  fills); doCoalMineHax (overlay from vendored coalmine_hax.cpp, 256-wide);
-  coalmine start_x=142; fillMainPath band for mainPath areas).
-  **Oracle: 8/8 constraints** — first-accepted attempt = 0/3/1 for
-  excavationsite 91/92/93 (92 rejects exactly 0,1,2 first). Independent
-  cross-check: coalmine 91 → attempt **1**, matching the spawn-equation
-  judge's family-shift winner (chest+wands at manh 3–4) — two methods, one
-  answer. The CE A=99 hint stays attributable to another w≡3 mod 11 area
-  (coalmine_alt or an item-less area; untestable, consistent).
-  API: `generateAreaExact(ts, w, h, seed, {isCoalMine, shouldBlockOutRooms,
-  worldX, worldY})` → accepted out_map (post-hasPath mutations, = finalize
-  input) + blockList + attempt; ~10 ms/area.
-  NOTE: the game's driver can SKIP hasPath entirely (flag `[ESP+0x20]`,
-  asm 0x9058e4: JZ → AL=1) — unidentified, all oracle areas validate.
+  Port of noitool's rejection rule: Search = greedy best-first flood, priority
+  |y−goalRow| then FIFO, neighbors up/left/right/down, visited cells painted
+  PURPLE, state PERSISTS across the top-row scan; traversable =
+  black/coffee/0xcff7c8/0x8aff80; blockOutRooms (9 pixel-scene colors → white
+  rects, scan sees its own fills); doCoalMineHax (overlay from
+  coalmine_hax.cpp, 256-wide); coalmine start_x=142; fillMainPath band for
+  mainPath areas. **Oracle 8/8**: first-accepted attempt = 0/3/1 for
+  excavationsite 91/92/93 (92 rejects exactly 0,1,2). Cross-check: coalmine 91
+  → attempt **1**, matching the spawn-equation judge. CE A=99 attributable to
+  another w≡3 mod 11 area. API: `generateAreaExact(ts, w, h, seed,
+  {isCoalMine, shouldBlockOutRooms, worldX, worldY})` → accepted out_map
+  (= finalize input) + blockList + attempt; ~10 ms/area. The game's driver can
+  SKIP hasPath (flag `[ESP+0x20]`, asm 0x9058e4: JZ → AL=1) — unidentified.
 
 - **2026-09-08 — THE CHAIN IS CORRECT: end-to-end spawn-equation confirmation
-  (`experiments/2026-09-08-chain-vs-spawn-equations.mjs` + `-chain-signal-analysis.mjs`)**.
-  The asm-exact sub-seed chain (C = ws → 1 warm-up → skip = (w%11)+(ws%12) →
-  attempt A: state = schrage^(16+A)(ws), param_9 = ((double)state × C1) ×
-  2147483645, TLS seed = param_9, 1 warm-up) was first validated **bit-exact**
-  against the CE reading (schrage^115(78633191) → param_9 = 1444051512.578899),
-  then every attempt A=0..99 was filled with the corrected wang-js mechanics
-  (class `(i−j+1)&3`, rep-reduce, choose-tile, +4-row discard) and scored
-  against the frozen spawn equations with shift-voting over a global anchor:
-  - **Direct-trigger constraints (heart/chest, spawn at the trigger pixel):
-    12/12 across seeds 91/92/93** — excavationsite 91 A=0: 2/2, 92 A=3: 4/4,
-    93 A=1: 5/5 (perfect, UNIQUE attempts), coalmine 91: chest+wands hit.
-    All satisfied at one consistent (+1..3, +1..5) px anchor.
+  (`experiments/2026-09-08-chain-vs-spawn-equations.mjs` + `-chain-signal-analysis.mjs`).**
+  Sub-seed chain (C = ws → 1 warm-up → skip = (w%11)+(ws%12) → attempt A:
+  state = schrage^(16+A)(ws), param_9 = ((double)state × C1) × 2147483645, TLS
+  seed = param_9, 1 warm-up) is bit-exact vs CE (schrage^115(78633191) →
+  param_9 = 1444051512.578899). Attempts A=0..99 filled (class `(i−j+1)&3`,
+  rep-reduce, choose-tile, +4-row discard) and scored against frozen spawn
+  equations with shift-voting:
+  - **Direct-trigger constraints: 12/12 across seeds 91/92/93** — excavationsite
+    91 A=0: 2/2, 92 A=3: 4/4, 93 A=1: 5/5 (UNIQUE attempts), coalmine 91:
+    chest+wands hit; one consistent (+1..3, +1..5) px anchor.
   - Wrong-seed controls (60 fills): ceiling 3/4, 2/5 — never perfect.
-  - All remaining misses = CASCADE classes (potions via the wand_altar scene):
-    item→root-trigger offsets are structural (altar art), beyond the ±2 px
-    window — a judge limitation, NOT a fill error. A=99 (the CE-observed last
-    fill) belongs to an area without oracle items (untestable, consistent).
-  - The anchor being ~(3,3) px also resolves §9 item 3: the port's real-area
-    geometry is essentially exact; the lab's (3,−1)-cell offset was lab-recovery
-    bookkeeping, not a game-vs-port difference.
-  **Verdict: the wang layer is prediction-solved modulo (a) the hasPath
-  emulation (to predict WHICH attempt is accepted — observed A=0..3 for these
-  areas) and (b) cascade-class spawn offsets (altar-scene data model).**
+  - Remaining misses = CASCADE classes (potions via wand_altar scene): judge
+    limitation, not fill error.
+  - Anchor ~(3,3) px: port's real-area geometry is exact; the lab's (3,−1)-cell
+    offset was lab bookkeeping.
+  **Verdict: wang layer prediction-solved modulo (a) hasPath emulation (which
+  attempt is accepted) and (b) cascade-class spawn offsets.**
 
 - **2026-09-03 — wrapper fidelity**: `node mapgen/verify.mjs` — 28/28 comparable
   noitool fixtures byte-identical (RGB). The 12 fails are all biome-map px
-  (53,30-31) where noitool's embedded world map says coalmine/excavationsite but
-  the current game says Tower → their data version is older. Not our bug.
-- **2026-09-03 — layout extraction**: our connected-component areas for all
-  biomes equal noitool's `maps.json` areas (e.g. Mines [34..38, 14..15]). Atlas
-  PNGs in maps.json are pixel-identical to the extracted game files (0 diff bytes).
+  (53,30-31) where noitool's older data says coalmine/excavationsite vs Tower now.
+- **2026-09-03 — layout extraction**: our connected-component areas equal
+  noitool's `maps.json` (e.g. Mines [34..38, 14..15]); maps.json atlases are
+  pixel-identical to the game files (0 diff bytes).
 - **2026-09-03 — first fit** (`node mapgen/fit.mjs`, 20 chunks, spawn window):
-  zero-shift air/solid agreement 59.7% avg; best-over-shift 65.0%; per-chunk
-  best shifts inconsistent (dx −34..+62); **zero flip votes** → content
-  divergence, not a global transform.
-- **2026-09-03 — capture mapping**: DZI tile grid == biome-map px grid verified
-  by successful tile fetches and visually plausible content; overlap = 2 px,
-  level 17 = native.
-- **2026-09-03 — seed fix**: `src/main.ts` had capture seed 786433191 (wrong);
-  correct is 78633191 (tilesources.json / map_definitions.json).
-- **2026-09-03 — fixture scope clarified**: noitool's Map fixtures compare his
-  implementation against snapshots of itself (regression tests). They do NOT
-  validate against the game. "Wang generation ~100% understood" had never been
-  pixel-tested against a capture before our bench.
-- **2026-09-03 — anchor sweep** (`node mapgen/sweep.mjs`, 20 chunks, spawn window):
-  all anchor modes and sub-cell phases score 58.3–59.7% (noitool baseline 59.7%,
-  best-vs-baseline +0.0 pts). **Alignment hypothesis family eliminated as the
-  primary cause** — the sawtooth crop correction (§4) is real arithmetic but
-  immaterial: content mismatch dominates at any sub-cell alignment.
+  zero-shift air/solid 59.7% avg; best-over-shift 65.0%; per-chunk shifts
+  inconsistent (dx −34..+62); **zero flip votes** → content divergence.
+- **2026-09-03 — capture mapping**: DZI tile grid == biome-map px grid; overlap
+  = 2 px, level 17 = native.
+- **2026-09-03 — seed fix**: capture seed is 78633191 (not 786433191;
+  tilesources.json / map_definitions.json).
+- **2026-09-03 — fixture scope clarified**: noitool's Map fixtures are
+  self-regression snapshots; they never validated against the game.
+- **2026-09-03 — anchor sweep** (`node mapgen/sweep.mjs`, 20 chunks): all anchor
+  modes/sub-cell phases 58.3–59.7% (baseline 59.7%). **Alignment family
+  eliminated as primary cause** — content mismatch dominates.
 - **2026-09-03 — metric calibration** (chunk 35_15, coalmine): same-seed gen vs
-  ref = 56.2%; unrelated seeds (seed+1, seed 42) = 60.0% / 57.7%. **Same-seed
-  content is statistically unrelated to the capture at the air/solid metric.**
-  The ~60% agreement level is the density baseline of two similar-density maps,
-  not partial signal.
+  ref = 56.2%; unrelated seeds (seed+1, seed 42) = 60.0% / 57.7% — ~60% is the
+  density baseline, not signal.
 - **2026-09-03 (late) — builder port + positional test** (`mapgen/wangjs.mjs`,
-  `mapgen/wangtest.mjs`, `mapgen/possweep.mjs`):
-  - JS port of the corner-mode fill (vertex coloring + rep-reduce + scan +
-    choose-tile + SetRandomSeed with diddle table). Port vs wasm agreement
-    ~39% of cells — expected if noitool's hasPath rejection accepted a later
-    attempt (each attempt is fully re-colored); exact validation would need
-    porting all of MapGen (blocked rooms, coalmine overlay, JPS isValid).
-  - Positional model (vertex color = SetRandomSeed(worldSeed, worldX, worldY),
-    unique tile choice, no rep-reduce): swept 3 call shapes × 5×5 anchor
-    offsets → 49.1–52.3%, flat, no spike. Naive positional hypothesis
-    **not confirmed** (but parameter space not exhausted).
+  `mapgen/wangtest.mjs`, `mapgen/possweep.mjs`): JS corner-mode fill port
+  (vertex coloring + rep-reduce + scan + choose-tile + SetRandomSeed with
+  diddle table); port vs wasm ~39% of cells (later-attempt acceptance).
+  Positional model (vertex color = SetRandomSeed(worldSeed, worldX, worldY)):
+  3 call shapes × 5×5 offsets → 49.1–52.3%, flat — not confirmed.
 - **2026-09-03 (late) — noise-floor calibration (decisive)**: gen(seed A) vs
-  gen(seed B) for the same biome = 60.2–65.8% (the true "unrelated wang
-  layers" baseline). gen-vs-capture: excavationsite 61.0% / 59.9% (at or
-  below floor), spawn coalmine 47.2% (well below). **noitool's wang output is
-  statistically unrelated to the game's terrain.** The earlier ~60% figures
-  were density baselines, not signal.
-- **2026-09-03 (late) — density gap**: raw wang layer = 38–46% solid; capture
-  = 61–62% solid. The game's visible terrain is far denser than a bare wang
-  layer — it includes background walls / edge fills / scenes / overlays
-  (cf. noitool finalize(): `fillMainPath`, `fillBlockedRooms`, `fillC0ffee`,
-  `fillRandomMaterials`). **The wang-vs-capture metric is confounded by these
-  layers; a bare wang layer can never score near 100% against the capture.**
+  gen(seed B) = 60.2–65.8%; gen-vs-capture: excavationsite 61.0% / 59.9%, spawn
+  coalmine 47.2%. **noitool's wang output is statistically unrelated to the
+  game's terrain.**
+- **2026-09-03 (late) — density gap**: raw wang layer = 38–46% solid; capture =
+  61–62% solid (background walls / edge fills / scenes; cf. noitool finalize():
+  `fillMainPath`, `fillBlockedRooms`, `fillC0ffee`, `fillRandomMaterials`). A
+  bare wang layer can never score near 100% against the capture.
 
 - **2026-09-03 (late) — wang_gen.exe template diff** (`experiments/2026-09-03-wang-gen-template-diff.mjs`):
-  Nolla's official tool (`tools_modding/wang_gen.exe`) generates blank wang
-  templates from CLI params (`{out} c {sidelen} {c0..c3} [{vx} {vy}]`).
-  Generated the coalmine template (`c 13 1 2 1 2 3 3`) and diffed vs the real
-  atlas: **dims identical (348×448), header bytes byte-identical, and our
-  walk parses both into the identical 72h+72v constraint enumeration**; edge
-  mode round-trips too (winter_caves params → 1206×278).
-  1. Template-layout walk proven against the canonical tool ✅
-  2. Confirms atlas lineage = the same stb_hbwang library we documented.
-  3. `wang_gen.exe` is **template-side only** (artist canvas, no seed, no fill)
-     → the builder remains in `noita.exe` → Lua RNG oracle is next.
-  4. Bug found & fixed in our port: the stbhw **variants loop**
-     (`vary_x`/`vary_y` — every constraint combo appears ×N with distinct
-     pixel art) was missing from `wang-js.mjs` template walk (parsed 24h+24v
-     instead of 72h+72v). The earlier positional experiments ran with a ⅓
-     tile pool — conclusions (no signal) unaffected in direction, but the
-     port is now complete.
+  `tools_modding/wang_gen.exe` (`{out} c {sidelen} {c0..c3} [{vx} {vy}]`)
+  coalmine template (`c 13 1 2 1 2 3 3`) vs the real atlas: **dims identical
+  (348×448), header byte-identical, identical 72h+72v constraint
+  enumeration**; edge mode round-trips (winter_caves → 1206×278). wang_gen.exe
+  is template-side only (no seed, no fill). Bug fixed: the stbhw **variants
+  loop** (`vary_x`/`vary_y`) was missing from `wang-js.mjs` (24h+24v instead of
+  72h+72v).
 
-Established: atlas format ✅, fill algorithm semantics ✅, PRNG ✅,
-alignment family eliminated ✅, noitool wang ≠ game terrain (statistically) ✅.
-Unknown: (1) what the game's actual vertex-coloring source is, (2) how much
-of the capture is non-wang content, (3) what finalize's fills contribute.
-The capture cannot validate a bare wang layer — we need either a wang-only
-ground truth (dev-build probe) or to model the full layer stack.
 - Capture = noita-mapcap base-layout (physics frozen) of seed 78633191, hosted
-  by noitamap (acidflow.stream). Same tiles our viewer displays.
-- **2026-09-04 — non-tiling RNG is already solved by noitool (🔗)**: HM perk/shop
-  offers, fungal shift, chest/potion/wand contents etc. are fully reconstructed
-  in noitool's InfoProviders (`Perk/`, `Shop/`, `FungalShift/`, `ChestRandom/`,
-  `Potion*`, `Wand/`, with spec tests); the author's accuracy statement leaves
-  only wang→tile coords + `RaytracePlatforms` unsolved (`ARCHITECTURE.md`).
-  User-verified in practice (tool predictions match the game). Consequences:
-  (1) Holy Mountain *content* (the ~5% of HM-band pixels that do vary across
-  seeds) is seed-dependent but **not wang** — exclude from fill constraints and
-  don't count it as wang anomaly in the 3-seed diffs; (2) spawn-equation
-  constraints must come only from wang-triggered spawns (`wang_scripts.csv`
-  colors → item entities), not HM pedestal content.
+  by noitamap (acidflow.stream).
+- **2026-09-04 — non-tiling RNG is already solved by noitool (🔗)**: HM
+  perk/shop, fungal shift, chest/potion/wand contents reconstructed in
+  noitool's InfoProviders (`Perk/`, `Shop/`, `FungalShift/`, `ChestRandom/`,
+  `Potion*`, `Wand/`); only wang→tile coords + `RaytracePlatforms` unsolved
+  (`ARCHITECTURE.md`). Consequences: HM *content* is seed-dependent but not
+  wang (exclude from fill constraints); spawn-equation constraints come only
+  from wang-triggered spawns (`wang_scripts.csv` colors → entities).
 
 ## 7. Experiments & results (ordered; the old `bis/ter/quater/…` chapters, renumbered 2026-10-21)
 
-> **Status after 2026-09-03 (full day):** alignment eliminated; noitool's wang
-> output statistically unrelated to the capture (below the gen-vs-gen noise
-> floor); capture is ~24 pts denser than any raw wang layer → the metric is
-> confounded by non-wang layers (walls/scenes/edges). Priorities re-ordered
-> accordingly.
-
-1. **Read noitool's `MapGen` post-processing in full** (`finalize`,
-   `isMainPath`, `fillMainPath`, `fillBlockedRooms`, `fillC0ffee`,
-   `ClearPath`, `blockOutRooms`, `doCoalMineHax` + the overlay image):
-   these define what the wasm output actually contains and mirror what the
-   game adds on top of the wang layer. Without this, "wang vs capture" is
-   comparing different layer stacks.
-2. **Isolate a wang-only ground truth**: use `noita_dev.exe` + noita-mapcap
-   style probing to capture the game's terrain for a seed, then subtract the
-   known non-wang layers (or capture with wang-only magic numbers if
-   possible). Alternatively quantify non-wang share per biome from the
-   biome XMLs (`PixelScene` probabilities, `BitmapCaves`, edge noise).
-3. **In-game probe of the fill RNG**: with the dev build, force a known
-   seed, dump the map around spawn (mapcap area capture), and test specific
-   vertex-coloring hypotheses (sequential vs positional vs hybrid) against
-   the actual tile boundaries visible in-engine.
-4. **wasm rebuild knobs** (fork + `tools/zig`): discarded-rows `k`, RNG skip
-   constant, rep-reduction on/off.
-5. **GetBiomeOffsetX dead code** — check if the real game shifts biome-map
-   sampling per seed (would change biomeAt, not just tiles).
-6. **In-game probe of the biome-map mapping** (upgrade 🔗 → ✅): telemetry
-   mod session vs `biomeAt` predictions.
-7. Only then: targeted Ghidra on `noita.exe` for whatever remains unexplained.
+> **Status after 2026-09-03:** alignment eliminated; noitool's wang output
+> statistically unrelated to the capture (below the gen-vs-gen noise floor);
+> capture is ~24 pts denser than any raw wang layer → the metric is confounded
+> by non-wang layers. Original priority list (since executed): read noitool's
+> `MapGen` post-processing (`finalize`, `isMainPath`, `fillMainPath`,
+> `fillBlockedRooms`, `fillC0ffee`, `ClearPath`, `blockOutRooms`,
+> `doCoalMineHax`); isolate a wang-only ground truth; in-game fill-RNG probe;
+> wasm rebuild knobs (discarded-rows `k`, RNG skip constant, rep-reduction);
+> GetBiomeOffsetX dead code vs the game; in-game biome-map mapping probe
+> (🔗 → ✅); then targeted Ghidra.
 
 ## 7.1. RNG ORACLE RESULT (2026-09-03 night) — reconstruction CONFIRMED 🎉
 
 `mods/noita-livemap-rng-probe/` (in-game dump) + `experiments/2026-09-03-lua-oracle-crosscheck.mjs`:
-
-- Probe: 4 world seeds × 66,049 positions × (1× `ProceduralRandomi(x,y,0,255)` + 8×
-  successive `SetRandomSeed(x,y)`/`Random(0,255)` draws) = 528,392 oracle values per seed.
-- First crosscheck: 50.38% of positions matched all 8 draws, the rest matched none —
-  bimodal per-position (no positional correlation, no stream offset) → a branch on an
-  intermediate value.
-- Forensics: brute-force state recovery proved the game's stream IS our LCG + draw
-  function (exactly one 4-draw-consistent state per position); the true seed of a
-  mismatched position (349,458,217) ruled out 24+ formula variants offline.
-- Root cause: our JS `helper2` returned a **signed i32** (JS `^` semantics, missing
-  `>>> 0`) — when the mixer output's high bit was set (~50% of positions), `g` went
-  negative and every comparison/division in the final adjustment misbranched.
-- After the one-line fix: **100.00% match on all 4 seeds (2,113,568 verified draws).**
-
-**Status: the game's RNG (`SetWorldSeed`/`SetRandomSeed`/`Random`/`ProceduralRandomi`)
-is game-verified in JS** (`wang-js.mjs` `seededPrng`). The wang mystery is now purely
-HOW the fill consumes these numbers — which positions get seeded, how many draws per
-vertex, in what order. Test B (oracle-driven fill sweep) is armed: dump larger truth
-tables once, then sweep fill hypotheses offline forever.
+4 world seeds × 66,049 positions × (1× `ProceduralRandomi(x,y,0,255)` + 8×
+successive `SetRandomSeed(x,y)`/`Random(0,255)`) = 528,392 oracle values per
+seed. The initial 50.38% bimodal match was a JS bug: `helper2` returned a
+**signed i32** (missing `>>> 0`), misbranching whenever the mixer output's high
+bit was set. After the fix: **100.00% match on all 4 seeds (2,113,568 verified
+draws).** The game's RNG (`SetWorldSeed`/`SetRandomSeed`/`Random`/
+`ProceduralRandomi`) is game-verified in JS (`wang-js.mjs` `seededPrng`).
 
 ## 7.2. Fill sweep v1 — per-vertex seeding ELIMINATED (2026-09-03 late night)
 
-Same-seed oracle (user forced seed 78633191 via a seed mod — dump seed == capture seed)
-+ `experiments/2026-09-03-fill-sweep.mjs`:
-
-- Hypotheses: vertex color = `ProceduralRandomi(x, y, 0, cc[p]−1)` at {worldPx, cell}
-  encodings, {normal, swapped} axes, anchor delta swept over the full lattice period
-  in the dump's residue class — 1,154 valid hypotheses, 17 scored chunks
-  (coalmine, excavationsite, liquidcave areas).
-- Result: best 56.7%, landscape 53–57% — **below the gen-vs-gen noise floor (60–66%)**,
-  no spike anywhere. **One-draw-per-vertex position-seeded coloring is NOT the game's
-  scheme.**
-- Methodological finds: oracle grid residue vs lattice residue must match exactly
-  (RNG values at ±1 px are unrelated); area anchors at chunk corners have different
-  mod-10 residues → delta must be swept per area.
-- Next hypothesis family: **per-chunk sequential fills** (seed once per chunk at its
-  origin, fill that chunk's lattice sequentially — explains lazy generation + seed
-  determinism; echoes noitool's `+4` rows and `+5/+13` magic). Requires long
-  sequences per chunk origin → probe v4 (8× Random(0,255) anchor + 4088× Randomf()
-  per chunk origin, 24×9 chunk window) deployed, awaiting game run.
+Same-seed oracle (78633191) + `experiments/2026-09-03-fill-sweep.mjs`: vertex
+color = `ProceduralRandomi(x, y, 0, cc[p]−1)` at {worldPx, cell} encodings,
+{normal, swapped} axes, full-period anchor delta — 1,154 hypotheses, 17 chunks
+(coalmine, excavationsite, liquidcave): best 56.7%, landscape 53–57%, below the
+60–66% noise floor. **One-draw-per-vertex position-seeded coloring eliminated.**
+Method: oracle grid residue must match lattice residue exactly; area anchors
+have different mod-10 residues → sweep delta per area.
 
 ## 7.3. Fill sweep v2 — per-chunk sequential fills ELIMINATED (2026-09-04)
 
-Probe v4 (216 chunk-origin streams: 8× Random(0,255) anchors + 4088× Randomf, seed
-78633191 = capture seed) + `experiments/2026-09-04-chunk-fill-sweep.mjs`:
-
-- Anchor validation: **100.00%** (1728 draws) — the game's `SetRandomSeed(chunkOrigin)`
-  streams are exactly our verified RNG; dump integrity confirmed.
-- Hypotheses: per-chunk sequential fills seeded at the chunk origin, 8 variants
-  (tile-choice draws × draw-for-cc1-vertices × the +4-row discard), stbhw scan order,
-  20 same-seed scored chunks.
-- Result: 49.5–52.2%, all below noise floor. **Per-chunk origin-seeded sequential
-  fills eliminated** (within this variant family).
-- Draw-precision note: the 8-bit anchors determine small-range draws exactly for
-  cc=2; cc=3 is ambiguous on 2/256 anchor values (treated as wildcards).
-
-**⚠ Methodological caveat now critical**: eliminations assume a CORRECT fill would
-score ABOVE the 60–66% gen-vs-gen noise floor against the capture. But the capture
-carries ~24 pts of non-wang density (walls/scenes/edges) — the TRUE wang layer vs
-capture might legitimately score below the wang-vs-wang floor. The negatives above
-are therefore "no tested hypothesis beats the noitool baseline", not proof of absence.
-**The decisive scoreboard must be paint-immune: spawn-function equations** (each orb/
-perk/chest position = an exact wang-cell color fact). Priority: fix probe v3 (the
-entity filter came back empty) and make spawn equations the primary judge; geometry
-becomes secondary confirmation.
+Probe v4 (216 chunk-origin streams: 8× Random(0,255) + 4088× Randomf, seed
+78633191) + `experiments/2026-09-04-chunk-fill-sweep.mjs`: anchor validation
+**100.00%** (1728 draws). 8 per-chunk origin-seeded sequential variants, 20
+chunks: 49.5–52.2% — eliminated (within this family). Caveat: capture-scored
+negatives mean "no hypothesis beats the noitool baseline", not proof of absence
+(~24 pts non-wang density) → the paint-immune judge is spawn equations (§7.5).
 
 ## 7.4. Seed differential analysis (2026-09-04)
 
-User hypothesis: comparing seed N vs N+1 could reveal the generation math.
-
-- **RNG level (tested, ✅)**: the game's mixing avalanches — across 5 world seeds
-  (4 random + the capture seed), pairwise identical `ProceduralRandomi(x,y,0,255)`
-  values = 0.38–0.41% ≡ the 1/256 chance baseline. **No locality at the value
-  level; seed+1 arithmetic carries no information.**
-- **Structure level (proposed, the real content of the idea)**: comparing two
-  adjacent-seed *worlds* discriminates what our pixel metric cannot:
-  1. **Skeleton test** — lattice vertices with 1-color classes are seed-independent
-     by construction; if adjacent captures share the domino-boundary skeleton and
-     differ only within constraint classes → per-position-independent coloring;
-     if they differ nearly totally → sequential streams.
-  2. **Game-side noise floor** — capture(N) vs capture(N+1) = the true baseline
-     "unrelated real worlds", which our fill eliminations lacked.
-  3. **Fixed-region map** — structures surviving the diff (spawn room, Holy
-     Mountains) are seed-independent and subtractable from comparisons.
-- Needs: a mapcap-style capture of seed 78633192 (user's seed mod + noita-mapcap
-  Area/base-layout mode). The RNG-avalanche result is why the *capture* diff —
-  not a value diff — is the informative artifact.
-
-**RESULTS (2026-09-04, captures done — full detail in `mapcap/README.md`)**:
-
-- Captures: 78633191 = noitamap ref stitch (cached), 78633192 = `run1b`,
-  78633193 = `run2` (both in-game, parallax off, same 19×9 grid). In-game
-  capture pipeline pixel-stable (tile overlaps 99.6–99.7% identical).
-- **Skeleton test**: real 512-grid seams exist — wang generation does NOT blend
-  across chunk boundaries in places (x=2048 4.6×, y=1536 3.6× discontinuity vs
-  interior baseline; identical across independent captures ⇒ content).
-- **Game-side noise floor**: foreground overlap 99.6%+ identical across
-  independent captures; flat-region high-pass RMS 0.16/255.
-- **Fixed regions**: Holy Mountain bands (biome rows j=16, 19, 23, 26, 30, 34 =
-  temple_wall/temple_altar + solid_wall) are ~95% seed-independent (template
-  biomes, no wang). Sky/void above surface is black (background disabled).
-  Full zone table: `mapcap/PREDICTABLE_ZONES.md`.
+- **RNG level ✅**: across 5 world seeds, pairwise identical
+  `ProceduralRandomi(x,y,0,255)` = 0.38–0.41% ≡ 1/256 baseline — no value-level
+  locality; seed+1 carries no information.
+- **Captures** (detail in `mapcap/README.md`): 78633191 = noitamap ref stitch,
+  78633192 = `run1b`, 78633193 = `run2` (in-game, parallax off, same 19×9 grid);
+  tile overlaps 99.6–99.7% identical.
+- **Skeleton test**: real 512-grid seams exist (x=2048 4.6×, y=1536 3.6×
+  discontinuity vs interior baseline; identical across captures ⇒ content).
+- **Game-side noise floor**: foreground overlap 99.6%+ identical; flat-region
+  high-pass RMS 0.16/255.
+- **Fixed regions**: Holy Mountain bands (biome rows j=16, 19, 23, 26, 30, 34)
+  ~95% seed-independent; sky/void black (background disabled). Zone table:
+  `mapcap/PREDICTABLE_ZONES.md`.
 - **Adjacent-seed divergence**: 26.45% of foreground px changed (91↔92);
-  92↔93: 83.0% window-identical, 37/171 chunks fully stable. This is the
-  calibration target for any fill hypothesis (L2).
-- **Seed-independence classes** (3-way, 91/92/93): 48.0% of px identical in all
-  pairs; **17.9% two-agree-one-differs with an EVEN split across which seed
-  differs** (5.5/6.5/5.8%) ⇒ small-variant-pool choices, not avalanche RNG —
-  a new RE target (randomMaterials/scene variants?); 6.8% all-distinct (wang
-  detail). A fill model that only produces all-distinct pixels for changed
-  content misses the two-agree class entirely.
+  92↔93: 83.0% window-identical, 37/171 chunks fully stable.
+- **3-way classes** (91/92/93): 48.0% identical in all pairs; **17.9%
+  two-agree-one-differs, evenly split** (5.5/6.5/5.8%) ⇒ small-variant-pool
+  choices (open RE target: randomMaterials/scene variants?); 6.8% all-distinct.
 
 ## 7.5. Spawn-equation judge v1 — L1 armed, first paint-immune verdict (2026-09-04)
 
-**Oracle data** (`mods/noita-livemap-rng-probe/` v3 sweep, committed fixtures
-`mapgen/fixtures/oracle/`): entity dumps for 78633191/92/93 (74/54/50 items;
-filter `data/entities/items/`, first-sighting positions). Probe bug fixed:
-`EntityGetFileName` → `EntityGetFilename` (annotations.lua:161 — old code
-failed 100% of lookups). 15 sightings identical across ALL 3 seeds = fixed
-spawns, exactly as PREDICTABLE_ZONES predicts (HM pedestals/perks, altar
-orb_00+book, kantele, evil_eye, orb-room orbs) — the 3-way diff itself
-validates the observation protocol.
+**Oracle data** (`mods/noita-livemap-rng-probe/` v3, fixtures
+`mapgen/fixtures/oracle/`): entity dumps for 78633191/92/93 (filter
+`data/entities/items/`, first-sighting positions). Probe fix: `EntityGetFileName`
+→ `EntityGetFilename` (annotations.lua:161). 15 sightings identical across all
+3 seeds = fixed spawns (HM pedestals/perks, altar orb_00+book, kantele,
+evil_eye, orb-room orbs).
 
-**Trigger audit (pixel-counted in the atlases, this session)** — tiles carry
-ONLY three wang spawn colors:
+**Trigger audit** (atlas pixel counts) — tiles carry ONLY three spawn colors:
 
 | Atlas color | wang_scripts fn | Effect (biome Lua, verified) |
 | --- | --- | --- |
@@ -781,430 +610,182 @@ ONLY three wang spawn colors:
 | `78ffff` | spawn_heart | 70% `heart.xml`, else chest_random/mimic |
 | `55ff8c` | spawn_chest | chest_random — registered in coalmine only |
 
-`spawn_wands`/`spawn_potions` colors have ZERO atlas pixels: wands, potions,
-thunderstone, brimstone, broken_wand all CASCADE from green — `wand_altar.png`
-itself contains a single `50a0f0` px → `spawn_wands` → per-biome `g_items`
-(coalmine = wand_001..017 + potion; excavationsite = level_02 wands; fungicave
-= unshuffle wands). **Constraint set = root triggers only.**
-`goldnugget*` = physics debris (props/orbs break during the camera sweep,
-terrain kills enemies; no static spawner exists) — excluded (user insight,
-2026-09-04).
+`spawn_wands`/`spawn_potions` have ZERO atlas pixels: wands, potions,
+thunderstone, brimstone, broken_wand CASCADE from green (`wand_altar.png` holds
+one `50a0f0` px → `spawn_wands` → per-biome `g_items`). Constraint set = root
+triggers only. `goldnugget*` = physics debris — excluded.
 
-**Judge** (`experiments/2026-09-04-spawn-judge.mjs`): for each seed-dependent
-item, the root trigger color must appear within dx±4 / dy[−6..1] atlas px of
-`floor((world − areaOrigin)/10)` in the model's fill, using FULL
-connected-component area dims (v1 had a shrunken-bbox bug — GetRNG's skip
-depends on area width — fixed).
+**Judge** (`experiments/2026-09-04-spawn-judge.mjs`): root trigger color within
+dx±4 / dy[−6..1] atlas px of `floor((world − areaOrigin)/10)`, FULL
+connected-component area dims (GetRNG skip depends on area width).
+48 constraints (22 potion, 12 heart, 9 chest, 4 wand, 1 egg): noitool wasm
+**0/48**; wang-js sequential single attempt **5/48**; chance ≈ 0.2.
 
-**RESULT (48 constraints: 22 potion, 12 heart, 9 chest, 4 wand, 1 egg):**
-
-| Model | Satisfied |
-| --- | --- |
-| noitool wasm (full pipeline incl. rejection) | **0/48** |
-| wang-js sequential, single attempt | **5/48** (heart 3/12, potion 1/22, chest 1/9) |
-| chance expectation (color share 0.01–0.17% × 45-px window) | ≈ 0.2 |
-
-Both candidate models fail the spawn equations — the first **paint-immune**
-eliminations, independent of the capture's non-wang layers that confounded
-§7.2/§7.3. The js sequential model is indistinguishable-from-chance to
-slightly-above; noitool's model is flat zero.
-
-**Caveats / next knobs**: physics drift can move items below the tolerance
-window (a correct fill needs ≫10%, not exactly 100%); anchor hypotheses
-(H1/H2/H3, §4) not yet swept; js model lacks the hasPath rejection loop;
-per-class detail in `mapgen/out/oracle/judge-v1.json`.
-
-**FROZEN-PHYSICS RE-RUN (2026-09-04 evening) — primary dataset now**:
-
-- Protocol: `noita_dev.exe` + mapcap `disable-physics` ON → probe sweep FIRST,
-  then mapcap area capture in the same frozen world (corners −3072,−1536 →
-  6656,3072, 19×9). On-screen probe status added (started/done/skip/failed).
-- Engine finding: mapcap's `disable-physics` (DEBUG_PAUSE_BOX2D) **crashes the
-  dev build under entity streaming** — `physicsbody_system.cpp:1722` /
-  `physicsbody2_system.cpp:569` asserts ("body already in mDestroyedBodies")
-  accumulate while the sweep unloads chunks, then abort (~stop 80/96). One
-  retry completed; evidence in `mapcap/out/../oracle/crash-20260904/`
-  (mapgen/out/oracle/crash-20260904/).
-- Frozen dumps: gold **0** (was 23–26 → debris theory confirmed), 54/52/50
-  items, 0 lookup failures, fixed spawns intact. Fixtures swapped to the
-  frozen trio (`mapgen/fixtures/oracle/`); physics-on trio archived as
-  `mapgen/fixtures/oracle-physics-on/`.
-- Judge re-run (tolerance tightened to dx±2 / dy[−3..1] — items sit at exact
-  spawn offsets): wasm **0/48**, js-seq **6/48** (~chance). Verdict unchanged
-  on pristine data: both models fail the spawn equations.
-- **Trigger colors are consumed at generation**: sampling the game's own
-  frozen capture at item positions finds 0/32 trigger-color pixels — the
-  rendered world never shows spawn colors, so geometry metrics are blind to
-  spawn facts by construction. Entity dumps are the only observable.
-- Frozen capture diffs (same build, same pipeline): 91↔92 **82.34%** identical
-  (40/171 stable chunks), 92↔93 **83.10%** (40/171) — consistent with the
-  physics-on L2 calibration (~26.5% foreground divergence). Same-seed
-  cross-pipeline (frozen91 vs noitamap ref stitch, build 2024-08-12): only
-  **80.4%** identical, changed-px mean diff 120 → the hosted reference is NOT
-  pixel-faithful to today's build; treat cross-build diffs as qualitative.
+**Frozen-physics re-run (primary dataset):** `noita_dev.exe` + mapcap
+`disable-physics` → probe sweep then area capture (corners −3072,−1536 →
+6656,3072, 19×9). `disable-physics` (DEBUG_PAUSE_BOX2D) crashes the dev build
+under entity streaming (`physicsbody_system.cpp:1722` /
+`physicsbody2_system.cpp:569` "body already in mDestroyedBodies", ~stop 80/96;
+evidence `mapgen/out/oracle/crash-20260904/`). Frozen dumps: gold **0**,
+54/52/50 items; fixtures = frozen trio, physics-on trio in
+`mapgen/fixtures/oracle-physics-on/`. Judge (dx±2 / dy[−3..1]): wasm **0/48**,
+js-seq **6/48**. **Trigger colors are consumed at generation** (0/32 at item
+positions in the capture) — entity dumps are the only observable. Frozen diffs:
+91↔92 **82.34%** (40/171 stable chunks), 92↔93 **83.10%** (40/171); frozen91 vs
+noitamap ref stitch (build 2024-08-12) only **80.4%** (changed-px mean diff 120)
+→ the hosted reference is not pixel-faithful to today's build.
+(Both model failures are explained by the later chain closure, 2026-09-08 entry.)
 
 
 
 ## 7.6. WANG LAB — controlled experiments (2026-09-04 night)
 
 **The lab** (`mods/noita-wang-lab/`): a 16-tile custom wang biome injected at
-runtime (BIOME_MAP lua + `BiomeMapSetPixel` rect at biome px tx 2..6, ty
-36..37; `_biomes_all.xml` runtime patch; atlas generated by our own template
-encoder `mapgen/lib/wang-template-writer.mjs`, round-trip self-tested against
-`buildTileset`). Every tile's content carries a unique marker color; the game
-fires our spawn callback per placed pixel → tile placement log per seed
-(`save00/noita-wang-lab-tiles-<seed>.csv`, via the game global store —
-biome-script sandboxes have NO io and NO sight of mod globals; learned the
-hard way, two iterations).
+runtime (biome px tx 2..6, ty 36..37); every tile's content carries a unique
+marker color; the game fires our spawn callback per placed pixel → per-seed
+placement log `save00/noita-wang-lab-tiles-<seed>.csv`. Mechanics:
 
-**How the lab works (functioning, for future sessions):**
-
-1. **Injection** (`init.lua`, mod load time): patch `_biomes_all.xml` via
-   `ModTextFileSetContent` (idempotent, guards on "wanglab.xml"), then
-   `ModMagicNumbersFileAdd` pointing `BIOME_MAP` at
-   `files/biome_map_loader.lua`, which does `BiomeMapSetSize(70,48)` +
-   `BiomeMapLoadImage(0,0,"data/biome_impl/biome_map.png")` +
-   `BiomeMapSetPixel` for the 5×2 lab rect (color `ff0a0b0c`, registered in
-   the patched XML with `biome_filename` pointing into the mod folder).
+1. **Injection** (`init.lua`): patch `_biomes_all.xml` via
+   `ModTextFileSetContent` (idempotent, guards on "wanglab.xml");
+   `ModMagicNumbersFileAdd` points `BIOME_MAP` at `files/biome_map_loader.lua`
+   (`BiomeMapSetSize(70,48)` + `BiomeMapLoadImage(0,0,"data/biome_impl/biome_map.png")`
+   + `BiomeMapSetPixel` for the 5×2 rect, color `ff0a0b0c`).
 2. **Atlas** (`files/wang_tiles/lab.png`, 30×56): corner-type,
-   `numColor=(2,1,2,1)`, `short_side_len=4`, vary 1/1 → 8h+8v tiles. Written
-   by `lib/wang-template-writer.mjs`, which mirrors the canonical template
-   walk (the reader assigns corner constraints by SLOT POSITION, not pixel
-   colors) and paints each tile's whole content with a unique marker RGB
-   (interiors are free art). Self-test: parse the written PNG with
-   `buildTileset` and diff constraints + markers.
-   Header gotcha: the 9 header bytes land 3-per-pixel on row 0 — paint them
-   per-PIXEL, not per-byte (byte write order clobbers channels), and apply
-   the `& 0xff` truncation on encode AND decode.
-3. **Readout** (`files/scripts/lab.lua`, generated): thin shim —
-   `RegisterSpawnFunction` per marker color + per-tile callbacks that push
-   rows into the game's global store (`GlobalsSetValue("wanglab_r_<n>", …)`,
-   counter in `wanglab_count`). The biome-script sandbox has no `io` and no
-   sight of mod globals (two failed designs before this); the mod context
-   (init.lua, owns io) drains the rows every frame into the per-seed CSV and
-   filters stale rows by seed (globals.lst persists across sessions).
-   `0xffffeedd` per-chunk init did NOT fire for our mod biome (no anchors in
-   the CSVs — harmless, rows carry positions).
-4. **Session protocol**: lab mod + seed mod ONLY (rng-probe also drives the
-   camera — conflict). The mod auto-visits the rect with 5 camera stops
-   (frames 600..2100 after world load) so chunks generate; callbacks fire on
-   placement; expect `[wang-lab] done - N rows` ≈ 35 s in. Physics state is
-   irrelevant for the readout (markers fire at placement time), but frozen
-   physics (mapcap `disable-physics`, dev build) makes dumps cleaner.
-5. **Recovery** (`experiments/2026-09-04-lab-vertex-recovery.mjs`): rasterize
-   fired pixels → 10-px cells → connected components = placements (keep only
-   full 8×4 h / 4×8 v extents; partials sit at clipped edges or ungenerated
-   chunks) → fit lattice phase φ ∈ [0..3]² (measured (1,1), 0 misaligned —
-   the fired grid is offset from the fill's output grid by the world
-   placement phase) → integer vertex indices I = (X+φx)/4+2 → each placement
-   pins 6 corners → over-determined grid, **0 conflicts** → the per-seed
-   answer key (`out/oracle/lab-vertex-grids.json`).
-6. **Class rule (empirical, supersedes §3.2's note)**: binary classes at
-   `(I−J)&3 ∈ {0,2}`; classes {1,3} are single-color (0) by construction —
-   a built-in skeleton: ~half the vertices are seed-independent.
-7. **Optimizer** (`experiments/2026-09-04-lab-optimizer.mjs`): automated
-   hypothesis search with EXACT-MATCH prefilter scoring (abort on first
-   mismatch — a true model walks all informative vertices clean; partial-walk
-   scores are noise: at n≤55 the max over 188M candidates is ~90%, the v1
-   lesson), selective journaling (`out/oracle/optimizer-log.jsonl` — v1 OOMed
-   writing 33M lines; v2 logs new bests/survivors only, RSS ≈ 72 MB), two
-   exits: 100% → auto-verify on 92/93 → save `out/oracle/lab-solution.json`,
-   or timeout (minutes arg). Templates: S1 sequential via `seededPrng(ws,sx,sy)`
-   exhaustive over every world pixel of the rect (~94M candidates ≈ 35 min),
-   S2 `SetRandomFromWorldSeed` + skip k ≤ 200k, P positional over coordinate
-   systems × offsets × draw shapes.
+   `numColor=(2,1,2,1)`, `short_side_len=4`, vary 1/1 → 8h+8v tiles, written by
+   `lib/wang-template-writer.mjs` (constraints by SLOT POSITION; self-tested via
+   `buildTileset`). Header bytes land 3-per-pixel on row 0 — paint per-PIXEL;
+   `& 0xff` on encode AND decode.
+3. **Readout** (`files/scripts/lab.lua`): `RegisterSpawnFunction` per marker →
+   rows into `GlobalsSetValue("wanglab_r_<n>", …)` (counter `wanglab_count`);
+   biome-script sandboxes have no `io` and no sight of mod globals, so init.lua
+   drains rows each frame into the CSV, filtering stale rows by seed.
+   `0xffffeedd` per-chunk init did NOT fire for the mod biome.
+4. **Protocol**: lab mod + seed mod ONLY (rng-probe drives the camera); 5 camera
+   stops (frames 600..2100); `[wang-lab] done - N rows` ≈ 35 s in.
+5. **Recovery** (`experiments/2026-09-04-lab-vertex-recovery.mjs`): fired px →
+   10-px cells → components = placements (full 8×4 h / 4×8 v only) → lattice
+   phase φ (measured (1,1)) → I = (X+φx)/4+2 → 6 corners per placement; 338
+   placements/seed → 778 vertices, **0 conflicts** (answer key
+   `out/oracle/lab-vertex-grids.json`). Binary classes at `(I−J)&3 ∈ {0,2}`;
+   classes {1,3} single-color — ~half the vertices seed-independent.
+6. **Optimizer** (`experiments/2026-09-04-lab-optimizer.mjs`): exact-match
+   prefilter (partial-walk scores are noise: at n≤55 the max over 188M
+   candidates is ~90%), selective journaling (`out/oracle/optimizer-log.jsonl`,
+   RSS ≈ 72 MB, ~50k candidates/s); templates S1 (`seededPrng(ws,sx,sy)` over
+   every rect pixel), S2 (`SetRandomFromWorldSeed` + skip k ≤ 200k), P
+   (positional).
 
-**Resource profile**: repo disk holds all analysis artifacts (~350 MB in
-`mapgen/out` + `mapcap/out`, gitignored, 900+ GB free); the game disk (E:)
-holds mapcap raw tiles/stitches (~140 MB per capture set, 200 GB free —
-watch it, 90% used). Optimizer is single-threaded, RSS ≈ 72 MB, ~50k
-candidates/s; `--max-old-space-size=4096` as belt-and-braces.
+**Structural facts:** the lattice is **GLOBAL and continuous across chunk
+boundaries** (v-tile phase mod 4 = 3 everywhere; tiles straddle boundaries) →
+H2 dead. Cross-seed vertex agreement ≈ coin flips (51.4/55.8/49.7% pairwise,
+28.5% all-equal vs 25% expected). Fill is order-independent (100% identical
+placements across camera paths).
 
-**Vertex grid recovery** (`experiments/2026-09-04-lab-vertex-recovery.mjs`):
-338 full placements per seed → 778 vertices, **0 conflicts** (natural corner
-mapping: h = a,b,c left→right top, d,e,f bottom; v = a,b,c left col top→bottom,
-d,e,f right col). Class rule CORRECTED empirically: binary classes at
-`(I−J)&3 ∈ {0,2}` (not the `(i−j+1)&3` of §3.2 — parity shifted by one).
+**Eliminated** (seed 91, verified on 92/93): noitool sequential 15–17%;
+`SetRandomFromWorldSeed` + skip ≤ 1200 × 3 draw shapes; mixer variants
+(`NollaPrng(ws)`, `seededPrng(ws,0,0)`, `(ws,ws,0)`, `(0,ws)`); positional
+1-draw hashing plateau **58–60%**; hybrid position-seeded→sequential at
+canonical anchors. Deep sweep (13.3 h): 644,555,000 candidates → **58.03%
+(318/548)** = the full-walk noise floor. The lab is a non-Init path (VERIFIED
+§8 row 17) — regular areas are closed by the 2026-09-08 chain entry.
 
-**Structural facts (exact):**
-- The lattice is **GLOBAL and continuous across chunk boundaries** (v-tile
-  phase mod 4 = 3 in every chunk/seed; tiles straddle boundaries freely,
-  depths 1.7/2.3 = a 4-wide tile split by the fractional 51.2 edge). H2
-  (per-chunk re-anchor) is dead — H1/H3 territory, now testable exactly.
-- Cross-seed vertex agreement ≈ coin flips (51.4/55.8/49.7% pairwise, 28.5%
-  all-equal vs 25% expected) → per-vertex values are seed-avalanched, with a
-  small (~3.5%) all-equal excess (structure TBD: rep-reduce? init effects?).
-- Trigger colors are consumed at generation (0/32 in captures) — the lab's
-  callback channel is the only way to observe spawn facts directly.
+**Ghidra front:** headless Ghidra 12.1.3 + JDK 21 (WSL); target
+`noita_dev.exe` (17 MB, build 2025-01-26). Mixer XOR constant `0x93262e6f`
+appears EXACTLY ONCE (file 0x8f147 → VA 0x48fd47); FUN_0048fd30 = the verified
+SetRandomSeed mixer step-for-step (diddle backward-index, &3 warm-up, 16807/127773
+core; assert path "poro/source/utils/random/random.cpp"). Diddle table not stored
+contiguously. 0x343FD (MSVC rand multiplier): 12 hits, 6 clustered at
+0x34b27–0x36031 (byte-scan fingerprints are noisy — 697 hits for `fd 43 03 00`);
+1× glibc-style LCG (0xc08728); mt19937/64-bit LCGs ruled out. Section→VA:
+.text file+0x400c00, .rdata file+0x400e00, .data file+0x401a00. Ghidra API
+quirks: no find(String,Address); findBytes(null, hex) misses .rdata strings —
+use computed VAs + getReferencesTo.
 
-**Eliminated on clean data (exact, thousands of variants, seed 91 + verified
-on 92/93 where relevant)** — a correct model must score ~100%:
-- noitool sequential (`seqAttempt`): 15–17% cell match
-- `SetRandomFromWorldSeed` + skip k ≤ 1200 × 3 draw shapes × choice-consume
-  on/off: none
-- mixer variants: direct `NollaPrng(ws)`, diddled `seededPrng(ws,0,0)`,
-  `(ws,ws,0)`, `(0,ws)` × skips: none
-- positional 1-draw hashing: `random()`, `next()`-float, warm-up, `nextU()%cc`,
-  world AND lattice-index hashing, full-period (±40 px) offsets: plateau at
-  **58–60%** (never a spike — but the ~+8% over coin-flip says the true scheme
-  IS position-correlated; the draw mechanics differ)
-- hybrid position-seeded → sequential at canonical anchors (corner phases,
-  center, chunk origins/centers, world origin): none
-
-**VERDICT after the full deep sweep (2026-09-05, 13.3 h unattended)**:
-644,555,000 candidates — S1 (every pixel of the rect × 7 draw shapes × 9
-alignments × warm-ups 0–3 × budgets {0, 40}), S2 (skips ≤200k), P (4
-coordinate systems × offsets × 7 shapes), biome-grid seeding, per-chunk
-lattices (structurally excluded). Final accuracy **58.03% (318/548)** =
-exactly the full-walk noise floor (~58.5% at n=548). **The vertex-coloring
-rule does not live in any tested configuration of the verified RNG
-machinery.** The lab has formally exhausted the cheap search space.
-
-Consequences:
-- The fill's randomness is deterministic per (seed, area) — order-independence
-  was verified experimentally (100% identical placements across camera paths)
-  — but its source is **not** the Lua-visible RNG we reconstructed. Most likely
-  a separate C++-internal PRNG instance (e.g. an engine-side generator) seeded
-  from a derivation we haven't modeled.
-- **Ghidra escalation is now sanctioned** (the roadmap's condition: "only when
-  everything cheaper is exhausted" — met with a 644M-candidate receipt).
-  Target: the fill call site in noita_dev.exe — locate `stbhw_generate_image`,
-  its rand() callback, and the state initialization feeding it.
-- The lab remains the instant verification bench: whatever the decompilation
-  reveals is implemented as a new search family and tested to 100% against the
-  548-vertex answer key in minutes (integrity suite all-PASS, planted-solution
-  verified).
-
-**GHIDRA FRONT OPEN (2026-09-05)** — headless Ghidra 12.1.3 + JDK 21 installed on
-the WSL side (tools/, ~2.5 GB, no Windows-side install needed). Target:
-`noita_dev.exe` (17 MB, build 2025-01-26). **First anchor landed pre-analysis**:
-the mixer XOR constant `0x93262e6f` appears EXACTLY ONCE in the binary (file
-offset 0x8f147 → VA 0x48fd47, .text) = the game's `SetRandomSeed` mixer is
-located. Lua API name strings confirmed present ("SetRandomSeed" ×4,
-"ProceduralRandomi" ×2, "RegisterSpawnFunction" ×2, "wang_template_file" ×4).
-Auto-analysis runs unattended; staged `HuntFill.java` decompiles the mixer, its
-callers (2 levels), and RNG-string xrefs into ghidra-logs/. Working note: the
-diddle table is NOT stored contiguously (0 hits as bytes or dwords) — computed
-at compile time or restructured.
-
-**Careful framing (user-pushed, 2026-09-05)**: the mixer hit at 0x48fd47 is
-TIER-1 confidence (unique 32-bit immediate, false-hit expectation ~0.004) but
-its LABEL is ours (could be an inlined copy), and — critically — the lab PROVED
-the fill does not use this mixer: decompiling it is for **pipeline calibration**
-(diff against our verified JS) and **elimination mapping** (the fill lives in
-code that never touches this path). The real prize anchors: PRNG fingerprint
-scans. **0x343FD (MSVC rand multiplier): 12 hits, 6 densely clustered at
-0x34b27–0x36031 (.text)** — far above chance; hypothesis: the fill reads an
-MSVC-rand-style LCG, re-seeded per area (fits order-independence + explains
-invisibility to our Lua-visible machinery). Also 1× glibc-style LCG (0xc08728);
-mt19937/64-bit LCGs: ruled out. Fill door anchors confirmed in-binary:
-"wang_scripts.csv" (the spawn-color walk over placed tiles), "wang_map_width"
-(Topology parser → area setup), "data/wang_tiles/" ×3 (template loader).
-
-**GHIDRA READING STATE (2026-09-05 night) — dumps in ~/work/ghidra-logs/**:
-Calibration ✅: FUN_0048fd30 (VA 0x48fd47) decompiled = the verified mixer,
-step-for-step (diddle table backward-index, &3 warm-up loop, 16807/127773
-Lehmer core, the assert leaks the source path
-"poro/source/utils/random/random.cpp" — Nolla's engine framework). Pipeline
-proven: we can read this binary.
-
-Key functions mapped:
-- FUN_00633930: LCG consumer (state global DAT_0132a388, ×214013 +2531011,
-  draws (x>>16)&0x7fff → floats) — per-object random-position spawner?
-- FUN_00794620 (23 KB): uses BOTH the poro mixer AND the LCG — per-object
-  positions in a vector loop, seeds LCG from (objfield + base + idx*2 − 3)^0xc
-  — READ FULLY (prime fill candidate)
-- FUN_00436a50 (39 KB): global-LCG gameplay logic (10%-chance dice) — likely
-  NOT the fill (global state = order-dependent, contradicts the lab)
-- Registry: RegisterSpawnFunction binding = FUN_00807d20; the color→name map
-  lives in BiomeSpawnScripts::GameLuaManager instances (global list
-  DAT_01347698..0134769c, 12 list-management users dumped — consumer not yet
-  among them)
-- 1,958 RTTI class names extracted (mapgen/extractions/rtti-names.txt (X20)) — no
-  wang/generator class (the fill is free functions)
-
-Method notes: byte-scan fingerprints for short constants (0x343FD = fd 43 03 00)
-are noisy at binary scale (697 hits, all instruction fragments) — decompile-
-first works better. Ghidra script API quirks: find(String,Address) doesn't
-exist; getDefinedStrings signature differs; use findBytes(null, hex) sparingly
-(silently found nothing for .rdata strings — use computed VAs + getReferencesTo
-instead). File→VA: .text file+0x400c00, .rdata file+0x400e00.
-
-**GHIDRA KNOWLEDGE STATE (consolidated 2026-09-05, ✅ unless tagged)** —
-processing state in **mapgen/ghidra-ledger.md**:
-
-1. **Toolchain**: headless Ghidra 12.1.3 + JDK 21 (WSL side, tools/, no root).
-   Scripting: Java scripts compiled with javac against the jars (see ledger
-   method notes for the API quirks). Section→VA: .text file+0x400c00,
-   .rdata file+0x400e00, .data file+0x401a00.
-2. **Calibration**: FUN_0048fd30 (VA 0x48fd47) = the verified SetRandomSeed
-   mixer, matches our JS step-for-step. Source path leaked via asserts:
-   `poro/source/utils/random/random.cpp` — asserts in the binary embed source
-   paths → the whole source tree is recoverable (330 files scanned).
-3. **Generators**: poro Random (Lehmer+diddle, Lua-visible — NOT the fill,
-   proven by lab); a multiply-and-add family (×214013, +2531011, global state
-   DAT_0132a388) used for gameplay dice/object scatter; mt19937 ruled out.
-4. **Spawn registry chain**: RegisterSpawnFunction binding (FUN_00807d20) →
-   AddScriptColor (FUN_007eb020) → std::map at GameLuaManager+0x8c (color →
-   Lua function name) → spawn queue → processor FUN_0085d7b0 (camera-culled
-   Lua execution). Consumer (the pixel-walk) not yet dumped.
-5. **RTTI**: 1,958 class names (dev build); no wang/generator class — the fill
-   is free functions. GameLuaManager vtable = 3 functions (queue processor found).
-6. **g_worldseed located**: global DAT_01327ffc (world_seed.cpp); new-game
-   generator = FUN_00911730/009118b0 (time/entropy — irrelevant to prediction).
-7. **PRIME CANDIDATE (the next read)**: FUN_00905fb0 — 54 KB in
-   procedural_terrain.cpp, reads g_worldseed 13×. Expected to contain the fill
-   (or its parent) with generator + seeding derivation + consumption pattern.
-   Secondary: FUN_00904c20 (25 KB), FUN_00901780 (46 KB), FUN_008ff150.
-
-Reading queue + function inventory now tracked in **mapgen/ghidra-ledger.md** (the processing ledger — verdicts, queue, method notes; never re-dump without a reason). Queue: (1) FUN_00794620 in full — does it drive the wang fill?
-(2) FUN_00633930's callers. (3) The GameLuaManager consumer: find via the
-class's methods (RTTI vtable walk) — it reads placed-map pixels + dispatches
-registered Lua functions per color. (4) From the consumer, walk UP to the
-tile-placement loop and its LCG seeding derivation.
-
-Open (not excluded, but unbounded): multi-input seeding derivations
-(hash of (seed, area coords, color, …)) — the space is combinatorial; this is
-precisely why reading the code beats guessing the parameters.
+Functions mapped: FUN_00633930 = LCG consumer (global DAT_0132a388, ×214013
++2531011, (x>>16)&0x7fff); FUN_00794620 (23 KB) uses both the poro mixer and
+the LCG (seed (objfield + base + idx*2 − 3)^0xc); FUN_00436a50 (39 KB)
+global-LCG gameplay dice (not the fill); RegisterSpawnFunction binding =
+FUN_00807d20 → AddScriptColor FUN_007eb020 → std::map at GameLuaManager+0x8c →
+queue processor FUN_0085d7b0 (GameLuaManager list DAT_01347698..0134769c);
+1,958 RTTI class names (`mapgen/extractions/rtti-names.txt` (X20)) — no
+wang/generator class; g_worldseed = DAT_01327ffc (world_seed.cpp), new-game
+generator FUN_00911730/009118b0 (entropy, irrelevant). Processing ledger:
+`mapgen/ghidra-ledger.md`.
 
 
 
 ## 7.7. CREATEHERRINGBONEWANG LOCATED + READ (2026-09-07, Ghidra hunts 33–35)
 
-**Target found** — the previous xref failure had two causes: (1) the noted
-string VAs were substring starts (actual C-strings: 0x1172ff8/0x1173003/
-0x117427c, +6/+11/+17 earlier); (2) the bare "CreateHerringboneWang" strings
-are PROFILER scope names (`FUN_010324ea("CreateHerringboneWang")` at exit),
-not assert text. Successful method: numpy scan of the whole exe for `u32 ==
-string VA` — the binary is 32-bit x86 and MSVC references string literals
-with absolute `push imm32` (no RIP-relative refs to these strings exist).
-Verified push sites: "seed <= (double)(INT_MAX-2)" at VA 0x8ed44b (biome.cpp
-line 148) and "height <= 1024" at 0x9050a6 (procedural_terrain.cpp line 1812).
+Method: string literals are referenced by absolute `push imm32` (32-bit x86) —
+scan the exe for `u32 == string VA`; "CreateHerringboneWang" strings are
+profiler scope names (`FUN_010324ea`), actual C-strings at 0x1172ff8/0x1173003/
+0x117427c. Push sites: "seed <= (double)(INT_MAX-2)" at VA 0x8ed44b (biome.cpp
+line 148), "height <= 1024" at 0x9050a6 (procedural_terrain.cpp line 1812).
 
-**The fill is now READ end-to-end** (`mapgen/ghidra-ledger.md` 2026-09-07
-section has the recipe, all constants checked from .rdata):
 - `stbhw_generate_image` = FUN_008ec9f0: vertex grid `w/s+6 × h/s+6`, row
-  stride 0x6a=106, rep-reduce pass, herringbone scan via choose-tile
-  (FUN_008ec710, 2-pass count-then-pick one draw) + place h/v blits.
-  **+4-row discard confirmed in-binary** (buffer is (h+4) rows, copy loop
-  starts at −4, writes gated 0≤j<h).
-- RNG = poro Random::Next() (FUN_010098c0 = verified Lehmer Schrage core
-  16807/127773) on a **thread-local state** (TLS+0x14 double, lazily
-  allocated via FUN_008ebf00). A "draw" = Next() then `(u64)state % cc[p]`.
-- Seeding (FUN_00904c20, per area, ≤100 attempts with hasPath retry):
-  `state_seed = (double)(u32 seed) + diddle[seed>>31]` (diddle = {0.0,
-  4294967296.0} @0x11e0ba0 — a 32→unsigned-float promotion), halve if ≥
-  2147483647 (@0x11e0220 / 0x5 @0x11dfdd8), one Next() warm-up, skip =
-  `(width % 11)(signed trunc) + ((u32)seed % 12)` — **identical to noitool's
-  GetRNG including the unsigned mod-12**. Per attempt: sub-seed =
-  `NextU()` exactly (`Seed × 2⁻³¹ × 2147483645`, the two-MUL pattern
-  @0x905697/0x90569f) → NewNollaPrng-style sub-RNG in TLS.
-- **Per-cell generator object** (FUN_0090ce20 → FUN_008f9470, world-grid
-  init): 0x1ec bytes; +0x8c raw seed, d = diddled+halved, Next()×2,
-  **+0x94 = (float)d × 200000.0 − 100000.0** (constants at 0x11e0504/0x11e04ec
-  verified this session).
-
-**Verdict on prior sweeps — the class formula was wrong**: the binary's
-vertex class is `p = (i+j) & 3`; §3.2 (and all lab S1/P/S2 sweeps) used
-`(i−j+1)&3`. With the wrong class the `%` draws hit the wrong modulus ~half
-the time → ~58% noise floor on every walk — matching the 644M-candidate
-verdict (58.03%) exactly. The lab's `(I−J)&3 ∈ {0,2}` binary-classes rule is
-consistent (same parity classes as (I+J)&3). **Not yet tested on clean data
-— lib/wang-js.mjs + the 548-vertex answer key can verify in minutes once
-the last wiring link (which object's field feeds 00904c20's seed) is read.**
-
-**Remaining (hunt 36, same session — RESOLVED)**: the fill's caller is a
-vtable thunk (`mov ecx,[ecx+4]; jmp 0x904c20`, vtable 0x1199d40 slot 2,
-installed by the world-grid init FUN_0090e840). The fill's per-area seed =
-`[area+0x4c]`, fed by the **mSeed constructor FUN_00904730**
-(procedural_terrain.cpp:1669):
-`d = (double)ws + diddle[sign]` (unsigned promote, guard ≤2147483645) →
-`Next()` → `mSeed = (float)d × 9999.0f + 1.0f` → `Next()` →
-`×200000f−100000f` → `Next()` → `×200000f−100000f` — the per-area version of
-the ProceduralTerrain::Init 9999/200000/100000 chain. Areas cache by
-(w,h,seed) across chunks (FUN_0090c1f0), explaining once-per-area
-generation.
+  stride 0x6a=106, rep-reduce, choose-tile FUN_008ec710 (2-pass, one draw).
+  **+4-row discard confirmed** (buffer (h+4) rows, copy loop from −4, writes
+  gated 0≤j<h). Vertex class = `(i−j+1)&3` (§3.2; the "(i+j)&3" reading here
+  was a misread — VERIFIED §8 row 6).
+- RNG = poro Random::Next() (FUN_010098c0, Lehmer Schrage 16807/127773) on a
+  **thread-local state** (TLS+0x14 double, FUN_008ebf00). Draw = Next() then
+  `(u64)state % cc[p]`.
+- Seeding (FUN_00904c20, per area, ≤100 attempts): `state_seed = (double)(u32
+  seed) + diddle[seed>>31]` (diddle = {0.0, 4294967296.0} @0x11e0ba0), halve if
+  ≥ 2147483647 (@0x11e0220 / 0x5 @0x11dfdd8), one Next() warm-up, skip =
+  `(width % 11)(signed trunc) + ((u32)seed % 12)` — identical to noitool's
+  GetRNG. Per attempt: sub-seed = `NextU()` (`Seed × 2⁻³¹ × 2147483645`,
+  two-MUL @0x905697/0x90569f) → sub-RNG in TLS.
+- Per-cell generator object (FUN_0090ce20 → FUN_008f9470): 0x1ec bytes; +0x8c
+  raw seed, Next()×2, **+0x94 = (float)d × 200000.0 − 100000.0** (constants
+  0x11e0504/0x11e04ec).
+- Caller = vtable thunk (`mov ecx,[ecx+4]; jmp 0x904c20`, vtable 0x1199d40 slot
+  2, installed by FUN_0090e840). Per-area seed `[area+0x4c]` from the **mSeed
+  constructor FUN_00904730** (procedural_terrain.cpp:1669): `d = (double)ws +
+  diddle[sign]` (guard ≤2147483645) → `Next()` → `mSeed = (float)d × 9999.0f +
+  1.0f` → `Next()` → `×200000f−100000f` → `Next()` → `×200000f−100000f`.
 
 ## 7.8. THE FILL RECIPE IS BINARY-EXACT — AND THE SEED STILL DOESN'T MATCH (2026-09-07, hunts 37–45)
 
-Everything below was verified against the **assembly** this session (dumps
-`h35`–`h45` in ghidra-logs). Three ledger claims from the same day were
-**corrections of corrections**:
+Verified against the assembly (dumps `h35`–`h45`):
 
-1. **Vertex class = `(i − j + 1) & 3` in generation space** (§3.2 was right).
-   The 2026-09-07 "(i+j)&3 correction" misread FUN_008ec9f0's row counter,
-   which starts at **1 and DECREMENTS** per row (`MOV EBX,1 … DEC EBX`,
-   asm 0x8eca4b/0x8ecacd): class = `(col + (1 − row)) & 3`. After the
-   +4-cell row discard (1 vertex row) this equals the lab's empirical
-   `(I−J)&3` rule in key space. All reconciled.
-2. **The draw is `nextU() % cc`** — not raw state. `poro Next()`
-   (FUN_010098c0) advances the state AND **returns `state × 4.656612875e-10`
-   in XMM0** (asm 0x109932: `MULSD XMM0,[0x11df988]`; the constant is the
-   hand-typed 2⁻³¹ approximation, not exactly 2⁻³¹). Every consumer multiplies
-   by 2147483645 (`.rdata` 0x11e0210) and trunc-converts to u64
+1. **Vertex class = `(i − j + 1) & 3` in generation space.** FUN_008ec9f0's row
+   counter starts at **1 and DECREMENTS** (`MOV EBX,1 … DEC EBX`, asm
+   0x8eca4b/0x8ecacd): class = `(col + (1 − row)) & 3`; after the +4-cell row
+   discard (1 vertex row) this equals the lab's `(I−J)&3` rule in key space.
+2. **The draw is `nextU() % cc`.** `poro Next()` (FUN_010098c0) advances the
+   state and **returns `state × 4.656612875e-10` in XMM0** (asm 0x109932:
+   `MULSD XMM0,[0x11df988]`; hand-typed 2⁻³¹ approximation). Every consumer
+   multiplies by 2147483645 (`.rdata` 0x11e0210) and trunc-converts to u64
    (FUN_01033781 = `__dtoui64`): vertex (0x8eca9e), reroll (0x8ec950),
-   choose-tile (0x8ec855, two MULSD from the inline-Schrage state). The port's
-   `nextU()` = `trunc(seed × 4.656612875e-10 × 2147483645)` — identical
-   multiplies, identical rounding.
-3. **The GetRNG skip is `(width % 11) + (u32)seed % 12`** — no extra width
-   term. The decompile's `local_c8 + …` looked like `+width`, but the
-   `((iVar20>>1) − (iVar20>>31))×11` term is **negative** `−11·⌊w/11⌋`
-   (magic-multiply 0xd1745d17 with sign fixup), so `local_c8 + (−11·⌊w/11⌋) =
-   w % 11`. Asm 0x905273–0x9052b1.
+   choose-tile (0x8ec855). Port `nextU()` = `trunc(seed × 4.656612875e-10 ×
+   2147483645)`.
+3. **GetRNG skip = `(width % 11) + (u32)seed % 12`** — the
+   `((iVar20>>1) − (iVar20>>31))×11` term is `−11·⌊w/11⌋` (magic-multiply
+   0xd1745d17 with sign fixup). Asm 0x905273–0x9052b1.
 
-**The area object and the fill's `this`** (hunts 37–41):
-- ProceduralTerrain::Init's biome-map walk (Step 1) allocates one
-  **area object, 0x154 bytes**, per connected component: ctor `FUN_00904b10`
-  (asm 0x904b10): `+0x00` biome ptr (walker), strings at `+0x04`/`+0x1c`
-  (image-load name / wang template name), `+0x34` width, `+0x38` height,
-  `+0x3c..0x4b` = the 16-byte coordinate block (the MOVDQU the fill driver
-  copies), **`+0x4c` = the ctor's arg** (asm 0x904b71), `+0x50` a biome flag
-  byte (0 → the wang path), `+0x8c` extra-layers, `+0x150` template filename;
-  it then runs `FUN_008f9470(arg)` on the sub-object at `+0x90`
-  (asm `LEA ECX,[ESI+0x90]`).
-- **The ctor's arg = `WORLDSEED::GetSeed() + DAT_01328010`** (asm 0x9062cf–d4:
-  `CALL GetSeed; ADD EAX,[0x1328010]; MOV [EBP-0x270],EAX`; the ctor call at
-  0x9077d1 pushes it). `DAT_01328010` = the **NEW_GAME_PLUS_COUNT magic
-  number** (default 13589, runtime-writable via magic-numbers config by
-  FUN_006fa0d0/FUN_00922950). So **`[area+0x4c] = worldseed + 13589`**.
-  (The ledger's hunt-36 claim "[0x4c] comes from the per-area seed
-  constructor" was wrong — the mSeed ctor object is the ProceduralTerrain,
-  a different struct.)
-- The fill is dispatched at Init time as a **thread-pool task**: the
-  "vtable 0x1199d40" is a **std::function functor vtable** on the stack
-  (asm 0x907abf stores it into a local), capturing the area-object pointer;
-  the thunk (`mov ecx,[ecx+4]; jmp 0x904c20`) passes the captured object as
-  `this`. Not a chunk-load-time vtable.
-- The mSeed ctor chain (FUN_00904730 / Init-inlined): the three `Next()` calls
-  advance the **local chain** (codegen pattern asm-confirmed at 0x905264:
-  `LEA ECX,[ESP+0x24]` before the call). With x86 `CVTTSD2SI` **saturation**
-  (mSeed ≈ 7.9e11 ≫ i32 → n = INT_MIN every time), `stateA` and `stateB` are
-  **seed-CONSTANT** (Schrage(INT_MIN) = 2147466840; Schrage(+huge) = 2147483647)
-  — they cannot be the fill's seed, consistent with the lab's 91-vs-93
-  coin-flip divergence. Only `mSeed` varies per seed.
+**Area object** (hunts 37–41): Init's biome-map walk allocates one **0x154-byte
+area object** per connected component, ctor `FUN_00904b10`: `+0x00` biome ptr,
+strings `+0x04`/`+0x1c` (image-load / wang template name), `+0x34` width,
+`+0x38` height, `+0x3c..0x4b` 16-byte coordinate block (the fill driver's
+MOVDQU), **`+0x4c` = the ctor's arg** (asm 0x904b71), `+0x50` biome flag byte
+(0 → wang path), `+0x8c` extra-layers, `+0x150` template filename; then
+`FUN_008f9470(arg)` on the `+0x90` sub-object (`LEA ECX,[ESI+0x90]`).
+The ctor's arg = `WORLDSEED::GetSeed() + DAT_01328010` (asm 0x9062cf–d4; ctor
+call 0x9077d1); `DAT_01328010` = NEW_GAME_PLUS_COUNT (default 13589, but zeroed
+before the fill — §7.9, so C = ws). The fill runs at Init as a **thread-pool
+task**: "vtable 0x1199d40" is a std::function functor vtable on the stack (asm
+0x907abf) capturing the area pointer. The mSeed ctor chain's three `Next()`
+advance a local chain (asm 0x905264 `LEA ECX,[ESP+0x24]`); with `CVTTSD2SI`
+saturation (mSeed ≈ 7.9e11 → INT_MIN) stateA/stateB are seed-CONSTANT
+(Schrage(INT_MIN) = 2147466840; Schrage(+huge) = 2147483647).
 
-**THE NEGATIVE RESULT.** With the recipe fully pinned, the lab answer key
-(548/362/451 informative vertices, seeds 91/92/93) was scored against
-~40 candidate seed values — raw ws, ws+C for C ∈ [13580..13600], Schrage^k(ws)
-k ≤ 16, nextU(ws), verified-mixer outputs at area anchors, the V1/V2 ctor
-chains and the generator `+0x94` field in 5 encodings each (f32bits, double
-hi/lo dword, trunc-wrap, trunc-sat) — crossed with the 4 draw conventions,
-attempts 0..99, offsets (dI ∈ −6..6, dJ ∈ −6..10), widths 248..266 and skip
-deltas ±3 (~27k model walks per seed; `experiments/2026-09-07-area-seed-candidates.mjs`).
-**Best ≈ 60–66% everywhere = the extreme-value noise ceiling. The fill's
-runtime seed is NOT any statically-decoded derivation of the worldseed.**
-
-Since the chain seed → GetRNG → sub-seed → TLS → vertex draws is asm-exact,
-the divergence must be in the value that reaches `[area+0x4c]` (or the state
-of the magic-number global at runtime). Next session's discriminator, in
-order of cost:
-1. **In-game probe**: hook FUN_00904c20 (or FUN_008eda10) in the dev build
-   (Cheat Engine / detour DLL) and log `[area+0x4c]` + the first ~16 nextU
-   values per attempt for a known seed. One number answers everything.
-2. Verify DAT_01328010 at runtime (is NEW_GAME_PLUS_COUNT actually 13589 in
-   a vanilla run? the magic-numbers file the mapcap/lab mods load may set it).
-3. Lab variant with an asymmetric tileset (e.g. numColor (3,1,2,1)) so vertex
-   colors pin draw indices more tightly, disambiguating geometry vs stream.
+**Negative result (lab area):** ~40 statically-derived seed candidates (raw ws,
+ws+C for C ∈ [13580..13600], Schrage^k(ws) k ≤ 16, nextU(ws), mixer outputs,
+ctor chains, `+0x94` in 5 encodings) × 4 draw conventions × attempts 0..99 ×
+offsets × widths 248..266 × skip ±3 (~27k walks/seed;
+`experiments/2026-09-07-area-seed-candidates.mjs`): best ≈ 60–66% = noise
+ceiling. Resolved in §7.9 (lab = non-Init path).
 
 ## 7.9. THE SUB-SEED IS MEASURED — AND THE CHAIN TO THE WORLDSEED STILL DOESN'T CLOSE (2026-09-08)
 
@@ -1398,151 +979,85 @@ first use from now on):**
   biome map; generation unit (one wang lattice per area).
 
 - **2026-09-08 (night) — GENMAP MVP + in-game results + purple-trail fix +
-  finalize-lite.** User played against the generated map in-game
+  finalize-lite.** In-game play against the generated map
   (`genmap-server.mjs` + live telemetry marker):
-  - Reference seed 78633191: "EXTREMELY CLOSE from reality, correct shape
-    everywhere" — first in-game confirmation of the prediction pipeline.
-  - Seed 78633194 (+3): structures differ slightly (positions, pools) — close
-    but not 1:1; candidate causes: missing finalize steps (ClearPath,
-    fillC0ffee, fillRandomMaterials), missing pixel scenes, and the
-    small-variant-pool content class.
-  - **Ghost-purple layers on all seeds — ROOT-CAUSED & FIXED**: the JPS
-    search paints visited cells 0x7f007f; noitool runs the search on a
-    SEPARATE path_map copy (`usemap = path`) — our port painted the trail on
-    the returned terrain. Fixed (`lib/has-path.mjs`: search/coffee-floods/
-    fillMainPath-band now operate on a Buffer copy; blockOutRooms/hax still
-    mutate out_map like the C++). hasPath oracle re-validated 8/8 after the
-    fix. Cache bumped to `gen-cache/r2`.
-  - `finalizeLite` added to the genmap output (undoCoalMineHax +
-    fillBlockedRooms(black)); ClearPath/fillC0ffee/fillRandomMaterials remain
-    TODO (part of the observed +3-seed deltas).
-  - **Anchor fit (offline)**: constant render-shift satisfying ALL direct
-    spawn constraints, intersected across excavationsite 91/92/93 = x ∈
-    [−1..3], y ∈ [0..2] atlas px — a RANGE (trigger regions are multi-px);
-    center (1,1) candidate. A precise anchor needs the L3 foreground-mask fit
-    (per-chunk, constant-vs-sawtooth discriminator per §4) — parked.
-  - **Coverage report (per-row)**: wang = 15-45 chunks/row for rows 15..47
-    (mining band rows 14-15: 12-29; Pits 41-42; Vaults 16-44; Crypt 23-45).
-    Rows 6..14 wang 0-3 (sky/surface = template biome colors
-    d6d8e3/cc9944/36d517/fe0000 with NO wang_template in our area list).
-    The Work bands 40-47: 15-21 wang chunks + template dominance — matches
-    the user's "one layer displayed" report; the fix = template rendering.
-  - Renderer additions: zones endpoint already tags these per chunk;
-    genmap player marker wired to the bridge (live seed + marker follow).
+  - Seed 78633191: "EXTREMELY CLOSE from reality, correct shape everywhere"
+    (first in-game confirmation). Seed 78633194: structures differ slightly —
+    candidate causes: missing finalize steps (ClearPath, fillC0ffee,
+    fillRandomMaterials), pixel scenes, small-variant-pool class.
+  - **Ghost-purple layers fixed**: JPS search paints visited cells 0x7f007f on
+    a SEPARATE path_map copy (`usemap = path`); `lib/has-path.mjs`
+    search/coffee-floods/fillMainPath-band now operate on a Buffer copy
+    (blockOutRooms/hax still mutate out_map). Oracle 8/8 after fix.
+  - `finalizeLite` = undoCoalMineHax + fillBlockedRooms(black);
+    ClearPath/fillC0ffee/fillRandomMaterials TODO.
+  - **Anchor fit**: constant render-shift satisfying all direct spawn
+    constraints across excavationsite 91/92/93 = x ∈ [−1..3], y ∈ [0..2] atlas
+    px (a range; center (1,1)).
+  - **Coverage**: wang = 15-45 chunks/row for rows 15..47 (rows 14-15: 12-29;
+    Pits 41-42; Vaults 16-44; Crypt 23-45); rows 6..14 wang 0-3 (template
+    colors d6d8e3/cc9944/36d517/fe0000, no wang_template); Work bands 40-47:
+    15-21 wang chunks + template dominance → fix = template rendering.
 
-- **2026-09-08 (late night) — NOITOOL MARKED OBSOLETE + white-tile root cause
-  (coloring-layer semantics from game data).**
-  - **Noitool obsolete (user decision):** `vendor/noita-tools` is no longer a
-    reference or comparison target anywhere — authority = our Ghidra asm
-    verification + game oracles (VERIFIED.md header now carries the authority
-    statement; live-lib comments updated; historical evidence-log entries and
-    dated experiments intentionally left untouched). Corroborating reason
-    found this session: noitool's `doCoalMineHax`/`undoCoalMineHax` compare
-    against `0x004000`/`0x0040` while its own shipped overlay data is
-    `0x006400`/`0x000064` → the hax is a silent no-op in noitool's code. Do
-    not port noitool code unchecked; re-derive finalize steps from the binary.
-  - **White-tile root cause (user report: "tiles rendered completely white,
-    always the same kind — a vertical domino centered on a cave filled with a
-    material", example = `mapcap/out/frozen91/chunks/chunk_0_1.png` top-right
-    tank).** Mechanism verified from game data (coalmine.xml + materials.xml
-    + wiki Modding:custom-environment §Wang Tiles + capture sampling):
-    - The wang out_map's **grey ramp** (`r==g==b`, incl. pure white — 27.9%
-      of the placed coalmine map + hundreds of grey shades ≈ 35% total) is a
-      PLACEHOLDER family: "Shades of grey get filled with the materials
-      defined in the biome's `<Materials>`" (coalmine.xml MaterialComponents:
-      soil/sand_static/rock_static_wet noise bands 0.45–0.53 / 0.53–0.95 /
-      0.9–3.5 + rare coal/copper/gold polka veins). Our genmap renders them
-      raw → the white regions. Material wang_colors are `rgb` values with
-      NEAR-greys used deliberately (coal `505052`, oil `3b3b3c`, steel
-      `404041` — r==g but b+1/+2) so they don't collide with the placeholder
-      greys; `rock_static_wet`=`103344`, `wood_static`=`413f24`,
-      `wood_static_vertical`=`413f3a`, `rock_static_radioactive`=`00f344`,
-      `gunpowder_explosive`=`f7bb43`, `gold`=`ebcd01`.
-    - **The reported tile itself**: a coalmine v-tile (13×26 cells) whose art
-      = white/grey cavern blob + teal pool. Its teal = `2f554c` = **water**'s
-      wang_color (`materials.xml` `wang_color="902F554C"` — alpha `90`, easy
-      to miss with an `ff`-strip). In-game: cavern grey → material fill,
-      pool → water. Ours: raw white + teal → matches the user's description
-      exactly. (Captured tank = water `39,67,63` + `rock_static_wet` frame.)
-    - **Random-block placeholders**: `c0ffee` (0.56% of placed map) and the
-      biome XML `<RandomMaterials><RandomColor input_color="FF00BBEE|
-      FF12BBEE" output_colors="FF000000,FFFFFFFF"/>` entries → flooded to
-      black|white at finalize (noitool's fillC0ffee/fillRandomMaterials model
-      matches the XML semantics; re-derive from binary before trusting RNG
-      details). noitool maps.json carries the same per-biome lists.
-    - **Trigger colors** (consumed at generation, never visible in-game —
-      §7.5) render RAW in our viewer: `00ff33/00ff00` spawn_items, big
-      green altar blob, `ff0000/78ffff` hearts, `ffff00`, plus the
-      coalmine.lua `RegisterSpawnFunction` palette (`969678/967878/967896`
-      structure loaders, `c35700` oiltank, `c88d1a`...). Must map → air (or
-      scene) at render.
-    - **blockOutRooms colors** (`c35700, ff0080, ff0aff, ...` 9 colors) →
-      room right/below → white → fillBlockedRooms(black) in finalize.
-    - **Status tag: ELUCIDATED (render semantics); the grey→material noise
-      mapping itself (exact band/vein math incl. grey-value semantics) is
-      OPEN** — first capture-based attempt (shift-scan alignment of raw A1 vs
-      frozen91 chunk_0_1) gave only ~43% skeleton agreement with the best
-      shift at the scan edge (±32 px) — alignment instrument needs a wider
-      scan before the grey-value table can be read off the capture.
-  - **STALE CACHE FOUND:** `mapgen/out/gen-cache/r2/*` holds the RAW fill
-    (pre-hasPath: 52.7% black / 27.9% white, no blocked-room whites, no
-    finalizeLite) — written by an older `generateAreaExact` revision. The
-    genmap viewer therefore serves neither the current pipeline nor the
-    finalize. Cache must be bumped (r3) after the coloring work lands.
+- **2026-09-08 (late night) — NOITOOL MARKED OBSOLETE + white-tile root cause.**
+  - **Noitool obsolete (user decision):** `vendor/noita-tools` is no reference
+    or comparison target; authority = Ghidra asm + game oracles. Its
+    `doCoalMineHax`/`undoCoalMineHax` compare against `0x004000`/`0x0040` while
+    its overlay data is `0x006400`/`0x000064` → silent no-op. Re-derive
+    finalize steps from the binary.
+  - **White tiles** (e.g. `mapcap/out/frozen91/chunks/chunk_0_1.png` tank):
+    - The out_map **grey ramp** (`r==g==b`, incl. white — 27.9% of the placed
+      coalmine map, ≈ 35% with greys) is a PLACEHOLDER filled from the biome's
+      `<Materials>` (coalmine.xml: soil/sand_static/rock_static_wet noise bands
+      0.45–0.53 / 0.53–0.95 / 0.9–3.5 + rare coal/copper/gold veins). Material
+      wang_colors use near-greys to avoid collision (coal `505052`, oil
+      `3b3b3c`, steel `404041`); `rock_static_wet`=`103344`,
+      `wood_static`=`413f24`, `wood_static_vertical`=`413f3a`,
+      `rock_static_radioactive`=`00f344`, `gunpowder_explosive`=`f7bb43`,
+      `gold`=`ebcd01`.
+    - The reported coalmine v-tile (13×26 cells): teal `2f554c` = **water**
+      (`materials.xml` `wang_color="902F554C"`, alpha `90`). Captured tank =
+      water `39,67,63` + `rock_static_wet` frame.
+    - Random-block placeholders: `c0ffee` (0.56% of placed map) and biome
+      `<RandomMaterials><RandomColor input_color="FF00BBEE|FF12BBEE"
+      output_colors="FF000000,FFFFFFFF"/>` → black|white at finalize.
+    - Trigger colors (`00ff33/00ff00`, `ff0000/78ffff`, `ffff00`, coalmine.lua
+      palette `969678/967878/967896`, `c35700` oiltank, `c88d1a`) must map →
+      air/scene at render. blockOutRooms colors (`c35700, ff0080, ff0aff, ...`
+      9 colors) → white → fillBlockedRooms(black).
+    - Render semantics ELUCIDATED; the grey→material noise mapping is OPEN
+      (capture shift-scan gave ~43% skeleton agreement, best shift at the ±32
+      px edge — needs a wider scan).
+  - Stale `gen-cache/r2` (raw pre-hasPath fill: 52.7% black / 27.9% white) →
+    bump required.
 
 - **2026-09-09 — COLORING LAYER SHIPPED (genmap r3b).** `mapgen/lib/colorize.mjs`
-  wired into `world-gen.mjs` (cached gen-cache/r3b): random-block floods
-  (c0ffee + biome-XML RandomColors → per-region 50/50 air|white), trigger
-  colors → air, engine moss marker `00ff33` → moss green, material
-  wang_colors → capture-calibrated shades, grey ramp → air(g≤100) /
-  soil(100<g<250) / world-seeded fBm fill (white: rock 33% / soil 53% /
-  sand 14%, scales 14px+8px). Unknown-px rate 0.24% (coalmine). Side-by-side
-  chunk (0,1) = same structures (moss pool, water tank, platforms); visual
-  gap remaining = torch lighting + vegetation + pixel scenes + spawn-band
-  extra layers (row 0 raw-fill alignment only 64.1% vs row 1's 78.4%; the
-  hax-overlay-forced variant scored WORSE (61.7%) → not applied at render;
-  overlay semantics need the binary).
+  in `world-gen.mjs` (gen-cache/r3b): random-block floods (c0ffee + biome
+  RandomColors → per-region 50/50 air|white), trigger colors → air, moss marker
+  `00ff33` → moss green, material wang_colors → capture-calibrated shades,
+  grey ramp → air(g≤100) / soil(100<g<250) / world-seeded fBm fill (white: rock
+  33% / soil 53% / sand 14%, scales 14px+8px). Unknown-px 0.24% (coalmine). Row
+  0 raw-fill alignment 64.1% vs row 1's 78.4%; hax-overlay-forced variant
+  scored worse (61.7%) → not applied.
 
-- **2026-09-18 (3) — NOITOOL'S +5/+13 DRAW-MAGIC: ELIMINATED AS AN IN-BINARY
-  MECHANISM (F-anchor progress).** Byte-pattern hunt for the `(gx+5)/512`,
-  `(gy+13)/512` forms (instruction pairs `add reg,imm{5,13}` + `shr reg,9`)
-  = **0 hits** across the whole .text slab (also none as separate dwords).
-  The +5/+13 offsets were part of **noitool's own `drawImageData`
-  reconstruction** (wang.cpp ~:858), never ours to confirm. The game's real
-  mapping (cell↔world) must come from the fill's copy-out walk /
-  FUN_008e6d50 consumer — F-anchor stays open with that as its read target;
-  the current genmap's empirically-fitted (3,3) px anchor remains the only
-  bracketed value (x ∈ [−1..3], y ∈ [0..2] from the spawn equations).
+- **2026-09-18 (3) — NOITOOL'S +5/+13 DRAW-MAGIC: ELIMINATED as an in-binary
+  mechanism.** `add reg,imm{5,13}` + `shr reg,9` pairs = **0 hits** across
+  .text (none as dwords either). +5/+13 belong to noitool's own `drawImageData`
+  (wang.cpp ~:858). Only bracketed anchor = the fitted (3,3) px (x ∈ [−1..3],
+  y ∈ [0..2]).
 
-- **2026-09-19 (2) — F-anchor dig #2 CORRECTION + re-anchoring of the VA
-  map (same session, before any further reads).** While re-reading the dig's
-  artifacts I re-derived the slab mapping empirically instead of trusting the
-  adjust-vma formula: the in-binary pin of the hasPath coalmine start mark
-  (`cmp eax, 0xFF420000`) is at **slab VA 0x50124d**, which the ledger (from
-  Ghidra) records at true **0x901a4d** ⇒ **true VA = slab VA + 0x400800**
-  (slab convention: file[0x400c00:0xdd0000] placed at adjust-vma 0x401000 ⇒
-  slab VA = file_off + 0x400; true VA = file_off + 0x400c00 — the Sep-18 (2)
-  note's "+0x400800 correction" applies to ALL Ghidra-derived names, not just
-  stage 9). Consequences for dig #2's entries above:
-  - The "FUN_008e6d50 / FUN_008e6cf0 functor wrapper" read was executed at
-    SLAB 0x8e6cf0 = true 0xce74f0 — i.e. the wrapper/its callers/its
-    singleton 0x132a32c WRITE-UP IS MISLABELED; the structural findings
-    (functor post-wrapper + 7 callers) belong to true 0xce74f0, whose
-    identity is UNKNOWN (not the ledger's cached-draw consumer).
-  - Likewise dig (b)/(c): I read slab 0x939b80 / slab 0x8ed860 = true
-    0xd3a380 / 0xcee060 — NOT FUN_00939b80 / FUN_008ed860. The
-    "record-queue ×10 idiom" elimination therefore applies to three
-    UNNAMED true-VA functions (0xd0b902-family inside true-FUN_0090b8a0 ✓
-    correct; 0xd3a403; 0xced8cf) whose queue semantics were read correctly
-    but names were wrong. The elimination's CONCLUSION may still hold, but
-    it must be re-verified on the true functions before being canon.
-  - The read targets must be re-run at slab = true − 0x400800:
-    FUN_00939b80→0x539380, FUN_008ed860→0x4ed060, FUN_008ec9f0→0x4ec1f0,
-    FUN_00904c20→0x504c20, SetSize call sites→0x50738f/0x507852.
-  - **Method note (new):** when mixing Ghidra names with objdump output,
-    ALWAYS convert: objdump slab VA + 0x400800 = Ghidra VA. Verify each
-    named target by byte-pinning a previously-verified constant in the
-    function before trusting a read.
+- **2026-09-19 (2) — slab-VA rule re-derived:** hasPath coalmine start mark
+  (`cmp eax, 0xFF420000`) at **slab VA 0x50124d** = true **0x901a4d** ⇒ **true
+  VA = slab VA + 0x400800** (slab = file[0x400c00:0xdd0000] at adjust-vma
+  0x401000 ⇒ slab VA = file_off + 0x400; true = file_off + 0x400c00). Applies
+  to every objdump read: dig #2's (undated entry below) reads at slab
+  0x8e6cf0 / 0x939b80 / 0x8ed860 are true 0xce74f0 / 0xd3a380 / 0xcee060 —
+  not FUN_008e6cf0 / FUN_00939b80 / FUN_008ed860 (identities UNKNOWN; its
+  queue elimination covers three unnamed functions: 0xd0b902-family inside
+  true FUN_0090b8a0, 0xd3a403, 0xced8cf). Re-run at slab = true − 0x400800:
+  FUN_00939b80→0x539380, FUN_008ed860→0x4ed060, FUN_008ec9f0→0x4ec1f0,
+  FUN_00904c20→0x504c20, SetSize call sites→0x50738f/0x507852. Method: verify
+  each named target by byte-pinning a known constant before trusting a read.
 
 - **2026-09-19 (3) — F-anchor dig #3: FIRST TRUE-VA READS, anchor rule of the
   Init grid walk READ (objdump slab, true = slab + 0x400800, verified
@@ -1654,38 +1169,22 @@ first use from now on):**
     traced; the anchor may simply be `area origin` with the (3,3)
     being a property of our fill/geometry, not the game's).
 
-- **2026-09-19 (4) — F-anchor dig #4: FUN_008f9ab0 read (objdump slab
-  0x4f9ab0, true = slab + 0x400800; target from the F1 note "the noise
-  write side is the Init's float/u16 area fills, FUN_008f9ab0 family").
-  Byte-pin via the shared assert idiom (0x1151084 + `add $0x76c` guard
-  loads, C12's pattern). Partially read (head + main sweep + realloc
-  tail classified; full decode pending):**
-  - **Grid-write mechanism VERIFIED (Init-side, non-wang):** a per-cell
-    sweep over an object (ebx) owning THREE grids — float grid at
-    **+0x18**, u16 grid family at **+0x38** (element write `u16 = 1`
-    via helper 0x54a0f0), and a marker/byte band at **+0x40/+0x58**
-    (4-neighbourhood reads via helper 0x5fdce0 = (x±1, y±1), vote
-    aggregator 0x5fdd70 = match-count; write fires when vote == 1):
-    qualifying cells get **float −1.0 (0xBF800000 literal) into +0x18**
-    and **u16 1 into +0x38**; multi-band index forms across the sweep:
-    `[ebx+0x20]·y+x`, `[ebx+0x40]·y+x` (accessed 0x4f9b90..0x4f9dd3 via
-    0x5493b0/0x54a1d0/0x5491f0 getters).
-    - **NO RNG calls in the sweep, NO ÷10, NO anchor offset constants**
-      — pure `y·W + x` object-local cell indexing.
-  - Tail: realloc of `[ebx+0x1c]` records + memcpy (0xc12400, dst
-    `[ebx+0x18]`) + std::string ctor family (0xc31cea) — an
-    append/serialize step (pending full read).
-  - **INTERPRET-CAREFUL:** identity NOT established — candidates are the
-    `<BitmapCaves>`/`<structures>` seeding walk (cave-structure
-    companion), NOT yet the wang out_map copier. The caller feeding
-    (ebx) is the next read.
-  - **What IS established:** the area sub-object +0x18/+0x38 grids
-    ALSO receive non-wang, seedless per-cell marker sweeps with
-    cell-unit indexing and no anchor arithmetic — consistent with C11
-    ("no additive anchor"). Two grid-write families now known:
-    (a) this sweep, (b) the finalize family's u16-delta writes
-    (FUN_00949e80-family, ledger F2 dig #4). **The wang out_map→grid
-    copier is still UNLOCATED.**
+- **2026-09-19 (4) — F-anchor dig #4: FUN_008f9ab0 partially read (slab
+  0x4f9ab0, true = slab + 0x400800; byte-pin via assert idiom 0x1151084 +
+  `add $0x76c` guard, C12's pattern).**
+  - Init-side non-wang grid write: per-cell sweep over an object (ebx) owning
+    float grid **+0x18**, u16 grid **+0x38** (write `u16 = 1` via helper
+    0x54a0f0) and a marker band **+0x40/+0x58** (4-neighbourhood reads via
+    0x5fdce0 = (x±1, y±1), vote aggregator 0x5fdd70; write fires when vote ==
+    1): qualifying cells get **float −1.0 (0xBF800000) into +0x18** and **u16 1
+    into +0x38**; indexing `[ebx+0x20]·y+x`, `[ebx+0x40]·y+x` (0x4f9b90..0x4f9dd3
+    via getters 0x5493b0/0x54a1d0/0x5491f0). **No RNG, no ÷10, no anchor
+    constants.**
+  - Tail: realloc of `[ebx+0x1c]` records + memcpy (0xc12400, dst `[ebx+0x18]`)
+    + std::string ctor family (0xc31cea) — append/serialize (pending).
+  - Identity NOT established (candidate: `<BitmapCaves>`/`<structures>`
+    seeding walk). Grid-write families known: (a) this sweep, (b) finalize
+    u16-delta writes (FUN_00949e80-family, ledger F2 dig #4).
 - **2026-09-19 (5) — F-anchor dig #5 addendum: FUN_008e6d50 FINALLY READ AT
   ITS TRUE VA (slab 0x4e6550; earlier dig #2 ran the mislabeled wrapper at
   slab 0x8e6cf0 and the #2-entry's identification was name garbage), plus C14
@@ -1739,47 +1238,24 @@ first use from now on):**
     into a PORT-DETAIL question). Keep C11 as the leaning-canon row;
     close F-anchor after the Threaded 0x8eda10-tail read.
 
-- **2026-09-19 (6) — F-anchor dig #6: the COPY-OUT FOUND — funnel CLOSED
-  (identification) + semantics read.** Driver = true 0x904c20 = **slab
-  0x504420** (clean prologue; the ONLY direct caller = thunk slab
-  0x6996a3 `mov 0x4(%ecx),%ecx; jmp driver` — thread-pool functor's
-  payload pointer IS the driver `this`). Head job-record prep
-  (slab 0x5044a0..0x50453f): fields [esi+0x34]/[esi+0x38] = source W/H
-  clamped to 1..0x400 (1024) — job dims are CAPPED, not area-anchored;
-  0x3c..0x4c register copies of scaled sizes; [esi+0x4c]/[esi+0x80]
-  pointers into a copy context.
-  - **THE COPY-OUT SWEEP (slab 0x505610..0x5056a4):**
-    `for y..H: for x..W:` cell x wrapped **modulo W** and y **mod H**
-    (`idiv` at slab 0x505637 / 0x505652 — wrap, NOT offset arithmetic),
-    dst idx = `y·W + x` (imul 0x505656), per-cell **4-byte copy**
-    (`mov (%esi),%ecx; mov %ecx,(%eax)`) with source cursor `%esi += 4`
-    (0x5056d0), dst via getter **0x549680** (double call = src read +
-    dst write), then the SECOND grid realloc'd (0x5056a4.., same
-    SetSize pattern as C10 — w/h stored, items = w·h). **Wrap-modulo
-    flat copy of a pre-scaled source blob — ZERO anchor arithmetic, no
-    (3,3), no additive constant anywhere in the copy path.**
-  - Driver additionally calls: **FUN_008f9ab0 twice** (slab 0x5055d7,
-    0x50571e — the flag=(1/bool?) cave-structure sweep, byte-pinned in
-    context), the stage-8 spawn walker (slab 0x5054fc → **true
-    0x900c70** — VERIFIED stage-8 table byte-pinned live ✓), and the
-    **0x52c820 copy helper** (also used in the Init area walk at slab
-    0x506bbd) — a shared Init/fill-apply primitive whose identity is a
-    followup row.
-  - **F-ANCHOR — CLOSED (negatively resolved, byte-pinned):** the game
-    contains NO additive wang-cell↔world anchor constant in any of the
-    now-read write paths (Init sizing C9–C11, copy-out with wrap, marker
-    sweep, painter, cache builder). Our genmap's fitted (3,3) is a
-    PORT-LOCAL artifact — the driver copies the accepted out_map
-    straight into the area grids with modulo repetition; the anchor
-    question has no binary side remaining. (Canon-level followup in
-    VERIFIED when the port's own out_map layout is verified against this
-    copy shape.)
-  - Registered helpers: dst getter 0x549680 (slab; float cell getter),
-    apply-pair 0x52c820 (shared primitive), driver = slab 0x504420;[
-    to follow: read the second set 0x5057xx for the u16 copy loop +
-    confirm the harder "stbhw atlas blob is already at cell scale"
-    postulate (the driver's [esi+0x3c]-family scaling shapes are the
-    ✓ anchor in that version).]
+- **2026-09-19 (6) — F-anchor dig #6: COPY-OUT FOUND — F-anchor CLOSED.**
+  Driver = true 0x904c20 = **slab 0x504420**; only direct caller = thunk slab
+  0x6996a3 (`mov 0x4(%ecx),%ecx; jmp driver`, thread-pool functor payload =
+  `this`). Head (slab 0x5044a0..0x50453f): [esi+0x34]/[esi+0x38] = source W/H
+  clamped to 1..0x400 (1024); 0x3c..0x4c scaled-size copies;
+  [esi+0x4c]/[esi+0x80] copy-context pointers.
+  - **Copy-out sweep (slab 0x505610..0x5056a4):** `for y..H: for x..W:` x wrapped
+    **mod W**, y **mod H** (`idiv` at slab 0x505637 / 0x505652), dst idx =
+    `y·W + x` (imul 0x505656), per-cell **4-byte copy** (source `%esi += 4`,
+    0x5056d0), dst via getter **0x549680**; then the second grid realloc'd
+    (0x5056a4.., SetSize pattern C10). **Zero anchor arithmetic.**
+  - Driver also calls **FUN_008f9ab0 twice** (slab 0x5055d7, 0x50571e), the
+    stage-8 spawn walker (slab 0x5054fc → **true 0x900c70**, byte-pinned), and
+    the **0x52c820 copy helper** (also in the Init walk, slab 0x506bbd; identity
+    open).
+  - **Verdict:** no additive wang-cell↔world anchor constant in any binary write
+    path; the genmap's fitted (3,3) is PORT-LOCAL. Open: the u16 copy loop at
+    slab 0x5057xx; confirm the stbhw blob is already at cell scale.
 - **2026-09-19 (7) — F2 dig #1: blockOutRooms ray-walk semantics FULLY read
   and ported (objdump, fresh slab regenerated this session; VA map per
   2026-09-19 (2)).** Read targets: FUN_009013f0 = **slab 0x500bf0** (true
@@ -1842,98 +1318,49 @@ first use from now on):**
     0x500dc4–0x500e0a, exact dword forms incl. alpha FF — no new rows needed
     beyond these; the 0x2710 limit and 0xffffff test are recorded here only,
     in-table candidate if a later session needs them).
-- **2026-09-19 (8) — F2 dig #2: the biome special-case SELECTION is
-  template-path equality (isCoalMine/shouldBlockOutRooms determined;
-  exhaustive biome census).** Fresh slab; proof anchor C13 re-pinned
-  (cmp eax,0xFF420000 @ slab 0x50124d) before every named-target read.
-  - Refs of the THREE wang-template path literals in .rdata ("coalmine.png"
-    @0x1173ec0, "excavationsite.png" @0x11742a0, "extra_layers/coalmine.png"
-    @0x1174c58; only these three exist in the entire binary) → four code
-    sites, all read this session:
-    1. **Driver blockOutRooms guard (slab 0x504f2d..0x50504b):** an inline
-       std::string compare with len 0x1c against "data/wang_tiles/
-       coalmine.png" then a SECOND inline compare len 0x22 against
-       "data/wang_tiles/excavationsite.png"; either match falls into the
-       **same call site of FUN_00901580 (slab 0x50505e)** — the two matches
-       UNION to trigger the room-marker walker (matches the port's
-       shouldBlockOutRooms as coalmine∪excavationsite — NOT a name lookup!).
-    2. **hasPath mark arm (slab 0x5011a4..0x5011b2):** 0x43ff0(str,"data/
-       wang_tiles/coalmine.png") → the 0xFF420000/0xFF000000 mark walk.
-    3. **hasPath stairs arm (slab 0x5017ab..0x50187f):** same compare inline;
-       scans cells **x = 0x8c..0x9d (140..157), y = 0..14**, black-filling
-       any cell == **0xfffefefe** (the overlay's white stairs color,
-       `cmpl $0xfffefefe` @ slab 0x501844). THE in-binary meaning of
-       noitool's "start_x = 142": it is a BAND SEARCH for stairs cells
-       (141 wide, 15 tall), whose first hit defines the path start —
-       not a constant x.
-    4. **Init overlay loader (slab 0x507061..0x50707b):** per biome object
-       ([biome+0x1f8] byte → [obj+0x50]; template==coalmine.png) →
-       loads "data/wang_tiles/extra_layers/coalmine.png" into **[obj+0x8c]**
-       — the vendered coalmine_hax.cpp overlay's in-binary home; byte
-       row 0.
-  - **EXHAUSTIVE CENSUS (data-side, binary rule applied):** 174 biome XMLs
-    in `_biomes_all.xml`; **42 carry wang_template_file** (registering 33
-    tile atlases; a tower file family reuses the 7 standard atlases;
-    the_end.png serves the_end/boss_victoryroom/magic_gate; 5 special
-    static-tile fg). NO OTHER biome can ever hit the coalmine/excavationsite
-    regimes: the selection compares TEMPLATE PATHS, and only those 3 path
-    literals exist in-binary. Affected biomes = the union across
-    `_biomes_all.xml`: coalmine (ffd57917) + tower_1 (ff3d3e37) +
-    _EMPTY_ (ffFF8080) → coalmine.png; excavationsite (ff124445) +
-    tower_2 (ff3d3e38) → excavationsite.png.
-  - **PORT-FIXED same session** (`lib/biomes.mjs`): the @prov noitool
-    NAME-LIST flags replaced with the binary rule (`templateFile ===
+- **2026-09-19 (8) — F2 dig #2: special-case SELECTION = template-path
+  equality.** The only three wang-template path literals in .rdata:
+  "coalmine.png" @0x1173ec0, "excavationsite.png" @0x11742a0,
+  "extra_layers/coalmine.png" @0x1174c58 → four code sites:
+  1. **Driver blockOutRooms guard (slab 0x504f2d..0x50504b):** inline
+     std::string compare len 0x1c vs "data/wang_tiles/coalmine.png", then len
+     0x22 vs "data/wang_tiles/excavationsite.png"; either → FUN_00901580 (slab
+     0x50505e) — union, not a name lookup.
+  2. **hasPath mark arm (slab 0x5011a4..0x5011b2):** 0x43ff0(str,"data/
+     wang_tiles/coalmine.png") → the 0xFF420000/0xFF000000 mark walk.
+  3. **hasPath stairs arm (slab 0x5017ab..0x50187f):** scans **x = 0x8c..0x9d
+     (140..157), y = 0..14**, black-filling cells == **0xfffefefe** (`cmpl
+     $0xfffefefe` @ slab 0x501844) — noitool's "start_x = 142" is a band search
+     for stairs cells whose first hit defines the path start.
+  4. **Init overlay loader (slab 0x507061..0x50707b):** [biome+0x1f8] byte →
+     [obj+0x50]; template==coalmine.png → loads
+     "data/wang_tiles/extra_layers/coalmine.png" into **[obj+0x8c]**.
+  - **Census:** 174 biome XMLs in `_biomes_all.xml`; **42 carry
+    wang_template_file** (33 atlases; tower family reuses the 7 standard
+    atlases; the_end.png serves the_end/boss_victoryroom/magic_gate; 5 static
+    fg). Affected: coalmine (ffd57917) + tower_1 (ff3d3e37) + _EMPTY_
+    (ffFF8080) → coalmine.png; excavationsite (ff124445) + tower_2 (ff3d3e38) →
+    excavationsite.png.
+  - `lib/biomes.mjs` now uses the binary rule (`templateFile ===
     "data/wang_tiles/coalmine.png"` → isCoalMine; ∨ excavationsite.png →
-    shouldBlockOutRooms). Same 4 biomes resolve for the rendered set, PLUS
-    the name-lists' blind spots: tower sub-biomes (the name namespace says
-    "tower" for ALL solid_wall_tower_* — name lists could never be
-    exhaustive by construction) and _EMPTY_. Validated: `npm test` **143/143**
-    green; hasPath oracle fixture regions (excav/coalmine) are exactly the
-    same in both rule variants — no behavior change for the current tests;
-    the flags now follow the binary so modbiome names can never desync.
-  - Registrations: C19 (trigger compares), C20 (hasPath coalmine arms incl.
-    the stairs band + overlay loader), C21 (the census + the two
-    name-list corrections).
-- **2026-09-19 (9) — REFERENCE-FRAME AUDIT (user question): is coalmine still
-  a reference set? Also "no wang template ⇒ predictable spawn" tested.**
-  - **Historical check (disk this session):** noitool's own validation bench
-    mapped 23—24 biome fixtures (theirs `verify-vs-noitool.mjs` PARAM_MAP,
-    all seeds = CAPTURE_SEED 78633191), coalmine their flagship; our early
-    template walk diff used coalmine + winter_caves params; the hax overlay
-    data container = the vendored coalmine_hax.cpp; the hasPath oracle
-    carries a coalmine-91 corroborator (first accepted A=1). So YES —
-    coalmine entered the project as THE reference biome inherited from
-    noitool's work.
-  - **Why it is no longer fit as a general reference:** (1) coalmine is the
-    MOST special-cased wang biome in-binary — the mark walk (C1/C2), the
-    stairs band (C20 arm 2), the overlay loader ([obj+0x8c]) and the
-    blockOutRooms union trigger (C19) all exist ONLY for biomes whose
-    template == coalmine.png/excavationsite.png (2026-09-19 (8)). A model
-    tuned on coalmine inherits port-local artifacts (the ShadeOfGrey
-    heuristic was exactly such a coalmine heuristic — eliminated 2026-09-19
-    (7)). (2) noitool's coalmine "authority" shipped a SILENT NO-OP hax
-    (0x004000/0x0040 vs the data's 0x006400/0x000064 — C4); trusting that
-    reference cost the pipeline a behavior correction a full day of
-    digging later. (3) The regular-biome reference we now hold is STRONGER:
-    the runtime-confirmed asm chain (12/12 spawn equations, ws×16807^115 CE
-    read) + the oracle-validated hasPath port + generateAreaExact ~10 ms.
-  - **VERDICT:** coalmine is DEMOTED from reference set to a **stage-6
-    special-case FIXTURE** — it remains the only bench exercising hax/mark/
-    stairs/room-blocking behavior, keep it for exactly that. The absolute
-    references stay, per the user's ruling: **`mapgen/VERIFIED.md` (canon)
-    and the reference seeds 78633191/92/93** (captures + CE anchors + entity
-    dumps + spawn equations). `vendor/noita-tools` stays READ-ONLY data
-    containers (overlay asset), never a reference.
-  - **"Any non-wang-tiled biome is a predictable spawn" — REFINE:** the
-    no-template census (unique files, color ≠ 00000000) = 55 biomes;
-    **47 carry mGradient/mInsidePerlin poro-noise params (seed-DEPENDENT —
-    the F3/I1 frontier, NOT predictable)**, 4 bare, 0 with <PixelScene>
-    entries in the XML (scenes load from the lua scripts side, I15 class).
-    Correct taxonomy: no-template biomes = static-template content (the
-    ~95% seed-independent capture zones, PREDICTABLE_ZONES.md — predictable)
-    UNION poro-noise procedural terrain (seed-dependent, F3). The
-    predictable part is exactly what `template-render.mjs` blits today; the
-    noise part is I1. Enumerated source: this census + C21 (wang side).
+    shouldBlockOutRooms), covering tower sub-biomes and _EMPTY_; no behavior
+    change on oracle fixtures. Registrations: C19 (trigger compares), C20
+    (hasPath coalmine arms + stairs band + overlay loader), C21 (census).
+- **2026-09-19 (9) — REFERENCE-FRAME AUDIT: coalmine demoted; "no wang
+  template ⇒ predictable" refined.**
+  - Coalmine entered as noitool's flagship reference (their PARAM_MAP, 23–24
+    fixtures, seed 78633191; hax overlay = vendored coalmine_hax.cpp; hasPath
+    corroborator A=1). It is the MOST special-cased wang biome in-binary (mark
+    walk C1/C2, stairs band C20, overlay loader [obj+0x8c], blockOutRooms union
+    C19) and noitool's hax was a silent no-op (C4). **Verdict:** coalmine =
+    a stage-6 special-case FIXTURE only; absolute references = `mapgen/VERIFIED.md`
+    and seeds 78633191/92/93 (captures + CE anchors + entity dumps + spawn
+    equations); `vendor/noita-tools` = read-only data container.
+  - No-template census (unique files, color ≠ 00000000) = 55 biomes: **47 carry
+    mGradient/mInsidePerlin poro-noise params (seed-DEPENDENT, F3/I1)**, 4 bare,
+    0 with <PixelScene> in XML (scenes come from lua, I15). No-template biomes =
+    static-template content (predictable, `template-render.mjs`) ∪ poro-noise
+    terrain (I1).
 - **2026-09-19 (10) — F2 dig #3: the hasPath search-side machinery decoded
   (C0FFEE walker exact semantics + overlay arms + driver tail closed).**
   - **FUN_00900560 (slab 0x4ffd60, true 0x900560; the hasPath C0FFEE walker)
@@ -1994,147 +1421,73 @@ first use from now on):**
     corrects), C23 (the overlay arms + the driver-tail closure), and the
     two NEW pinned color constants 0xffeeffc0 / 0xFF004200 live inside
     C22/C23 notes (skip C24+ until next use).
-- **2026-09-19 (11) — F2 dig #4: F2 CLOSED.** The last two queued reads:
-  - **BIOME_PATH_FIND_WORLD_POS_MIN/MAX_X are RUNTIME GLOBALS, not
-    compile-time constants** (the 159/223 @prov noitool values were
-    approximation debt): the driver (ProceduralTerrain::Init family) stores
-    two doubles from the parsed biome-def object (`movsd [eax+0x38] →
-    0x1327670`, `[eax+0x40] → 0x13289a8` at slab 0x50693a/0x506947) and
-    LOGS both (format string 0x1174b1c at slab 0x506972). Every consumer
-    reads the same globals: hasPath's arg prep (slab 0x505061-0x50508e:
-    area<<9 − int(g1) / − int(g2) = the fillXFrom/fillXTo computation) and
-    the per-record area walker at slab 0x507746..0x5077f0 (per record:
-    `rec[0x78]−rec[0x74]` extended-range loop with the `10·v−5−int(g)`
-    edge transform: `lea 5x; add/edx → 10x; sub $5; sub int(g)` — the
-    atlas-cell→world centering applied per cell against the SAME globals).
-    Neither is present as static .data (VAs live beyond the mapped
-    image — runtime-allocated) → the static values must be resolved from
-    the parsed biome config; the port's 159/223 stays tagged
-    `@prov noitool` ± the mechanism is now the pinned fact. No game-data
-    XML carries 159/223 (grep, this session) → they're engine-side
-    computed/registered.
-  - **ClearPath = LOGGING-ONLY in-binary:** the hasPath tail's "couldn't
-    clear start path" arms (slab 0x5014d7/0x5014e0, strings
-    0x1173f28/0x1173f4c behind the gate `cmpb 0,0x1327699`) performs NO
-    spatial mutation — the "ClearPath exact range rules" contract
-    resolves to NIL (log + the reset byte toggling; the fills live in
-    the marker walker + record blit + the C0FFEE/CHECKFORGAPS neighborhood
-    already decoded C17/C22).
-  - **The C0FFEE flood's role pinned exactly** (C22 + this read): it
-    builds the **gap-clearance field consumed by CheckForGaps** (true
-    0x901260-family), i.e. it is a reachability/viz field, not a paint.
-    Our port's coffee→BLACK path-map flood is verdict-equivalent (the
-    region is traversable under both rules — coffee passes the flood's
-    `(cell & 0xffffff) == 0 ∨ == 0xffeeffc0` judge directly and black
-    is the search's home color; oracles 4/4 + 8/8 hold).
-  - **fillRandomMaterials is NOT an hasPath-family member:** in-binary the
-    RandomColor pairs are parsed by the biome-def XML handler (true
-    0x8eb3xx-family, literal "RandomColor" @ VA 0x1172f04; 4 instr refs
-    all in one parser block) and stored in the biome object; their
-    out-map/mected consumption = the biome materializer's u16-grid writes
-    = the F3/stage-12 frontier (COLORIZE family), not this finalize
-    family. F2's scope = the accept/retry + out_map-mutation machinery:
-    fully read now (fillMainPath's walk-loop internals remain abstracted
-    as the oracle-pinned search; per dig #3's scope note, re-derivation
-    only on regression).
-  - Registration: C24 (the runtime MinX/MaxX globals + the biome-def
-    parse family). VERIFIED §11 frontier item 2 → F2 CLOSED.
-- **2026-09-19 (12) — F3 dig #1: the poro noise core READ — 2D SIMPLEX +
-  quintic lattice noise identified; the noise-transform constants pinned;
-  the config-key chain behind C24 resolved statically. Slab regenerated
-  this session; C13 proof anchor re-pinned first (`cmp eax,0xFF420000` @
-  slab 0x50124d = true 0x901a4d ✓). VA rule for this entry: true VA =
-  slab VA + 0x400800; .rdata constants read from the raw file at
-  `file_off = VA − 0x400e00` (convention verified against the
-  200000.0f/100000.0f/0.5/2147483647.0 pins).**
-
-  - **The "perlin" core is 2D SIMPLEX noise (true FUN_008fca60 = slab
-    0x4fc260)** — the ledger-prose "smoothed value noise" label was
-    wrong. Float args (xmm0, xmm1) → xmm0 out. Op order (slab refs):
-    skew `s=(x+y)·F2` → floor i,j (negative-adjust `comiss`+`dec` @
-    0x4fc289..0x4fc29c) → unskew by `G2·(i+j)` (0x4fc2ac..0x4fc2d2) →
-    corner choice `(i1,j1)` = (1,0)|(0,1) (0x4fc2d3..0x4fc2e6) → per-
-    corner `t = 0.5 − x² − y²` (0.5 @0x11dfa94; t≤0 → contribute 0)
-    → gradient `g = perm[perm[j]+i] & 7` via perm **0x114ced0** (8-dir
-    gradient: ≥4 axis-swap, bit0 sign-flip `xorps −0.0`, bit2
-    multiplier ±2.0 @0x11e05f0/0x11dfe68) → contribution `dot·t⁴` (two
-    squarings, Gustavson-style; 0x4fc372/0x4fc3bb) → sum × **40.0**
-    (0x11e0270 @0x4fc4cd). Pinned constants: F2=0.3660254@0x11dfa34,
-    G2=0.2113249@0x11df9c0, 2G2=0.4226497@0x11dfa4c, kernel 0.5,
-    scale 40.0 → registered C25.
-
-  - **3D simplex twin = true 0x8fcce0 (slab 0x4fc4e0):** F3 = 1/3
-    @0x11dfa18, G3 = 1/6 @0x11df9a0, same perm table (C25).
-
-  - **A second, separate noise family = quintic lattice noise:** true
-    0x8fc740 (slab 0x4fbf40) and true 0x900900 (slab 0x4fc100); OWN perm
-    table **0x114d700** (`&0xff` wrap; starts 23,125,161,52,…), quintic
-    smoothstep constants **6.0 @0x11e00e8 / 15.0 @0x11e01a0** (C25). Its
-    gradient set / final scale unread (funnel item).
-
-  - **The noise transform = true FUN_00908cb0 (slab 0x5084b0)** — the
-    per-cell sampler's evaluator; registered C26. It READS the C24
-    runtime globals 0x1327670/0x13289a8 as coordinate offsets (slab
-    0x5084b6/0x5084c1 — C24's doubles feed the noise args too ⇒ C24's
-    159/223 family and the noise args are CONFIG-coupled), and mixes:
-    floorf cells `i = floor((X+gMin+0.5)×0.1)`, `j = …` (0.1 as an
-    f64 **DOUBLE** @0x11dfd08; floorf 0x4c8b0 @0x50853e/0x50854e);
-    `w = pure2dSimplex(X×0.13715, Y×0.13717)×0.45 + 0.1`
-    (0.13715@0x11dfd30 / 0.13717@0x11dfd38 doubles; 0.45@0x11dfa5c,
-    0.1@0x11df974); lattice-noise args × **1/9** (f64 @0x11dfd20) →
-    two quintic-lattice calls (0x4fbf40 @0x5085c1, 0x4fc100 @0x50861b)
-    weighted by `((1−w)×0.33 + 0.111)×a` (0.33@0x11dfa10,
-    0.111@0x11df97c; a = caller float, =1.0 from the sampler), then an
-    integer-lattice fractional-mixing tail (0x508612..0x50865e). Instruction
-    refs recorded in C26; the line-by-line decompilation is funnel
-    item (b) below.
-
-  - **Sampler FUN_0090d860 (slab 0x50d060) read (head + noise arm):**
-    profiler scope "IMPL_DoBufferedPixelScene - bitmap noise loop job"
-    (string 0x1175638 @ slab 0x50d0a4); identity double-anchored by the
-    C12 assert idiom (`push $0x1151084` + `add $0x76c` @ slab 0x50d1c2)
-    AND the driver's copy-out getter 0x549680 (@ slab 0x50d112).
-    Per-cell flow: u16 guard (@0x50d117) → marker grids (+0xd4 u16 via
-    0x54a0f0, +0xf4 byte via 0x5493b0, `== 0xff` check @0x50d364) →
-    **float field [+0xb4] gate: process only if v > 0.5** (comiss
-    0x11dfa94 @0x50d3c3) → material select [+0x1d4] → **call
-    0x5084b0 = true FUN_00908cb0** (@0x50d419) → smoothstep interp
-    (3.0@0x11dff70, 2.0@0x11dfe68, 0.5@0x11dfa94) → second noise call
-    0x508670 (true 0x908e70 @0x50d524) + CRT floorf pair (0x114a434
-    @0x50d53f/0x50d55e) + dispatcher 0x4f4830 → **paint arm:** u16
-    write [+0x1e0] via 0x559de0 (@0x50d693), RGBA grid [+0x180]
-    alpha check (@0x50d6d0), vtable dispatch. Grid-contract facts for
-    the port are in place; material-naming call 0xb78e0 (@0x50d392)
-    unread.
-
-  - **C28 — mystery #2 RESOLVED statically:** the biome-def parse
-    doubles `[+0x38]/[+0x40]` (C24's source) belong to a per-biome map
-    class whose accessor **true 0x909DA0 (slab 0x5095a0)** consumes the
-    same `[+0x38]/[+0x40]` doubles as additive offsets over a
-    `[+0x50]×[+0x54]` wrap-mod (`sar 9` + `idiv`) vector table at +0x68 —
-    i.e. that double pair is a per-biome "Wang offset" (log string
-    "Wang offset: " 0x1174b1c @ slab 0x506972). The config-key name
-    strings (BIOME_USE_BIG_WANG @0x116c762,
-    BIOME_PATH_FIND_HEIGHT_LIMIT @0x116c776,
-    BIOME_PATH_FIND_WORLD_POS_MIN_X @0x116c7da, MAX_X @0x116c85e) have
-    ZERO imm32 references across the whole exe file (scan verified
-    against the control literal 0x1173ec0 which finds its 4 known
-    hits) ⇒ the values live in the engine's runtime ConfigRegistry
-    defaults, not in any game-data XML (grep of the extracted data dir:
-    no `path_find` matches). Static resolution stops here; numbers need
-    a runtime probe. The C24/`@prov noitool` tag on the port's 159/223
-    REMAINS.
-
-  - **F3 funnel status after dig #1:** core math + state chain + the
-    noise-args coupling are READ. Remaining binary reads: (a) the
-    quintic-lattice gradient set / final scale; (b) FUN_00908cb0's
-    exact line-by-line de-compilation; (c) the sampler's paint arm
-    constants; (d) the Init caller of FUN_0090ce20/0x50c9d5 (what
-    plants the per-cell generator objects and sources its seed arg).
-    After those: port the FUN_00908cb0 transform + grid contract to
-    JS and validate vs captures (I1/I3/I5/I6).
-
-  - Tests: baseline intact this dig (no port changes expected).
+- **2026-09-19 (11) — F2 dig #4: F2 CLOSED.**
+  - **BIOME_PATH_FIND_WORLD_POS_MIN/MAX_X are RUNTIME GLOBALS:** Init stores two
+    doubles from the parsed biome-def (`movsd [eax+0x38] → 0x1327670`,
+    `[eax+0x40] → 0x13289a8`, slab 0x50693a/0x506947) and logs them (format
+    0x1174b1c, slab 0x506972). Consumers: hasPath arg prep (slab
+    0x505061-0x50508e: area<<9 − int(g1) / − int(g2) = fillXFrom/fillXTo) and
+    the per-record area walker (slab 0x507746..0x5077f0: `rec[0x78]−rec[0x74]`
+    loop with the `10·v−5−int(g)` transform). Not static .data; no game XML
+    carries 159/223 → the port's 159/223 stays `@prov noitool`.
+  - **ClearPath = logging-only** (slab 0x5014d7/0x5014e0, strings
+    0x1173f28/0x1173f4c, gate `cmpb 0,0x1327699`) — no spatial mutation.
+  - **C0FFEE flood** builds the gap-clearance field consumed by CheckForGaps
+    (true 0x901260-family); the port's coffee→BLACK path-map flood is
+    verdict-equivalent (oracles 4/4 + 8/8).
+  - **fillRandomMaterials is not hasPath-family:** RandomColor pairs are parsed
+    by the biome-def XML handler (true 0x8eb3xx-family, literal "RandomColor" @
+    VA 0x1172f04; 4 refs in one block) → consumed by the biome materializer
+    (F3/stage-12). Registration: C24. VERIFIED §11 item 2 → F2 CLOSED.
+- **2026-09-19 (12) — F3 dig #1: poro noise core = 2D SIMPLEX + quintic
+  lattice noise; config-key chain resolved statically.** (Pins: C13 `cmp
+  eax,0xFF420000` @ slab 0x50124d = true 0x901a4d; true VA = slab + 0x400800;
+  .rdata `file_off = VA − 0x400e00`, verified vs 200000.0f/100000.0f/0.5/
+  2147483647.0.)
+  - **true FUN_008fca60 (slab 0x4fc260) = 2D simplex** (not value noise): skew
+    `s=(x+y)·F2` → floor i,j (`comiss`+`dec` @ 0x4fc289..0x4fc29c) → unskew
+    `G2·(i+j)` (0x4fc2ac..0x4fc2d2) → corner (1,0)|(0,1) (0x4fc2d3..0x4fc2e6) →
+    `t = 0.5 − x² − y²` (0.5 @0x11dfa94; t≤0 → 0) → `g = perm[perm[j]+i] & 7`,
+    perm **0x114ced0** (≥4 axis-swap, bit0 sign-flip `xorps −0.0`, bit2 ×±2.0
+    @0x11e05f0/0x11dfe68) → `dot·t⁴` (0x4fc372/0x4fc3bb) → sum × **40.0**
+    (0x11e0270 @0x4fc4cd). F2=0.3660254@0x11dfa34, G2=0.2113249@0x11df9c0,
+    2G2=0.4226497@0x11dfa4c → C25.
+  - **3D simplex = true 0x8fcce0 (slab 0x4fc4e0):** F3 = 1/3 @0x11dfa18, G3 =
+    1/6 @0x11df9a0, same perm (C25).
+  - **Quintic lattice noise:** true 0x8fc740 (slab 0x4fbf40) and true 0x900900
+    (slab 0x4fc100); own perm **0x114d700** (`&0xff`; starts 23,125,161,52,…);
+    **6.0 @0x11e00e8 / 15.0 @0x11e01a0** (C25).
+  - **Noise transform = true FUN_00908cb0 (slab 0x5084b0)** (C26; full
+    decompile in (13)): reads the C24 globals 0x1327670/0x13289a8 as coordinate
+    offsets (slab 0x5084b6/0x5084c1); cells `floor((X+gMin+0.5)×0.1)` (0.1 f64
+    @0x11dfd08; floorf 0x4c8b0 @0x50853e/0x50854e); `w = simplex(X×0.13715,
+    Y×0.13717)×0.45 + 0.1` (0.13715@0x11dfd30 / 0.13717@0x11dfd38;
+    0.45@0x11dfa5c, 0.1@0x11df974); lattice args × **1/9** (f64 @0x11dfd20) →
+    two quintic calls (0x4fbf40 @0x5085c1, 0x4fc100 @0x50861b) weighted by
+    `((1−w)×0.33 + 0.111)×a` (0.33@0x11dfa10, 0.111@0x11df97c; a = 1.0 from the
+    sampler); fractional-mixing tail 0x508612..0x50865e.
+  - **Sampler FUN_0090d860 (slab 0x50d060):** profiler "IMPL_DoBufferedPixelScene
+    - bitmap noise loop job" (string 0x1175638 @ slab 0x50d0a4); anchored by
+    C12 idiom (`push $0x1151084` + `add $0x76c` @ slab 0x50d1c2) and getter
+    0x549680 (@ slab 0x50d112). Flow: u16 guard (@0x50d117) → markers (+0xd4 u16
+    via 0x54a0f0, +0xf4 byte via 0x5493b0, `== 0xff` @0x50d364) → **float
+    [+0xb4] gate: only v > 0.5** (comiss 0x11dfa94 @0x50d3c3) → material select
+    [+0x1d4] → **0x5084b0 = FUN_00908cb0** (@0x50d419) → smoothstep
+    (3.0@0x11dff70, 2.0@0x11dfe68, 0.5@0x11dfa94) → 0x508670 (true 0x908e70
+    @0x50d524) + floorf pair (0x114a434 @0x50d53f/0x50d55e) + dispatcher
+    0x4f4830 → paint: u16 write [+0x1e0] via 0x559de0 (@0x50d693), RGBA [+0x180]
+    alpha check (@0x50d6d0), vtable dispatch. Material-naming call 0xb78e0
+    (@0x50d392) unread.
+  - **C28:** the `[+0x38]/[+0x40]` doubles are a per-biome "Wang offset" (log
+    "Wang offset: " 0x1174b1c @ slab 0x506972); accessor **true 0x909DA0 (slab
+    0x5095a0)** adds them over a `[+0x50]×[+0x54]` wrap-mod (`sar 9` + `idiv`)
+    table at +0x68. Config-key strings (BIOME_USE_BIG_WANG @0x116c762,
+    BIOME_PATH_FIND_HEIGHT_LIMIT @0x116c776, BIOME_PATH_FIND_WORLD_POS_MIN_X
+    @0x116c7da, MAX_X @0x116c85e) have ZERO imm32 refs (control 0x1173ec0 finds
+    its 4) ⇒ runtime ConfigRegistry defaults; numbers need a runtime probe.
+  - Open F3 reads after this: quintic gradient set/scale; FUN_00908cb0
+    line-by-line; sampler paint constants; the Init caller of
+    FUN_0090ce20/0x50c9d5.
 - **2026-09-19 (13) — F3 dig #2: FUN_00908cb0 FULLY DECOMPILED (slab
   0x5084b0..0x50866f, every op transcribed; constants C26) + the
   quintic-lattice noise completed + the second evaluator + the
@@ -2348,73 +1701,37 @@ first use from now on):**
     8-direction construct. Capture-level validation (flat-region rms vs
     seed 78633191) remains GATED on the runtime gradient table.
 
-- **2026-09-20 (16) — F3 dig #4 addendum / CLOSURE: the gradient table
-  FOUND IN-FILE + the sampler paint arm read + the .data file-rule
-  corrected.** All four reads on F3's list are closed; the port is
-  fully binary-derived with no placeholder.
-  - **.DATA FILE-RULE AMENDMENT (C13):** the PE section table shows
-    imageBase 0x400000 and per-section raw deltas **.text = VA−0x400C00
-    · .rdata = VA−0x400E00 · .data = VA−0x401A00**. The standing
-    ".rdata/.data reads: file_off = VA − 0x400e00" rule is RDATA-ONLY.
-    .data raw backing spans VA 0x12EB000..0x1327400 (vsize 0x612F0 → VA
-    up to 0x134C2F0; the tail = BSS/no file bytes). Re-checked
-    runtime-only verdicts against the map this session: C24
-    (0x1327670/0x13289a8), 0x13276ba, 0x132aed8 are all beyond 0x1327400
-    → BSS → runtime-confirmed (their verdicts stand via the map, not
-    merely via a garbage read).
-  - **GRADIENT TABLE @0x12eec08 FOUND (file 0xEED208)** — byte-pinned
-    8 f32 pairs (gx @0x12eec08 / gy @0x12eec0c, stride 8):
-    `0:(−1,0) 1:(1,0) 2:(0,−1) 3:(0,1) 4:(−1,−1) 5:(−1,1) 6:(1,−1)
-    7:(1,1)` — static .data, no randomness. The (13)/dig #4
-    "runtime-only / CE read required" negative was a section-rule
-    artifact; the imm32 hunt result stands as recorded (only the 8 load
-    sites — no runtime init code exists; the table is compile-time data).
-    `lib/noise-proto.mjs` GRADIENTS = these exact bytes.
-  - **SAMPLER PAINT ARM (FUN_0090d860 tail, slab 0x50d5b8..0x50d84c) —
-    read (last open item on F3's list):** dispatcher 0x4f4830 (@0x50d57a
-    family) returns the sampled material; per sample: u16 grid write
-    (+0x1e0 via 0x559de0, indexed `w·row + x`, `mov %ecx,(%eax)` @
-    0x50d69a = the DISPLACED material id); then the RGBA grid [+0x180
-    via 0x549680] bounds-checked (+0x168 w / +0x16c h) with
-    `testl $0xff000000` alpha guard (@0x50d6d0) → vtable *0x1c color
-    paint dispatch (0x50d6fa); else the 0x342040 material lookup +
-    mark-flag buffers (+0x1a0 / +0x1c0, byte=1 @0x50d823/0x50d851).
-    The noise → (displaced u,v) → floor-interp → material select →
-    u16/RGBA paint chain is mechanically complete in-binary (material
-    naming 0xb78e0/0x603fd0 is config-side — outside the noise
-    mechanism window).
-  - **F3 STATUS: READ-CLOSED + PORT FULLY BINARY-DERIVED.** Every byte
-    of the five cores pinned; `lib/noise-proto.mjs` carries zero
-    placeholders. Remaining pipeline steps (recorded here, NOT F3
-    reads): capture validation (I1/I3/I5/I6) + genmap integration
-    (cache r3e→r3f ONLY on an observable change). Tests: 143/143
-    intact (module smoke: 6.6M finite samples; evaluator2 range =
-    theoretical envelope).
+- **2026-09-20 (16) — F3 CLOSURE: gradient table found in-file + sampler paint
+  arm + .data file-rule.**
+  - **Section raw deltas (C13):** imageBase 0x400000; **.text = VA−0x400C00 ·
+    .rdata = VA−0x400E00 · .data = VA−0x401A00**. .data raw backing spans VA
+    0x12EB000..0x1327400 (vsize 0x612F0 → VA up to 0x134C2F0; tail = BSS).
+    C24 (0x1327670/0x13289a8), 0x13276ba, 0x132aed8 are BSS → runtime-only.
+  - **Gradient table @0x12eec08 (file 0xEED208)**, 8 f32 pairs (gx @0x12eec08 /
+    gy @0x12eec0c, stride 8): `0:(−1,0) 1:(1,0) 2:(0,−1) 3:(0,1) 4:(−1,−1)
+    5:(−1,1) 6:(1,−1) 7:(1,1)` — static compile-time data;
+    `lib/noise-proto.mjs` GRADIENTS = these bytes (zero placeholders).
+  - **Sampler paint arm (FUN_0090d860 tail, slab 0x50d5b8..0x50d84c):**
+    dispatcher 0x4f4830 (@0x50d57a family) returns the material; u16 write
+    (+0x1e0 via 0x559de0, `w·row + x`, `mov %ecx,(%eax)` @0x50d69a = displaced
+    material id); RGBA grid [+0x180 via 0x549680] bounds-checked (+0x168 w /
+    +0x16c h), `testl $0xff000000` alpha guard (@0x50d6d0) → vtable *0x1c paint
+    (0x50d6fa); else 0x342040 material lookup + mark-flag buffers (+0x1a0 /
+    +0x1c0, byte=1 @0x50d823/0x50d851). Material naming 0xb78e0/0x603fd0 is
+    config-side.
+  - **F3 READ-CLOSED.** Remaining: capture validation (I1/I3/I5/I6) + genmap
+    integration.
 
-- **2026-09-20 (17) — generator update wired (F3 integration, shape-first)
-  + an honest boundary marked:** `mapgen/lib/noise-terrain.mjs` plugs the
-  binary noise chain into `world-gen.mjs`'s fallback path (procedural
-  biomes, C21 census: 132 non-template): per wang cell,
-  `evaluator2(gx + cfgMinX, gy + cfgMaxX, 1.0)` (the 0x908e70 binary
-  recipe; cfg = the C24 ConfigRegistry defaults 159/223, @prov noitool),
-  gated by the sampler's own `> 0.5` test (slab 0x50d3c3); solid cells
-  paint one baseline shade per band (shape-first mandate — colors to be
-  calibrated after the data-material naming pass 0xb78e0/0x603fd0).
-  - **SMOKE RESULT (seed 78633191, chunk desert@45,48):** the chain
-    RUNS (mask built, tests 143/143, cache r3e → r3f bumped — the noise
-    bands now render visibly), BUT the mask is ALL-SOLID (2704/2704):
-    a lower-clamped-at-0.5 evaluator can never fail the >0.5 gate —
-    the gate is a smoothstep/interp precondition, NOT the content mask.
-    ⇒ the game's solid/air CONTENT decision lives in the **u16 DECOR
-    material grid** — which is filled by the fillRandomMaterials /
-    colorize family (named OPEN in VERIFIED's F2/F3 perimeter since
-    2026-09-19). The integration is therefore flagged a provisional
-    first cut; the honest next read = fillRandomMaterials' u16 write
-    walk + the float-field [+0xb4] source (+0x94 chain consumption),
-    after which the gate/field separation can produce real shape.
-  - ISSUE-tracking note: the world smoke surfacing "5 area errors" is
-    the preexisting no-attempt areas (lake / rainforest_dark family,
-    VERIFIED §4 residual); unchanged this session.
+- **2026-09-20 (17) — F3 integration wired (shape-first), provisional:**
+  `mapgen/lib/noise-terrain.mjs` plugs the noise chain into `world-gen.mjs`'s
+  fallback path (procedural biomes; C21 census: 132 non-template): per wang
+  cell `evaluator2(gx + cfgMinX, gy + cfgMaxX, 1.0)` (cfg = C24 defaults
+  159/223, @prov noitool), gated by `> 0.5` (slab 0x50d3c3); one baseline shade
+  per band; cache r3e → r3f. Smoke (seed 78633191, chunk desert@45,48): mask
+  ALL-SOLID (2704/2704) — a lower-clamped-at-0.5 evaluator never fails the
+  >0.5 gate, so the gate is not the content mask (root cause in (20)). The "5
+  area errors" are the preexisting no-attempt areas (lake / rainforest_dark,
+  VERIFIED §4 residual).
 
 - **2026-09-20 (18) — F3 dig #5: the u16 DECOR material-grid fill found —
   `BitmapNoise::LoadFromImageData` (true FUN_008f9ab0) READ end-to-end.**
@@ -2501,53 +1818,29 @@ first use from now on):**
     plus part-2/3 neighbor averaging; the ±1.0 field (the [+0x18]
     float grid) is the "solid lattice weight" that entry (17) profited
     from (all-solid = uninitialized +0x18/±1.0-empty port side).
-- **2026-09-20 (19) — F3 dig #5 second kill: the LIQUID-selector
-  (the P3/P5/P6 portal-zone/tea/lava mechanism) = TRUE 0x8f4830 aspect,
-  slab 0x4f4830.** (Read through its SETUP; classification math fully
-  read; body 0x4f4a21..0x4f4f54.)
-  - asserts: file "…procedural_utils/biome_ma…" (@0x1173240, the
-    biome_materials unit!) + per-call site strings (0x118c9f4
-    "mInitialized", 0x1151e28 "component" family, 0x11732c0/0x11732d0
-    "mCellFactory/couldn't find material '").
-  - Per-call: (this = the biome def; xmm0 = arg0 f32; stack ints edx =
-    X, ecx…). Guard: const f32 [ebx+0x0]/[+0x4] gate (comiss xmm1/xmm0
-    at 0x4f4919/0x4f4922); **RECORDED-CORRECTED (dig #7): the record
-    COUNT = (end − start) ÷ 132 — magic 0x3e0f83e1 (= 1041204193;
-    imul + sar 5 = the signed >>37 reciprocal; M·132/2³⁷ =
-    1.0000000000 exactly) — an earlier "÷-26.0 / ±26-cell" gloss here
-    was WRONG (2³⁷/26 = 5.29e9 doesn't fit 32 bits; the magic was
-    pattern-matched, not computed) and is RETRACTED. The loop-stride
-    `add $0x84,%esi` = 132 bytes per record CONFIRMS the ÷132
-    count**; and then the **sub-cell noise**
-    re-eval: `noise2arg = X·[this+0x30] + Y·[this+0x34]` (f32 mulss;
-    y from esi=[ebp+0xc] = X, edi=[ebp+8] = Y — CORRECTED call-site
-    mapping: [ebp+8] = Y-int (push nos 0x5087af = cvttsd2si of the
-    second double), [ebp+0xc] = X-int). The noise walk:
-    `wrapmod(≈)': both coords reduced by the **signed mod-512 idiom**
-    (`and $0x800001ff` → if negative `or $0xfffffe00`+inc + `add $0x200`
-    fallback = C `% 512` on ±512), then scaled by f32 1/512 =
-    0.001953125 @0x11df8b4 (0x4f4d39) — the 512-chunk lattice scaled to
-    [−1, +1) f32 per axis; and two more calls (`call 0xc08ea0` alpha
-    walk; `call 0x4fb820` = the 0x900900-family lattice; `call 0x4fb660`
-    "Phase-2 noise" args xmm0..x3 = X·[+0x16-family], Y·[+0x4c],
-    push [+0x64] = alpha) → the re-evaluated f32
-    (X·0x30 + Y·0x34 + warp-noise) gated by [this+0x24] (≥ jb abort) and
-    [this+0x28] (≤ comiss jbe abort), finally the **material id
-    [this+0x4]** returned (0x4f4f40).
-  - WAIT — the big-CONSTANT story: 0x11dfa70 = 1.53841e-05 and
-    0x11dfa88 = 2.50832e-05 (f64, mulsd ×2 in the "…7f-bits" noise at
-    0x5111d0 = a noise eval — the ±0x4/0xc stack floats): these are
-    per-area **0.001953125/512-family**-scaled warp coefficients —
-    recorded UN-claimed until the deciding WRAP-WINDOW read is done
-    (deferred — not a re-open of F3 noise core, a NEW cell class the
-    DECOR uses).
-  - So a **parallel DECOR-material classifier EXISTS beside
-    LoadFromImageData** (the biome-def `+0x30..+0x70` floating config
-    family, per-cell gate [this+0x24]/[+0x28] window + material id
-    [+0x4]): this is the function the portal/tea/lava P3/P5/P6
-    "noise-that-didn't-load" zones resolve through in a future dig.
-    NOT ported this session (port unchanged; no cache bump — the
-    noise-output contract of (17) is untouched).
+- **2026-09-20 (19) — F3 dig #5b: the per-material classifier = true 0x8f4830
+  (slab 0x4f4830; body 0x4f4a21..0x4f4f54), as amended by (21):**
+  - Asserts: "…procedural_utils/biome_ma…" (@0x1173240) + 0x118c9f4
+    "mInitialized", 0x1151e28 "component", 0x11732c0/0x11732d0
+    "mCellFactory/couldn't find material '".
+  - this = biome def; guard f32 [ebx+0x0]/[+0x4] (comiss at 0x4f4919/0x4f4922);
+    record count = (end − start) **÷ 132** (magic 0x3e0f83e1, `imul + sar 5` =
+    signed >>37, M·132/2³⁷ = 1.0000000000; loop stride `add $0x84,%esi`).
+    Call-site mapping: [ebp+8] = Y-int (cvttsd2si of the second double, push
+    0x5087af), [ebp+0xc] = X-int.
+  - Coordinates reduced by the **signed mod-512 idiom** (`and $0x800001ff`, if
+    negative `or $0xfffffe00`+inc, `add $0x200`) and scaled by f32 1/512 =
+    0.001953125 @0x11df8b4 (0x4f4d39). Per record: **two-arg f64 call `call
+    0x4fb820( esi·rec[+0x34] , edi·rec[+0x30] )`** (slab 0x4f4d87..0x4f4da5)
+    then `cvtsd2ss + addss -0x8(%ebp)`; plus `call 0xc08ea0` (unread) and
+    `call 0x4fb660` (true 0x8fbe60, unread; args from [+0x16-family], [+0x4c],
+    push [+0x64]). Value gated by [this+0x24] (jb abort) and [this+0x28]
+    (comiss jbe abort); returns **material id [this+0x4]** (0x4f4f40).
+  - Unclaimed constants: 0x11dfa70 = 1.53841e-05 and 0x11dfa88 = 2.50832e-05
+    (f64, mulsd ×2 in a noise eval at 0x5111d0).
+  - A parallel DECOR classifier beside LoadFromImageData (biome-def
+    `+0x30..+0x70` float config, window [+0x24]/[+0x28], id [+0x4]) — the
+    candidate route for the portal/tea/lava P3/P5/P6 zones. Not ported.
 
 - **2026-09-20 (20) — F3 dig #6: the sampler (true 0x90d860 family) read
   end-to-end — the gate/field/evaluator/DECOR-write chain is now CLOSED
@@ -2614,53 +1907,25 @@ first use from now on):**
     integration pass.**
   - Tests: 143/143 unchanged (no port change this dig).
 
-- **2026-09-20 (21) — dig #7: C33-ROW AUDIT (user challenge "careful not
-  to poison the well") — three poisoned glosses RETRACTED, one real
-  finding LANDED.** All re-verified against the raw slabs this session.
-  - **POISON 1 — "÷-26.0 / ±26-cell index magic"** (ABOUT_MATH (19) +
-    CONSTANTS C33): WRONG. Recomputed: magic 0x3e0f83e1 = 1,041,204,193;
-    the idiom `imul %ecx; sar $0x5` = signed **>>37**, and
-    **M·132/2³⁷ = 1.0000000000 exactly → the divisor is 132** (the
-    count of 0x84 = 132-byte-stride records; 2³⁷/26 = 5.29e9 doesn't
-    even fit 32 bits — the "26" was pattern-matched, never computed).
-  - **POISON 2 — "noise2arg = X·[+0x30] + Y·[+0x34]"** (the sum form):
-    WRONG. The dump (slab 0x4f4d87..0x4f4da5) shows a **TWO-ARG f64
-    call**: `call 0x4fb820( esi·rec[+0x34] , edi·rec[+0x30] )` (two
-    cvtps2pd args, register 1 = esi-family, register 2 = edi-family),
-    then `cvtsd2ss + addss -0x8(%ebp)` = result + the base a f32. The
-    +0x30/+0x34 slots are per-record arg weights, and the
-    truncated-sum reading is retracted.
-  - **POISON 2 — "call 0x4fb820 = the 0.900900-value-lattice family"**:
-    FALSE. slab 0x4fb820 → **true 0x8fc020** (not 0x900900 = slab
-    0x4fc100). Its body = an UNREAD second noise core: f64 args, first
-    sub-caller `call 0x4fb7d0` (see below), runtime f64 constants
-    **0x132ab68 / 0x132ac70** (both beyond .data raw backing
-    0x1327400 = BSS = runtime-only per C13 — static bytes are
-    garbage/0, cannot be pinned), a `comisd` corner rule
-    (slab 0x4fb8af), `movzbl`-byte perm-indexing (0x4fb8cf..). Do NOT
-    call it "value noise" until read.
-  - **NEUTRALIZED / still unanchored labels (flagged, do not cite):**
-    "512-chunk lattice" semantics (the 1/512 constant 0.001953125
-    @0x11df8b4 IS byte-pinned, but the lattice interpretation is
-    mine); "Phase-2 noise" = label for true 0x8fbe60 (slab 0x4fb660,
-    unread!); "alpha walk" = label for `call 0xc08ea0` (unread!).
-  - **LANDED FIND (the audit's positive result): the lazy noise-table
-    init = true 0x8fbfd0 (slab 0x4fb7d0)**, guarded by the BSS flag
-    byte **0x13289bd** (read-set-once: `cmpb 0; jne done; movb 1`):
-    for i in 0..255: from the .rdata u16 table **0x114cc50** (stride 2,
-    256 entries — its values START 151,160,137,91 = a SECOND copy of
-    the simplex-permutation C25 as u16):
-      **[0x1327bd0][i] = u16[0x114cc50 + 2i]** (the perm value)
-      **[0x1327720][i] = perm_val % 12** (idiv by 12, `lea 0xc(0),%esi`;
-          the remainder in dx) — a lazily-built mod-12 derivative table.
-    Both targets = BSS (beyond 0x1327400, C13) = runtime-only ✓.
-    The mod-12 table is a REAL, previously-unknown constant family
-    (12 = likely the direction count of the consuming noise core;
-    consumed by true 0x8fc020 family and possibly the simplex cores —
-    NOT yet traced; the 0x1327720 READERS are the pinned follow-up).
-  - Registration: C35 (the new tables + the unknown cores true
-    0x8fc020/0x8fbe60/0xc08ea0-slab 0x4c4ea0). The C33 row's byte
-    traps stand as amended in-place.
+- **2026-09-20 (21) — dig #7: C33-row audit — glosses retracted, one find
+  landed.** (Corrections folded into (19).) Retracted: the "÷26 / ±26-cell"
+  magic (divisor is 132; 2³⁷/26 = 5.29e9 does not fit 32 bits); the
+  "X·[+0x30] + Y·[+0x34]" sum form (it is a two-arg f64 call); "0x4fb820 =
+  0x900900-family" (slab 0x4fb820 → **true 0x8fc020**, an UNREAD noise core:
+  f64 args, sub-call `call 0x4fb7d0`, runtime f64 constants **0x132ab68 /
+  0x132ac70** (BSS, unpinnable), `comisd` corner rule (slab 0x4fb8af),
+  `movzbl` perm-indexing (0x4fb8cf..)). Unanchored labels (do not cite):
+  "512-chunk lattice" (0.001953125 @0x11df8b4 is pinned, the interpretation
+  is not); "Phase-2 noise" = true 0x8fbe60 (slab 0x4fb660, unread); "alpha
+  walk" = `call 0xc08ea0` (unread).
+  - **Lazy noise-table init = true 0x8fbfd0 (slab 0x4fb7d0)**, guarded by BSS
+    flag byte **0x13289bd** (`cmpb 0; jne done; movb 1`): for i in 0..255 from
+    the .rdata u16 table **0x114cc50** (stride 2; starts 151,160,137,91 = a u16
+    copy of the C25 simplex perm): **[0x1327bd0][i] = u16[0x114cc50 + 2i]**,
+    **[0x1327720][i] = perm_val % 12** (idiv by 12, `lea 0xc(0),%esi`). Both
+    targets BSS. Readers of 0x1327720 = the pinned follow-up. Registration: C35
+    (tables + unknown cores true 0x8fc020/0x8fbe60/0xc08ea0-slab 0x4c4ea0).
+
 
 - **2026-09-20 (22) — dig #8: the P1 SURFACE-SHAPE param family FOUND in
   the game's own data (no new asm needed).** The per-biome procedural
@@ -5498,6 +4763,8 @@ first use from now on):**
     **C56** + a C54 correction clause; VERIFIED §8 rows 21–22 +
     §12 dig-84 update. Tests **177/177**; y224 byte bar **0/12 rms
     0.0000** re-confirmed.
+
+
 - **2026-09-22 (85) — Phase-1 residuals dig: ① the 38-pair config XML
   bind table (attr → slot → bind-call), ② the sampler wrap-arg
   contradiction resolved, ③ the `[+0xb4]` float-field writer located
@@ -8864,688 +8131,378 @@ first use from now on):**
       no patch — drop path OFF. Gates green at commit. Next free:
       entry **(113)**, **C92**, **I23**; §8 row 33 free.
 
-- **2026-10-06 (113) — dig #113: 0x44d0b0 = CRT FLOOR not round (C40's
-  gloss overturned) ⇒ I22 FIXED (blend endpoints) + I20② PORTED (default
-  arm = parity lattice); the three-file working diff verified independently
-  and gates green.** Diagnosed the previous session's uncommitted work,
-  re-derived every byte claim from the exe this session, corrected the
-  docs' round-derived glosses, and closed the two issues.
-  - **THE OVERTURN: `0x44d0b0` = the CRT `floor` wrapper, not fld/fistp
-    round.** Byte-walk of the PE import directory (`the session temp bank (now settled under mapgen/extractions/, manifest X1–X61)
-    verify-floor-113.mjs`, 656 entries, no hardcoded offsets): body
-    55 B @0x44d0b0 (ret @0x44d0e6) = `cvtss2sd @0x44d0b9 → fldl @0x44d0c6
-    → fstpl @0x44d0ca → call 0x1033a52 @0x44d0cd → fstpl @0x44d0d2 →
-    cvtpd2ps @0x44d0df` — **no `fistp` anywhere**; thunk 0x1033a52 =
-    `ff 25 → jmp [0x114a534]`, and IAT slot 0x114a534's name record =
-    **MSVCR120.dll `floor`, hint 1646**. (fldl/fstpl = arg marshalling
-    only.) C40's "CRT fld/fistp ROUND-to-nearest wrapper" = wrong ⇒
-    every round-derived gloss superseded inline at (26)/(40) and in
-    CONSTANTS (C40/C83/C91 + the two "fp-round helper" texts); the
-    CORRECT row = **C92**.
-  - **IAT chain re-read whole** (`mapgen/extractions/resolve-wrappers-113.mjs (X7)`,
-    names resolved from the import dir, one thunk per slot in order):
+
+
+- **2026-10-06 (113) — dig #113: 0x44d0b0 = CRT FLOOR not round ⇒ I22
+  FIXED (blend endpoints) + I20② PORTED (default arm = parity lattice).**
+  - **`0x44d0b0` = the CRT `floor` wrapper, not fld/fistp round** (C40's
+    gloss wrong; correct row = **C92**). PE import-directory walk
+    (`verify-floor-113.mjs`, 656 entries): body 55 B @0x44d0b0 (ret
+    @0x44d0e6) = `cvtss2sd @0x44d0b9 → fldl @0x44d0c6 → fstpl @0x44d0ca →
+    call 0x1033a52 @0x44d0cd → fstpl @0x44d0d2 → cvtpd2ps @0x44d0df`, no
+    `fistp`; thunk 0x1033a52 = `ff 25 → jmp [0x114a534]`, IAT slot
+    0x114a534 = **MSVCR120.dll `floor`, hint 1646** (fldl/fstpl = arg
+    marshalling only).
+  - **IAT chain** (`mapgen/extractions/resolve-wrappers-113.mjs (X7)`):
     0x114a510 `_libm_sse2_acos_precise` · 0x114a514
     `_libm_sse2_cos_precise` · 518 `_libm_sse2_log10_precise` · 51c
     `_libm_sse2_pow_precise` · 520 `_libm_sse2_sin_precise` · 524
     `_libm_sse2_sqrt_precise` · 528 `_libm_sse2_tan_precise` · 52c
-    `_setjmp3` · 530 `ceil` · 534 `floor` · 538 `memcpy` · 53c
-    `memset` · 0x114a540
-    `?terminate` (thunks 0x1033a1c..0x1033a5e); 0x114a500 `_CIfmod`,
-    504 `_CxxThrowException`, 508 `__CxxFrameHandler3`, 50c
-    `__RTDynamicCast`. (26)'s list was off-by-one from 0x114a514 and
-    mis-labelled 3 slots; **the only pin the code uses, 0x114a520 =
-    sin for 0x44d110, survives** — as does (40)'s 0xc33234 → sin; that
-    item's other half, 0xc33222 → 0x114a514, = **cos** not acos.
-    The 0xc33xxx are slab VAs (true = +0x400800, C31's memset check).
-  - **Floor confirmed at BOTH c0 sites (byte-read
-    `mapgen/extractions/fulltext86.asm (X1)`, windows re-read this session):**
+    `_setjmp3` · 530 `ceil` · 534 `floor` · 538 `memcpy` · 53c `memset` ·
+    0x114a540 `?terminate` (thunks 0x1033a1c..0x1033a5e); 0x114a500
+    `_CIfmod`, 504 `_CxxThrowException`, 508 `__CxxFrameHandler3`, 50c
+    `__RTDynamicCast`. The code's pin 0x114a520 = sin for 0x44d110 holds,
+    as does 0xc33234 → sin; 0xc33222 → 0x114a514 = **cos** (not acos). The
+    0xc33xxx are slab VAs (true = +0x400800, C31).
+  - **Floor at BOTH c0 sites** (`mapgen/extractions/fulltext86.asm (X1)`):
     0x8fb350 calls @0x8fb373/382 → `mulss 0x11e028c` (57.0) @0x8fb3e9 +
-    `addss −0x8(%ebp)` (floor(x) slot) @0x8fb3fc → store c0 −0x4
-    @0x8fb417; 0x8fb570 calls @0x8fb593/5a2, c0 @0x8fb6f2..6fe, and the
-    corner parities run ON the floor values (`and 0x80000001` @0x8fb613,
-    `lea 0x1(%ecx)` @0x8fb64f), sf triple @0x8fb637..646, Wx
-    @0x8fb67e..690→−0xc, Wy→−0x1c @0x8fb71a, corners +58/+57/+1/+0
-    @0x8fb70e/750/7a5/7de, h58→−0x8 @0x8fb758, y+1 row blend
-    @0x8fb789..79b, h1→−0x14 @0x8fb7e6.
-  - **The three-file diff = correct on independent read:**
-    1. **I22 FIXED** in `whiteLattice2d` (`noise-proto.mjs`): the three
-       endpoint pairs re-oriented to the C91 idiom — `rowY1 =
-       lerp(h57,h58,wx)`, `rowY0 = lerp(h0,h1,wx)`, `out = lerp(rowY0,
-       rowY1,wy)` (each lerp's FIRST arg = its t=0 endpoint); comment
-       block re-derived (floor c0, byte addresses of the three blends).
-    2. **round → floor** in the same function's c0
-       (`Math.floor` both slots) + the header gloss.
-    3. **I20② PORTED**: new `parityLattice2d` = 0x8fb570's body (rx/ry
-       = floor; Wx = lerp with (w0,w1) = (sf(fx),fx) iff floor(x) EVEN
-       else flipped, `and 0x80000001` parity; Wy identical; c0 = 57·ry+rx;
-       same corner/lerp chain) + the `surfaceField` else-arm replacing
-       the I20 throw: `a = parityLattice2d(x·0.025,y·0.025)` @0x90ab7d..9f
-       → `g = f(a·0.05+0.05)` @0x90abae..bb → `n = simplex2d(x·0.5·0.02·g,
-       y·0.5·0.02·g)` @0x90abb6..abee **using the f32 slot [0x11df908] =
-       K2.h02, NOT case-1's f64_002 [0x11dfc70]** → `r2 = f(n·rp)` @0x90abfb
-       → C77 tail @0x90ac07..17 → `jmp 0x90b0a2` @0x90ac1b. Live for
-       addNoise 0 (hills_flat/mountain_lake/laboratory) + stale 4.
-    4. `noise-terrain.mjs` comment: the I20 default arm no longer throws
-       (only the noiseKind −1 winter/mountain_center path does).
-  - **Numeric re-derivation** (`mapgen/extractions/sidebyside-112.mjs (X8)`, floor
-    cell re-run): **port ≡ asm-literal at all 5 points, |Δ| ≤ 1.19e-7**;
-    the asm-complement (pre-(112) orientation) now mismatches everywhere
-    (0.17..0.54). Literals — (12.5,−3.25) **0.898207068** / compl
-    0.723673105; (0.25,0.25) 0.211786672 / 0.668501258; (3,5)
-    0.371890724 / 0.907893717; (−7.6,12.1) 0.650447309 (Δ 1.19e-7 vs
-    0.650447428) / 0.293845415; (100.999,−0.001) 0.991593361 (vs
-    0.991593242) / 0.745933115. **Round-derived values (entry (112)'s
-    0.493832439/0.018220901) = STALE**; pre-fix port = round+inverted =
-    0.833995283 = (26)'s smoke "0.834".
-  - **Tests** (`tests/mapgen/surface-census.test.mjs`, 42/42): endpoint
-    pin → `toBeCloseTo(0.898207068, 6)` + discriminators excluding the
-    round cell (>0.3) and the endpoint-flip (>0.1); the default-arm
-    throw-pins → byte-tail COMPUTE pins (exp = the same chain, both
-    lanes 0 and 4, `toBeCloseTo 7`) + a whiteLattice-substituted
-    sensitivity re-based to its measured scale (>1e-3 lattice, >1e-5
-    output — the g→simplex→tail chain compresses ≈1.28e-2 to ≈9.2e-5);
-    new "lattice byte pins" describe = the floor/round/inverted
-    4-way discriminator at (12.5,−3.25), the integer-cell h0 pin for
-    BOTH lattices (3,5) = 0.371890724, and both parity branches
-    diverging from the plain-smoothstep lattice (comment fixed
-    round(2.25) → floor(2.25)).
-  - **Gates: `npm test` = 261/261, exit 0, 51 s** (log
-    `mapgen/extractions/fulltest-113.log (X26)`).
-  - Landed: CONSTANTS **C92** (+ supersessions at C40/C83/C91 and the
-    two "fp-round helper" texts), ISSUES **I20** + **I22** closed,
-    VERIFIED CASE-1 fidelity caveat updated to "fixed" (0.898207068) +
-    **§8 row 33** (round→floor overturned — do not re-test), inline
-    supersessions at (26)/(40), this entry **(113)**. Next free:
-    entry **(114)**, **C93**, **I23**; §8 row 34 free.
+    `addss −0x8(%ebp)` (floor(x)) @0x8fb3fc → c0 −0x4 @0x8fb417; 0x8fb570
+    calls @0x8fb593/5a2, c0 @0x8fb6f2..6fe, corner parities run ON the
+    floor values (`and 0x80000001` @0x8fb613, `lea 0x1(%ecx)` @0x8fb64f),
+    sf triple @0x8fb637..646, Wx @0x8fb67e..690→−0xc, Wy→−0x1c @0x8fb71a,
+    corners +58/+57/+1/+0 @0x8fb70e/750/7a5/7de, h58→−0x8 @0x8fb758, y+1
+    row blend @0x8fb789..79b, h1→−0x14 @0x8fb7e6.
+  - **Port:** (1) **I22** in `whiteLattice2d` (`noise-proto.mjs`): `rowY1 =
+    lerp(h57,h58,wx)`, `rowY0 = lerp(h0,h1,wx)`, `out = lerp(rowY0,rowY1,wy)`
+    (each lerp's first arg = its t=0 endpoint, C91 idiom); c0 uses
+    `Math.floor`. (2) **I20②**: `parityLattice2d` = 0x8fb570 (rx/ry =
+    floor; Wx = lerp with (w0,w1) = (sf(fx),fx) iff floor(x) EVEN else
+    flipped; Wy identical; c0 = 57·ry+rx) + the `surfaceField` else-arm:
+    `a = parityLattice2d(x·0.025,y·0.025)` @0x90ab7d..9f → `g =
+    f(a·0.05+0.05)` @0x90abae..bb → `n = simplex2d(x·0.5·0.02·g,
+    y·0.5·0.02·g)` @0x90abb6..abee **using the f32 slot [0x11df908] =
+    K2.h02, NOT case-1's f64_002 [0x11dfc70]** → `r2 = f(n·rp)` @0x90abfb
+    → C77 tail @0x90ac07..17 → `jmp 0x90b0a2` @0x90ac1b. Live for addNoise
+    0 (hills_flat/mountain_lake/laboratory) + stale 4. Only the noiseKind
+    −1 (winter/mountain_center) path still throws.
+  - **Numerics** (`mapgen/extractions/sidebyside-112.mjs (X8)`): port ≡
+    asm-literal at 5 points, |Δ| ≤ 1.19e-7; literal / pre-(112) complement:
+    (12.5,−3.25) **0.898207068** / 0.723673105; (0.25,0.25) 0.211786672 /
+    0.668501258; (3,5) 0.371890724 / 0.907893717; (−7.6,12.1) 0.650447309
+    / 0.293845415; (100.999,−0.001) 0.991593361 / 0.745933115. Round-derived
+    (112) values 0.493832439/0.018220901 are stale; round+inverted =
+    0.833995283 = (26)'s "0.834".
+  - Tests (`tests/mapgen/surface-census.test.mjs`): endpoint pin
+    `toBeCloseTo(0.898207068, 6)` + round/flip discriminators; default-arm
+    compute pins (lanes 0 and 4); floor/round/inverted 4-way discriminator
+    at (12.5,−3.25); integer-cell h0 pin (3,5) = 0.371890724 for both
+    lattices. Gate log `mapgen/extractions/fulltest-113.log (X26)`.
+  - Registries: **C92**, I20 + I22 closed, **§8 row 33** (round→floor).
 
-- **2026-10-06 (114) — dig #114 (housekeeping + gates): the field-wiring IoU
-  verdict = FIELD SHAPE dominates, registration does NOT ⇒ I21 parked; the
-  reproducible V2 chunk census instrument landed (+ a handover correction);
-  `npm run bench` = NO observable default-lane change ⇒ cache r3i STANDS.**
-  All numbers re-derived on disk this session (logs in the session temp bank — 2026-10-12: not individually banked; the instrument name in the row stands).
-  - **① IoU re-run — the gate I21 was waiting on** (`SURFACE_V3=1 node
-    mapgen/experiments/2026-09-24-surface-y-iou.mjs`, C79 spec; this run
-    `mapgen/extractions/iou-114.log (X24)` vs the pre-#113 Oct-2 run
-    `mapgen/extractions/iou-113.log (X25)`):
-    - **overall: n 7064→7065, meanAbs 88.76 → 89.58, bias 1.62 → 2.88,
-      ±3 0.046 → 0.045, genNoLine 14902 → 14901, fitX(a) 0.11583 → 0.09831,
-      fitDepth(a) −0.347 → −0.562** (b 86.65 → 99.172).
-    - **VERDICT: the residual error is FIELD SHAPE, not registration.**
-      Four independent reads of the same logs: (a) **bias 2.88 px vs
-      meanAbs 89.58 px** — a global frame shift would put those two on the
-      same scale (bias/meanAbs = 3.2%); (b) **family biases MIXED SIGN**
-      — mountain −28.89 · winter −17.93 · lake −40.76 · desert +36.79 ·
-      hills +179.37 — one frame shift cannot sign-flip across families;
-      (c) **the same family flips sign between neighbouring tiles** —
-      hills 33_13 bias −205.69 vs hills 39_14 +340.83 (and 44_14 +258.75);
-      (d) **`fitDepth(a=−0.56164, b=99.172)`** — the error tracks DEPTH
-      (a scale/shape term crossing zero near depth 177), whereas a
-      constant misregistration is `a = 0`. Only 4.5% of paired columns
-      agree within ±3 px. ⇒ **I21 (the classify/evaluate frame flip,
-      ISSUES:368) is NOT the indicated next dig — parked**, filed as an
-      elimination at VERIFIED §8 row 34; a family-local misregistration
-      is NOT excluded (scope note in the row).
-    - **The delta IS dig #113's, and it is confined to the lanes #113
-      changed:** 11 of the 56 per-tile rows differ (scripted diff) —
-      **6 hills** (38_13, 41_13, 43_13, 41_14, 42_14, 44_14) + **5
-      desert** (52_10, 49_13, 45_14, 46_14, 47_14) = the addNoise 1/2/3 +
-      dispatch `whiteLattice2d` lanes (I22/C92); mountain, winter, lake,
-      bty11, bty12 rows are **byte-identical**, and mountain_lake 40_14
-      too (its new default-arm mask is 0.06% solid ⇒ no line change).
-    - **Honest reading of I22's "IoU after" gate: EXECUTED, and the metric
-      did NOT improve** (meanAbs +0.82, hills 294.44→297.34, desert
-      133.27→137.16, ±3 flat). That is the expected result of a
-      byte-fidelity fix measured by a shape metric: I22 stays CLOSED on
-      its byte-pinned test (`0.898207068`), and the IoU stays the shape
-      judge — the two are not the same axis.
-  - **② V2 CHUNK CENSUS — new instrument + a handover correction.**
-    - **Correction:** `mapgen/experiments/2026-09-28-surface-census.mjs`,
-      which earlier handovers named "the V2 chunk census", is a **Ghidra
-      call-graph region census** (reads `~/work/ghidra-logs/p0_*.csv`;
-      130 fns: 20 dumped / 46 doc-mentioned / 79 unread-territory) — it
-      never counted a rendered chunk, and it is unaffected by dig #113.
-      **No chunk-census instrument existed in-repo**, so this dig added
-      one: **`mapgen/experiments/2026-10-06-v2-chunk-census.mjs`** (C93).
-    - Instrument contract: refuses to run without `SURFACE_V2=1` (the lane
-      under measurement), seed `CAPTURE_SEED` 78633191, scope tx 0..70 ×
-      canvas ty 0..143, smoke scope ty ≤ 96 (the (25)/(26) window);
-      **buckets keyed by biome FILENAME**, not `name` — measured this
-      session that hills.xml / solid_wall.xml / empty.xml all carry
-      `name="_EMPTY_"`, so name-keyed rows hide whole biomes; definitions
-      mirror `noiseChunkMask` exactly (procedural = biomeAt hit ∧ no
-      `templateFile`, `noise-terrain.mjs:202-204`; COMPUTES = `noiseAt`
-      non-null; density = Σmask/2704; textured = 0 < d < 1), and the
-      frame `biomeAt(config, tx, ty − SKY_ROWS)` mirrors `:202`.
-    - **HEAD (post-#113) run** `mapgen/extractions/census-114-post113.log (X29)`:
-      **2288 procedural · 663 COMPUTES · 1625 falls · mean density
-      0.0183 · all-air 17 · textured 646 · all-solid 0**; every fall =
-      `noiseDispatch kind -1 (no noise_type)` (0 UNKNOWN, 0 default-arm).
-    - **A/B vs pre-#113** (`mapgen/lib/noise-proto.mjs` swapped to
-      `f33f0bd~1`, run, restored — `git status --short` clean after, only
-      the new untracked script) `mapgen/extractions/census-114-pre113.log (X28)`:
-      **658 · 1630 · 0.0185 · all-air 18 · textured 640**. Row diff =
-      **exactly one fall reason disappears: mountain_lake.xml `5 proc,
-      0 compute, 5 fall (surfaceField default arm …)` → `5 proc, 5
-      compute, 0 fall, density 0.0006`** = dig #113's I20② port (+5
-      COMPUTES), plus threshold-crossing speckle in hills (air 16→14,
-      tex 247→249), hills2 0.0046→0.0044, mountain_tree 0.0019→0.0018,
-      pyramid_top 0.0033→0.0026, mountain_top 0.0015→0.0018, pyramid_left
-      0.0009→0.0011, pyramid_right 0.0036→0.0033, pyramid_hallway
-      0.0026→0.0030, snowcastle_hourglass_chamber 0.0052→0.0059 — i.e.
-      **#113's observable census delta = +5 mountain_lake chunks and
-      nothing else structural.**
-    - **Baseline caveat (settled):** (26)'s "**2194 chunks @ ~48–51%
-      solid density**" was an ad-hoc run with no instrument, pre-dating
-      the kind-5 re-binding, C77's sign fix (98) and the dig-#101
-      gate-source change (proxy → `surfaceField` return); it is **not a
-      like-for-like current baseline** and must not be restored-to or
-      diffed-against as one. The current state of that lane is an OPEN
-      question → **ISSUES I23**.
-  - **③ THE BENCH GATE (cache rev) — NO observable default-lane change ⇒
-    r3i STANDS (no bump).**
-    - `npm run bench` (log `mapgen/extractions/bench-114.log (X31)`): gen wrote 96
-      chunk entries, ref re-sliced **1100** chunks (every tile a
-      **cache hit** — `find mapgen/out/cache -newermt "2026-10-06 05:00"`
-      = empty, so no ref byte was fetched/altered today), diff scored
-      **20 chunks**: **meanAbsDiff avg 91.21398745928495 · solidMismatchPct
-      avg 41.46745681762695 · best 30_17 31.7% · worst 35_15 50.0%** =
-      the stale Sep-19 `stats.json` values (91.214 / 41.467, 20 chunks) at
-      recorded precision, with **`stats.json` 2819 B and `report.html`
-      9243 B — byte-count identical to the Sep-19 files.**
-    - **Code-path proof (why it had to be identical):** dig #113's diff =
-      ABOUT_MATH/CONSTANTS/ISSUES/VERIFIED + `lib/noise-proto.mjs` +
-      `lib/noise-terrain.mjs` (8 lines, comment) + one test file; the
-      bench pipeline imports none of them (`2-generate.mjs` = paths,
-      biomes, wang-wasm, coords, images). And the **cached artifact** is
-      independent of the lane even when the lane is ON: r3i stores
-      `world.maps` = the per-area `{w,h,attempt,rgb}` written by
-      `ensureWorld`'s area loop (`world-gen.mjs:164..209`, wang/static +
-      colorize), while `attachNoiseTerrain` (`noise-terrain.mjs:363-385`)
-      only installs QUERY-time probes (`world.noiseAt`/`noiseSolidAt`)
-      and **early-returns without `SURFACE_V2`/`SURFACE_V3` (`:367`)**;
-      `worldColorAt` applies the noise overlay at query time
-      (`world-gen.mjs:90-107`) and never writes it into a cached area.
-      ⇒ **no cached byte and no default-render pixel can change ⇒ the
-      cache rule (`genmap-server.mjs:34`) says STAY on r3i — verified,
-      not assumed.**
-  - **④ Flat-region rms vs frozen91 re-run — and the gate's blind spot.**
-    `SURFACE_V2=1 node mapgen/experiments/2026-09-21-surface-shape.mjs`
-    (default window tx 29..47 × ty 11..19, 171 rows; log
-    `mapgen/extractions/shape-114.log (X19)`): **allPixelRms 64.647 · flatPixelRms
-    46.958 · flatCoverage 0.1571 · refSolidFrac 0.69031 · refSky 0.01876
-    · refVoid 0.29093 · genSolidFrac 0.50392.** Prior comparable run =
-    entry **(39)** (2026-09-21, same handoff window): allPixelRms
-    73.535 · flatPixelRms **48.717** · coverage **20.3%** · refSolid
-    **0.690** · genSolid **0.429** ⇒ rms improved −1.76 and genSolid
-    +7.5 pts, but **coverage 20.3% → 15.7% is a REF-side difference this
-    session cannot explain** (refSolid matches (39) to 3 dp and no ref
-    byte was touched today) — flagged, not attributed.
-    **The gate's blind spot, re-confirmed by probe this session**
-    (`mapgen/extractions/probe-v2window-114.mjs (X22)`, SURFACE_V2=1): that window
-    contains **procedural = 0, v2masks = 0** — exactly (39)'s diagnostic
-    — so the standing flat-rms instrument measures the **wang/template
-    bands only** and CANNOT see a surface-lane change. (39) already
-    recorded this; it has never been distilled to VERIFIED, and no
-    chunk-row-matched replacement instrument exists yet → carried in
-    I23③. Also: the instrument writes a **fixed** filename
-    (`mapgen/out/gen-shape-2026-09-21.json`) regardless of window, so
-    runs overwrite each other — the pre-run file (the (39)-era
-    diagnostic-window JSON, ty 0..10, refVoid 0.953) was preserved at
-    `mapgen/extractions/gen-shape-pre114.json (X39)` before the re-run.
-  - **⑤ Frame divergence observed while reading the census (no verdict —
-    reported, not guessed):** the V2 lane evaluates the field in CELL
-    coordinates, `gx = tx·CELLS_PER_CHUNK + cx + 0.5` with
-    `CELLS_PER_CHUNK = CHUNK/10 = 51.2` (`noise-terrain.mjs:87, :234-235`)
-    ⇒ `gx = world_px / 10` exactly (world px = tx·512 + cx·10 + 5), while
-    the V3 lane evaluates at WORLD px (`:319-324`, C80) and `gradAt`'s
-    ramp/topology sources are written in world-y units (StartY −1024…
-    `:145-153`, `:181-189`). Under `SURFACE_V2=1` alone the caves-field
-    conjunct is off (`:222`), so that lane's gradAt = topology image lane
-    else the ramp PROTOTYPE (C39, not byte-backed) — the census density
-    above is for that gradAt. The binary's own argument frame at the
-    0x90a860/surfaceField call site is **unread** (C80 settled the V3
-    gate's frame only) ⇒ **I23②** = read it before touching code.
-  - Landed: CONSTANTS **C93**, ISSUES **I21 verdict (parked)** + **I22's
-    IoU gate executed** + new **I23**, VERIFIED **§8 row 34**, this entry
-    **(114)**, plus the committed instrument
-    `mapgen/experiments/2026-10-06-v2-chunk-census.mjs`. No code patch,
-    no cache bump. Next free: entry **(115)**, **C94**, **I24**; §8 row
-    **35** free.
+- **2026-10-06 (114) — dig #114: IoU verdict = FIELD SHAPE dominates, not
+  registration ⇒ I21 parked; V2 chunk census instrument (C93); bench = no
+  default-lane change ⇒ cache r3i stands.**
+  - **IoU (C79 spec,** `SURFACE_V3=1 node
+    mapgen/experiments/2026-09-24-surface-y-iou.mjs`; `iou-114.log (X24)`
+    vs pre-#113 `iou-113.log (X25)`): overall n 7064→7065, meanAbs 88.76 →
+    89.58, bias 1.62 → 2.88, ±3 0.046 → 0.045, genNoLine 14902 → 14901,
+    fitX(a) 0.11583 → 0.09831, fitDepth(a) −0.347 → −0.562 (b 86.65 →
+    99.172).
+    - **Residual = FIELD SHAPE:** bias 2.88 vs meanAbs 89.58 (3.2%);
+      family biases mixed sign (mountain −28.89 · winter −17.93 · lake
+      −40.76 · desert +36.79 · hills +179.37); same family flips between
+      neighbours (hills 33_13 −205.69 vs 39_14 +340.83, 44_14 +258.75);
+      `fitDepth(a=−0.56164, b=99.172)` tracks depth (zero near 177), a
+      constant misregistration is a = 0. ⇒ **I21 parked**, §8 row 34; a
+      family-local misregistration is not excluded.
+    - Delta confined to #113's lanes: 11/56 tile rows differ — 6 hills
+      (38_13, 41_13, 43_13, 41_14, 42_14, 44_14) + 5 desert (52_10, 49_13,
+      45_14, 46_14, 47_14); mountain/winter/lake/bty11/bty12 and
+      mountain_lake 40_14 (0.06% solid) byte-identical. I22's IoU gate
+      executed: no improvement (hills 294.44→297.34, desert 133.27→137.16)
+      — byte fidelity and shape metric are different axes; I22 stays
+      closed on its byte pin.
+  - **V2 chunk census** — `2026-09-28-surface-census.mjs` is a Ghidra
+    call-graph region census (130 fns: 20 dumped / 46 doc-mentioned / 79
+    unread), not a chunk count. New
+    **`mapgen/experiments/2026-10-06-v2-chunk-census.mjs`** (C93): requires
+    `SURFACE_V2=1`, seed 78633191, tx 0..70 × canvas ty 0..143 (smoke ty ≤
+    96); buckets keyed by biome FILENAME (hills.xml / solid_wall.xml /
+    empty.xml all carry `name="_EMPTY_"`); procedural = biomeAt hit ∧ no
+    `templateFile` (`noise-terrain.mjs:202-204`), COMPUTES = `noiseAt`
+    non-null, density = Σmask/2704, textured = 0 < d < 1; frame
+    `biomeAt(config, tx, ty − SKY_ROWS)`.
+    - HEAD (`census-114-post113.log (X29)`): **2288 procedural · 663
+      COMPUTES · 1625 falls · mean density 0.0183 · all-air 17 · textured
+      646 · all-solid 0**; every fall = `noiseDispatch kind -1`.
+    - Pre-#113 (`census-114-pre113.log (X28)`): 658 · 1630 · 0.0185 · air
+      18 · textured 640. Only structural delta: mountain_lake.xml 5 falls →
+      5 COMPUTES (density 0.0006) = the I20② port; rest = threshold speckle.
+    - (26)'s "2194 chunks @ ~48–51% solid" was an ad-hoc pre-C77/pre-#101
+      run — not a baseline → **I23**.
+  - **Bench** (`bench-114.log (X31)`): 20 chunks scored, meanAbsDiff avg
+    91.21398745928495 · solidMismatchPct avg 41.46745681762695 · best 30_17
+    31.7% · worst 35_15 50.0% = the Sep-19 `stats.json` (2819 B,
+    `report.html` 9243 B). Code-path proof: the bench imports none of
+    #113's files; r3i caches `world.maps` from `ensureWorld`
+    (`world-gen.mjs:164..209`); `attachNoiseTerrain`
+    (`noise-terrain.mjs:363-385`) installs only query-time probes and
+    early-returns without `SURFACE_V2`/`SURFACE_V3` (`:367`); the noise
+    overlay is query-time (`world-gen.mjs:90-107`) ⇒ cache rule
+    (`genmap-server.mjs:34`) keeps r3i.
+  - **Flat-region rms** (`SURFACE_V2=1 node
+    mapgen/experiments/2026-09-21-surface-shape.mjs`, tx 29..47 × ty
+    11..19, 171 rows, `shape-114.log (X19)`): allPixelRms 64.647 ·
+    flatPixelRms 46.958 · flatCoverage 0.1571 · refSolidFrac 0.69031 ·
+    refSky 0.01876 · refVoid 0.29093 · genSolidFrac 0.50392 (vs (39):
+    73.535 / 48.717 / 20.3% / 0.690 / 0.429). Coverage 20.3% → 15.7% is
+    an unexplained REF-side difference. Blind spot
+    (`probe-v2window-114.mjs (X22)`): window has procedural = 0, v2masks =
+    0 ⇒ the instrument sees wang/template bands only → I23③. It writes a
+    fixed filename (`mapgen/out/gen-shape-2026-09-21.json`); the (39)-era
+    file is preserved at `mapgen/extractions/gen-shape-pre114.json (X39)`.
+  - **Frame divergence (open):** V2 evaluates in cell coords `gx =
+    tx·CELLS_PER_CHUNK + cx + 0.5`, `CELLS_PER_CHUNK = CHUNK/10 = 51.2`
+    (`noise-terrain.mjs:87, :234-235`) ⇒ `gx = world_px / 10`; V3 uses world
+    px (`:319-324`, C80); gradAt sources are world-y (`:145-153`,
+    `:181-189`). Under `SURFACE_V2=1` alone the caves conjunct is off
+    (`:222`) ⇒ gradAt = topology image else ramp prototype (C39). The
+    binary's frame at the 0x90a860 call site is unread → **I23②**.
 
 - **2026-10-06 (115) — dig #115 (docs-only): the `<RandomColor>` /
-  `<RandomMaterials>` RUNTIME CONSUMER CHAIN is closed end-to-end —
-  `ProceduralTerrain::Init` → stack wrapper → queue dispatch → vtable
-  slot2 tail-jump → consumer `0x904c20`; record layout, the line-1808
-  guard, the seed / warm-up / pick law, and the data.wak side are all
-  byte-settled (incl. a pick-sign correction).**
-  Docs-only: no code, no cache bump. Every fact below was re-read from
-  `noita_dev.exe` on disk **this session** (objdump windows; `.text` file
-  = VA − 0x400C00, **`.rdata` file = VA − 0x400E00**). Landed: CONSTANTS
-  **C94**, ISSUES **I24** + P1 cross-link update, VERIFIED **§8 row 35**
-  + §9.5 pointer, Current_work 171 / ~611.
-  - **① Reachability (the P1 gap) — every link byte-read:**
-    - `ProceduralTerrain::Init` = **0x905fb0**, exactly **5 `call`
-      xrefs**: 0x642f43, 0x72251f, 0x729ae4, 0x80c593, 0x80d4ec.
-    - Loop **0x907ab0..0x907b16** over vector `[ebp−0x284 begin,
-      ebp−0x280 end]` stride 4 builds a **stack wrapper**: `vec[i]` →
-      `−0xb4` @0x907ab3, vptr **`0x1199d40`** → `−0xb8` @0x907abf, and
-      `mov %eax,−0xa8(%ebp)` @0x907ac9 = **wrapper+0x10 = &wrapper
-      (self)**. Global `mov 0x13289b4,%eax` @0x907a79 → saved `−0x244`
-      → ecx param; manager = `call 0x8cf000` @0x907a86 → edi;
-      `push &wrapper; push %edi; call 0x8cef30` @0x907adb; dtor path
-      reloads `−0xa8(%ebp)` → `setne` flag → `call *0x10(%edx)`
-      @0x907aff.
-    - Dispatch **`0x8cef30`** (ret $8): `mov 0x8(%ebp),%edi` = arg1 =
-      manager; `cmpb $0x0,0x25(%edi)` @0x8cef41 → `je 0x8cef67`
-      **QUEUE**, else **SYNC**: `mov 0xc(%ebp),%eax` = arg2 = &wrapper →
-      `mov 0x10(%eax),%ecx` (self) → null check → `mov (%ecx),%edx;
-      call *0x8(%edx)` @0x8cef59 = **slot2** → `mov %edi,%eax; ret $8`.
-      Manager ctor sets `movw $0x1,0x24(%edi)` @0x8cf05a ⇒ byte[+0x25]
-      = 0 ⇒ **Init takes the QUEUE arm**; also `mov %edi,0x10(%edi)`
-      @0x8cf044 (manager self at +0x10), vtable `0x11888fc`, refcount
-      at +0x1c.
-    - **Queue arm:** lock xadd on mgr+0x1c → `call 0x8cf0e0` (node
-      alloc) → `push 0xc(%ebp); mov %ebx,%ecx; call 0x92b300` (attach —
-      semantics OPEN) → `mov %edi,0x18(%ebx)` (node+0x18 = manager) →
-      `movw $0x0,0x24(%ebx)` / `mov %ecx,0x20(%ebx)` → **`movl
+  `<RandomMaterials>` runtime consumer chain closed end-to-end
+  (`ProceduralTerrain::Init` → stack wrapper → queue dispatch → vtable
+  slot2 tail-jump → consumer `0x904c20`).** Offsets: `.text` file = VA −
+  0x400C00, **`.rdata` file = VA − 0x400E00**. Registries: **C94**, **I24**,
+  **§8 row 35**.
+  - **① Reachability:**
+    - `ProceduralTerrain::Init` = **0x905fb0**, 5 `call` xrefs: 0x642f43,
+      0x72251f, 0x729ae4, 0x80c593, 0x80d4ec.
+    - Loop **0x907ab0..0x907b16** over vector `[ebp−0x284 begin, ebp−0x280
+      end]` stride 4 builds a stack wrapper: `vec[i]` → `−0xb4` @0x907ab3,
+      vptr **`0x1199d40`** → `−0xb8` @0x907abf, `mov %eax,−0xa8(%ebp)`
+      @0x907ac9 = wrapper+0x10 = &wrapper (self). Global `mov
+      0x13289b4,%eax` @0x907a79 → `−0x244` → ecx; manager = `call
+      0x8cf000` @0x907a86 → edi; `push &wrapper; push %edi; call 0x8cef30`
+      @0x907adb; dtor path → `call *0x10(%edx)` @0x907aff.
+    - Dispatch **`0x8cef30`** (ret $8): arg1 = manager; `cmpb
+      $0x0,0x25(%edi)` @0x8cef41 → `je 0x8cef67` **QUEUE**, else **SYNC**
+      (arg2 = &wrapper → `mov 0x10(%eax),%ecx` (self) → `call *0x8(%edx)`
+      @0x8cef59 = slot2). Manager ctor `movw $0x1,0x24(%edi)` @0x8cf05a ⇒
+      byte[+0x25] = 0 ⇒ **Init takes the QUEUE arm**; `mov %edi,0x10(%edi)`
+      @0x8cf044, vtable `0x11888fc`, refcount +0x1c.
+    - Queue arm: lock xadd mgr+0x1c → `call 0x8cf0e0` (node alloc) → `call
+      0x92b300` (attach — semantics OPEN) → node+0x18 = manager → `movw
+      $0x0,0x24(%ebx)` / `mov %ecx,0x20(%ebx)` → **`movl
       $0x8cf1f0,−0x8(%ebp)` @0x8cefa8** → `call 0x9fa830` @0x8cefb2
-      (enqueue). `call 0x8cf1f0` = **0 direct sites** (function-pointer
-      installed).
-    - **Deferred runner `0x8cf1f0`:** `mov 0x10(%esi),%ecx` (node+0x10
-      = wrapper) → `mov (%ecx),%eax; call *0x8(%eax)` @0x8cf204-06 =
-      slot2.
-    - **slot2 `0xa99ea0` = the linchpin: raw `8b 49 04` = `mov
-      0x4(%ecx),%ecx`; `e9 78 ad e6 ff` = `jmp 0x904c20`** ⇒ tail-jump
-      into the consumer with **ecx = wrapper+4 = vec[i]** (the record
-      pointer). `call 0x904c20` = 0 sites and no e8/e9 to `0xa99ea0` ⇒
-      the consumer is reachable **only** via this vtable slot.
-    - **Vtable `0x1199d40` dwords = `[0xa99e20, 0xa99e60, 0xa99ea0,
-      0xa99eb0, 0xa99ed0, 0xa9b3d0, 0xa99ec0]`.** slot0/slot1
-      (`0xa99e20`/`0xa99e60`) = test arg → `push $0xc` new → `movl
-      $0x1199d40,(%eax)` + copy payload = the **0xc-byte heap clone**
-      {vptr, payload}; slot3 `0xa99eb0` = `mov $0x12f9014,%eax; ret`
-      (6 B, int3 from 0xa99eb6; pTD 4 B before TD `0x12f9018` =
-      `.?AUVec2ArrayInline@@` — meaning OPEN); slot4 `0xa99ed0` →
-      `call *0x14(%eax)` (slot5) → flag → `call *0x114a348` (delete);
-      slot5 `0xa9b3d0` = `movl $0x1179670,(%esi)` (base vtable) +
-      conditional delete; slot6 `0xa99ec0` = `lea 0x4(%ecx),%eax; ret`.
-    - **Stack vs heap:** stack wrapper = **0x14 B** {vptr, payload, pad,
-      self=&wrapper}; heap clone = **0xc B**. The queue arm reads only
-      node+0x10 → wrapper+0/+4 (both kinds safe); the **sync** arm reads
-      wrapper+0x10 = `&self` (stack instance only) ⇒ which callers run
-      sync is OPEN (I24④).
-  - **② Record layout + guard (this = vec[i]):** **+0x00** dword → **A**
-    (read back @0x905b50 → null gates); **+0x04 std::string (24 B) =
-    `wang_template_filename`** (copied to the stack string at F0+0x94
-    via `call 0x41d770` @0x904c92); **+0x1c std::string** (copy
-    @0x904ca4/0x904caa — identity OPEN, I24③); **+0x34 width, +0x38
-    height** (both clamped [1,0x400], defaults 0x400 @0x904d26-0x904d2f);
-    **+0x3c..0x4b** `movdqu` 16 B; **+0x4c seed** dword; **+0x54 / +0x80**
-    addresses taken (`lea` @0x904d59/0x904d60 → [esp+0x34]/[esp+0x40]).
-    Guard: `cmpl $0x0,0xb0(%esp)` @0x904d33 = **F0+0xa4** (the stack
-    copy's `_Mysize`; consumer baseline = 3 pushes = 12 B) → hoists seed,
-    xmm0, IAT `0x114a374`/`0x114a378`, record fields → `jne 0x904e40`
-    @0x904d76 → else `push $0x710` (**line 1808**), `push 0x1173a10`
-    (`…\source\procedural_utils\procedural_terrain.cpp`), `push
+      (enqueue). `0x8cf1f0` has 0 direct call sites (function pointer).
+    - Deferred runner `0x8cf1f0`: node+0x10 = wrapper → `call *0x8(%eax)`
+      @0x8cf204-06 = slot2.
+    - **slot2 `0xa99ea0`: `8b 49 04` = `mov 0x4(%ecx),%ecx`; `e9 78 ad e6
+      ff` = `jmp 0x904c20`** ⇒ ecx = wrapper+4 = vec[i] (record pointer).
+      No other call/jmp reaches `0x904c20` or `0xa99ea0`.
+    - **Vtable `0x1199d40` = `[0xa99e20, 0xa99e60, 0xa99ea0, 0xa99eb0,
+      0xa99ed0, 0xa9b3d0, 0xa99ec0]`.** slot0/1 = 0xc-byte heap clone
+      {vptr, payload} (`push $0xc` new, `movl $0x1199d40,(%eax)`); slot3
+      `0xa99eb0` = `mov $0x12f9014,%eax; ret` (6 B, int3 from 0xa99eb6; pTD 4 B before TD
+      `0x12f9018` = `.?AUVec2ArrayInline@@` — meaning OPEN); slot4
+      `0xa99ed0` → slot5 → `call *0x114a348` (delete); slot5 `0xa9b3d0` =
+      `movl $0x1179670,(%esi)` (base vtable) + conditional delete; slot6
+      `0xa99ec0` = `lea 0x4(%ecx),%eax; ret`.
+    - Stack wrapper = 0x14 B {vptr, payload, pad, self}; heap clone = 0xc
+      B. Queue arm reads node+0x10 → wrapper+0/+4 (both safe); sync arm
+      reads wrapper+0x10 (stack only) ⇒ which callers run sync is OPEN
+      (I24④).
+  - **② Record layout (this = vec[i]):** +0x00 dword → **A**; **+0x04
+    std::string = `wang_template_filename`** (copied to F0+0x94 via `call
+    0x41d770` @0x904c92); +0x1c std::string (copy @0x904ca4/0x904caa —
+    identity OPEN, I24③); **+0x34 width, +0x38 height** (clamped
+    [1,0x400], defaults 0x400 @0x904d26-0x904d2f); +0x3c..0x4b `movdqu` 16
+    B; **+0x4c seed**; +0x54 / +0x80 addresses taken (`lea`
+    @0x904d59/0x904d60 → [esp+0x34]/[esp+0x40]). Guard `cmpl
+    $0x0,0xb0(%esp)` @0x904d33 = F0+0xa4 (stack copy's `_Mysize`) → hoists seed, xmm0, IAT
+    `0x114a374`/`0x114a378`, record fields → `jne 0x904e40` @0x904d76 → else assert `push $0x710` (**line 1808**), `push
+    0x1173a10` (`…\source\procedural_utils\procedural_terrain.cpp`), `push
     0x1174198` = **`wang_template_filename.empty() == false`**, `push
     0x1150f60`, `call *%ecx` @0x904d90.
-  - **③ A / map-walk / the two LoadFromImageData arms:** A is read back
-    @0x905b50 (null-gated) → `mov 0x1f4(%eax),%eax` @0x905b5c → `cmpl
-    $0x0,0x4(%eax)` @0x905b6e; map-walk head = `0x905be0..0x905c04`.
-    `BitmapNoise::LoadFromImageData 0x8f9ab0` = **3 sites: 0x8fa99b,
-    0x905dd7, 0x905f1e** — the latter two are **inside the consumer**
-    (two arms). Consumer epilogue `ret` @0x905faa.
-  - **④ data.wak side (re-extracted this session):** **3
-    `<RandomMaterials>` blocks / 6 `<RandomColor>` rules** — offsets
-    **1272832** coalmine (`FF00BBEE`, `FF12BBEE`), **1514362**
+  - **③** A read back @0x905b50 (null-gated) → `mov 0x1f4(%eax),%eax`
+    @0x905b5c → `cmpl $0x0,0x4(%eax)` @0x905b6e; map-walk head
+    `0x905be0..0x905c04`. `BitmapNoise::LoadFromImageData 0x8f9ab0` = 3
+    sites 0x8fa99b, 0x905dd7, 0x905f1e (latter two = the consumer's two
+    arms). Consumer `ret` @0x905faa.
+  - **④ data.wak:** 3 `<RandomMaterials>` blocks / 6 `<RandomColor>` rules
+    — offsets **1272832** coalmine (`FF00BBEE`, `FF12BBEE`), **1514362**
     liquidcave/lava (`FF01CFEE` → 5 colors incl `FF0BFFE5`, `FF12BBEE`),
     **1951247** town_under/forest (`FF01CFEE` → 4 colors, `FF12BBEE`);
-    comments verbatim: "changes the color to random material",
-    "randomizes blocking and non blocking paths", "can be used to
-    randomize scripts as well" (`mapgen/extractions/rc-blocks.txt (X21)`).
-  - **⑤ Pick-sign CORRECTION:** `mulsd 0x11e0578` = f64 **−4.656612875e-10
-    = −1/(2³¹−1)** (byte-read) — **NOT −2⁻³¹** (the old gloss was a
-    rounding read; magnitude is byte-identical to `0x11df988` =
-    +4.656612875e-10). So `idx = cvttsd2si(state·count·−(2³¹−1)⁻¹) ≤ 0`
-    and addr = `[esi+0x14] − 4·idx` ∈ [first, last−4] for state <
-    2³¹−1 (pick idiom `0x905ca8..0x905ce4`). Conclusion stands and
-    tightens.
-  - **⑥ Seed → state + warm-up closed form:** seed dword → `cvtdq2pd` →
-    `addsd 0x11e0ba0(,%eax,8)` (0.0 / 2³² sign bias) → `comisd
-    0x11e0220` (f64 2147483647.0) → `jb` skip → `mulsd 0x11dfdd8` (0.5)
-    → `[esp+0x24]` → `call 0x10098c0` = **assert `seed != 0.0`**
-    (`ucomisd 0x11df878`, expr `0x1192220` = `seed`, line **0x66 = 102**,
-    file `0x11dda78` = `…poro\source\utils\random\random.cpp`) + Schrage
-    Park–Miller `16807x mod (2³¹−1)` (`imul $0x41a7`, divisor magic
-    `0x834e0b5f`, `imul $0x7fffffff`), new f64 state stored, returns
-    `state × 0x11df988 = state/(2³¹−1)`. **Warm-up count, exact decode
-    (0x905273..0x905344): `N = (W mod 11) + (seed mod 12)`, N ∈ [0,21]**
-    — `imul $0xaaaaaaab`+`shr $3` = ÷12 on seed; `imull 0x2c(%esp)`
-    (magic `0xd1745d17`) + `imul $0xb` + sub = W mod 11; V = [esp+0x2c]
-    = clamped width re-stored @0x905228-c; `jle 0x905344` skips when
-    N ≤ 0; loop body = the inlined Schrage step.
-  - **⑦ Flood-fill asserts:** lines **530 / 533 / 534 / 548** (8 sites),
-    expr `0x1173c1c` = `pixels.IsValid( ipos.x, ipos.y )`.
-  - **⑧ `+0xb0` census → §8 row 35:** pattern (opcode 0xc7 ∧ mod=2 ∧
-    disp32=0xb0) over file 0x400..0xd49200 = **77 hits; the ONLY
-    code-pointer immediate is `0x8ee1b0`** (2 sites: 0x8ee3a7, 0x8ee643
-    = `movl $0x8ee1b0,0xb0(%edi)`); every other immediate is numeric
-    noise (0×50, 2×6, 0xf×4, 1×2, 0x86c60000, 0x81c70000, 8, 0x34e3 /
-    0x34f9 / 0x3569 / 0x35a5 / 0x35a9 / 0x365b / 0x36af, 0x2d0,
-    0x3f99999a, 0x14). All **4** `movl $0x8ee1b0` installs read: the two
-    above (`0xb0(%edi)`), **0x905acd = `movl $0x8ee1b0,0x140(%eax)`**
-    (eax = this @0x905ac7; then `push $0x10` + `call *0x114a34c`), and
-    0x64c7a4 = `0x108(%esp)` ⇒ **no per-biome resolver *body* is ever
-    literally installed at +0xb0**; caveat: 80 register-form
-    `mov %reg,0xb0(%reg)` stores are statically unresolvable (I24⑤).
-  - **⑨ Standing warnings (traps hit this dig):**
-    - `fulltext86.asm` **stops at 0x1000d6f (truncated)** — any body ≥
-      0x1000000 must be objdump'd from `noita_dev.exe`; `p0_functions.csv`
-      size column is **DECIMAL** (as written; *corrected dig #116* — the
-      hex gloss here was wrong: `FUN_00908f40` 1072 = 0x430 → next fn
-      0x909370 ✓, `FUN_0090a860` 2217 = 0x8a9 → 0x90b109/0x90b110 ✓).
-    - **.rdata byte-delta ≠ .text byte-delta:** `.rdata` file = VA −
-      **0x400E00** (text = −0x400C00) — the old byte string for
-      `0x1199d40` was read with the text delta and was **wrong** (correct
-      dwords are in C94).
-    - objdump: `--stop-address` **excludes straddling instructions**;
-      non-boundary start addresses misdecode; the raw-byte column wraps
-      after 7 bytes; `tail -N` cuts instruction heads.
-    - x86 esp-relative slots correspond only when push-pending counts
-      match (consumer baseline = **3 pushes / 12 B** ⇒ F0−12 conversions;
-      e.g. `[esp+0xb0]` @0x904d33 ⇒ F0+0xa4).
-    - **RTTI: do NOT name the wrapper class.** `.?AVIngestionComponent@@`
-      (`0x12f9f78`) sits 8 bytes after the pTD stored in the COL record
-      (`0x11eb884` → `0x12f9f68`); no rdata dword equals `0x1199d40` or
-      pVFTable `0x12f9f70`; the 4-byte-at-`0x12f9014` / 5-byte-at-
-      `0x12f9f6c` pTD mismatches mirror the resolved packs
-      (`0x11e1f94` = 5, `0x11e1f8c` = 4) ⇒ association unproven (I24①).
-    - `fillRandomMaterials` is **our own label**, not a game string.
-  - **⑩ Residual OPEN → ISSUES I24:** ① RTTI class name; ② A's identity /
-    `0x1f4`; ③ record +0x1c string; ④ sync-arm wrapper kind + the
-    `[mgr+0x25]` setter and `0x92b300` attach semantics; ⑤ resolver
-    bodies at +0xb0. The P1 cross-link's "ONE remaining read family" is
-    updated: the **runtime side is now read**; the resolver table is the
-    residue.
-  - **Landed:** CONSTANTS **C94**, ISSUES **I24** + P1 cross-link rewrite,
-    VERIFIED **§8 row 35** + §9.5 pointer, Current_work 171 / ~611.
-    Docs-only ⇒ **no code change, no cache bump**
-    (`mapgen/server/genmap-server.mjs:34`); no byte-derived code change
-    until the I23② `0x90a860` / surfaceField call-site frame is read.
-    Next free: entry **(116)**, **C95**, **I25**; §8 row **36** free.
+    comments "changes the color to random material", "randomizes blocking
+    and non blocking paths", "can be used to randomize scripts as well"
+    (`mapgen/extractions/rc-blocks.txt (X21)`).
+  - **⑤ Pick sign:** `mulsd 0x11e0578` = f64 **−4.656612875e-10 =
+    −1/(2³¹−1)** (not −2⁻³¹; magnitude = `0x11df988` = +4.656612875e-10).
+    `idx = cvttsd2si(state·count·−(2³¹−1)⁻¹) ≤ 0`, addr = `[esi+0x14] −
+    4·idx` ∈ [first, last−4] for state < 2³¹−1 (pick idiom
+    `0x905ca8..0x905ce4`).
+  - **⑥ Seed → state + warm-up:** seed → `cvtdq2pd` → `addsd
+    0x11e0ba0(,%eax,8)` (0.0 / 2³² sign bias) → `comisd 0x11e0220` (f64
+    2147483647.0) → `jb` skip → `mulsd 0x11dfdd8` (0.5) → `[esp+0x24]` →
+    `call 0x10098c0` = assert `seed != 0.0` (`ucomisd 0x11df878`, expr
+    `0x1192220`, line **0x66 = 102**, file `0x11dda78` =
+    `…poro\source\utils\random\random.cpp`) + Schrage Park–Miller `16807x
+    mod (2³¹−1)` (`imul $0x41a7`, magic `0x834e0b5f`, `imul $0x7fffffff`),
+    returns `state × 0x11df988 = state/(2³¹−1)`. **Warm-up
+    (0x905273..0x905344): `N = (W mod 11) + (seed mod 12)`, N ∈ [0,21]** —
+    `imul $0xaaaaaaab`+`shr $3` = ÷12; magic `0xd1745d17` + `imul $0xb` =
+    W mod 11; W = [esp+0x2c] = clamped width (@0x905228-c); `jle 0x905344`
+    skips N ≤ 0; body = inlined Schrage step.
+  - **⑦ Flood-fill asserts:** lines 530 / 533 / 534 / 548 (8 sites), expr
+    `0x1173c1c` = `pixels.IsValid( ipos.x, ipos.y )`.
+  - **⑧ `+0xb0` census → §8 row 35:** (opcode 0xc7 ∧ mod=2 ∧ disp32=0xb0)
+    over file 0x400..0xd49200 = 77 hits; the only code-pointer immediate
+    is `0x8ee1b0` (0x8ee3a7, 0x8ee643 = `movl $0x8ee1b0,0xb0(%edi)`); the
+    rest numeric (0×50, 2×6, 0xf×4, 1×2, 0x86c60000, 0x81c70000, 8, 0x34e3
+    / 0x34f9 / 0x3569 / 0x35a5 / 0x35a9 / 0x365b / 0x36af, 0x2d0,
+    0x3f99999a, 0x14). The 4 `movl $0x8ee1b0` installs: the two above,
+    0x905acd = `movl $0x8ee1b0,0x140(%eax)` (eax = this @0x905ac7; then `push $0x10` + `call
+    *0x114a34c`), 0x64c7a4 = `0x108(%esp)` ⇒ no per-biome resolver body is
+    literally installed at +0xb0; 80 register-form `mov %reg,0xb0(%reg)`
+    stores are statically unresolvable (I24⑤).
+  - **⑨ Traps:** `fulltext86.asm` is truncated at 0x1000d6f (bodies ≥
+    0x1000000 need objdump of the exe); `p0_functions.csv` size column is
+    DECIMAL; `.rdata` delta 0x400E00 ≠ `.text` 0x400C00 (correct
+    `0x1199d40` dwords in C94); objdump `--stop-address` excludes
+    straddling instructions, non-boundary starts misdecode; esp-relative
+    slots match only with equal push counts (consumer baseline 3 pushes /
+    12 B, e.g. `[esp+0xb0]` @0x904d33 ⇒ F0+0xa4). RTTI: do not name the
+    wrapper class — `.?AVIngestionComponent@@` (`0x12f9f78`) sits 8 B
+    after the COL pTD (`0x11eb884` → `0x12f9f68`), no rdata dword equals
+    `0x1199d40` or pVFTable `0x12f9f70`; the 4-byte-at-`0x12f9014` / 5-byte-at-`0x12f9f6c` pTD mismatches mirror packs
+    `0x11e1f94` = 5, `0x11e1f8c` = 4 ⇒ unproven (I24①).
+    `fillRandomMaterials` is our label, not a game string.
+  - **⑩ OPEN → I24:** ① RTTI class; ② A's identity / `0x1f4`; ③ record
+    +0x1c string; ④ sync-arm wrapper kind, `[mgr+0x25]` setter, `0x92b300`;
+    ⑤ resolver bodies at +0xb0 (the remaining P1 residue).
 
-- **2026-10-06 (116) — dig #116 (docs-only): the I23② blocker is READ —
-  `0x90a860` (surfaceField) is called with PIXEL coords +0.5, its grid
-  coordinate is `f32(0.49162514·x + P[+0x94]) × 0.1`, and the port's
-  `surfaceField` omits that ×0.1 — so V2/V3 are each right for exactly
-  one of the callee's two consumers (neither lane is simply "the wrong
-  frame").**
-  Docs-only: no code, no cache bump. Every fact below was re-read from
-  `noita_dev.exe` on disk **this session** (fresh objdump windows
-  0x908f40..0x909380, 0x90a860..0x90b140 → `mapgen/extractions/dig116-90a860.asm (X12)`,
-  0x909da0..0x909e60; call sites from `mapgen/extractions/fulltext86.asm (X1)`;
-  floats byte-read in `.rdata` = VA − 0x400E00). Landed: CONSTANTS
-  **C95**, ISSUES **I23② settled + action** and an I24④ cross-reference
-  fix, VERIFIED **§8 row 36**, this entry **(116)**.
-  - **① The call sites of `FUN_00908f40` (0x908f40, size 1072 = 0x430
-    → 0x909370) — exactly 3, all inside `FUN_00792580`:** **0x7930d3**
-    (main cell), **0x7938d1** (probe x−1), **0x7938fe** (probe x+1). All
-    three do the same shape: `xmm1 = (double)(driver[+0x20] + x)`,
-    `xmm2 = (double)(driver[+0x24] + y)` (`movd`+`cvtdq2pd`, the int
-    addends from `[esp+0x30]` = x / `[esp+0x2c]` = y, the −1/+1 probes
-    via `dec`/`inc %ecx`), `ecx = driver[+0x70]` = `this`. Loop bounds
-    re-read in the same window: `cmp %edx,0x2c(%ebx) ; jle` @0x792f87
-    (y vs height) and `cmp %eax,0x28(%ebx)` @0x792faa (x vs width) with
-    the counters stepping 1 ⇒ **originX+x / originY+y are pixels**
-    (C87/C88's absX/absY, C89's `0x909370(originX, originY, originX+w−1,
-    originY+h−1, …)` rect).
-  - **② `FUN_00908f40` body = "what material is at pixel (x,y)":**
-    saves `xmm2 → −0x20` (y) and `xmm0(= xmm1) → −0x28` (x), `call
-    0x909da0` (ecx = this) → `ebx` = region; `test %ebx/%ebx; je
-    0x909367`. **`[R+4]==0` arm** @0x908f72..0x908fbb: reload both,
-    `addsd 0x11dfdd8` (= **0.5**) to each, `push %ebx` (the one stack
-    arg), `movapd xmm2→xmm3`, `movaps xmm1→xmm2`, **`call 0x90a860`
-    @0x908f96** → `cvttsd2si −0x20(%ebp)` (y) and `−0x28(%ebp)` (x) to
-    ints, `ecx = 0x2a4(%ebx)` = **mBiomeMaterials** (C87), `movaps
-    xmm0→xmm3` (the returned field) → **`call 0x8f5030`** (the
-    cellFactory classifier, §8 row 29) @0x908fb0 → its eax is the
-    return. **`[R+4]==1` arm** @0x908fbc: `cmpl $0,0x1b0(%ebx); je` →
-    assert **`biome->bitmap_data`** (expr **`0x1175088`**, line **0xa6e
-    = 2670**, file `0x1173a10` = procedural_terrain.cpp, format
-    `0x1150f60`); else → 0x909090; `[R+4] > 1` → 0x9091c6.
-  - **③ The pixels proof = `0x909da0` (region-at) itself:** `movsd
-    0x38(%edi),%xmm1 ; addsd %xmm0` and `movsd 0x40(%edi),%xmm0 ; addsd
-    %xmm2` → `cvttsd2si` → **`and $0x1ff` + `sar $0x9`** (y additionally
-    `idiv [edi+0x50]` with the negative fix-up `add %ecx,%edx`) =
-    **512-px chunk index + intra-chunk offset applied to the very values
-    `0x908f40` passed** ⇒ the units are **pixel** and the chunk is 512 px
-    (C11/C76). Crucially `this[+0x38]/[+0x40]` (the world offset) is
-    added **only inside `0x909da0`** — `0x90a860` never sees it.
-  - **④ The callee `0x90a860` (size 2217 = 0x8a9 → 0x90b109, next fn
-    0x90b110; `ret $0x4` @0x90b106 = exactly one stack arg = the
-    region):** entry bindings `[ebp+8]→ebx = R`, `xmm2 → −0x44` (x+0.5),
-    `xmm3 → −0x3c` (y+0.5), `ecx → −0x30` (this); `R[+4]` selects two
-    **byte-identical** grid copies (0x90a8c1.. / 0x90ac28..), `P :=
-    R[+0x1d4]` (null ⇒ skip grid → 0x90aad1 ⇒ field0 = 0 ⇒ r′ = 0 ⇒
-    return 0). **Grid law (both copies):**
-    `u = f32( 0.49162514·(x+0.5) + f32(P[+0x94]) ) × f32 0.1`
-    — `mulsd 0x11dfdc8` = **0.49162514**, `movss 0x94(%eax)`,
-    **`mulss 0x11df974` = f32 0.1**; `v` = the same shape with the
-    `P[+0x94]` bias scaled by **`0x11dfa08` = 6.86035959282328e-07**
-    (meaning OPEN) → `cvttsd2si` + `comisd`/`dec` **floor fix-up** →
-    frac → smoothstep weight **(3−2t)·t²** (`0x11dff70` = f32 3.0,
-    `0x11dfe68` = f32 2.0, `0x11dfbf0` = f32 1.0) → **4× `call 0x9fe620`**
-    (the wrap-mod getter, C45) over `P`'s grid → 2 bilinear lerps →
-    field0. The ×0.1 is a genuine **grid↔pixel conversion**: `0x11e015c`
-    = **f32 10.0** multiplies u/v back up before `call 0x908cb0` in the
-    add-noise arm (@0x90aa66/6e), and `divss 0x11df974` (= ÷0.1) appears
-    @0x90ac0b. Gates re-pinned: `comiss 0x11dfaac` = **0.51** @**0x90aaf7**,
-    `0x11dfb84` = **0.85** @**0x90ab48** → slab↔true pairs 0x50a2f7 /
-    0x50a348 ⇒ **`0x90a860` = the port's `surfaceField` identity
-    re-confirmed** (C37's chain). The r-eval is **`call 0x90b280`**
-    @0x90aadd (slab 0x50aa80) with ecx = this, **xmm2 = x+0.5 / xmm3 =
-    y+0.5 — the same PIXEL args, NOT ÷10**, `push R`, then `mulss field`
-    ⇒ r′. **Observed FP slots (record, don't infer a signature):** this
-    call family does not use the plain xmm0-first layout — `0x909da0`
-    reads xmm1/xmm2, `0x90a860` reads xmm2/xmm3 (xmm1 = a duplicate of
-    x), and the classify call stages its FP arg in xmm3.
-  - **⑤ The I23② verdict (the byte answer that was blocking code):**
-    - **The callee's argument frame = pixels +0.5 ⇒ V3's world-px frame
-      (`wx = x − worldX0`, C80) IS the game's frame; V2's `px/10` cell
-      frame is NOT.**
-    - **But the callee has two consumers with two different frames:** the
-      **grid/gradAt** term wants `0.049162514·px + 0.1·P[+0x94]` (the
-      ×0.1 is inside the binary), while the **r-eval** wants raw pixels.
-    - The port's `mapgen/lib/noise-proto.mjs:676` =
-      `gradAt(f(x·0.49162514)+valueOfP94, …)` — **no ×0.1** ⇒ with V3's
-      pixel args the grid index runs **10×** the game's
-      (0.49162514·px vs 0.049162514·px), whereas V2's pre-÷10 makes the
-      grid term **exact** (0.49162514·(px/10) = 0.049162514·px) but
-      feeds the r-eval 1/10 of the pixels the game gives it.
-    - ⇒ **"which lane is wrong" was the wrong dichotomy: each lane is
-      right for one of the two consumers, and the defect is a one-step
-      omission inside `surfaceField`, not a lane-frame choice.**
-      **Action for the next (code) dig — still NO port change this
-      dig:** add the ×0.1 and the `0.1·P[+0x94]` bias inside
-      `surfaceField`, feed **pixels** in BOTH lanes (drop V2's ÷10
-      pre-scale), decide the ramp-placeholder units in the same change
-      (**C80's ramp arithmetic — "field0 crosses 0.5 at wy ≈ +235 px"
-      — was computed on the pre-×0.1 scale and moves ~10× once the
-      ×0.1 lands, so `makeGradAt`'s StartY/EndY reading must be
-      re-derived or the real grid substituted**), and validate against
-      C79's surface-y IoU A/B plus I23③'s still-missing shape gate.
-  - **⑥ Constants byte-read this session (f32 in `.rdata`):**
-    `0x11df974` = **0.1**, `0x11e015c` = **10.0**, `0x11dfbf0` = 1.0,
-    `0x11dfe68` = 2.0, `0x11dff70` = 3.0, `0x11dfaac` = 0.51,
-    `0x11dfb84` = 0.85, `0x11dfd2c` = 1.5, `0x11dfa94` = 0.5,
+- **2026-10-06 (116) — dig #116 (docs-only): I23② read — `0x90a860`
+  (surfaceField) is called with PIXEL coords +0.5, grid coordinate =
+  `f32(0.49162514·x + P[+0x94]) × 0.1`; the port omitted the ×0.1.**
+  Windows 0x908f40..0x909380, 0x90a860..0x90b140
+  (`mapgen/extractions/dig116-90a860.asm (X12)`), 0x909da0..0x909e60; call
+  sites from `fulltext86.asm (X1)`. Registries: **C95**, I23② settled,
+  **§8 row 36**.
+  - **① Call sites of `FUN_00908f40`** (size 1072 = 0x430 → 0x909370) —
+    3, all in `FUN_00792580`: **0x7930d3** (main), **0x7938d1** (x−1),
+    **0x7938fe** (x+1). `xmm1 = (double)(driver[+0x20] + x)`, `xmm2 =
+    (double)(driver[+0x24] + y)`, `ecx = driver[+0x70]`. Loops `cmp
+    %edx,0x2c(%ebx) ; jle` @0x792f87 (y vs height), `cmp %eax,0x28(%ebx)`
+    @0x792faa (x vs width), step 1 ⇒ originX+x / originY+y are pixels
+    (C87/C88, C89's `0x909370` rect).
+  - **② `0x908f40` = material at pixel (x,y):** saves y → −0x20, x →
+    −0x28, `call 0x909da0` → ebx = region, null → 0x909367. **`[R+4]==0`**
+    @0x908f72..0x908fbb: `addsd 0x11dfdd8` (0.5) to both, `push %ebx`,
+    **`call 0x90a860` @0x908f96** → `cvttsd2si` x,y → `ecx = 0x2a4(%ebx)` =
+    mBiomeMaterials (C87), field in xmm3 → **`call 0x8f5030`**
+    (classifier, §8 row 29) @0x908fb0. **`[R+4]==1`** @0x908fbc: `cmpl
+    $0,0x1b0(%ebx)` → assert **`biome->bitmap_data`** (expr `0x1175088`,
+    line 0xa6e = 2670, file `0x1173a10`, format `0x1150f60`) else
+    0x909090; `[R+4] > 1` → 0x9091c6.
+  - **③ `0x909da0` (region-at):** `movsd 0x38(%edi)` + x, `movsd
+    0x40(%edi)` + y → `cvttsd2si` → **`and $0x1ff` + `sar $0x9`** (y also
+    `idiv [edi+0x50]`, negative fix-up `add %ecx,%edx`) = 512-px chunk
+    index + offset ⇒ units are pixels (C11/C76). The world offset
+    `this[+0x38]/[+0x40]` is added only here; `0x90a860` never sees it.
+  - **④ `0x90a860`** (size 2217 = 0x8a9 → 0x90b109, next 0x90b110; `ret
+    $0x4` @0x90b106 = one stack arg = region): `[ebp+8]→ebx = R`, `xmm2 →
+    −0x44` (x+0.5), `xmm3 → −0x3c` (y+0.5), `ecx → −0x30`; `R[+4]` selects
+    two byte-identical grid copies (0x90a8c1.. / 0x90ac28..); `P :=
+    R[+0x1d4]` (null ⇒ 0x90aad1 ⇒ field0 = 0 ⇒ return 0). **Grid law:**
+    `u = f32( 0.49162514·(x+0.5) + f32(P[+0x94]) ) × f32 0.1` (`mulsd
+    0x11dfdc8`, `movss 0x94(%eax)`, `mulss 0x11df974`); `v` = same with the
+    `P[+0x94]` bias scaled by `0x11dfa08` = 6.86035959282328e-07 (meaning
+    OPEN) → `cvttsd2si` + `comisd`/`dec` floor fix-up → smoothstep
+    (3−2t)·t² (`0x11dff70` = 3.0, `0x11dfe68` = 2.0, `0x11dfbf0` = 1.0) → 4×
+    `call 0x9fe620` (wrap-mod getter, C45) → 2 bilinear lerps → field0.
+    ×0.1 is a grid↔pixel conversion: `0x11e015c` = f32 10.0 undoes it
+    before `call 0x908cb0` in the add-noise arm (@0x90aa66/6e); `divss
+    0x11df974` @0x90ac0b. Gates `comiss 0x11dfaac` = 0.51 @0x90aaf7,
+    `0x11dfb84` = 0.85 @0x90ab48 (slab 0x50a2f7 / 0x50a348) ⇒ `0x90a860` =
+    the port's `surfaceField` (C37). r-eval **`call 0x90b280`** @0x90aadd
+    (slab 0x50aa80) with xmm2 = x+0.5 / xmm3 = y+0.5 (raw pixels, not ÷10),
+    `push R`, then `mulss field` ⇒ r′. Observed FP slots (not an ABI
+    claim): `0x909da0` reads xmm1/xmm2, `0x90a860` xmm2/xmm3, the classify
+    call stages its arg in xmm3.
+  - **⑤ Verdict:** pixel+0.5 frame ⇒ V3's world-px frame (C80) is the
+    game's, V2's `px/10` is not — but the grid consumer wants
+    `0.049162514·px + 0.1·P[+0x94]` while the r-eval wants raw pixels; the
+    port (`noise-proto.mjs:676`, no ×0.1) made each lane right for one
+    consumer. Fix = add ×0.1 inside `surfaceField` and feed pixels in both
+    lanes (landed in (117)).
+  - **⑥ Constants** (f32): `0x11df974` = 0.1, `0x11e015c` = 10.0,
+    `0x11dfbf0` = 1.0, `0x11dfe68` = 2.0, `0x11dff70` = 3.0, `0x11dfaac` =
+    0.51, `0x11dfb84` = 0.85, `0x11dfd2c` = 1.5, `0x11dfa94` = 0.5,
     `0x11dfbac` = 0.95, `0x11e00b4` = 5.35, `0x11df944` = 0.0489275008,
-    `0x11e01b0` = 15.5; f64: `0x11dfdc8` = **0.49162514**,
-    `0x11dfa08` = **6.86035959282328e-07**, `0x11dfdd8` = 0.5,
-    `0x11dfe30` = 1.0, `0x11dfb58` = 0.001, `0x11dfd08` = 0.1 (the
-    port's `scale01`, a different constant than the f32 0.1 above),
-    `0x11dfce8` = 0.07, `0x11dfc98` = 0.035; string: `0x1175088` =
-    `biome->bitmap_data`.
-  - **⑦ Corrections landed with this entry:**
-    - **(115)'s pitfall "p0_functions.csv size column is hex" is WRONG —
-      it is DECIMAL** (`FUN_00908f40` 1072 = 0x430 → next fn 0x909370 ✓;
-      `FUN_0090a860` 2217 = 0x8a9 → 0x90b109/next 0x90b110 ✓; the hex
-      reading would overlap later functions). Fixed in place in (115).
-    - **I24④'s cross-reference was wrong:** it claimed the sync-arm
-      wrapper-kind question "still needs the `0x90a860` call-site frame
-      — shared with I23②". `0x90a860` has nothing to do with the wrapper
-      dispatch; the real need is the **`0x8cef30` dispatch's own
-      call-site frames** (which callers pass which wrapper kind).
-      Rewritten in ISSUES I24④.
-  - **⑧ Residuals / still OPEN:**
-    - `[R+4]` identity (it gates both the caller arm and which grid copy
-      runs) and `P = [R+0x1d4]`'s own identity; the
-      `P[+0x94] × 6.86035959282328e-07` **y-bias meaning**.
-    - Whether `driver[+0x20]/[+0x24]` (originX/originY) are world px or
-      driver-local px — `0x909da0` adds `this[+0x38]/[+0x40]` while the
-      field does not, so a **constant registration offset between the
-      callee's grid and the port's `wx/wy`** may persist (feeds I21's
-      family-local question, not its eliminated global form).
-    - The FP-argument slot pattern (④) is recorded as observed usage,
-      **not** as an ABI claim.
-    - The port patch itself + the ramp-unit decision = the next dig
-      (I23②'s action, gated on I23③'s instrument).
-  - **Landed:** CONSTANTS **C95**, ISSUES **I23② settled + action** +
-    **I24④ cross-reference fix**, VERIFIED **§8 row 36**, this entry
-    **(116)**, Current_work registry refresh. Docs-only ⇒ **no code
-    change, no cache bump** (`mapgen/server/genmap-server.mjs:34`).
-    Next free: entry **(117)**, **C96**, **I25**; §8 row **37** free.
+    `0x11e01b0` = 15.5; f64: `0x11dfdc8` = 0.49162514, `0x11dfa08` =
+    6.86035959282328e-07, `0x11dfdd8` = 0.5, `0x11dfe30` = 1.0,
+    `0x11dfb58` = 0.001, `0x11dfd08` = 0.1 (the port's `scale01`, distinct
+    from f32 0.1), `0x11dfce8` = 0.07, `0x11dfc98` = 0.035; string
+    `0x1175088` = `biome->bitmap_data`.
+  - I24④ needs the `0x8cef30` dispatch call-site frames, not `0x90a860`.
+  - **OPEN:** `[R+4]` and `P = [R+0x1d4]` identities; the `P[+0x94] ×
+    6.86035959282328e-07` y-bias meaning; whether `driver[+0x20]/[+0x24]`
+    are world or driver-local px (`0x909da0` adds `this[+0x38]/[+0x40]`,
+    the field does not ⇒ a constant registration offset may persist —
+    I21 family-local).
 
-- **2026-10-09 (117) — dig #117: I23②'s ACTION LANDED — the
-  `surfaceField` ×0.1, pixels-in-both-lanes and the ramp-unit decision
-  are IN THE PORT (both lanes finally byte-consistent), and the C79
-  IoU A/B says the frame fix alone moves the metric ~nothing
-  (89.58 → 89.42, FAIL stands) — field SHAPE (§8 row 34) stays the
-  binding error, so I23③'s shape instrument is the next dig.**
-  Every byte fact below was re-verified from `noita_dev.exe` on disk
-  **this session** (objdump 0x908f72..0x908fb5 = the +0.5/call window,
-  0x90a860..0x90a930 = the grid law, 0x90aa50..0x90aaf0 = the 10.0
-  undo + r-eval call; floats byte-read in `.rdata` = VA − 0x400E00).
-  - **① The byte law (re-verified; C95 unchanged):** the call site
-    `0x908f7e..0x908f96` adds f64 0.5 (`0x11dfdd8`) to both args then
-    calls `0x90a860`; the callee's grid coordinate =
-    `mulss( cvtpd2ps(0.49162514·x + P[+0x94]), f32 0.1@0x11df974 )`
-    (@0x90a8f9..0x90a90c), the y-arm's bias scaled by f64
-    `0x11dfa08` = 6.86035959282328e-07 (meaning OPEN); `0x11e015c` =
-    f32 10.0 undoes the ×0.1 in the add-noise arm (@0x90aa66/6e), and
-    the r-eval `0x90b280` (@0x90aadd) gets the RAW pixel args. The
-    pre-patch port line (`noise-proto.mjs:676`) =
-    `gradAt(f(x·0.49162514)+valueOfP94, …)` — **no ×0.1** ✓ ((116)'s
-    claim reproduced on disk today).
-  - **② The patch (4 edits; `npm test` 261/261, 48.75 s):**
-    1. `noise-proto.mjs` K2 gains `f32_0p1` (f32 0.1, `0x11df974`) and
-       `f64_6p86e07` (`0x11dfa08`) — both already registered C95.
-    2. `noise-proto.mjs:676` →
-       `gradAt(f(f(x·0.49162514)+p94)·0.1, f(f(y·0.49162514)+p94·6.86e-07)·0.1)`
-       — **the ×0.1 LANDS.**
-    3. `noise-terrain.mjs` `makeGradAt` (the C39 ramp placeholder)
-       converts grid→world-px (`×1/(0.49162514·0.1)`), so the (A)
-       placeholder keeps its capture-validated calibration (C80's
-       0.5-crossing at wy≈+235 px) instead of collapsing to C80's
-       degenerate clamped-flat. The bitmap/topology gradAts stay
-       grid-indexed (byte law) — only the invented ramp converts.
-    4. `noise-terrain.mjs` V2 feeds **pixels** (`tx·CHUNK+cx·10+5`) —
-       its grid index comes out byte-IDENTICAL to before
-       (0.1·(0.49162514·10·c) = 0.049162514·px) while every
-       noise/r-eval consumer stops being starved 10×. Same canvas
-       registration. (V2's ramp frame also moves: cell units → canvas
-       px.)
-    None of these paths is in the default render (`SURFACE_V2/V3` are
-    env-gated) ⇒ **no cache bump** (`genmap-server.mjs:34`).
-  - **③ The C79 IoU A/B (clean same-day):** the pre-patch run
-    reproduced (114)'s baseline **exactly** (n=7065, meanAbs **89.58**,
-    bias 2.88) ⇒ a valid A/B. Post-patch: n=7027, meanAbs **89.42**,
-    bias 3.11, ±1/±2/±3 = 0.019/0.031/0.046 — **FAIL stands.**
-    Per-family: mountain 47.18 → 46.36, bty10 44.85 → **36.62**,
-    bty13 63.33 → 62.70, bty14 131.73 → 132.15, lake topAir
-    0.972 → **1** (sky-top speckle cleaned); **desert/winter/hills
-    bit-identical** (every scored column unchanged).
-  - **④ Mechanism (probed, not inferred):** side-by-side masks of the
-    pre-patch lib (`git show 2084bfe:mapgen/lib/*` →
-    `mapgen/extractions/dig117-prelib (X42)`) vs the patched lib on the REAL lane
-    coords: desert (45,62) **diffCells=0**; mountain_left_stub (34,62)
-    **77 cells 0→1** (band at cy=12); mountain_lake (40,62) 28 cells
-    0→1 (cy=20); mountain_tree (31,58) 3; winter (43,62) 8 (its IoU
-    line unchanged). Why the split:
-    - **Frame pitfall (recorded so it isn't repeated):** the noise
-      lane's `ty = bty + SKY_ROWS` (the C79 gen call is
-      `worldColorAt(world, tx·512+x, (bty+48)·512+y)`), so tile
-      (tx,bty) ⇒ `wx = tx·512+cx·10+5−17920`,
-      **`wy = (bty−14)·512+cy·10+5`** — my first probe fed the raw tile
-      frame and got `null` masks from BOTH versions.
-    - **Ramp biomes** (mountain_left_stub/mountain_lake — no
-      BitmapCaves, no bitmap_noise_file ⇒ `makeGradAt`): pre-fix the
-      ramp received `0.49162514·wy` (t≈0.50–0.62 at bty14), post-fix
-      its calibrated px (t≈0.50–0.75) ⇒ the 0→1 gains = the ramp
-      arriving at its C80 frame for the first time.
-    - **BitmapCaves biomes:** pre-fix sampled field rows 2..253;
-      post-fix the **top band only** (`v = 0.049162514·wy` ∈ [0.25,
-      25.3] at bty14 = 26 rows, +25.17 rows per bty step) — desert's
-      top rows are uniform (⇒ inert), mountain_tree's/winter's are
-      structured (⇒ the small diffs).
-    - **lake/lake_statue** (topology_lake.png): 10× lower feature
-      frequency ⇒ the sky-top solid speckle vanished (topAir→1) while
-      the scored lines stayed.
-  - **⑤ Verdict:** the (116) defect was real and is now GONE — both
-    lanes run the grid at `u = 0.049162514·px`, the r-eval at px, and
-    the ramp at its calibrated px — yet C79 does not move, which
-    sharpens §8 row 34: **the residual is SHAPE** (the caves-field
-    model, the (A) ramp, the unread fnB band-stack) behind the still-
-    missing I23③ shape instrument. That instrument is now the binding
-    next dig (the IoU is a line metric and cannot see shape).
-  - **⑥ Caveats:** I23①'s ~1.8% density census was measured on the
-    PRE-patch lane — re-run `2026-10-06-v2-chunk-census.mjs` before
-    diffing density numbers. `mountain_left_stub.xml`/`mountain_lake.xml`
-    carry `name="_EMPTY_"` (the biome NAME ≠ its file; `biomeAt`
-    returns the right FILE, and the IoU's family label comes from the
-    vmap color, which matched in all probed tiles).
-  - **⑦ Residuals still OPEN:** (116)'s list minus the patch itself —
-    `[R+4]`/`P` identities, the y-bias meaning, the driver origin
-    frame (I21 family-local), the FP-slot pattern — PLUS the new
-    **I25** (BitmapCaves grid indexing: u-law vs cell index).
-  - **Landed:** code (`noise-proto.mjs`, `noise-terrain.mjs`),
-    CONSTANTS **C96**, ISSUES **I23② action landed** + **I25 opened**,
-    VERIFIED **§8 row 37**, this entry **(117)**. Next free: entry
-    **(118)**, **C97**, **I26**; §8 row **38** free.
-- **2026-10-10 (118) — dig #118: I23③ CLOSED — the SURFACE SHAPE
-  instrument lands (C97) and runs all three lane configs: overall iou
-  0.234–0.252; lane choice AND vertical registration eliminated as the
-  shape residual; the measured failure mode = under-solidity (fG
-  0.141–0.167 vs fR 0.480) behind a family gradient (mountain 0.59 ≫
-  lake 0.43 > hills 0.09–0.14 > desert 0.017–0.074 ≈ winter 0.056).**
-  - **The gap (I23③):** C79's IoU is a LINE metric (first solid run ≥
-    RUN_MIN per column) and its gate REFUSES `SURFACE_V2`; the shape
-    gate `2026-09-21-surface-shape.mjs` reaches only wang/template
-    bands (procedural 0 / v2masks 0, probe (114)) ⇒ nothing measured
-    the noise lanes' rendered 2-D shape — §8 row 37 left "the
-    still-missing I23③ shape instrument" as the binding next dig.
-  - **Built:** `mapgen/experiments/2026-10-10-surface-shape-iou.mjs`,
-    metric spec **C97 registered BEFORE the first run**
-    (constants-first). Lane gate = C79's inverse: any
-    `SURFACE_V2`/`SURFACE_V3` combo accepted and stamped into the
-    outputs (`-v3` / `-v2v3` / `-v2`); neither flag REFUSED
-    (`noise-terrain.mjs:383` never attaches the noise branch ⇒ all-air
-    masks); `PROC_FILL` refused (template-band lane,
-    `template-render.mjs:661` — C79 parity). C79's scorable tile set
-    is re-derived in-script (458 P1 scanned → 56 scorable) and
-    cross-checked against `surface-y-2026-09-24.json`: **match, 0
-    missing / 0 extra, in all three runs.** Per-tile metrics (C97):
-    **iou** over solid cells, **profL1** cavity-curve distance,
-    **dyOpt/iouShift** (registration-vs-interior split), **b0..b3**
-    row-quarter ious, **fR/fG** solid fractions; aggregates
-    pixel-weighted + per-family/per-bty + mean row profiles (ref/gen/
-    genAligned); 10 triptych overlays per lane (best+worst per family;
-    ref | gen | diff with red = miss, green = hallucination).
-  - **Runs — one process per lane (the flags are module-load-time
-    consts, `noise-terrain.mjs:96-97`):** `SURFACE_V3=1`, then
-    `SURFACE_V2=1 SURFACE_V3=1`, then `SURFACE_V2=1`; ~40 s each;
-    logs `mapgen/extractions/dig118-shape-v2.log (X58)`, `dig118-shape-v2v3.log (X59)`, `dig118-shape-v3.log (X60)`; JSONs + overlay
-    dirs `mapgen/out/surface-shape-2026-10-10-*`.
-  - **Overall numbers** (fR = 0.48029 identical — same ref):
+- **2026-10-09 (117) — dig #117: I23②'s action landed — `surfaceField`
+  ×0.1, pixels in both lanes, ramp-unit decision; C79 IoU 89.58 → 89.42
+  (FAIL stands) ⇒ field SHAPE (§8 row 34) stays the binding error.**
+  - **Byte law** (re-read 0x908f72..0x908fb5, 0x90a860..0x90a930,
+    0x90aa50..0x90aaf0; C95): call site `0x908f7e..0x908f96` adds f64 0.5
+    (`0x11dfdd8`); grid = `mulss( cvtpd2ps(0.49162514·x + P[+0x94]), f32
+    0.1@0x11df974 )` (@0x90a8f9..0x90a90c), y-bias × `0x11dfa08`;
+    `0x11e015c` = 10.0 undoes ×0.1 (@0x90aa66/6e); r-eval `0x90b280`
+    (@0x90aadd) gets raw pixels.
+  - **Patch:** (1) K2 gains `f32_0p1` (`0x11df974`) and `f64_6p86e07`
+    (`0x11dfa08`); (2) `noise-proto.mjs:676` →
+    `gradAt(f(f(x·0.49162514)+p94)·0.1, f(f(y·0.49162514)+p94·6.86e-07)·0.1)`;
+    (3) `makeGradAt` (C39 ramp placeholder) converts grid→world-px
+    (`×1/(0.49162514·0.1)`) keeping C80's 0.5-crossing at wy≈+235 px;
+    bitmap/topology gradAts stay grid-indexed; (4) V2 feeds pixels
+    (`tx·CHUNK+cx·10+5`) — grid index byte-identical to before
+    (0.1·(0.49162514·10·c) = 0.049162514·px), noise/r-eval no longer
+    starved 10×. Env-gated paths ⇒ no cache bump.
+  - **C79 IoU A/B:** pre-patch reproduced (114) (n=7065, meanAbs 89.58,
+    bias 2.88); post: n=7027, meanAbs **89.42**, bias 3.11, ±1/±2/±3 =
+    0.019/0.031/0.046 — FAIL. Mountain 47.18 → 46.36, bty10 44.85 →
+    36.62, bty13 63.33 → 62.70, bty14 131.73 → 132.15, lake topAir 0.972
+    → 1; desert/winter/hills bit-identical.
+  - **Mechanism** (pre-patch lib `git show 2084bfe:mapgen/lib/*` →
+    `mapgen/extractions/dig117-prelib (X42)`): desert (45,62) diffCells=0;
+    mountain_left_stub (34,62) 77 cells 0→1 (cy=12); mountain_lake (40,62)
+    28 (cy=20); mountain_tree (31,58) 3; winter (43,62) 8.
+    - Frame: noise lane `ty = bty + SKY_ROWS` (C79 calls
+      `worldColorAt(world, tx·512+x, (bty+48)·512+y)`) ⇒ `wx =
+      tx·512+cx·10+5−17920`, **`wy = (bty−14)·512+cy·10+5`**; the raw tile
+      frame gives null masks.
+    - Ramp biomes (no BitmapCaves/bitmap_noise_file ⇒ `makeGradAt`): ramp
+      t≈0.50–0.62 → 0.50–0.75 at bty14 (now at its C80 frame).
+    - BitmapCaves biomes sample only the top band (`v = 0.049162514·wy` ∈
+      [0.25, 25.3] at bty14 = 26 rows, +25.17 rows per bty) — desert top
+      rows uniform (inert), mountain_tree/winter structured.
+    - lake/lake_statue (topology_lake.png): 10× lower feature frequency ⇒
+      sky-top speckle gone.
+  - `mountain_left_stub.xml`/`mountain_lake.xml` carry `name="_EMPTY_"`
+    (`biomeAt` returns the file; IoU family = vmap color). I23①'s ~1.8%
+    density census was pre-patch. New **I25** (BitmapCaves grid indexing:
+    u-law vs cell index). Registries: **C96**, **§8 row 37**.
+
+- **2026-10-10 (118) — dig #118: I23③ closed — SURFACE SHAPE instrument
+  (C97): iou 0.234–0.252 over three lanes; lane choice and vertical
+  registration eliminated; failure = under-solidity (fG 0.141–0.167 vs fR
+  0.480) with a family gradient.**
+  - **Instrument:** `mapgen/experiments/2026-10-10-surface-shape-iou.mjs`
+    (C97 registered before the first run). Accepts any
+    `SURFACE_V2`/`SURFACE_V3` combo (stamped `-v3`/`-v2v3`/`-v2`); neither
+    flag refused (`noise-terrain.mjs:383` ⇒ all-air); `PROC_FILL` refused
+    (`template-render.mjs:661`). Scorable set re-derived (458 P1 → 56) and
+    matches `surface-y-2026-09-24.json` (0 missing / 0 extra). Per-tile
+    iou, profL1, dyOpt/iouShift, b0..b3 row-quarter ious, fR/fG;
+    pixel-weighted aggregates + per-family/bty + row profiles; 10 triptych
+    overlays per lane (red = miss, green = hallucination). Flags are
+    module-load consts (`noise-terrain.mjs:96-97`) ⇒ one lane per process.
+    Logs `dig118-shape-v2.log (X58)`, `dig118-shape-v2v3.log (X59)`,
+    `dig118-shape-v3.log (X60)`; outputs
+    `mapgen/out/surface-shape-2026-10-10-*`.
+  - **Overall** (fR = 0.48029):
 
     | lane | iou | iouShift | dyOpt mean (med) | profL1 | fG | b0..b3 |
     |---|---|---|---|---|---|---|
@@ -9553,811 +8510,432 @@ first use from now on):**
     | v2v3 | **0.25183** | 0.25970 | −56.48 (0) | 0.36953 | 0.16694 | 0.169/0.256/0.268/0.263 |
     | v3 | 0.24644 | 0.25475 | −57.91 (0) | 0.37207 | 0.16055 | 0.167/0.254/0.259/0.257 |
 
-    family iou v3 / v2v3 / v2 (fR): **mountain** 0.593/0.589/0.594
-    (0.504), **lake** 0.429/0.437/0.437 (0.577), **hills**
-    0.134/0.141/0.089 (0.436), **desert** 0.059/0.074/0.017 (0.652),
-    **winter** 0.0556/0.0556/0.0555 (0.373).
-  - **Findings (measured this session):**
-    (i) **lane choice is not the shape variable** — the three configs
-    span Δiou 0.018 (v2v3−v3 = +0.0054, v2−v3 = −0.0125); the
-    caves-field gradAt helps its biomes — desert 0.017→0.074, hills
-    0.089→0.141 from v2 to v2v3 — yet both stay ~10× short of their
-    fR; lake is **byte-identical** v2≡v2v3 (all 7 tiles equal; no
-    `<BitmapCaves>` ⇒ the same topology gradAt in both) ⇒ the lane
-    stamp captures exactly the gradAt fork. Agrees with (117)'s C79
-    A/B (the frame fix moved the line metric ~nothing).
-    (ii) **vertical registration is not the shape variable** —
-    iouShift−iou ≤ +0.008 overall (family gains v3: mountain +0.027,
-    lake +0.036, hills +0.010, desert −0.002, winter ~0); dyOpt
-    median 0 (30/56 tiles exactly 0; 8 tiles hit the −256 search bound
-    = range-capped, still ≤ +0.01 gain each). Even a free half-tile
-    shift leaves mountain at 0.619 ⇒ §8 rows 34/37's SHAPE verdict is
-    now measured at mask level (→ row 38).
-    (iii) **failure mode = under-solidity:** fG 0.141/0.167/0.161 vs
-    fR 0.480 ⇒ the port renders **3–3.5× too little solid** overall;
-    no row band is rescued (v3 b0..b3 = 0.167/0.254/0.259/0.257).
-    (iv) **winter is lane-invariant air:** fG 0.0231/0.0232/0.0231
-    across all three lanes, 11/19 winter tiles fG = 0 under v2,
-    overlay `25_13_winter.png` = the ref valley mass 100 % red-miss —
-    mechanism disk-verified: winter carries no `noise_type` ⇒
-    noiseKind −1 (§8 row 30) ⇒ `noiseDispatch`'s default arm **throws**
-    (`noise-proto.mjs:530`, reached directly @:693 or per-octave via
-    `fbm4` @:623) ⇒ both lanes' catch returns null ⇒ the chunk falls
-    through to air BEFORE any gradAt fork — hence lane-invariance.
-    (v) **mountain proves the pipeline can be near-exact:** best tile
-    `37_13_mountain_right` **iou 0.92078** (dyOpt −12, fR 0.52983 vs
-    fG 0.50194), then 36_12 0.88371, 32_13 0.73874; dyOpt = **−12 on
-    6 tiles (4 of them mountain)** — the value equals the
-    **L3_ANCHOR's y (+12, C78)**: OBSERVATION, OPEN (I21-adjacent) —
-    the anchor y may not be the noise lane's correct registration; do
-    NOT conclude without a lane-local anchor fit.
-    (vi) **desert at tile scale = the C96 symptom:** overlay
-    `48_13_desert.png` shows gen as sparse 10-px speckle over air +
-    the true ground mass missed (red) — the bty14 top-rows sampling
-    (field v ∈ [0.25, 25.3], C96) hallucinating above and never
-    delivering mass below.
-  - **Pitfalls hit:** `Float64Array.map` keeps the typed array type ⇒
-    `JSON.stringify` would emit `{"0":…}` instead of an array (fixed
-    with `Array.from`); lane flags are read at module load ⇒ one lane
-    per process (three runs); `PROC_FILL` lives in
-    `template-render.mjs`, not the noise lane; masks are retained in
-    memory (56 × 2 × 256 KiB ≈ 29 MB) so overlays need no re-render;
-    dyOpt's −256 boundary hits = range-capped optima (8 tiles).
-  - **Landed:** `mapgen/experiments/2026-10-10-surface-shape-iou.mjs`,
-    CONSTANTS **C97** (pre-registered), ISSUES **I23③ closed**,
-    VERIFIED **§8 row 38**, this entry **(118)**, Current_work
-    refresh. **No `mapgen/lib/**` change ⇒ no cache bump**
-    (genmap-server untouched). Tests **261/261**. Next free: entry
-    **(119)**, **C98**, **I26**; §8 row **39** free.
-- **2026-10-10 (119) — dig #119: fnB per-phase placement BYTE-READ —
+    family iou v3 / v2v3 / v2 (fR): mountain 0.593/0.589/0.594 (0.504),
+    lake 0.429/0.437/0.437 (0.577), hills 0.134/0.141/0.089 (0.436),
+    desert 0.059/0.074/0.017 (0.652), winter 0.0556/0.0556/0.0555 (0.373).
+  - **Findings:** (i) lane choice is not the shape variable (Δiou 0.018;
+    caves gradAt lifts desert 0.017→0.074, hills 0.089→0.141, still ~10×
+    short; lake v2≡v2v3 byte-identical, no `<BitmapCaves>`). (ii) vertical
+    registration is not it: iouShift−iou ≤ +0.008 (v3: mountain +0.027,
+    lake +0.036, hills +0.010, desert −0.002); dyOpt median 0 (30/56 tiles
+    0; 8 hit the −256 bound) → §8 row 38. (iii) under-solidity: fG
+    0.141/0.167/0.161 vs fR 0.480 (3–3.5× too little solid). (iv) winter
+    lane-invariant air: fG 0.0231/0.0232/0.0231, 11/19 tiles fG = 0 under
+    v2 — no `noise_type` ⇒ noiseKind −1 (§8 row 30) ⇒ `noiseDispatch`
+    default arm throws (`noise-proto.mjs:530`, via :693 or `fbm4` @:623) ⇒
+    null ⇒ air before any gradAt fork. (v) mountain best
+    `37_13_mountain_right` iou 0.92078 (dyOpt −12, fR 0.52983 vs fG
+    0.50194), 36_12 0.88371, 32_13 0.73874; dyOpt = −12 on 6 tiles (4
+    mountain) = L3_ANCHOR y (+12, C78) — OPEN observation, needs a
+    lane-local anchor fit. (vi) desert overlay `48_13_desert.png` = sparse
+    10-px speckle + missed mass = the C96 top-rows sampling.
+  - Pitfall: `Float64Array.map` keeps the typed type ⇒ `JSON.stringify`
+    emits an object (use `Array.from`).
+
+- **2026-10-10 (119) — dig #119: fnB per-phase placement byte-read —
   mountain = top-band vertical runs, blob y ∈ [25,h−5], L2 = 2 passes ×
   a 120+⌊81u⌋ count chain, L3 = 1 pass × same, spawn side-lane named.**
-  - **Scope/method.** Closes I25's placement-read gate (read half) for
-    the fnB phases after loop A + the record (earlier digs): loop B =
-    `mountain_count`, loop C = `blob_caves_count`, then L2/L3. Fresh
-    objdump window **VA 0x8EE000–0x8F3700** (6227 lines,
-    `mapgen/extractions/builder-8EE000-8F3700.asm (X2)`); every rdata
-    constant below re-read from `noita_dev.exe` at file = VA−0x400E00
-    (C57) THIS session. **Pitfall:** 11.0 @0x11dff38, 81.0 @0x11dffd8,
-    101.0 @0x11dffe8 are **f64** (used via `mulsd`) — an f32 read of
-    them returns 0.0. Constant bank + gates → **C98**. Call-site table
-    (the three sub-engines, C46 names): setter `0x8ee750` = walk
-    @0x8ef37c (`push $0x1`) / L2 @0x8f20d1 (`push $0x0`) / L3 @0x8f2a6c
-    (`push $0x0`); blend `0x8ee930` = loop B @0x8f0b6d / loop C
-    @0x8f115f; scatter `0x8eead0` = walk @0x8ef3f9 / L2 @0x8f255d /
+  - **Scope.** Loop B = `mountain_count`, loop C = `blob_caves_count`,
+    then L2/L3. Window **VA 0x8EE000–0x8F3700**
+    (`mapgen/extractions/builder-8EE000-8F3700.asm (X2)`); rdata at file =
+    VA−0x400E00 (C57). **Pitfall:** 11.0 @0x11dff38, 81.0 @0x11dffd8,
+    101.0 @0x11dffe8 are **f64** (`mulsd`) — an f32 read returns 0.0.
+    Constants + gates → **C98**. Sub-engine call sites (C46 names): setter
+    `0x8ee750` = walk @0x8ef37c (`push $0x1`) / L2 @0x8f20d1 (`push $0x0`)
+    / L3 @0x8f2a6c (`push $0x0`); blend `0x8ee930` = loop B @0x8f0b6d /
+    loop C @0x8f115f; scatter `0x8eead0` = walk @0x8ef3f9 / L2 @0x8f255d /
     L3 @0x8f2efb.
   - **Loop B (mountain, 0x8f072a..0x8f0d8c).** count =
-    `rollPos(mountain_count[+0x54],[+0x58])` → [−0x12c] @0x8f0736–
-    0x8f0767, ≤0 → 0x8f0d92; **K = f32(h)·0.1** → [−0x10c] @0x8f0775–
-    0x8f0788 (0.1 = f32 0x11df974). Per stamp (5 draws): **base =
-    ⌊0.1h·u₁⌋** (form @0x8f081a–0x8f083c, `cvttss2si` @0x8f08e5 →
-    [−0x118] @0x8f08f3 — **FLAGGED gap-1 cite slab 4f00e5 = VA
-    0x8F08E5 ✓ exact**); **X = 5+⌊(w−9)u₂⌋ = rollPos(5,w−5)** (w−9 via
-    `add $0xfffffff7` @0x8f08b3 → [−0x134] @0x8f08e9); **R =
-    rollF32(mountain_size[+0x5c],[+0x60])** → [−0x124] @0x8f098f–
-    0x8f09b8 (**no min(20) cap**); **v = 1.5** (0x11dfd2c) → [−0x104]
-    @0x8f0a2f–0x8f0a47; **Y_end = base+⌊11u₃⌋+15** → [−0x108]
-    @0x8f0a4f–0x8f0a64 (11.0 f64). 20% coin: ⌊101u₄⌋ < 20 (`cmp $0x14`
-    @0x8f0af5) → **Y_end := base** @0x8f0b02 AND **v := 1.5+0.25u₅**
-    @0x8f0b08–0x8f0b2c. Row loop runs **row = base..Y_end inclusive**
-    (entry `jg 0x8f0d7b` @0x8f0b40 = empty-range guard — never true as
-    the law stands; back `jle 0x8f0b50` @0x8f0d75): blend(grid,{X,row},
-    R, v) @0x8f0b6d (xmm2 := R @0x8f0b65, xmm3 ← v @0x8f0b5c); then
-    **R += 0.5·(u+1)** @0x8f0c04–0x8f0c1c (0.5 = 0x11dfa94) and a 50%
-    coin ⌊101u⌋<50 (`cmp $0x32` @0x8f0cad) → **v := v·(0.97+0.03u)**
-    @0x8f0d35–0x8f0d4d. count-- @0x8f0d7b → `jne 0x8f0790` @0x8f0d8c.
-    ⇒ **mountain = top-band vertical runs**: a fixed X dropped at the
-    top tenth of the map, running 15–26 rows (1 row on the 20% coin),
-    radius GROWING ≈ +0.75/row from the size roll, value 1.5 (coin: up
-    to 1.75) decaying on half the rows — the port's uniform blobStamp
-    (uniform x/y, radius min(20,·), constant v per stamp) is wrong in
-    KIND, not just constants.
+    `rollPos(mountain_count[+0x54],[+0x58])` → [−0x12c]
+    @0x8f0736–0x8f0767, ≤0 → 0x8f0d92; **K = f32(h)·0.1** → [−0x10c]
+    @0x8f0775–0x8f0788 (f32 0x11df974). Per stamp (5 draws): **base =
+    ⌊0.1h·u₁⌋** (@0x8f081a–0x8f083c, `cvttss2si` @0x8f08e5 → [−0x118]
+    @0x8f08f3; slab 4f00e5 = VA 0x8F08E5); **X = 5+⌊(w−9)u₂⌋ =
+    rollPos(5,w−5)** (`add $0xfffffff7` @0x8f08b3 → [−0x134] @0x8f08e9);
+    **R = rollF32(mountain_size[+0x5c],[+0x60])** → [−0x124]
+    @0x8f098f–0x8f09b8 (no min(20) cap); **v = 1.5** (0x11dfd2c) →
+    [−0x104] @0x8f0a2f–0x8f0a47; **Y_end = base+⌊11u₃⌋+15** → [−0x108]
+    @0x8f0a4f–0x8f0a64. 20% coin ⌊101u₄⌋ < 20 (`cmp $0x14` @0x8f0af5) →
+    **Y_end := base** @0x8f0b02 and **v := 1.5+0.25u₅** @0x8f0b08–0x8f0b2c.
+    Rows **base..Y_end inclusive** (guard `jg 0x8f0d7b` @0x8f0b40, back
+    `jle 0x8f0b50` @0x8f0d75): blend(grid,{X,row},R,v) @0x8f0b6d (xmm2 :=
+    R @0x8f0b65, xmm3 ← v @0x8f0b5c); **R += 0.5·(u+1)** @0x8f0c04–0x8f0c1c
+    (0.5 = 0x11dfa94); 50% coin ⌊101u⌋<50 (`cmp $0x32` @0x8f0cad) → **v :=
+    v·(0.97+0.03u)** @0x8f0d35–0x8f0d4d. count-- @0x8f0d7b → `jne
+    0x8f0790` @0x8f0d8c. ⇒ fixed X at the top tenth, 15–26 rows (1 on the
+    20% coin), radius growing ≈ +0.75/row, v 1.5 (≤1.75) decaying on half
+    the rows — the port's uniform blobStamp was wrong in kind.
   - **Loop C (blob, 0x8f0d92..0x8f117b).** count =
-    `rollPos(config[+0x64],[+0x68])` → [−0x110] @0x8f0e26–0x8f0e4d
-    (the negative-scale `sub` form), ≤0 → 0x8f117b @0x8f0e55. Per stamp
-    (4 draws, **y before x**): **y = 25+⌊(h−29)u⌋ = rollPos(25,h−5)**
-    (h−29 @0x8f0edc, ecx=0x19 @0x8f0ee3 → [−0x100] @0x8f0f0a); **x =
-    5+⌊(w−9)u⌋ = rollPos(5,w−5)** (w−9 @0x8f0f80, ecx=5 @0x8f0f8b →
-    [−0x134] @0x8f0fc4; y → [−0x130] @0x8f0fb8); **v =
-    rollF32([+0x6c],[+0x70])** (knob loads @0x8f0fca–0x8f0fdd, roll
+    `rollPos(config[+0x64],[+0x68])` → [−0x110] @0x8f0e26–0x8f0e4d, ≤0 →
+    0x8f117b @0x8f0e55. Per stamp (4 draws, **y before x**): **y =
+    25+⌊(h−29)u⌋ = rollPos(25,h−5)** (h−29 @0x8f0edc, ecx=0x19 @0x8f0ee3 →
+    [−0x100] @0x8f0f0a); **x = rollPos(5,w−5)** (w−9 @0x8f0f80, ecx=5
+    @0x8f0f8b → [−0x134] @0x8f0fc4; y → [−0x130] @0x8f0fb8); **v =
+    rollF32([+0x6c],[+0x70])** (@0x8f0fca–0x8f0fdd, roll
     @0x8f105e–0x8f10a7 → [−0x108]); **R = rollF32([+0x74],[+0x78])**
-    (inline loads @0x8f1078/0x8f1099, roll @0x8f1131–0x8f1158 → xmm2,
-    no cap); blend @0x8f115f (v → xmm3 @0x8f1145); `decl [−0x110]`
-    @0x8f1164, `jne 0x8f0e60` @0x8f1175.
-    ⇒ **blob is uniform but NOT over the full grid: y ∈ [25, h−5]**
-    (both edges trimmed) — the port's y ∈ [0,h−1] spreads mass the
-    game never places.
-  - **Blend `0x8ee930` re-read end-to-end (the port's formula
-    reconciliation input).** Args: ecx = grid, edx = &pos{int x, int y},
-    xmm2 = R, xmm3 = v (→[−0xc]). `1.0 comiss R; jb` @0x8ee93e–0x8ee953
-    ⇒ **R ≤ 1 → single-cell path**: bounds check (negatives / ≥ dims →
-    ret), getter `0x9499f0` (this = grid+0x18, index = w·y+x), then
-    `cell comiss v; jbe → ret` @0x8ee98f–0x8ee993 ⇒ **write v only iff
-    cell > v (= a min-landing)**. **R > 1 → circle path** @0x8ee9ba:
-    `r0 = (int)(R+0.5)` @0x8ee9c1–0x8ee9ce, box loops, d² = dx²+dy²
-    `comiss R²; ja → skip` @0x8eea10, **t = (R²−d²)/R²** @0x8eea1f–
-    0x8eea2a, **t² = t·t** @0x8eea33 (→[−0x20]), per-cell plain bounds
-    checks (**NO wrap** — negatives/out-of-dims skip; the old
-    "wraps at border" phrasing does NOT match these bytes), store
-    **cell += (v−cell)·t²** @0x8eea7f–0x8eea99 (both directions: drag
-    toward v), dx/dy `inc`/`jle` back @0x8eeaa3–0x8eeab0. ⇒ the port's
-    `stampBlendLerp` (linear t = (R−d)/R over r0 = trunc(R+0.5), and
-    unconditional v-write for its r0 = 0 case) matches NEITHER arm —
-    reconciliation = part of the port dig.
-  - **L2 (0x8f1aa1..0x8f2584) — exactly 2 passes of a snaking chain.**
-    Head @0x8f1b00: **s₀ = +1** init @0x8f1a2b, 50% coin ⌊101u⌋<50 →
-    **−1.0** @0x8f1ac5/0x8f1ad6 (101.0 f64, −1.0 = 0x11e05a8); **center
-    = f32(w)·0.5** → [−0x12c] @0x8f1b11; arm test `test %eax,%eax; jne
-    0x8f1bd0` @0x8f1b21 (eax = pass counter). Pass 1 (arm A, window
-    0x8f1b27..0x8f1bd0): **x₀ = w/2 + s₀·rollF(3.5,35)** (form 3.5+
-    31.5u; consts 0x11dfff4/0x11e0250). y₀ = **0** ([−0x140] zeroed
-    @0x8f1ae6). Pass 2 (arm B): **[−0x104] := −s₀** (`xorps 0x11e0c50`
-    @0x8f1bd0, store @0x8f1bdb) and **x₀ = w/2 + (−s₀)·(25+50u)**
-    (`mulss 0x11e0284` / `addss 0x11e01e0` @0x8f1c71–0x8f1c79, ×sign
-    @0x8f1c81, +center @0x8f1c85 → [−0x144] @0x8f1c89). Per pass:
-    pair → [−0x134]/[−0x130] @0x8f1d26–0x8f1d3c; **count =
-    120+⌊81u⌋** → [−0x118] @0x8f1cff–0x8f1d42 (**FLAGGED cites
-    4f1510/4f1518 = VA 0x8F1D10/0x8F1D18 ✓ exact**); chain inits
-    **[−0x128] = 3u+1** @0x8f1dcf–0x8f1ddf (C44 ✓), **[−0x108] =
-    0.1u+0.1** @0x8f1e6d–0x8f1e7d (0.1 = 0x11df970), **[−0x110] =
-    s·(1.25+2.25u)** @0x8f1f11–0x8f1f25; guard `cmpl $0,[−0x118]`
-    @0x8f1eee → `jle 0x8f2585` @0x8f1f2d (flags survive the SSE — the
-    `lahf`/`test` blocks in between do NOT preserve them; each re-derives
-    its own). Inner head copies origin → current ONCE per pass:
-    [−0x138] ← [−0x130], [−0x120] ← [−0x134] @0x8f1f33–0x8f1f4b; loop
-    0x8f1f53..0x8f2577 (`cmpl $0,[−0x118]; jg 0x8f1f53` @0x8f256d–
-    0x8f2577). Per point: **[−0x100] = 0.25u+0.75** @0x8f1fe5–0x8f1ff5;
-    setter `call 0x8ee750` @0x8f20d1 with **flag=0** (`push $0x0`
-    @0x8f2079), pair (int)[−0x120]/[−0x138] → [−0x164]/[−0x160],
-    **value = [−0x128]·(0.35u+0.65)** @0x8f20bd–0x8f20cd (C44 numeric ✓),
-    **scale xmm3 = [−0x108]·[−0x100]** @0x8f20ad–0x8f20b5 (≈ 0.075–0.1,
-    i.e. the single-cell-ish regime of whatever 0x8ee750's flag=0 arm
-    does — its internal meaning stays C46-FLAGGED); **y += 0.1u+0.95**
-    @0x8f216b–0x8f2183 (0x11df970/0x11dfbac); **[−0x108] *= (0.01u+
-    0.99)** @0x8f2211–0x8f2229; **[−0x128] = clamp([−0x128]·(u+0.5),
-    0.75, 4.0)** @0x8f229a–0x8f22ef (upper tested first @0x8f22aa,
-    lower @0x8f22db); **[−0x110] = clamp([−0x110] + (0.5u−0.25),
-    −2.5, 2.5)** @0x8f231c–0x8f23be; `decl [−0x118]` @0x8f23bf; **x +=
-    [−0x110]** @0x8f23c5–0x8f23d6. Spawn side-lane (NO field write):
-    5% coin ⌊101u⌋<5 (`cmp $0x5` @0x8f246b) → both object ptrs
-    non-null → 95/5 selector (`cmp $0x5f` @0x8f252d, `cmovl [−0x150]`
-    @0x8f2538: rnd<95 → `spawn_small_enemies` else `spawn_items`) →
-    pair → [−0x158]/[−0x154] @0x8f2542/0x8f2550, **xmm3 = 1.0**
-    @0x8f251d → `call 0x8eead0` @0x8f255d. Exit **`inc [−0x10c]; cmp
-    $2; jl 0x8f1b00`** @0x8f2585–0x8f2595 ⇒ **exactly 2 passes** (the
-    carried "L2 = 2 passes" claim byte-pinned).
-  - **L3 (0x8f259b..0x8f2f17) — 1 pass, same count, C-rand band.**
-    Gated by **config byte [+0x31]**: `cmpb $0x0,0x31(%eax)` @0x8f25a1,
-    `je 0x8f2fa5` skips L3 entirely. Setup runs the **MSVC `rand()` LCG**
-    (seed 0x132a388, `imul $0x343fd`/`add $0x269ec3`, ÷32767.0 =
-    0x11e04bc): **[−0x140] := 0** (y origin) @0x8f25c5; **x₀ = w/2 +
-    (−s₀)·(3.5+2·r)** @0x8f2650–0x8f2682 (`mulss 0x11dfe68`=2.0, `addss
-    0x11dfff4`=3.5, ×(w·0.5), ×xmm4 = the arm-B-flipped sign reloaded
-    @0x8f257d ⇒ x ∈ center∓[3.5,5.5) — same side as arm B but hugging
-    center) → [−0x144] (overwrites the arm value BEFORE the pair copy);
-    band **lo = [−0x10c] = 1+r₁ ∈ [1,2)** @0x8f25fc–0x8f2608, **hi =
-    [−0x12c] = 2·(1+r₂) ∈ [2,4)** @0x8f2633–0x8f263b (lo < hi always).
-    Then **count = 120+⌊81u⌋** → [−0x118] @0x8f26f0–0x8f2733 (**FLAGGED
-    cites 4f1f01/4f1f09 = VA 0x8F2701/0x8F2709 ✓ exact**); pair copy
-    @0x8f2717+; chain inits **[−0x128] = lerp(lo,hi,u)** (xmm4 = hi−lo
-    @0x8f2793, store @0x8f27dc), **[−0x108] = 0.1u+0.1** @0x8f2881,
-    **[−0x110] = (−s₀)·(0.15+0.2·r)** @0x8f2899–0x8f28b8 (0x11df99c/
-    0x11df9b0); inner loop 0x8f28f0..0x8f2f12 (`jg 0x8f28f0` @0x8f2f12):
-    **[−0x100] = 0.25u+0.75** @0x8f2985–0x8f2995, setter @0x8f2a6c
-    (flag `push $0x0` @0x8f2a0b, same value/scale laws @0x8f2a54–
-    0x8f2a64), **y += 0.1u+0.95** @0x8f2b06–0x8f2b1e, **[−0x108] *=
-    (0.01u+0.99)** @0x8f2bac–0x8f2bbc, **[−0x128] = clamp(·(u+0.5), lo,
-    hi)** @0x8f2c3d–0x8f2c8a (bounds = the rand slots, not consts),
-    **[−0x110] = clamp(+0.3u−0.15, −1.0, 1.0)** @0x8f2d20–0x8f2d55,
-    `decl [−0x118]` @0x8f2d5d, x += vel @0x8f2d6f; same 5%+95/5 spawn
-    lane (gates → 0x8f2f0b, `cmovl [−0x150]` @0x8f2ed6, pair via
-    [−0x144]/[−0x140] — slot reuse of the origin pair as the int pair,
-    xmm3 = 1.0 @0x8f2ebb) → `call 0x8eead0` @0x8f2efb.
-  - **The spawn keys = a gameplay side-lane (interpretation flagged).**
-    `.rdata` literals **`spawn_small_enemies`** (19 B, @0x1173110) and
-    **`spawn_items`** (11 B, @0x1173124) are looked up once between the
-    record and L2 (@0x8f19d2 → [−0x150], @0x8f1a12 → [−0x124]); the
-    chain loops call the scatter engine `0x8eead0` on 5% of their
-    points with that key + a pair (the emitter's data flow as read
-    touches no field pointer ⇒ entity spawn, not field geometry).
-    **Out of the caves-field port's scope**; recorded so the walk's own
-    emitter call @0x8ef3f9 (spawn_percent not parsed ⇒ 0 ⇒ inert in the
-    port) can be aligned in a future dig.
-  - **Status / next.** I25's placement-read gate: **DONE (read half)** —
-    the laws retire `caves-field.mjs`'s FLAGGED loop-B/counts items
-    (comment refreshed; **the port itself is the next dig**: loop B/C +
-    L2/L3 chains + blend reconciliation into `buildCavesField`, measured
-    by C97's `2026-10-10-surface-shape-iou.mjs` A/B, then the
-    cache-bump decision). **Not covered:** I25's index half (kind-1/
-    kind≥2 arms 0x908fbc..0x909370 + sampler gate — u-law vs cell
-    index, still unread); y-drift (queue #2) untouched (entry (74),
-    deferred pending the fnA window read); `0x8ee750` internals stay
-    C46's registered summary ("max-bleed + circle falloff"; the flag=1
-    walk arm FLAGGED).
-  - **Pitfalls hit:** the f32/f64 literal trap (above); slot reuse
-    again — [−0x110] loop-C count → L2/L3 velocity, [−0x10c] loop-B K →
-    L2 pass counter → L3 chain-lo, [−0x124] mountain R → spawn_items
-    ptr, [−0x12c] w/2 → L3 chain-hi, [−0x100] loop-C y → L2/L3 draw
-    slot; a Lehmer-filter grep `jg 0x8f…` pattern ate the real row-loop
-    guard `jg 0x8f0d7b` until re-read unfiltered; the blend has NO
-    border wrap (plain bounds checks) — earlier phrasing corrected.
-  - **Landed:** ABOUT_MATH **(119)**, CONSTANTS **C98** (const bank +
-    gates), ISSUES **I25** gate updated, VERIFIED **§8 row 39**,
-    `caves-field.mjs` FLAGGED comment refresh. **Docs + comments only ⇒
-    no `mapgen/lib/**` logic change ⇒ no cache bump** (genmap-server
-    untouched). Tests **261/261**. Next free: entry **(120)**, **C99**,
-    **I26**; §8 row **40** free.
+    (@0x8f1078/0x8f1099, roll @0x8f1131–0x8f1158 → xmm2, no cap); blend
+    @0x8f115f (v → xmm3 @0x8f1145); `decl [−0x110]` @0x8f1164, `jne
+    0x8f0e60` @0x8f1175. Blob y ∈ [25, h−5], not [0,h−1].
+  - **Blend `0x8ee930`.** ecx = grid, edx = &pos{int x, int y}, xmm2 = R,
+    xmm3 = v (→[−0xc]). `1.0 comiss R; jb` @0x8ee93e–0x8ee953 ⇒ **R ≤ 1 →
+    single cell**: bounds check, getter `0x9499f0` (this = grid+0x18,
+    index = w·y+x), `cell comiss v; jbe → ret` @0x8ee98f–0x8ee993 ⇒ write
+    v only iff cell > v. **R > 1 → circle** @0x8ee9ba: `r0 = (int)(R+0.5)`
+    @0x8ee9c1–0x8ee9ce, d² = dx²+dy² `comiss R²; ja → skip` @0x8eea10,
+    **t = (R²−d²)/R²** @0x8eea1f–0x8eea2a, **t² = t·t** @0x8eea33 (→[−0x20]),
+    plain bounds (**no wrap**), **cell += (v−cell)·t²** @0x8eea7f–0x8eea99,
+    loops back @0x8eeaa3–0x8eeab0.
+  - **L2 (0x8f1aa1..0x8f2584) — exactly 2 passes.** Head @0x8f1b00: **s₀
+    = +1** @0x8f1a2b, 50% coin ⌊101u⌋<50 → **−1.0** @0x8f1ac5/0x8f1ad6
+    (−1.0 = 0x11e05a8); **center = f32(w)·0.5** → [−0x12c] @0x8f1b11; arm
+    test `test %eax,%eax; jne 0x8f1bd0` @0x8f1b21. Pass 1 (arm A,
+    0x8f1b27..0x8f1bd0): **x₀ = w/2 + s₀·rollF(3.5,35)** (3.5+31.5u;
+    0x11dfff4/0x11e0250); y₀ = 0 ([−0x140] @0x8f1ae6). Pass 2 (arm B):
+    **[−0x104] := −s₀** (`xorps 0x11e0c50` @0x8f1bd0, store @0x8f1bdb),
+    **x₀ = w/2 + (−s₀)·(25+50u)** (`mulss 0x11e0284` / `addss 0x11e01e0`
+    @0x8f1c71–0x8f1c79, ×sign @0x8f1c81, +center @0x8f1c85 → [−0x144]
+    @0x8f1c89). Per pass: pair → [−0x134]/[−0x130] @0x8f1d26–0x8f1d3c;
+    **count = 120+⌊81u⌋** → [−0x118] @0x8f1cff–0x8f1d42 (slab
+    4f1510/4f1518 = VA 0x8F1D10/0x8F1D18); inits **[−0x128] = 3u+1**
+    @0x8f1dcf–0x8f1ddf (C44), **[−0x108] = 0.1u+0.1** @0x8f1e6d–0x8f1e7d
+    (constant `0x11df974`, per (120)), **[−0x110] = s·(1.25+2.25u)**
+    @0x8f1f11–0x8f1f25; guard `cmpl $0,[−0x118]` @0x8f1eee → `jle
+    0x8f2585` @0x8f1f2d. Origin → current once per pass ([−0x138] ←
+    [−0x130], [−0x120] ← [−0x134] @0x8f1f33–0x8f1f4b); loop
+    0x8f1f53..0x8f2577 (`jg 0x8f1f53` @0x8f256d–0x8f2577). Per point:
+    **[−0x100] = 0.25u+0.75** @0x8f1fe5–0x8f1ff5; setter `call 0x8ee750`
+    @0x8f20d1, **flag=0** (`push $0x0` @0x8f2079), pair
+    (int)[−0x120]/[−0x138] → [−0x164]/[−0x160], **value =
+    [−0x128]·(0.35u+0.65)** @0x8f20bd–0x8f20cd, **scale xmm3 =
+    [−0x108]·[−0x100]** @0x8f20ad–0x8f20b5 (≈ 0.075–0.1); **y +=
+    0.1u+0.95** @0x8f216b–0x8f2183 (0x11df970/0x11dfbac); **[−0x108] *=
+    (0.01u+0.99)** @0x8f2211–0x8f2229; **[−0x128] = clamp(·(u+0.5), 0.75,
+    4.0)** @0x8f229a–0x8f22ef (upper @0x8f22aa first, lower @0x8f22db);
+    **[−0x110] = clamp(+ (0.5u−0.25), −2.5, 2.5)** @0x8f231c–0x8f23be;
+    `decl [−0x118]` @0x8f23bf; **x += [−0x110]** @0x8f23c5–0x8f23d6. Spawn
+    side-lane (no field write): 5% coin ⌊101u⌋<5 (`cmp $0x5` @0x8f246b) →
+    both object ptrs non-null → 95/5 selector (`cmp $0x5f` @0x8f252d,
+    `cmovl [−0x150]` @0x8f2538: rnd<95 → `spawn_small_enemies` else
+    `spawn_items`) → pair → [−0x158]/[−0x154] @0x8f2542/0x8f2550, **xmm3 =
+    1.0** @0x8f251d → `call 0x8eead0` @0x8f255d. Exit **`inc [−0x10c]; cmp
+    $2; jl 0x8f1b00`** @0x8f2585–0x8f2595.
+  - **L3 (0x8f259b..0x8f2f17) — 1 pass.** Gate **config byte [+0x31]**
+    (`cmpb $0x0,0x31(%eax)` @0x8f25a1, `je 0x8f2fa5`). **MSVC `rand()`
+    LCG** (seed 0x132a388, `imul $0x343fd`/`add $0x269ec3`, ÷32767.0 =
+    0x11e04bc): [−0x140] := 0 @0x8f25c5; **x₀ = w/2 + (−s₀)·(3.5+2·r)**
+    @0x8f2650–0x8f2682 (`mulss 0x11dfe68`=2.0, `addss 0x11dfff4`=3.5, sign
+    reloaded @0x8f257d ⇒ x ∈ center∓[3.5,5.5)) → [−0x144]; **lo = [−0x10c]
+    = 1+r₁ ∈ [1,2)** @0x8f25fc–0x8f2608, **hi = [−0x12c] = 2·(1+r₂) ∈
+    [2,4)** @0x8f2633–0x8f263b. **count = 120+⌊81u⌋** → [−0x118]
+    @0x8f26f0–0x8f2733 (slab 4f1f01/4f1f09 = VA 0x8F2701/0x8F2709); pair
+    copy @0x8f2717+; **[−0x128] = lerp(lo,hi,u)** (hi−lo @0x8f2793, store
+    @0x8f27dc), **[−0x108] = 0.1u+0.1** @0x8f2881, **[−0x110] =
+    (−s₀)·(0.15+0.2·r)** @0x8f2899–0x8f28b8 (0x11df99c/0x11df9b0); inner
+    0x8f28f0..0x8f2f12: **[−0x100] = 0.25u+0.75** @0x8f2985–0x8f2995,
+    setter @0x8f2a6c (`push $0x0` @0x8f2a0b, same laws @0x8f2a54–0x8f2a64),
+    **y += 0.1u+0.95** @0x8f2b06–0x8f2b1e, **[−0x108] *= (0.01u+0.99)**
+    @0x8f2bac–0x8f2bbc, **[−0x128] = clamp(·(u+0.5), lo, hi)**
+    @0x8f2c3d–0x8f2c8a, **[−0x110] = clamp(+0.3u−0.15, −1.0, 1.0)**
+    @0x8f2d20–0x8f2d55, `decl [−0x118]` @0x8f2d5d, x += vel @0x8f2d6f;
+    same spawn lane (gates → 0x8f2f0b, `cmovl [−0x150]` @0x8f2ed6, pair via
+    [−0x144]/[−0x140], xmm3 = 1.0 @0x8f2ebb) → `call 0x8eead0` @0x8f2efb.
+  - **Spawn keys (interpretation):** `.rdata` `spawn_small_enemies` (19 B,
+    @0x1173110), `spawn_items` (11 B, @0x1173124), looked up @0x8f19d2 →
+    [−0x150], @0x8f1a12 → [−0x124]; the scatter engine touches no field
+    pointer ⇒ entity spawn, out of the caves-field scope (the walk's
+    emitter @0x8ef3f9 is inert in the port: spawn_percent unparsed).
+  - Slot reuse: [−0x110] loop-C count → L2/L3 velocity; [−0x10c] K → L2
+    pass counter → L3 lo; [−0x124] mountain R → spawn_items ptr; [−0x12c]
+    w/2 → L3 hi; [−0x100] loop-C y → L2/L3 draw slot. Registries: **C98**,
+    **§8 row 39**.
 
-- **2026-10-10 (120) — dig #120: `buildCavesField` PORTED to the byte
-  laws (CAVES_FIELD_VER v5) — loop B top-band runs + loop C y-FIRST
-  blob stamps, L2 2-pass + L3 do_beginning_down chains via the
-  lower-only `setterStamp`, the t² blend; C50 overturned, C46's flag
-  branch closed, C98's 0.1-cite corrected; C97 shape A/B run.**
-  - **Scope/method.** The port half of I25's placement gate: entry
-    (119)'s laws folded into `mapgen/lib/caves-field.mjs` + the tests.
-    Byte windows re-read from `mapgen/extractions/builder-8EE000-8F3700.asm (X2) — the text was:
-    8F3700.asm` (slab+0x400800 = VA) THIS session for the items (119)
-    left truncated: the setter 0x8ee7c9..0x8ee930 (the store + the
-    circle arm), loop B's Y_end/coin/row head 0x8f0960..0x8f0b70, L2's
-    head/inits 0x8f1a22..0x8f1f4b, L3's setup+inner 0x8f259b..0x8f2c10.
-    On-disk data re-verified: **hills.xml** (the LocalLow data dir
-    `/mnt/c/Users/xan98/AppData/LocalLow/Nolla_Games_Noita/data/biome/`
-    — the earlier "not found" was the wrong search path) declares
-    `mountain_size_min/max="1"/"10"` and **`do_beginning_down="1"`**
-    (⇒ L3 RUNS for bitmap_hills); the test def gained both knobs.
-    `num()` returns **null** for absent attrs (biomes.mjs:140-143) ⇒
-    the `??` fallbacks are safe and L3 is off by default.
-  - **C50 OVERTURNED (§8 row 40; byte + disk).** Loop C loads
-    **[P+0x74]/[+0x78] as the blend's R (radius)** and **[+0x6c]/[+0x70]
-    as v (strength)** — C52's slot map was right; the CE "(1.549988,
-    0.0) strength pair" = the radius pair mislabeled (hills.xml: strength
-    1.5..3 vs radius 1..10). The `strengthA/B` knobs, the C50 interp,
-    and the dig #54 min(20) cap (no byte site) are gone.
-  - **The setter's internals (C46 CLOSED → C99).** `0x8ee750` branches
-    on **value > 1.0** (comiss vs `0x11dfbf0` @0x8ee766); value ≤ 1 =
-    single cell (bounds → getter → **write iff cell > scale** [−0xc] →
-    store `movss %xmm2,(%eax)` @0x8ee7d5); value > 1 = circle (R2 =
-    value² @0x8ee7e2, r0 = trunc(value+0.5) @0x8ee7ee, d² > R2 → skip,
-    **t = (R2−d²)/R2, target = 1 + t·(scale−1)**, plain bounds, min-
-    guard). The flag=1 arm adds only the y<25 eave `1 + q⁸·(target−1)`
-    BEFORE the guard ⇒ **both flags LOWER-only; the flag gates only the
-    eave** — the dig #55-era "single-point MAX-BLEED raise" label dies
-    (§8 row 39's port-model list). `raisePointMax` is deleted; L2/L3
-    now stamp via the new internal `setterStamp` (flag=0 law). The
-    walk/record lanes KEEP `carveCircle` (dir="max" + the (43)(a) t) —
-    **new I26** (their args aren't byte-proven; the walk call site
-    @0x8ef300..0x8ef37c is the next read).
-  - **The blend reconciliation.** `stampBlendLerp` now implements the
-    byte arms: R ≤ 1 → single-cell min-guard (write iff cell > v); R >
-    1 → r0 = trunc(R+0.5), **t = (R²−d²)/R², w = t²** (@0x8eea33),
-    cell += (v−cell)·w, plain bounds, no wrap (the old linear
-    `t=(R−dist)/r` form is gone; the R ≤ 1 single-cell arm is new).
-  - **The port shape (draw-order exact).** loop B: K = 0.1h once
-    (`0x11df974`); per stamp u₁ base = ⌊K·u₁⌋, u₂ X = 5+⌊(w−9)u₂⌋, u₃
-    R = rollF(mountain_size [+0x5c]/[+0x60]), u₄ Y_end = base+⌊11u₄⌋+15
-    (the −2⁻³¹ `0x11e0578` + sub idiom — computes base − trunc(−11u),
-    i.e. the ASCENDING ⌊11u⌋, re-verified @0x8f0a4f..0x8f0a64), v :=
-    1.5 (`0x11dfd2c`), u₅ the 20% coin → Y_end := base + u₆ (the direct
-    call `0x10098c0` @0x8f0b08) → v := 1.5+0.25u₆; rows base..Y_end:
-    blend @0x8f0b6d → R += 0.5(1+u) → the 50% coin → v *= 0.97+0.03u.
-    loop C: y = rollPos(25,h−5) FIRST, x = rollPos(5,w−5), v =
-    rollF(strength), R = rollF(radius) — 4 draws, no cap. L2: s₀ = ±1
-    (50% coin) → [−0x104]; pass A x₀ = center+s·rollF(3.5,35), pass B
-    flips [−0x104] first then x₀ = center+s·rollF(25,75); y₀ = 0; count
-    = 120+⌊81u⌋; chain = 3u+1; scale = 0.1u+0.1 (**`0x11df974`** — see
-    the C98 correction below); vel = s·(1.25+2.25u); 7 draws/point (s2,
-    value, y, scale-decay, chain-clamp [0.75,4], vel-clamp ±2.5 step
-    0.5u−0.25, spawn coin). L3: gate `bc.doBeginningDown` (config
-    [+0x31], hills = 1) → the module **MSVC C-rand LCG** (state·0x343fd
-    +0x269ec3 int32, (s>>16)&0x7fff ÷ 32767; the port seeds a LOCAL
-    state 0x132a388 — the game's global is unknowable, FLAGGED): r₁ →
-    lo = 1+r₁, r₂ → hi = 2(1+r₂), r₃ → x₀ = center+s·(3.5+2r₃) (s = the
-    post-L2 [−0x104] = −s₀), Lehmer count/chain = lerp(lo,hi,u)/scale,
-    r₄ → vel = s·(0.15+0.2r₄); per point = L2's with chain clamp [lo,hi]
-    and vel ±1.0 step 0.3u−0.15. meta: `l2Calls`/`l3Calls` replace
-    l1/l2v/l3v/sc (the byte-range pins: L2 ∈ [240,400], L3 ∈ [120,200]
-    gated, 0 with the gate off).
-  - **The spawn-lane divergence (FLAGGED).** The per-point spawn coin
-    draw (⌊101u⌋ < 5) is consumed; the byte then gates on the
-    spawn_item/spawn_small_enemies ptrs (`cmpl $0`) — the port's keys
-    are unparsed (null) ⇒ skip ⇒ the selector/scatter draws are NOT
-    consumed (the byte's in-game stream draws them on ~5% of points).
-    Contained: L3 is the last phase, so nothing downstream re-reads the
-    stream (the walk already carries the same class of flag).
-  - **C98 cite correction.** The [−0x108] chain-scale INIT loads
-    **`0x11df974`** (L2 @0x8f1e6d/0x8f1e75, L3 @0x8f2881/0x8f2889 — the
-    same f32 0.1 as loop B's K), NOT `0x11df970` as (119)/C98 claimed;
-    the y-update loads `0x11df970` (L2 @0x8f216b, L3 @0x8f2b06).
-    Functional equivalence (both f32 0.1); C98 amended in place with
-    the correction marker (row not silently edited).
-  - **Tests.** 263/263 (was 261): the l3v/l2v pins → the call-count
-    spans + the new L3-gate test; the blend test re-pinned to the t²
-    form + a new R ≤ 1 min-guard case; the VER stamp → "v5
-    composition". **The y224 byte bar HOLDS** (all 12 cells 1.0): the
-    new loop C could reach x0..11 at y224 (y ∈ [25,h−5], R ≤ 10, v >
-    1 would raise those cells) — deterministic for SEED 78633191 the
-    stamps miss. The "1.0 base bake" test still passes (share 0.988:
-    loop B/C now RAISE toward 1.5-3 while the chains carve the floor).
-  - **C97 shape A/B (all three lanes re-run).** iou: **v2 0.23391 →
-    0.23391** (bit-identical — V2 doesn't consume the caves field, the
-    C97 lane semantics), **v2v3 0.25183 → 0.25393 (+0.0021)**, **v3
-    0.24644 → 0.24708 (+0.0006)**; fR 0.48029 unchanged (ref-side);
-    fG v2 0.141 / v3 0.162 / v2v3 0.169 (baseline band 0.141–0.167).
-    The port is neutral-to-slightly-positive on shape — honest summary:
-    the byte-faithful lanes barely move the 56-tile IoU because the
-    caves field feeds only its biomes' surface band. **No cache bump**
-    (the caves lane is opt-in via SURFACE_V3; the default render never
-    calls buildCavesField).
-  - **Status / next.** I25's placement gate: **DONE (port landed)**.
-    Next dig = **I25's index half** (kind-1/kind≥2 arms
-    0x908fbc..0x909370 + the sampler gate — u-law vs cell index);
-    re-run the v2-chunk census before any I23① density diffs. New
-    **I26** = the walk/record writer-model reconciliation (the walk
-    call-site read is the biggest known-wrong-but-kept piece).
-    y-drift still deferred (queue #2, entry (74)).
-  - **Pitfalls hit.** The neg-scale+sub idiom reads as "negative draw"
-    but computes max − trunc(−span·u) = max + ⌊span·u⌋ (trunc symmetry:
-    the ascending law — re-verified, (119)'s summary was right);
-    `Float32Array.fill(0.1)` stores f32(0.1) ≠ the f64 literal (the
-    test uses Math.fround); hills.xml lives in the LocalLow data dir,
-    not the steam data dir; num() = null (not NaN/undefined) for absent
-    attrs.
-  - **Landed:** ABOUT_MATH **(120)**, CONSTANTS **C50 overturned** +
-    **C98 corrections** + **C99**, ISSUES **I25** updated + **I26**
-    opened, VERIFIED **§8 row 40** + the caves-lane canon update,
-    `caves-field.mjs` **v5** + the test updates. Tests **263/263**;
-    C97 A/B v3 0.24708 / v2v3 0.25393 / v2 0.23391. **No cache bump**
-    (caves lane opt-in). Next free: entry **(121)**, **C100**, **I27**;
-    §8 row **41** free.
+- **2026-10-10 (120) — dig #120: `buildCavesField` ported to the byte
+  laws (CAVES_FIELD_VER v5); C50 overturned, C46 closed (→ C99), C98's
+  0.1-cite corrected; C97 shape A/B run.**
+  - Re-read (X2): setter 0x8ee7c9..0x8ee930, loop B 0x8f0960..0x8f0b70, L2
+    0x8f1a22..0x8f1f4b, L3 0x8f259b..0x8f2c10. **hills.xml**
+    (`/mnt/c/Users/xan98/AppData/LocalLow/Nolla_Games_Noita/data/biome/`)
+    declares `mountain_size_min/max="1"/"10"` and **`do_beginning_down="1"`**
+    (⇒ L3 runs for bitmap_hills). `num()` returns null for absent attrs
+    (biomes.mjs:140-143) ⇒ L3 off by default.
+  - **C50 overturned (§8 row 40):** loop C loads **[P+0x74]/[+0x78] as R
+    (radius)** and **[+0x6c]/[+0x70] as v (strength)** (C52's slot map);
+    the CE "(1.549988, 0.0) strength pair" was the radius pair (hills.xml:
+    strength 1.5..3, radius 1..10). `strengthA/B`, the C50 interp and the
+    dig #54 min(20) cap are gone.
+  - **Setter `0x8ee750` (C99):** branches on **value > 1.0** (`0x11dfbf0`
+    @0x8ee766); ≤ 1 = single cell (write iff cell > scale; store
+    @0x8ee7d5 — register corrected in (122)); > 1 = circle (R2 = value²
+    @0x8ee7e2, r0 = trunc(value+0.5) @0x8ee7ee, **t = (R2−d²)/R2, target =
+    1 + t·(scale−1)**, plain bounds, min-guard). flag=1 adds only the y<25
+    eave before the guard ⇒ both flags lower-only. `raisePointMax`
+    deleted; L2/L3 stamp via `setterStamp` (flag=0).
+  - **Blend:** `stampBlendLerp` = R ≤ 1 single-cell min-guard; R > 1 r0 =
+    trunc(R+0.5), t = (R²−d²)/R², w = t², cell += (v−cell)·w, no wrap.
+  - **Port (draw order):** loop B: K = 0.1h (`0x11df974`); u₁ base =
+    ⌊K·u₁⌋, u₂ X, u₃ R, u₄ Y_end = base+⌊11u₄⌋+15 (the −2⁻³¹ `0x11e0578` +
+    sub idiom computes base − trunc(−11u) = ascending ⌊11u⌋, re-verified
+    @0x8f0a4f..0x8f0a64), v = 1.5, u₅ 20% coin → Y_end := base, u₆ (direct
+    `0x10098c0` @0x8f0b08) → v = 1.5+0.25u₆; rows: blend → R += 0.5(1+u) →
+    50% coin → v *= 0.97+0.03u. Loop C: y, x, v, R (4 draws). L2: s₀,
+    pass A x₀ = center+s·rollF(3.5,35), pass B flips then
+    center+s·rollF(25,75); y₀ = 0; count 120+⌊81u⌋; chain 3u+1; scale
+    0.1u+0.1; vel s·(1.25+2.25u); 7 draws/point (s2, value, y,
+    scale-decay, chain-clamp [0.75,4], vel-clamp ±2.5 step 0.5u−0.25,
+    spawn coin). L3: gate `bc.doBeginningDown` → MSVC LCG (state·0x343fd
+    +0x269ec3 int32, (s>>16)&0x7fff ÷ 32767; port seeds a LOCAL state
+    0x132a388 — game global unknowable, FLAGGED): lo = 1+r₁, hi =
+    2(1+r₂), x₀ = center+s·(3.5+2r₃) (s = −s₀), chain = lerp(lo,hi,u), vel
+    = s·(0.15+0.2r₄); per point = L2's with clamp [lo,hi], vel ±1.0 step
+    0.3u−0.15. meta `l2Calls` ∈ [240,400], `l3Calls` ∈ [120,200] gated (0
+    with gate off).
+  - **Spawn-lane divergence (FLAGGED):** the 5% coin is consumed; the
+    port's keys are null ⇒ selector/scatter draws not consumed (the game
+    draws them on ~5% of points). Contained: L3 is the last phase.
+  - **C98 correction:** the [−0x108] scale init loads **`0x11df974`** (L2
+    @0x8f1e6d/0x8f1e75, L3 @0x8f2881/0x8f2889), not `0x11df970`; the
+    y-update loads `0x11df970` (L2 @0x8f216b, L3 @0x8f2b06). Both f32 0.1.
+  - Tests: call-count spans, L3-gate test, t² blend pin + R ≤ 1 case. y224
+    byte bar holds (12 cells 1.0); "1.0 base bake" share 0.988.
+    `Float32Array.fill(0.1)` stores f32(0.1) (test uses Math.fround).
+  - **C97 A/B:** iou v2 0.23391 → 0.23391 (V2 doesn't consume the caves
+    field), v2v3 0.25183 → 0.25393, v3 0.24644 → 0.24708; fR 0.48029; fG
+    v2 0.141 / v3 0.162 / v2v3 0.169. No cache bump (caves lane opt-in via
+    SURFACE_V3). New **I26** = walk/record writer reconciliation.
 
-- **2026-10-10 (121) — dig #121: I25's index half CLOSED — the caves
+- **2026-10-10 (121) — dig #121: I25 index half closed — the caves
   consumer is CELL-indexed (idx = W·y + x), the u-law is kind-0 only;
-  the port's caves-lane gate value rewired to the direct cell read; C97
-  shape IoU nearly doubles (v3 0.24708 → 0.46464).**
-  - **Scope/method.** The unread window from (119)/(120): FUN_00908f40's
-    kind-1/kind≥2 arms 0x908fbc..0x909370 (function ends 0x90936f; the
-    next fn 0x909370 = a per-cell chunk loop carrying the same
-    512-chunk biome-map frame — origins [X+0x38]/[X+0x40], `sar $9`,
-    `idiv [X+0x50]`, clamp `[X+0x54]−1`, getter `0x94c700` on
-    `[X+0x68]`) + the sampler 0x90d860's field-read block + the writer
-    `0x8EE750`'s index math. Byte source: `mapgen/extractions/fulltext86.asm (X1)`
-    (the true-VA full disasm — grep/sed-sliced, so C70's window-
-    misalignment trap is avoided), dig #119's builder dump, and
-    `mapgen/extractions/dig121-fn908f40.asm (X43)`, `dig121-fn90b110.asm (X44)`, `dig121-sampler90d860.asm (X46)`, `dig121-sampler90da00.asm (X47)` + `dig121-rev90b280.asm (X45 — 0 B salvage; re-extract the window from the exe when the kind-0 dig opens it)`; exe re-verified on disk this session
-    (17,007,104 B, md5 `8b611494212a69492dd0a4527d9c92e0` = C13).
-  - **THE ANSWER (I25 index half): CELL, not u-law.** The game's caves
-    consumer = the sampler 0x90d860's field read @0x90dba5..0x90dbd0:
-    `eax = [owner+0x9c]` (grid[0] = W), `ecx = &owner+0xb4` (the f32
-    accessor object), `imul %esi` → `add %edi` = **idx = W·esi + edi**,
-    getter `0x9499f0` (dig 83's slab 0x5491f0), `movss` the f32 value,
-    `comiss 0x11dfa94 (0.5) → jbe 0x90e02b` = the air arm. Loop
-    orientation = **OUTER y, INNER x**, proven two independent ways:
-    (1) the world-compute @0x90dbed..0x90dc0d feeds `xmm2 = origin_a +
-    INNER` and `xmm3 = origin_b + OUTER`, and the kind-2 arm's warp call
-    @0x9091d7..0x9091ec pins `xmm2 = x` (−0x28) / `xmm3 = y` (−0x20)
-    per C95 ⇒ x comes from the INNER counter, y from the OUTER;
-    (2) the writer closure below. ⇒ **idx = W·y + x, row-major CELL —
-    the u-law `u = 0.049162514·px + 0.1a` (C95/C96) belongs to
-    surfaceField's kind-0 grad chain ONLY.** (dig 83's canon line
-    already carried `idx y·[owner+0x9c]+x` for this gate; this dig
-    re-derived it byte-exact, proved the orientation, and closed the
-    writer side.)
-  - **Writer–reader closure (both sides re-read on disk this session).**
-    fnB's setter `0x8EE750` @0x8ee776..0x8ee7c9: `esi = [p]` = x,
-    `edx = [p+4]` = y, `eax = [grid]` = W, bounds `x<W` / `y<H`
-    (either negative or ≥ → `0x8ee91c`), `imul %edx,%eax` → `add %esi`
-    = **W·y + x**, accessor `lea 0x18(%ecx)`, getter `0x9499f0` — the
-    SAME law, SAME getter, SAME object layout (`[0]`=W, `[4]`=H,
-    `[+0x18]`=f32 data) as the sampler's, with the offsets interlocking:
-    `[owner+0x9c]` = grid[0] ⇔ accessor `owner+0xb4` = grid+0x18. The
-    sampler's sibling grids share the identical layout — u16 grid at
-    `owner+0xbc` (stride `[0xbc]`, accessor `+0xd4` @0x90da28), byte
-    grid at `owner+0xdc` (accessor `+0xf4` @0x90db49), byte grid at
-    `owner+0x188` (accessor `+0x1a0`, dig 83).
-  - **The kind arms (0x908fbc..0x90936f) — NEITHER touches the float
-    field.** kind==1 = the **bitmap_data pixel arm**: `[R+0x1b0]` null →
-    ret0 (the procedural_terrain.cpp:2670 assert block between); `x_int
-    mod W` and `y_int mod H` via `idiv` + the negative fix-up `add`,
-    idx = `W·(y mod H) + (x mod W)`, getter `0x949f60` (the COLOR
-    getter), `test $0xffffff` → RGB ≠ 0 ⇒ the material pair
-    `driver[+0xa0] → 0x4b8080 → driver[+0x28] → 0x4b80e0` (the line
-    0xa7a = 2682 assert when `[+0xa0]` is null). kind==2 = the **P-lane**:
-    warp `0x908cb0(x, y, f32)` (param 0.0f first, `[P+0x234]` second,
-    1.0f on the fallback; the warp = dig 83's true 0x908CB0) with the P
-    object `[region+0x1d4]` → `0x8fae40` count; >0 → resolve via
-    `0x4b80e0`, params `[P+0x234]/[+0x238]`, **variant select
-    `[P+0x23c]`: 1 → `0x8facd0`, 2 → `0x8faae0`, else → `0x8fa9b0`** →
-    `comiss [−0xc] = 0.5` → jb ret0 → re-count `0x8fae40` >0 → the
-    shared material tail @0x9091b6, else the fallback `0x908e70` →
-    floor-fix → classifier `0x8f5030` (`mBiomeMaterials` = `[X+0x2a4]`).
-    kind==0 = C95's surfaceField arm (re-read, unchanged: +0.5 →
-    `0x90a860` → cvttsd2si ints → `0x8f5030`).
-  - **The fnB factory observation (join evidence).** The fnB-region
-    factory fn @0x8ee379..0x8ee427 allocates a **0xb8-byte** object via
-    ctor `0x8f9470`, installs **`[obj+0xb0] = 0x8ee1b0`** (the
-    CellFactory color→idx thunk) and a **smart-ptr swap at `[obj+0xb4]`**
-    (old saved; new = a `*0x24` virtual-call result; the old released
-    via its vtable — @0x8ee3f3..0x8ee3f9; the same store again
-    @0x8ee692). The sampler's owner is a BIGGER object (its slots reach
-    `[+0x2a4]`) ⇒ the literal buffer wiring fnB-built ↔ sampler slot is
-    NOT byte-traced this dig (no `+0x9c`/`+0xb4` init site in
-    0x79xxxx–0x90xxxx — the 0x795b45 `+0x9c` is vector `end−begin>>5`
-    math, not the stride). The join therefore rests on dig 83's consumer
-    chain + this dig's law closure + the measured IoU jump → **NEW I27**.
-  - **The port patch.** `noise-terrain.mjs` — the caves-lane gate value
-    is now the DIRECT cell read (the wrong piece was never gradAt's
-    mod-wrap body — that was already the byte law — but its
-    ARGUMENTS,which came from surfaceField's u-law chain): V3 chain
-    `field = gradKind === "caves" ? gradAt(wx, wy) : surfaceField(...)`;
-    V2 loop `v = cavesSrc ? gradAt(gx, gy) : surfaceField(...)` (`cavesSrc`
-    = the existing caves-gradAt attach condition). The dig #101 comment
-    block carries a dig #121 correction marker; the gate/logger comments
-    updated ("the FIELD" = the direct read for caves, the combine for
-    kind-0). Frame note: canvas vs world px agree under the modulo (the
-    C80 origins 17920 = 35·512 and 31744 = 124·256 are multiples of both
-    wrap dims), so the V2 lane's canvas px stay valid. The test mirror
-    `cell()` in `surface-wiring.test.mjs` patched in lockstep (hills →
-    `gradAtMirror(def)(wx, wy)`; the `surfaceField` import dropped;
-    `uidMirror` kept as the kind-0 mirror with a usage note).
-  - **Tests 263/263** (the data-gated equivalence suite passes with the
-    patched mirror). **No cache bump** (the caves lane is opt-in via
-    SURFACE_V3; the default render never enters the noise branch).
-  - **C97 shape A/B (all three lanes re-run, same 56-tile set).** iou:
-    **v2 0.23391 → 0.23391** (bit-identical — the V2-only lane never
-    attaches the caves field, C97 semantics), **v3 0.24708 → 0.46464
-    (+0.218)**, **v2v3 0.25393 → 0.46557 (+0.212)**; fR 0.48029
-    unchanged (ref side); fG **v3 0.162 → 0.840**, v2v3 0.169 → 0.845,
-    v2 0.141 unchanged. Post-patch v3 per-family iou (fG): mountain
-    0.5497 (0.688) / desert 0.6447 (0.984) / winter 0.3664 (0.977) /
-    hills 0.4306 (0.975) / lake 0.4306 (0.331 — the non-caves C39 image
-    lane, path untouched). v3 iouShift 0.64285 ≫ iou 0.46464 ⇒ the
-    residual is now registration-heavy (dyOpt mean −156, med −231); the
-    bty14 row: iou 0.7399, dyOpt mean −44.9, **med −12** (the C78
-    anchor ±1 — recorded as an observation, not a claim).
-  - **Honest summary.** The index fix nearly DOUBLES the caves-family
-    shape IoU — the largest single-lane gain on record — and the
-    over-fill it exposes (fG 0.84 vs fR 0.48; deep band b3 0.70) is
-    exactly I26's predicted signature: under `carveCircle`'s dir="max"
-    the walk is a near-no-op on the 1.0 base, so the caves never get
-    carved. **I26 is now the dominant blocker for the BitmapCaves
-    family's shape.**
-  - **Not covered (deferred).** The agenda's kind-0 P-chain items: the
-    r-eval 0x90b280 read PARTIAL (comisd vs `0x11e0050` → the `0x90b680`
-    pair fast-path returning 0/1.0f; the normal path gates `[X+0x6c]`,
-    does the 512-chunk biome-map lookup via `0x94c700` on `[X+0x68]`,
-    then the `0x29` = 41-px band rank + `0x909c70` compare and the
-    `/0x11e0274` ramp divisor) — slot `[X+0x94]`, the `[+0xb0]` topology
-    question, C39's ramp, I21, and the dyOpt −12 anchor all REMAIN for a
-    dedicated kind-0 dig; the v2-chunk census re-run (the I23① density
-    gate) was NOT needed — the v2 lane is bit-identical this dig; C79
-    not re-run (C97 is the shape instrument of record).
-  - **Pitfalls hit.** The sed-by-anchor trick dies on non-instruction-
-    aligned VAs (`^  90b600:` absent → empty range → sed "unknown
-    command"; use line offsets); my first `+0x9c` filter regex used
-    `{3}` against 6-digit addresses (zero matches = a false negative);
-    the `+0x9c` displacement is container-common (3438 hits — 0x795b45's
-    is `end−begin>>5` vector math); the sampler's bounds blocks
-    reference SIBLING-grid slots (`[0xbc]/[0xc0]`, `[0xdc]/[0xe0]`) —
-    do not read them as the f32 grid's own limits.
-  - **Landed:** ABOUT_MATH **(121)**, CONSTANTS **C100**, ISSUES **I25
-    closed** + **I27 opened**, VERIFIED **§8 row 41** + the caves-lane
-    canon update, `noise-terrain.mjs` (V2/V3 caves value source + the
-    comment corrections), `surface-wiring.test.mjs` (the mirror). Tests
-    **263/263**; C97 A/B v3 0.46464 / v2v3 0.46557 / v2 0.23391. **No
-    cache bump** (caves lane opt-in). Next free: entry **(122)**,
-    **C101**, **I28**; §8 row **42** free.
+  C97 v3 iou 0.24708 → 0.46464.**
+  - **Sources:** FUN_00908f40 kind-1/kind≥2 arms 0x908fbc..0x909370
+    (ends 0x90936f; 0x909370 = a per-cell chunk loop with the 512-chunk
+    biome-map frame — origins [X+0x38]/[X+0x40], `sar $9`, `idiv
+    [X+0x50]`, clamp `[X+0x54]−1`, getter `0x94c700` on `[X+0x68]`), the
+    sampler 0x90d860, the writer `0x8EE750`. `fulltext86.asm (X1)`, X2,
+    `dig121-fn908f40.asm (X43)`, `dig121-fn90b110.asm (X44)`,
+    `dig121-sampler90d860.asm (X46)`, `dig121-sampler90da00.asm (X47)`,
+    `dig121-rev90b280.asm (X45 — 0 B; re-extract when the kind-0 dig opens
+    it)`; exe 17,007,104 B, md5 `8b611494212a69492dd0a4527d9c92e0` = C13.
+  - **CELL, not u-law.** Sampler 0x90d860 field read @0x90dba5..0x90dbd0:
+    `eax = [owner+0x9c]` (W), `ecx = &owner+0xb4` (f32 accessor), `imul
+    %esi` → `add %edi` = **idx = W·esi + edi**, getter `0x9499f0` (slab
+    0x5491f0), `comiss 0x11dfa94 (0.5) → jbe 0x90e02b` = air arm. OUTER y,
+    INNER x: world-compute @0x90dbed..0x90dc0d feeds `xmm2 = origin_a +
+    INNER`, `xmm3 = origin_b + OUTER`, and the kind-2 warp call
+    @0x9091d7..0x9091ec pins `xmm2 = x` (−0x28) / `xmm3 = y` (−0x20) (C95).
+    ⇒ **idx = W·y + x**; the u-law (C95/C96) is surfaceField's kind-0 grad
+    chain only.
+  - **Writer–reader closure:** setter `0x8EE750` @0x8ee776..0x8ee7c9: `esi
+    = [p]` = x, `edx = [p+4]` = y, `eax = [grid]` = W, bounds → `0x8ee91c`,
+    `imul %edx,%eax` → `add %esi` = W·y + x, accessor `lea 0x18(%ecx)`,
+    getter `0x9499f0` — same layout (`[0]`=W, `[4]`=H, `[+0x18]`=f32
+    data): `[owner+0x9c]` = grid[0] ⇔ `owner+0xb4` = grid+0x18. Siblings:
+    u16 grid `owner+0xbc` (accessor `+0xd4` @0x90da28), byte grid
+    `owner+0xdc` (`+0xf4` @0x90db49), byte grid `owner+0x188` (`+0x1a0`).
+  - **Kind arms (none touches the float field):** kind==1 = bitmap_data
+    pixel arm: `[R+0x1b0]` null → 0; idx = `W·(y mod H) + (x mod W)`
+    (`idiv` + negative fix-up), COLOR getter `0x949f60`, `test $0xffffff`
+    → RGB ≠ 0 ⇒ `driver[+0xa0] → 0x4b8080 → driver[+0x28] → 0x4b80e0`
+    (assert line 0xa7a = 2682 if `[+0xa0]` null). kind==2 = P-lane: warp
+    `0x908cb0(x, y, f32)` (0.0f first, `[P+0x234]` second, 1.0f fallback)
+    with P = `[region+0x1d4]` → `0x8fae40` count; >0 → `0x4b80e0`, params
+    `[P+0x234]/[+0x238]`, variant `[P+0x23c]`: **1 → `0x8facd0`, 2 →
+    `0x8faae0`, else → `0x8fa9b0`** → `comiss [−0xc] = 0.5` → jb 0 →
+    re-count → tail @0x9091b6, else fallback `0x908e70` → floor-fix →
+    `0x8f5030` (`mBiomeMaterials` = `[X+0x2a4]`). kind==0 = C95's arm.
+  - **fnB factory** @0x8ee379..0x8ee427: 0xb8-byte object via ctor
+    `0x8f9470`, **`[obj+0xb0] = 0x8ee1b0`** (CellFactory color→idx thunk),
+    smart-ptr swap at `[obj+0xb4]` (@0x8ee3f3..0x8ee3f9, again @0x8ee692).
+    The sampler's owner is larger (reaches `[+0x2a4]`); no `+0x9c`/`+0xb4`
+    init site found in 0x79xxxx–0x90xxxx (0x795b45's `+0x9c` is vector
+    `end−begin>>5`; 3438 container-common hits) ⇒ the fnB ↔ sampler buffer
+    join is not byte-traced → **I27**.
+  - **Patch** (`noise-terrain.mjs`): caves-lane gate value = direct cell
+    read — V3 `field = gradKind === "caves" ? gradAt(wx, wy) :
+    surfaceField(...)`; V2 `v = cavesSrc ? gradAt(gx, gy) :
+    surfaceField(...)`. gradAt's mod-wrap body was already right; its
+    arguments were wrong. Canvas vs world px agree under the modulo (C80
+    origins 17920 = 35·512, 31744 = 124·256). Mirror `cell()` in
+    `surface-wiring.test.mjs` patched (hills → `gradAtMirror(def)(wx,
+    wy)`). No cache bump.
+  - **C97 A/B:** iou v2 0.23391 (unchanged), **v3 0.24708 → 0.46464**,
+    **v2v3 0.25393 → 0.46557**; fR 0.48029; fG v3 0.162 → 0.840, v2v3
+    0.169 → 0.845. v3 per-family iou (fG): mountain 0.5497 (0.688) /
+    desert 0.6447 (0.984) / winter 0.3664 (0.977) / hills 0.4306 (0.975) /
+    lake 0.4306 (0.331, non-caves C39 lane). v3 iouShift 0.64285 (dyOpt
+    mean −156, med −231); bty14 iou 0.7399, dyOpt mean −44.9, med −12
+    (C78 anchor ±1 — observation). Over-fill (fG 0.84, b3 0.70) = I26's
+    signature: `carveCircle` dir="max" no-ops on the 1.0 base.
+  - **Deferred kind-0 items:** r-eval 0x90b280 partial (comisd vs
+    `0x11e0050` → `0x90b680` pair fast-path returning 0/1.0f; normal path
+    gates `[X+0x6c]`, 512-chunk lookup via `0x94c700` on `[X+0x68]`, `0x29`
+    = 41-px band rank + `0x909c70` compare, `/0x11e0274` ramp divisor);
+    `[X+0x94]`, `[+0xb0]` topology, C39 ramp, I21, dyOpt −12 anchor.
+  - Pitfalls: sed-by-anchor fails on non-instruction-aligned VAs (use line
+    offsets); sampler bounds blocks reference sibling-grid slots
+    (`[0xbc]/[0xc0]`, `[0xdc]/[0xe0]`), not the f32 grid's. Registries:
+    **C100**, I25 closed, **I27**, **§8 row 41**.
 
-- **2026-10-10 (122) — dig #122: I26 CLOSED — the walk/record
-  writer-model reconciliation (the walk = setterStamp flag=1 CARVE +
-  the center-y q⁸ eave; the record = the 0x8EF870 two-sided template
-  lerp)**
-  - **Scope/method.** The unread half that (119)/(121) FLAGGED: (i) the
-    walk's stamp call-site @0x8ef300..0x8ef37c — which value/scale/flag
-    it pushes; (ii) the setter's flag=1 eave arm + its y source; (iii) the
-    record lane's engine identity (0x8EF950's float twin + the caller);
-    (iv) the per-stamp template ctor. Reads from the true-VA builder
-    slice `mapgen/extractions/builder-8EE000-8F3700.asm (X2)` +
-    `mapgen/extractions/fulltext86.asm (X1)` + the PE const bank; exe md5
-    re-verified = C13.
-  - **Result — the WALK half (byte-exact).** The walk's stamp @0x8ef37c
-    = the setter 0x8EE750 with **VALUE = `[−0x20]` = the 3-segment
-    radius envelope R(t)**, **SCALE = clamp01(slot″)**, **flag = 1**
-    (`push $1`). The prologue draws re-pinned byte-exact (C101(a)):
-    `s = (2 − trunc(−4u))/5` (−4.0 f64 @0x11e0608, 2.0 @0x11dfe68,
-    5.0 @0x11e00a0), `rA = rD = s·0.2u` (0.2 @0x11df9b4), `rB = rC =
-    s·(1 + 2.5u)` (2.5 @0x11dff10 + 1.0 @0x11dfbf0), each × `[−0x20]`
-    → `[−0x68]/[−0x50]/[−0x5c]/[−0x6c]`. The lane law (0.2/0.4/0.6/0.7
-    = 0x11df9b4/0x11dfa44/0x11dfaf8/0x11dfb1c), the roll draw
-    (0.35 @0x11dfa1c / −0.25 @0x11df9d0), the D2 arm (0.32
-    @0x11dfa00), the envelope boundaries (0.3 @0x11df9f0 / 0.6 shared)
-    all re-derived from the PE. SCALE ≤ 1 + the setter's lower-only
-    guard ⇒ **the walk CARVES** — the port's `carveCircle(dir="max")`
-    was wrong on the dir, the t law, AND the eave form (three defects,
-    all now closed).
-  - **Result — the setter's flag=1 eave (byte-exact; C99 corrected in
-    place → C101(c)).** flag = the byte `[ebp+8]` (`cmpb $0x0,0x8(%ebp)`
-    @0x8ee839 → `je 0x8ee892` skips; the SSE in between leaves EFLAGS
-    alone). The eave reads `[edi+4]` = the **stamp CENTER y** (the point
-    struct — the cell coords form only at @0x8ee892, AFTER the eave):
-    y < 25 (`cmp $0x19,%eax; jge`) → q = y/**25.0** (`divss 0x11e01e0`
-    — **NO −1**; C99's "(y−1)/25" = a miscite), q²·q⁴·q⁸ via three
-    `mulss %xmm0,%xmm0`, target′ = 1 + q⁸·(target − 1) → `[−0x14]`;
-    the write guard + store use the eaved target. **Circle arm only** —
-    the single-cell arm returns @0x8ee7de before the eave block. The
-    single-cell store corrected too: `movss −0xc(%ebp),%xmm0; movss
-    %xmm0,(%eax)` @0x8ee7cf..0x8ee7d4 (writes SCALE; C99's
-    `movss %xmm2,(%eax)` named the wrong register — xmm2 = VALUE).
-  - **Result — the RECORD half = a DIFFERENT engine.** The setter's
-    callers are exactly 3 (walk 0x8ef37c, L2 0x8f20d1, L3 0x8f2a6c):
-    the record phase does NOT call it. fnB = FUN_008EFDD0 (the earlier
-    A/B pair naming was swapped for this fn — §8 row 41's cites stand,
-    the names rotate); `[−0x13c]` = fnB's `[ebp+8]` = the **field
-    shell** (non-null asserted, slab line 0x326). The per-stamp temp
-    `(−0xfc)` = ctor **0x8F9470** (C101(d): seed = the raw Park-Miller
-    count draw → `[+0x8c]` = seed, `[+0x90]` = 1.0f, `[+0x94]` =
-    u·200000 − 100000 — the size pair 0x11e0504/0x11e04ec, the wrap ×0.5
-    (0x11dfdd8 f64) vs 2³¹−1 (0x11e0220 f64)) dtored @0x8f16dd. The
-    record's strength pair = `[+0x34]/[+0x38]` ✓ C50 ✓; the point rolls
-    (`min + trunc(u·span)`) + the strength compose (`A + d·(B−A)`) ✓ the
-    port was already right. The engine: **FUN_008EF870** runs per cell
-    over the template's grid0 region — `field.cell += (value −
-    field.cell)·temp.cell` — a **two-sided lerp** (getters 0x949ad0 /
-    0x9499f0; NO eave, NO lower-only guard, NO value>1 branch). On the
-    1.0 base: v > 1 raises (the C48 bump peaks 1.45..1.55 ✓), v < 1
-    **CARVES** (the port's `dir="max"` no-oped there = the (121) fG
-    0.840 over-fill signature). The byte lane **FUN_008EF950**: gate
-    `[temp+0x5c] ≠ 0` → the stencil copy `if temp.g1[i,j] ≠ 0 →
-    field.g1[y0+j, x0+i] = temp.g1[i,j]` (bounds vs the field's
-    grid1 dims [0x40]/[0x44]) — the port's single-cell byte mark = the
-    model.
-  - **New residual → I28.** The ctor zero-inits every container block
-    (@0x8f9481..0x8f94c8) and nothing in the record window fills the
-    temp before fn950 runs (only ctor/fn950/dtor touch `(−0xfc)`; the
-    0x668400 call = a log/string op) ⇒ a fresh template ships EMPTY and
-    BOTH engines no-op on it (`[temp+4] = 0` kills the float loops;
-    `[temp+0x5c] = 0` skips the byte lane). The record's template-FILL
-    engine is not in this window → **open (I28)**; the port keeps the
-    (43)(a) linear t + the R ≥ 1 clamp as the weight/radius stand-in.
-  - **Walk arg map (new).** ecx = the prng (the draws via `call
-    0x10098c0` after `mov %esi,%ecx` with esi = `[−0x24]` = saved ecx),
-    `[ebp+8]` = grid, `[ebp+0xc]` = the start point struct {x,y} (the
-    trunc pair → `[−0x4c]/[−0x44]`), `[ebp+0x10]`/`[ebp+0x14]` = the
-    float pair (swapped at the child call @0x8ef804..0x8ef81a),
-    `[ebp+0x18]` = **length** — asserted `length < 10240.f` (C101(b):
-    biome.cpp:579; the child budget lands at the same slot @0x8ef809).
-  - **Port.** `caves-field.mjs`: `setterStamp` gains `flag = 0` (the
-    eave = the circle arm, the center y, q = y/25); walkChain's stamp →
-    `setterStamp(grid,…,tx,ty,radius,v,1)`; new internal
-    `stampLerpTemplate` (the two-sided lerp, the (43)(a) t stand-in);
-    `caveRecordStamp` → the lerp; `carveCircle` marked **LEGACY MODEL**
-    (the export stays — the api surface pins it, no production caller
-    left); the header/phase comments + `CAVES_FIELD_VER` updated. Tests:
-    the record expectations → the lerp (0.55 at the center, no eave),
-    the walkChain "RAISES only" → "CARVES only" (min < 1.0, max ≤ 1.0),
-    the carveCircle describe marked legacy. **263/263.**
-  - **C97 A/B (the (121) baselines vs this dig).** v2 **0.23391
-    bit-identical** (the V2 lane never attaches the caves field ⇒ **no
-    cache bump**), v3 IoU 0.46464 → **0.45278** / fG 0.840 → **0.71506**
-    (vs fR 0.48029 — the over-fill drops −0.125 exactly as I26's
-    uncarved-base prediction said), v2v3 0.46557 → **0.45557** / fG
-    0.72383. The IoU −0.012 = the carve removing solid where the ref
-    still has it — the residual is the registration/model gap (I23①/
-    I24), not the writer law (the law is byte-anchored).
-  - **Pitfalls hit.** The EFLAGS trap again (SSE leaves flags alone —
-    the eave `je` @0x8ee85c tests the `cmpb` @0x8ee839 across a long
-    SSE block); the f32/f64 const trap (0x11e0608/0x11dffe8/0x11e0220
-    read as 0.0/0.0/NaN f32); the arg-offset grep pollution (negative
-    locals `-0x20(%ebp)` substring-match positive `0x20(%ebp)` — use a
-    negative lookbehind); an unlabeled const's role only fell out of
-    the ASSERT STRINGS (10240.0 was nameless until `length < 10240.f`
-    + biome.cpp:579 surfaced via the log pushes).
-  - **Landed:** ABOUT_MATH **(122)**, CONSTANTS **C99 corrected in
-    place** + **C101**, ISSUES **I26 closed** + **I28 opened**,
-    VERIFIED **§8 row 42**, `caves-field.mjs` (setterStamp flag/eave,
-    walkChain stamp swap, stampLerpTemplate, carveCircle legacy) +
-    `tests/mapgen/caves-field.test.mjs` (the mirror). Tests **263/263**
-    (incl. the y224 oracle byte bar — no walk/record stamps land on that
-    row for the oracle seed, so the carve leaves it byte-exact). **No
-    cache bump** (v2 bit-identical). Next free: entry **(123)**,
-    **C102**, **I29**; §8 row **43** free.
-- **2026-10-11 (123) — dig #123: I28 CLOSED — the record lane is a
-  PRNG-DRAW consumer (the template ships empty ⇒ both engines no-op ⇒
-  no field/byte writes; the count law is up-from-min)**
-  - **Scope/method.** The residual (122) opened as I28: who FILLS the
-    per-stamp template before fn950 runs. Three reads, all re-verified
-    on disk this session: (i) the record window's slot census
-    @0x8f11b3..0x8f1746 — every address of the frame-local temp
-    `(−0xfc)`; (ii) the ctor 0x8F9470 body + where its internal draws
-    come from; (iii) the fn870/fn950 entry gates + epilogue and the
-    0x668400 resolver's full control flow (the only windowed call
-    besides ctor/fn950/dtor). Plus the XML census of all 102
-    CaveStructure records (on disk).
-  - **Result — the no-write proof (byte-exact).** There is NO fill
-    engine for this temp: the ctor zero-inits every dim/container slot
-    (`movl $0x0` @0x8f9481..0x8f94c8 ⇒ `[temp+0] = [temp+4] =
-    [temp+0x5c] = 0`) and the windowed slot census finds only the 3
-    `lea −0xfc` sites (ctor @0x8f1300, fn950 @0x8f169d, dtor
-    @0x8f16dd) + a lua-cache handle at `[−0x48]` that is assigned then
-    released, never read; the temp is frame-local ⇒ nothing outside
-    fnB can address it. fn870 exits at its dims gate (`cmp
-    [temp+4],0; jle 0x8ef940` @0x8ef888b → 0x8ef940) and fn950 (which
-    calls fn870 first @0x8ef96f) exits via `cmpl $0,0x5c(%ebx); je
-    0x8efa2d` @0x8ef977 → the epilogue @0x8efa2d (`pop edi/esi/ebx;
-    mov ebp,esp; pop ebp; ret`). **Both engines no-op on the fresh
-    template ⇒ the record lane writes NOTHING.** The `[+0x94] =
-    u·200000 − 100000` question resolves the same way: it is the
-    ctor's STACK-LOCAL Random draw (`lea 0x8(%esp)` → `0x10098c0` ×2
-    @0x8f958d/0x8f9596 → `movss` @0x8f95b1), seeded by the ctor arg
-    trunc(u·(2³¹−1)) — it never touches the stream and lands on a
-    temp nothing reads ⇒ **inert** (its size semantics belong to I27's
-    published factory objects). grid0/grid1 = the ctor's vector
-    zero-init (no allocator runs) ⇒ dims 0 ⇒ both engines' bounds fail
-    before any cell access. I28's (a)/(b)/(c) all close.
-  - **Result — the draw law (byte-exact; C51's count law corrected in
-    place → C102).** The lane's ONLY effect = prng draws. Count roll
-    @0x8f11b3..0x8f1280: `count = [rec+0x1c] + trunc(u·([rec+0x20] −
-    [rec+0x1c] + 1))` — **UP from min** (the rollPos twin); ≤ 0 →
-    `jle 0x8f16f1` @0x8f1280 skips the record with ZERO draws. The
-    dig #61 "negative NextU scale, counts DOWN from max" = a double
-    misread: the `mulsd 0x11e0578` (−2⁻³¹) @0x8f1266 forms the
-    NEGATIVE intermediate `−u·span` which `cvttsd2si` @0x8f1272 +
-    `sub %eax,%ecx` @0x8f1276 SUBTRACT from the count_MIN slot `[−0x120]`
-    (`0x1c(%eax)` @0x8f11d2 — dig #61 took the minuend as max) ⇒ min −
-    trunc(−u·span) = min + trunc(u·span); u = the NEW state·2⁻³¹
-    (state stored back @0x8f1262 before use — matches `prng.next()`).
-    Per stamp (the loop counts DOWN: `decl [−0x120]; jne 0x8f1295`):
-    **4 always + 1 per resolver group** — (1) the ctor-seed draw
-    @0x8f12c5..0x8f130a (state stored @0x8f130a; the ctor arg =
-    trunc(u·(2³¹−1)), ×2⁻³¹ `0x11df988` then ×(2³¹−1) `0x11e0220`);
-    (2) the image resolver @0x8f144e → 0x668400: `find('$')` @0x668494
-    → npos ⇒ assign + `jmp 0x668788`, 0 draws; else find `$[`/`]`,
-    split the inner on "-" → count ≥ 2 (`cmp $2; jae 0x6685dc`) ⇒ ONE
-    draw @0x6685ff (value = lo + trunc(u·(hi−lo+1))), < 2 ⇒ "Error in
-    parsing, no end in sight" @0x6685bf, 0 draws (the substitution
-    still runs with value 0); the recursion @0x66873f re-runs on the
-    substituted string (group removed) ⇒ exactly 1 draw per well-formed
-    group. XML census: 94 plain / 7 `$[0-999]` / 1 `$[1-4]` of 102;
-    (3) X @0x8f14b6 (store @0x8f1518) = `[rec+0x28] + trunc(u·([rec+0x30]
-    − [rec+0x28] + 1))`; (4) Y @0x8f157f (store @0x8f15d9) =
-    `[rec+0x24] + trunc(u·([rec+0x2c] − [rec+0x24] + 1))`; (5)
-    strength @0x8f164d (f32 store @0x8f16a3) = `[rec+0x34] + u·([rec+0x38]
-    − [rec+0x34])` (the C50 inline `A + d·(B−A)` compose @0x8f1684..0x8f16b7
-    ✓). All three tail rolls are unconditional (their assert `jp`
-    skips only the print). fn950's call: ecx = the temp, edx = the
-    field, stack Y/X/strength (the `push %ecx` room @0x8f169c,
-    `movss` @0x8f16bb, pushes @0x8f16c0/0x8f16c7, call @0x8f16c8,
-    `add $0xc` @0x8f16cd) — the values are DISCARDED.
-  - **Observations.** The old port's y0 row carried a phantom raise
-    bell at x100..110 (peak 1.5311 — a record stamp's strength draw)
-    that the game never writes; it disappears with the draws-only
-    conversion while pre-record lanes' stamps (x4:0.8222/x5:0.8828)
-    stay byte-identical ✓ (they draw before the record lane). The
-    ref's y0 bump bell (x10..28, peak 1.454092) is STILL not
-    reproduced: with records proven write-free, the bump must come
-    from a raise-capable lane the port places differently (loop B/C
-    under the still-modelled walk draw budget — the (121) FLAGGED
-    ~0.15 draws/point coin-hits) or from I27's published-template
-    objects — the C50-derived oracle pin now guards a span, not a
-    record-lane attribution.
-  - **Port.** `caveRecordStamp({countMin,countMax,imageFile}, prng)` →
-    draws-only (count up-from-min; per stamp the ctor-seed + the
-    resolver group loop + X + Y + strength; returns the rolled count);
-    internal `resolverDraws` mirrors 0x668400's group law (1 draw per
-    well-formed `$[lo-hi]` group); the ctx param, the aabb/point/
-    strength rolls, the byte write, `rollNeg` (sole use) and the
-    `stampLerpTemplate` CALL removed — `stampLerpTemplate` itself kept
-    as **LEGACY MODEL** (the engine reference for I27's published
-    objects; carveCircle-style treatment); `CAVES_FIELD_VER` extended
-    within the v5 epoch (the default render is untouched — no bump);
-    header/phase comments rewritten. Tests: the count-law test →
-    up-from-min + the ≤0 `jle` guard, the stamp-value test → the draw
-    budget + the resolver group law (2-group + malformed cases).
-    **265/265** (263 + 2 net new).
-  - **C97 A/B (the (122) baselines vs this dig).** v2 **0.23391 →
-    0.23391 bit-identical** ⇒ **no cache bump** (the default render
-    never attaches the caves field), v3 IoU 0.45278 → **0.45240** / fG
-    0.71506 → **0.71459** (vs fR 0.48029 unchanged) — essentially
-    mask-NEUTRAL at the aggregate (|Δ| ≤ 0.0004): the removed record
-    carves (winter/brush v<0.5) ≈ the stream-shifted L2/L3/scatter
-    positions; v2v3 0.45557 → **0.45521** / fG 0.72383 → **0.72327**.
-    The correction matters for the field VALUES (the phantom y0
-    raise), not for the mask aggregate.
-  - **Pitfalls hit.** The count law's two twins differ in sign ONLY
-    via the −2⁻³¹ const trick — a `trunc(−x)`-shaped byte still means
-    `+trunc(x)` semantically, and the sub's MINUEND slot decides
-    everything (dig #61 swapped it); a `resolverDraws()` TRUTHY test
-    consumed ONE draw where the binary's recursion draws ONCE PER
-    GROUP (caught by the 2-group unit test — budget laws need COUNT
-    tests, not boolean tests); my own span arithmetic in the ≤0 test
-    ((−1)−(−4)+1 = 4, not 3).
-  - **Landed:** ABOUT_MATH **(123)**, CONSTANTS **C51 corrected in
-    place (row + 2 bullets + the AIR-split claim)** + **C102**, ISSUES
-    **I28 closed**, VERIFIED **§8 row 43** + **§12 corrections + the
-    dig-#123 UPDATE**, `caves-field.mjs` (draws-only record lane,
-    rollNeg removed, resolverDraws, legacy comments) +
-    `tests/mapgen/caves-field.test.mjs` (the mirror). Tests **265/265**
-    (incl. the y224 oracle byte bar — the stream shift moved no stamp
-    onto y224 x0..11). **No cache bump** (v2 bit-identical). Next
-    free: entry **(124)**, **C103**, **I29**; §8 row **44** free.
-- **2026-10-12 (124) — dig #124: I29 Stage 1 EXECUTED — the canon-source
-  audit (constant-sweep + citation-bank conversion); the M3 walk read
-  rescheduled to (125)**
-  - **Scope/method.** The I29 stage-1 machine pass: (i) the
-    **const-verifier** — every parseable `(value, VA[, width])` pair in
-    the 98 C-rows read at the section-mapped offset of the live exe
-    (md5 = C13 re-verified) and compared under the declared (or both)
-    widths; (ii) the **citation sweep** — every `/tmp`-cited extraction
-    artifact salvaged from the still-alive session temp dir, landed under
-    `mapgen/extractions/`, digest-pinned, and every registry cite
-    converted to a manifest row; (iii) the **link check** — every new
-    extraction cite must resolve on disk + be manifest-registered (a
-    mechanical post-commit gate now: scripts/precommit-gates.mjs).
-  - **Findings.** (1) **0 genuine constant mismatches in 131 machine
-    verdicts** + 3 sign-ambiguities resolved by eyes as canon-correct
-    (the rows' own text carries the negative signs — `[0x11e05f8] = f64
-    −3.0`, `[0x11e0610] = f64 −5.0`, `[0x11e05a8] = f32 −1.0`); 5
-    RUNTIME (BSS) cites classified honestly (C47's CE pair), 5 CODE
-    cites skipped correctly. Coverage note: only ~18 C-rows carry
-    parseable float pairs — the machine tier pins the const banks, and
-    stages 2–3 (eyes) own the law rows (the I29 table stays open).
-    (2) **C57 precision**: the flat `VA−0x400E00` mapping is exact for
-    `.rdata` (section table reproduced it to the byte) but NOT for
-    `.data` (its delta is 0x401A00) — the const-verifier uses the real
-    PE section table and C103 registers the law. The C47 CE cites
-    proved to be `.data` BSS (beyond RawSize) — runtime-only by design,
-    now classified properly by the instrument.
-    (3) **~100 volatile `/tmp` citations → manifest banks X1–X61**
-    (each digest-verified vs disk): fulltext86 (188 MB), raw .text/
-    .rdata bytes, the dig121 noise-lane windows, dig111/116 window
-    dumps, dig118 shape logs, the surface-y logs, `slabs/` (234 MB),
-    `dig117-prelib/`, the dig123 windows (X48–X57 = the dig-123-era
-    citations' restatement). Residual `/tmp` cites in the registries:
-    **0** (three bare temp-bank mentions annotated as provenance notes).
-    (4) link-checker: 96 extraction cites — 0 problems.
-  - **Pitfalls (tool-audit incidents, all caught by the machine gates or
-    my own re-read).** The width token "f64"-digit parse bug (every f64
-    pair mispaired → false MISMATCH ×15 — caught by debugging the TOOL,
-    not by touching the canon); the ±-token sign drop (3 false
-    MISMATCHes — the canon was right); the pre-commit citation lint
-    BLOCKED two of my own commits before they landed (a dangling var +
-    a manifest-scoping false positive — cleanup on the spot); the MSVC
-    wrapped 'Next free' phrase — path citations in single-line-greps
-    break on wrapped lines (use entry headers, the hook law).
-  - **Port.** No port changes (an audit dig): the register/law content
-    untouched except C57/C47 precision annotations IN C103 (the law row)
-    + the sweep's classification (no canon row overturned — the first
-    sweep verdict = the canon's numeric layer is byte-sound).
-  - **Tests.** 272/272 (265 + 7 const-verifier PE spot checks —
-      the .rdata/.data mappings, the spot pairs, the sign twins, the BSS
-      classification). Oracle byte bar ran (the surf suite).
-  - **Landed:** ABOUT_MATH **(124)**, CONSTANTS **C103**, ISSUES **I29
-    stage-1 annotated** (stages 2–3 remain), VERIFIED §12 note (this
-    row: the instrument exists + the mapping law), manifest **X1–X61**
-    (each digest-verified), `scripts/precommit-gates.mjs` + hooks
-    (`7b-neighbouring commits` spirit), `tests/mapgen/const-verifier.test.mjs`.
-    Tests **272/272**. **No cache bump** (no render change). Next
-    free: entry **(125)**, **C104**, **I30**; §8 row **45** free.
+- **2026-10-10 (122) — dig #122: I26 closed — the walk = setterStamp
+  flag=1 CARVE + the center-y q⁸ eave; the record = the 0x8EF870
+  two-sided template lerp.** Sources: X2, X1, PE const bank; md5 = C13.
+  - **Walk** stamp @0x8ef37c = setter 0x8EE750 with **VALUE = `[−0x20]` =
+    the 3-segment radius envelope R(t)**, **SCALE = clamp01(slot″)**,
+    **flag = 1** (`push $1`). Prologue draws (C101(a)): `s = (2 −
+    trunc(−4u))/5` (−4.0 f64 @0x11e0608, 2.0 @0x11dfe68, 5.0 @0x11e00a0),
+    `rA = rD = s·0.2u` (0.2 @0x11df9b4), `rB = rC = s·(1 + 2.5u)` (2.5
+    @0x11dff10, 1.0 @0x11dfbf0), each × `[−0x20]` →
+    `[−0x68]/[−0x50]/[−0x5c]/[−0x6c]`. Lane law 0.2/0.4/0.6/0.7 =
+    0x11df9b4/0x11dfa44/0x11dfaf8/0x11dfb1c; roll 0.35 @0x11dfa1c / −0.25
+    @0x11df9d0; D2 arm 0.32 @0x11dfa00; envelope boundaries 0.3 @0x11df9f0
+    / 0.6. SCALE ≤ 1 + lower-only guard ⇒ **the walk CARVES**
+    (`carveCircle(dir="max")` was wrong on dir, t law and eave).
+  - **Setter flag=1 eave (C101(c)):** flag = byte `[ebp+8]` (`cmpb
+    $0x0,0x8(%ebp)` @0x8ee839 → `je 0x8ee892`; the eave `je` @0x8ee85c
+    tests it across a long SSE block — SSE leaves EFLAGS alone).
+    Reads `[edi+4]` = **stamp CENTER y**: y < 25 (`cmp $0x19,%eax; jge`) →
+    q = y/**25.0** (`divss 0x11e01e0`, no −1), q⁸ via three `mulss
+    %xmm0,%xmm0`, target′ = 1 + q⁸·(target − 1) → `[−0x14]`; guard + store
+    use target′. Circle arm only (single-cell returns @0x8ee7de).
+    Single-cell store = `movss −0xc(%ebp),%xmm0; movss %xmm0,(%eax)`
+    @0x8ee7cf..0x8ee7d4 (writes SCALE; xmm2 = VALUE).
+  - **Record = a different engine.** Setter callers = exactly 3 (walk
+    0x8ef37c, L2 0x8f20d1, L3 0x8f2a6c). fnB = FUN_008EFDD0; `[−0x13c]` =
+    fnB's `[ebp+8]` = field shell (non-null asserted, slab line 0x326).
+    Per-stamp temp `(−0xfc)` = ctor **0x8F9470** (C101(d): `[+0x8c]` =
+    seed, `[+0x90]` = 1.0f, `[+0x94]` = u·200000 − 100000 — size pair
+    0x11e0504/0x11e04ec, wrap ×0.5 (0x11dfdd8 f64) vs 2³¹−1 (0x11e0220
+    f64)), dtor @0x8f16dd. Strength pair `[+0x34]/[+0x38]` (C50); point
+    rolls `min + trunc(u·span)` + compose `A + d·(B−A)` already right.
+    **FUN_008EF870**: per cell over the template's grid0 — `field.cell +=
+    (value − field.cell)·temp.cell` (two-sided lerp; getters 0x949ad0 /
+    0x9499f0; no eave, no lower-only guard, no value>1 branch).
+    **FUN_008EF950**: gate `[temp+0x5c] ≠ 0` → stencil copy `if
+    temp.g1[i,j] ≠ 0 → field.g1[y0+j, x0+i] = temp.g1[i,j]` (bounds vs
+    grid1 dims [0x40]/[0x44]).
+  - **Walk arg map:** ecx = prng (`call 0x10098c0` after `mov %esi,%ecx`,
+    esi = `[−0x24]`), `[ebp+8]` = grid, `[ebp+0xc]` = start point {x,y}
+    (→ `[−0x4c]/[−0x44]`), `[ebp+0x10]`/`[ebp+0x14]` = float pair (swapped
+    at the child call @0x8ef804..0x8ef81a), `[ebp+0x18]` = **length**,
+    asserted `length < 10240.f` (C101(b): biome.cpp:579; child budget
+    @0x8ef809).
+  - **Port** (`caves-field.mjs`): `setterStamp` gains `flag`; walkChain →
+    `setterStamp(grid,…,tx,ty,radius,v,1)`; `stampLerpTemplate` (lerp
+    with the (43)(a) t stand-in); `carveCircle` = LEGACY MODEL (export
+    kept, no production caller). Template fill → I28 (closed in (123)). Walk call site
+    @0x8ef300..0x8ef37c.
+  - **C97 A/B:** v2 0.23391 bit-identical (no cache bump); v3 0.46464 →
+    **0.45278** / fG 0.840 → **0.71506** (fR 0.48029); v2v3 0.46557 →
+    **0.45557** / fG 0.72383. Pitfall: `-0x20(%ebp)` substring-matches
+    `0x20(%ebp)` (use a negative lookbehind). Registries: C99 corrected,
+    **C101**, **§8 row 42**.
+
+- **2026-10-11 (123) — dig #123: I28 closed — the record lane is a
+  PRNG-DRAW consumer only (template ships empty ⇒ no writes; count law
+  is up-from-min).**
+  - **No-write proof:** ctor zero-inits (`movl $0x0` @0x8f9481..0x8f94c8
+    ⇒ `[temp+0] = [temp+4] = [temp+0x5c] = 0`); slot census
+    @0x8f11b3..0x8f1746 finds only 3 `lea −0xfc` sites (ctor @0x8f1300,
+    fn950 @0x8f169d, dtor @0x8f16dd) + a lua-cache handle at `[−0x48]`
+    never read; temp is frame-local. fn870 exits at `cmp [temp+4],0; jle
+    0x8ef940` @0x8ef888b; fn950 (calls fn870 @0x8ef96f) exits via `cmpl
+    $0,0x5c(%ebx); je 0x8efa2d` @0x8ef977 → epilogue @0x8efa2d. `[+0x94] =
+    u·200000 − 100000` = the ctor's stack-local Random (`lea 0x8(%esp)` →
+    `0x10098c0` ×2 @0x8f958d/0x8f9596 → `movss` @0x8f95b1), seeded by
+    trunc(u·(2³¹−1)), never touches the stream ⇒ inert. grid0/grid1 dims
+    0.
+  - **Draw law (C102; C51 corrected):** count @0x8f11b3..0x8f1280 =
+    `[rec+0x1c] + trunc(u·([rec+0x20] − [rec+0x1c] + 1))` — **UP from
+    min**; ≤ 0 → `jle 0x8f16f1` @0x8f1280, zero draws. The `mulsd
+    0x11e0578` (−2⁻³¹) @0x8f1266 + `cvttsd2si` @0x8f1272 + `sub %eax,%ecx`
+    @0x8f1276 subtract from the count_MIN slot `[−0x120]` (`0x1c(%eax)`
+    @0x8f11d2) ⇒ min − trunc(−u·span) = min + trunc(u·span) (dig #61's
+    "down from max" swapped the minuend); u = new state·2⁻³¹ (stored
+    @0x8f1262). Per stamp (`decl [−0x120]; jne 0x8f1295`): **4 + 1 per
+    resolver group** — (1) ctor-seed draw @0x8f12c5..0x8f130a (arg =
+    trunc(u·(2³¹−1)), `0x11df988` then `0x11e0220`); (2) image resolver
+    @0x8f144e → 0x668400: `find('$')` @0x668494 → npos ⇒ 0 draws (`jmp
+    0x668788`); else split `$[lo-hi]` on "-" → count ≥ 2 (`cmp $2; jae
+    0x6685dc`) ⇒ one draw @0x6685ff (lo + trunc(u·(hi−lo+1))), < 2 ⇒
+    "Error in parsing, no end in sight" @0x6685bf, 0 draws; recursion
+    @0x66873f ⇒ 1 draw per well-formed group. XML census of 102
+    CaveStructure records: 94 plain / 7 `$[0-999]` / 1 `$[1-4]`; (3) X
+    @0x8f14b6 (store @0x8f1518) = `[rec+0x28] + trunc(u·([rec+0x30] −
+    [rec+0x28] + 1))`; (4) Y @0x8f157f (store @0x8f15d9) = `[rec+0x24] +
+    trunc(u·([rec+0x2c] − [rec+0x24] + 1))`; (5) strength @0x8f164d (store
+    @0x8f16a3) = `[rec+0x34] + u·([rec+0x38] − [rec+0x34])`
+    (@0x8f1684..0x8f16b7). All unconditional. fn950 call (ecx = temp, edx
+    = field, stack Y/X/strength; @0x8f169c, @0x8f16bb, @0x8f16c0/0x8f16c7,
+    call @0x8f16c8, `add $0xc` @0x8f16cd) — values discarded.
+  - **Observations:** the old port's phantom y0 raise at x100..110 (peak
+    1.5311) disappears; pre-record stamps (x4:0.8222/x5:0.8828) unchanged.
+    The ref's y0 bump bell (x10..28, peak 1.454092) is still unreproduced
+    — must come from a raise-capable lane (loop B/C under the walk draw
+    budget) or I27's published templates.
+  - **Port:** `caveRecordStamp({countMin,countMax,imageFile}, prng)` =
+    draws-only; `resolverDraws` mirrors 0x668400 (1 draw per group);
+    `rollNeg` removed; `stampLerpTemplate` kept as LEGACY MODEL. Budget
+    laws need count tests (a truthy test consumed one draw instead of one
+    per group).
+  - **C97 A/B:** v2 0.23391 (no cache bump); v3 0.45278 → **0.45240** / fG
+    0.71506 → **0.71459**; v2v3 0.45557 → **0.45521** / fG 0.72383 →
+    **0.72327**. Registries: **C102**, **§8 row 43**.
+
+- **2026-10-12 (124) — dig #124: I29 Stage 1 — canon-source audit
+  (constant sweep + citation-bank conversion).**
+  - Const-verifier: every parseable `(value, VA[, width])` in the C-rows
+    read at the PE-section-mapped offset (md5 = C13): **0 genuine
+    mismatches in 131 verdicts**; 3 sign-ambiguities canon-correct
+    (`[0x11e05f8] = f64 −3.0`, `[0x11e0610] = f64 −5.0`, `[0x11e05a8] = f32
+    −1.0`); 5 RUNTIME (BSS) cites (C47's CE pair), 5 CODE cites skipped.
+    Only ~18 C-rows carry parseable pairs; law rows = I29 stages 2–3.
+  - **C103:** flat `VA−0x400E00` is exact for `.rdata` but `.data` delta =
+    0x401A00; C47's CE cites are `.data` BSS (beyond RawSize).
+  - Volatile citations → manifest banks **X1–X61** (digest-verified):
+    fulltext86 (188 MB), raw .text/.rdata, dig121 windows, dig111/116
+    dumps, dig118 logs, surface-y logs, `slabs/` (234 MB),
+    `dig117-prelib/`, dig123 windows (X48–X57). Link check: 96 cites, 0
+    problems; mechanical gate `scripts/precommit-gates.mjs`; test
+    `tests/mapgen/const-verifier.test.mjs`.
 METER-CLASS (this entry covers meter history, E1-only): every row below
   is a counted reading with its class; no new meter run this entry
   (the only instrument = the register grep + the already-run I31
   differential, cite in row 9).
 - **2026-10-24 (194) — dig #194: THE RECHECK DIG — dig #193's landed port mis-wired the warp in THREE concrete ways vs X206's own bytes (X206 re-read faithful this session by a fresh re-objdump, now archived as X207); all three corrected + re-measured.** Plain language: the dig-#193 port applied the right FRAME (the 10px-cell unit) but fed the ×0.1-transformed xU/yU into the NOISE samplers too — the bytes hold the RAW (wx+G2)/(wy+G1) sums in the -0x18/-0x20 slots before the +0.5/×0.1 transform — and crossed the displacement SLOTS (the byte's out.x = xU + flip·nx·m, the m-noise term; out.y = yU + flip·wgt·L, the lattice term), while omitting 0x8fc900 outright (the flagged latticeVal2d substitute was never called). FULL-WINDOW re-read before opening the code (the law); the port fixed; count tests locked below. **NEW EVIDENCE:** (B-grade; X207 fresh this dig) — (1) THE NOISE-ARG FRAME: -0x18/-0x20 store (wx+G2)/G2 = 0 and (wy+G1)/G1 = 0 (raw world px), consumed by simplex2d(·0.13715/·0.13717), latticeGrad2d(y-first /9) AND m = 0x8fc900((wx+G2)/9, (wy+G1)/9) — NORMAL order (the first warp calls the second warp's core!). (2) THE OUT SLOTS: out.x = floor(xU) + frac0 + m·nx·flip; out.y = floor(yU) + frac1 + wgt·flip·L.
   (3) THE FLIP: the xmm1-in f32 = **byte-pinned 1.0f (0x11dfbf0) at the caves call site** (@0x90dc11 immediately before `call 0x908cb0` @0x90dc19) and it gates the displacement body (@0x908d35: flip ≤ 0 ⇒ the undisplaced {xU, yU} pair returns) — the caves pipe ALWAYS displaces. Measured re-run after the fix (METER-CLASS: E2, the same 56-tile instrument): overall shift **0.76356→0.76428**, hills shift 0.74341→**0.74672** + profL1 **0.27713→0.27631** (down = the amplitude's honest side moved), desert shift 0.91123→0.91292; the dyOptMed **−162 unchanged** ⇒ the hills registration = STILL the G1/G2-zeroed term (A14/A15's trace target unchanged — do NOT accommodate the -162, the trace dig #195 reads the globals' live writers). **PREDICTION (pre-registered before the port edit): the corrected frame hits class E2 (a shape/registration score), direction = hills shift UP (the warp's per-px curvature finally carries amplitude) and hills profL1 DOWN; FALSIFIER = the metrics unchanged at cell resolution ⇒ the warp's curvature is invisible below the ±1 snap at 10px-cell granularity — that outcome would rename A15's gap (the warp wire matters only at serve resolution) and NOT falsify the byte law.** Outcome: the shifted direction OCURRED (so the falsifier DID NOT fire); the small size at cell resolution stands recorded either way. Tests: caves-slab-row 13/13 (the mirror law re-derived to the corrected channels; the falsifier + determinism unchanged), battery {31, 398, 3} exit 0. Sources: entry (194); X207; C168; C167-amend.
-- **2026-10-24 (195) — SYNTHESIS (user-observation dig, docs-only): the warp 0x908CB0 is SHARED machinery, not one lane's law — the noodly branch must never inherit the caves pipe's recipe.** Plain language: the user's render observation ("this patch affected the surface band and the noodly chunks exactly the same way — they should not share the algorithm") drove a byte check of the share level: the port's kind-0/noodly lane NEVER touches cavesShapedCellAt (the empirical A/B is below), but the GAME's hardware DOES share the warp primitive across the branches — the whole-text census finds `call 0x908cb0` at SEVEN sites: five in the kind-2 driver/evaluator2 family (0x64a0f6, 0x9091ec, 0x909234, 0x90929d, 0x909451), **one INSIDE the gradient lane's own body (`0x90aa88` ∈ surfaceField 0x90a860)**, and one in the caves sampler pipe (0x90dc19 = the C168 flip-1.0f site). The branches differ in the FLIP parameter (caves = 1.0f pinned; gradient = `1.5 − r′-blend` read from the 0x11dfd2c slot — DYNAMIC @0x90aa7c–84) and in the CONSUMER (caves: the u16 gate + classify; gradient: the displaced pair feeds the P-grid read `call 0x8fa9b0` @0x90aaae). **⇒ the standing law (C169): never centralize the warp; each branch keeps its own flip + frame + consumer; the port's rule = `cavesShapedCellAt` serves ONLY the caves branch (the gradKind === "caves" guard), and any future gradient-lane P-port reads ITS OWN site's params.** The empirical A/B (fresh this session, chunk-count E1): pre/post-#194 the noodles' chunks are BIT-IDENTICAL — solid_wall_hidden_cavern (29,62) solids 2133→2133, solid_wall (29,64) 1032→1032; lavalake (41,63)/(41,64) 220→220 / 77→77 — ONLY the caves-branch chunks moved (hills 41,62: 2501→2519) ⇒ the render separation is enforced; what the user saw same-shaped = the two branches' silhouettes derive from RELATED noise relatives (simplex2d C25 + the quintic lattices C29), not from one algorithm. **NEW EVIDENCE:** the 7-site census + the 0x90aa88 window's dynamic-flip/arg-block re-read (the 0x11dfd2c = 1.5 + the 0x11e015c = 10.0 ×-undo pair feeding the P-grid coords). Sources: C169; C168; entry (194).
+- **2026-10-24 (195) — SYNTHESIS (docs-only): the warp 0x908CB0 is shared
+  machinery — the noodly branch must never inherit the caves recipe.**
+  Whole-text census: `call 0x908cb0` at 7 sites — five in the kind-2
+  driver/evaluator2 family (0x64a0f6, 0x9091ec, 0x909234, 0x90929d,
+  0x909451), one inside surfaceField 0x90a860 (`0x90aa88`), one in the
+  caves sampler pipe (0x90dc19, C168 flip-1.0f). Branches differ in FLIP
+  (caves 1.0f; gradient = `1.5 − r′-blend` from 0x11dfd2c, dynamic
+  @0x90aa7c–84) and CONSUMER (caves: u16 gate + classify; gradient: P-grid
+  read `call 0x8fa9b0` @0x90aaae). **Law (C169):** never centralize the
+  warp; `cavesShapedCellAt` serves only the caves branch (gradKind ===
+  "caves"); a gradient-lane P-port reads its own site's params. E1
+  chunk counts pre/post-#194: solid_wall_hidden_cavern (29,62) 2133→2133,
+  solid_wall (29,64) 1032→1032, lavalake (41,63)/(41,64) 220→220 / 77→77;
+  only caves chunks moved (hills 41,62: 2501→2519). Similar silhouettes
+  come from related noise (simplex2d C25, quintic lattices C29).
+  **NEW EVIDENCE:** the 7-site census + the 0x90aa88 window (0x11dfd2c = 1.5,
+  0x11e015c = 10.0 ×-undo feeding the P-grid coords). Sources: C169;
+  C168.
 - **2026-10-24 (196) — dig #196: THE WANG OFFSET IS TRACED AND PORTED — the warp adds the runtime globals to its inputs at its head (`addsd` @0x908CC9/CD6), the globals are the ProceduralTerrain members `+0x38/+0x40` written once by Init and logged `"Wang offset: "` (0x1174b1c), the LIVE values are byte-pinned (G2 = w·256 = **17920.0**, G1 = 14·512 = **7168.0**), and `0x8fc900`'s body = our `latticeVal2d` (A15 gaps 1+2 CLOSED; the port's flagged zeros replaced by the byte values).** Plain language: the shaped read treated the warp's runtime-global offsets as zero because their file-state bytes are denormals; this dig read the WRITER (Init) and the CONSUMER (the warp's own head + three `chunk·512 − (int)G` sites), which shows the warp's noise/pick frame = the caller's world px PLUS the wang offset = **the biome-map frame** (the world's origin expressed in biome-map px), so our `cavesShapedCellAt` was sampling the field in the wrong frame — systematically off by (+1792 cells x, +716.8 cells y) = (+256 cols mod 512, +204.8 rows mod 256) of the bitmap, plus a fully different noise phase. **NEW EVIDENCE:** (B-grade; X208 fresh this dig) — (1) **THE PROVENANCE:** `f64[0x1327670]` (G2, consumed on-wx) and `f64[0x13289a8]` (G1, on-wy) are written ONCE — ProceduralTerrain::Init, `this = [ebp−0x248]`: `[+0x38] → G2` via `movsd` @0x90713a, `[+0x40] → G1` via `movsd` @0x907147, then the log push of `"Wang offset: "` @0x907168 (both globals are the object's members, not a config struct). (2) **THE CONSUMER LAW:** the warp's head reads both and `addsd`s them to its f64 in-pair — @0x908cc9 `xmm4 = G1 + inY`, @0x908cd6 `xmm1 = G2 + inX` — BEFORE the base `(+0.5)·0.1`, the simplex args, the lattice args and the m args (every derivation rides the ADJ frame); three further consumers compute `chunk·512 − (int)G` (@0x905861/72, @0x907dca/e6 + 0x907f86/9d, @0x90948e/9d) ⇒ the value is a world-px offset, subtracted elsewhere = the same identity from the other side. (3) **THE LIVE VALUES** (both Init branches read, X208 [7]): G1 = **7168.0** — the SEEDED branch's byte const 0x11e00e0 @0x9061c8 and the IMAGE branch's `14·512` (14 = dword #3 of the 16-B `.rdata` block 0x11E0820 = [0,0,0,14], movdqa'd @0x906396 → [ebp−0x40] @0x9063b0; the `·512` = 0x11e0060) AGREE; G2 = **w·256 = 17920.0** on the IMAGE branch (the live path — the world ships the biome map) = `int-slot([ebp−0x330])·0.5·512` @0x906c1f..37 with the slot = the image width = 70 (`data/biome_map.png` = 70×48 read this session); the SEEDED branch's G2 = `float(getter 0x10098c0)·200000.0f − 100000.0f` @0x90619b..c3 (0x11e0504 = 200000.0f, 0x11e04ec = 100000.0f; the getter's semantics UNREAD) = a per-seed offset in ±100000 — the global is genuinely RUNTIME, and the image branch replaces the random draw with the deterministic w·256. Cross-check: 17920 = the C80 world-x datum = biome px 35·512 ⇒ **G = the world's origin in the biome-map frame** and `wy+G1` = canvas_y − 24576 = the biome row (the frame tension from the trace queue RESOLVED: the port's caller passes the world px, the warp converts to the biome frame internally). (4) **`0x8FC900`'S BODY (A15 gap 2):** cvttss2si floors → dx/dy fracs → `hXY = perm[perm[ix&0xff] + (jy&0xff)]` at 0x114d700 (&0xff wraps on both levels) → `/255.0` (0x11e0378) → the inline quintic `(6f−15)·f + 10` cubed (0x11e00e8 = 6.0, 0x11e01a0 = 15.0, 0x11e015c = 10.0) → bilinear lerp (dy-pairs at i0/i1, then dx) → `(v − 0.5)·2.0` (0x11dfa94 = 0.5f, 0x11dfe68 = 2.0f) ⇒ **IDENTICAL to our `latticeVal2d`** (the perm head 23,125,161,52,103,117,70,37,… byte-matches PERM_LATTICE) — the substitute is VERIFIED, not family-similar. (5) **REMAINING (A15 gap 3 kept open):** the `[world-grid+0x90]` arm's path (`0x90dce6 → 0x4b80e0`, the u16 value − 1 as index) — read, semantics unread. **Port:** `cavesShapedCellAt`'s G1/G2 constants = 7168/17920 with the byte provenance comment; the `0x8fc900` comment upgraded to verified; the flags removed. **Tests:** `caves-slab-row` 13 → **17** (+4: the 0-entry skip path riding the RAW wy pre-add; the 1-entry byte-oracle match; the N-entries byte-oracle match; the REPLACEMENT-FAILS-UNDER-OLD-LAW count — the G=0 stand-in disagrees on **8 of the 10** cases; the dig-#193 window test's oracle re-pinned G=0 → G = (7168, 17920) so it mirrors the CURRENT frame). Two companion re-pins forced by the frame move: `surface-compositor`'s (41,62) counts **2519 → 2704** (the C170 pick move lands the ground chunk all-solid toward the capture's fR = 0.96017 — the "air exists" law side now rides (44,62) = 110 air cells) and `surface-wiring`'s stale flat `gradAtMirror` (pre-#193, hidden behind the SURFACE_V2 skip) re-derived to the shaped byte law — direct solo run 3/3. **METER-CLASS: E2** (the C97 v3 56-tile sentinel). **PREDICTION (pre-registered BEFORE both arms execute):** the change is MATERIAL, not a sub-snap wash — the pick moves by (+256 cols mod 512, +204.8 rows mod 256) and the displacement noise re-phases entirely; IF the caller's base passes the raw world origin (the port's frame), the B-arm re-places the field to the game's biome frame ⇒ **hills registered IoU UP** (the cavities land where the capture's do) with **dyOpt med UNCHANGED ≈ −162** (the silhouette rides the noise lanes = A14's anchor, not the caves field). **FALSIFIER: hills registered IoU DOWN** ⇒ the caller's base `[ebx+0x24][0]` must already carry the offset (the G=0 arm was accidentally right) ⇒ then read the caller-base writer as a BYTE READ; never accommodate. A FLAT metric ⇒ the caves branch's contribution is below this meter's resolution; the byte law stands on its B-grade either way. **OUTCOME (both arms run FRESH this session; A = the port stashed at HEAD G=0, B = G live; the B-arm rerun bit-identical ⇒ the render deterministic; artifacts `mapgen/out/surface-shape-2026-10-10-v3.json` per arm, repro `SURFACE_V3=1 node mapgen/experiments/2026-10-10-surface-shape-iou.mjs`): the prediction's primary clause CONFIRMED — hills registered 0.74672 → 0.79153 (+0.04481; all 10 hills tiles positive, best 39_14 +0.075, 41_14 +0.057, 44_13 +0.075), hills profL1 0.27631 → 0.25476 (down = better), dyOpt med −162 → −162 UNCHANGED (as predicted — the silhouette rides the noise lanes = A14's anchor); overall raw 0.67591 → 0.68841 / registered 0.76428 → 0.77429, desert 0.91292 → 0.94561 (desert.xml also carries BitmapCaves 512×256 — read this session), the bty14 ground band 0.81138 → 0.83991; per-tile: 39 of 56 changed / 17 unchanged (the bty≤12 sky tiles + the cave-less bty14 tiles — the unchanged set proves the caves branch is the ONLY lane this dig touched); the FALSIFIER did NOT fire. Out-of-prediction sub-result, logged per the meter law: the **winter family (17 bty13 tiles) declined 0.73136 → 0.71058** (mean Δ −0.01895, worst 14_13 −0.07161) with the bty13 band 0.70206 → 0.68619 — two candidate explanations BYTE-ELIMINATED this session: (a) per-biome field dims ⇒ ELIMINATED (hills/winter/winter_caves/desert.xml all BitmapCaves 512×256); (b) a density artifact ⇒ ELIMINATED (winter fG 0.50504 → 0.48772 moves TOWARD fR 0.37321 while IoU falls ⇒ PLACEMENT, not fraction); the remaining candidate = the winter tiles' −97px registration (A14's open anchor) interacting with the pocket re-placement in the band where our air = scattered caves pockets vs the game's contiguous sky (I47) — UNATTRIBUTED by the meter's class: E2 = a regression SENTINEL, the byte law carries the port, and the winter band can only be steered once A14's anchor closes (never accommodate a sentinel). Sources: X208; C170; C119; C80; A15-amend. Next free: entry **(197)**, **C171**, **X209**, **I49**, **A16**, **§8 row 74** — **#197 = A15's LAST GAP: the `[world-grid+0x90]` material-lookup arm's semantic (the path `0x90dce6 → 0x4b80e0`, the u16 value − 1 as index) + then the A14 anchor's row-0 read (`0x909DA0`'s return semantics), then re-measure (A14 is the winter/I48 gate).**
 - **2026-10-26 (210) — dig #210: OBS-1 MEASURED — the tree-west "water" = the pixel-scene BACKGROUND painted as FOREGROUND (I49, B-level: C182/X217); the coalmine's airDark = the bin-air backdrop arm (capture-MATCHING, NOT a defect — obs 5's lane owns the over-coverage); the anchor sliver = RESOLVED (≤2.3%, bounded); the obs-4 throw→null hole = DEAD at the tree columns (36/36 clean) — the measurement dig — continued in this fix commit: THE READ of 0x9FEE40 done (the assert pin), the I49 fix LANDED + measured (E1), and the fix's residual opened as I51 (obs 6).** Plain language: the user's report — "the chunk immediately west of the tree displays water; there's no water there" — decomposed into four mechanisms with one probe per column lane (3 seeds each; repro: the 8 committed instruments `mapgen/experiments/2026-10-26-dig210-obs1-*.mjs` — the probe + the stubbg/ref-census/ref15/cavebg/tpl-owner/anchor-sliver/diff legs, all re-run fresh this session): (1) **tree-west = grid (38,62), owned by `mountain_right_stub.xml`** (`LoadPixelScene("data/biome_impl/mountain/right_stub.png", "", x-38, y, "data/biome_impl/mountain/right_stub_background.png", true)`, `mountain_right_stub.lua:9`) — the cell renders **11,127 template px CONSTANT across seeds** (the seed-invariant ART plane: the `right_stub_background.png` 550×512's airDark-family colors — 13,14,18:36703 / 21,23,30:29236 / 14,15,19:9271 px) plus bin-crossing strays 1329/1404/1388, where the CAPTURE shows airDark 1.6% (soil 55.3% / rock 27.0% / other 16%) — i.e. the game keeps that cell as open terrain with the background PNG behind it at z 50 (C182), while our `blitBackdrop` paints the background RAW 1:1 into the shared template buffer AS FOREGROUND (`template-render.mjs:138-151`, call sites `:321/:323/:474` + `:686-728`) ⇒ **the obs-1 mechanism = I49, B-level**; (2) **the coalmine tiles' airDark (35–37) = the bin-air backdrop arm, capture-MATCHING** (ref airDark shares 22.2/39.4/35.5/40.7/36.0% at 35_14/36_14/37_14/37_15/38_15 — the arm reproduces the family; the "water" the user saw at 35–37 = the bin-crossing strays + the template bleed, and the coalmine's over-coverage owner = **obs 5** (the missing structure walls), NOT the airDark arm — the standing prohibition holds, no coalmine "fix"); (3) **the anchor sliver = RESOLVED**: the L3_ANCHOR 11×12-px rect crossing = ≤1536/65536 = **2.3%** of the cell ((35,61)/(36,61) 1536, (37,61)/(38,62) 1506, (35,62) 0 — all strays ≤ the bound) — the registered debt's mechanism is bounded and closed; (4) **the obs-4 throw→null hole = DEAD at the tree columns** — all 36 direct `noiseChunkMask` calls (cols 35–38 × 3 seeds) returned clean, zero throws ⇒ the hole never fires in this lane. The water-family cells (36,62)/(37,62) render waterPx 1200–2135/0–1025 via the **bin-terrain arm** (matching the capture's (37,15) water 4.8%) — the measured facts stand, but the "no water-lane defect" INTERPRETATION = **RETRACTED by the user's post-fix report (2026-10-26, after the I49 fix landed): "last session told me there was no water issues — it's wrong": a chunk of dark-blue material persists next to the tree where the game has frozen-plain ground (extending up into the chunk above), and the same dark-blue artifact shows at the other predictable spawns (the lavalake) — the dark-blue/water lane = RE-OPENED as the post-I49 residual (the next probe decomposes it: which chunk, which lane paints it on the live render, vs the frozen-plain ground); the "coalmine airDark = capture-matching ⇒ not a defect" reading of (2) = equally suspect until that probe runs.** **NEW EVIDENCE:** (M-grade probe + the REA bundle; the instruments promoted to `mapgen/experiments/` this session, re-run fresh) — (1) the **`LoadPixelScene` signature (X217, B-level): `background_file:string` = the 5th arg, `background_z_index:int = 50` = the 9th** — the assert string at trueVA **0x11591A8** (288 B; the naive start-search hit 0x1159286 = the mid-string `background_z_index` clause address — C182 pins both); (2) the tpl-owner leg's 12-area census: `mountain_right_stub.xml`'s areas → grid (38,62) = the ONE owner at the tree-west cell; (3) the capture diff at (38,Y14): REF soil 55/rock 27/other 16/airDark 1 vs OURS other 78/airDark 19/soil 2 — the bg-as-fg signature (our airDark+other = the background art where the capture has terrain); (4) the ref15/cavebg legs: `background_cave_04_alt` 512×256's colors (21,23,25:65703 / 12,13,14:51321 / 29,33,35:13752) + the capture's (37,15) water 4.8% / (39,15) caveAlt 41.0%. METER-CLASS: E1 (count/share laws; the diagnostic probe, no A/B — no PREDICTION line: the probe MEASURED branch shares, it did not test a change). **FIX COMMIT (this commit) — THE READ + the I49 fix, LANDED:** (a) **THE READ of 0x9FEE40 = DONE** (fresh this session; REA `procedure_pseudo_code`, Ghidra 12.1.3, exe sha256 `d2f7db…0285`): signature `FUN_009fee40(int *param_1, int *param_2)` (in_ECX = &out_rect local_78, in_EDX = the grid local_14); the seed bounds check (seed pair outside [0,w)×[0,h) → copied out); visited alloc 0x92E980, at() 0x94C700, identity `*piVar2 == *param_2`, queue 0x929850 (8-B), visited-mark 0x94A9D0; the four neighbor guards = target-in-bounds (left `0 < x` → x−1, top `0 < y` → y−1, right `x < w−1` → x+1, bottom `y < h−1` → y+1 — consistent with C174(1)); **NEW EVIDENCE (the assert pin): a popped cell whose identity mismatches the seed → `printf("Assert failed: (%s) in %s at line %d\n", "cmpr( pixels.Rand( pos.x, pos.y ) ) != 0", "d:\projects\nollagames\fallingeverything\build\vc12\..\..\source\procedural_utils\procedural_terrain.cpp", 1722)` (line 0x6BA) + the `log_asserts.txt` append + the interactive handler 0x10078C0 ⇒ the grower's identity = the game's own `pixels.Rand(pos.x, pos.y)` recomputed at the cell (C174 amended; X218).** (b) **THE I49 FIX (code):** `blitBackdrop` (`template-render.mjs:138-161`, exported at `:146`) writes `background_file` px onto a SEPARATE bg plane — the lazily-created nested Map under `buffers.get("bg")` via `setWorldPx` — and all 10 call sites route through it; `world-gen.mjs:269-270` turns the bg-image early return into `if (bgr) return bgr;` so an empty bg falls out of the noise block to the shared bg-plane fallback (`world.gen templates?.get("bg")?.get(\`${ttx},${tty}\`)` at `:279-285`, display frame, the 3-byte `9`-sentinel check) before `return null` — **air-only, rows ≥63 only** (the row-62 sky law returns above it; the sky arm reads only the fg buffer `:166-169`; every bin/fg-template/noise/bgImage lane keeps precedence — fg lanes untouched). (c) **THE FIX MEASURED (METER-CLASS: E1 — count/share laws, before/after, no A/B):** repro `mapgen/experiments/2026-10-26-dig210-obs1-treewest-water.mjs`, seeds 123456789/78633191/78633192, the tree-west cell (38,62): the `template` branch **11,127 → 0 px (all 3 seeds)**; airDark **12,456/12,531/12,515 → 1,329/1,404/1,388 px = 19.0/19.1/19.1% → 2.0/2.1/2.1%** with `byBranch` losing its `template=` entry (the residual = the bin-air arm only: the anchor edge-strip's neighbor bin-air, vs the capture's airDark 1.6% at 38_14); the `noiseChunkMask(38,62)` line byte-identical pre/post-fix (the noise lane untouched, by design). **The residual = I51 (obs 6):** the noise band's RGB = the raw materials.xml `wang_color` ((82,79,45)/(53,57,35)/(54,49,30) = sand_static `ff524f2d`/rock_static `ff353923`/soil `ff36311e`, re-read this session) vs the capture's calibrated families at 38_14 ((70,65,40) 55.3% / (39,40,45) 27.0% / (95,87,49) 6.3%) — both the RGB source (the wang band uses the capture-calibrated `SHADES`/`MATERIAL_SHADE`, `colorize.mjs:80-101`; the noise band bypasses them) and the family mix differ, and the game's map palette is not any stored color attr (`grep -r 464128` + `grep -r 27282d` over the extracted data tree = 0 hits, this session); plus the sky band never classifies (`world-gen.mjs:184` passes `materialRgb=null` → flat noiseColor 0x6a5a44 = (106,90,68)). (d) **The obs queue — REWRITTEN by the user's post-fix report (2026-10-26; one probe + one fix-commit each):** obs 2 = **the tree-west dark-blue residual / the frozen plain** (the top item: a dark-blue chunk next to the tree where the game has frozen-plain ground extending up into the chunk above — the re-opened water/dark-blue lane; the candidate lanes = the coalmine bin-air arm at (35–37,62) + the noise band's sand_static families at (33–34,62) vs the winter's snow/frozen families); obs 3 = the western lake top (empty where the game floats a predictable island) — the capture (4-5,13) vs the flat wy=225 pool; obs 4 = the wang-tile missing chunks (NEW — holes in the otherwise-correct wang layers); obs 5 = the lavalake (the bugged walls + the dark-blue px that don't exist in game — the dark-blue-across-predictable-spawns class, one mechanism probed with obs 2); obs 6 = I51 (the noise-band color source/mix); standing mandate = the surface shape is INCORRECT and the fix = the game-code reverse engineering (the topology lane I47/I50 — no stand-ins). (The dig-#206-era item "the instrument noiseChunkMask catch at ty 63-64" = instrument hygiene, demoted below the user's list.)** Registers: ABOUT **(210)** (amended in place), CONSTANTS **C182 + C174 (amended: the assert pin)**, MANIFEST **X217** (`dig210-obs1-loadpixelscene-bundle.json` md5 `66d8b67410c1b38206ca852d9d179a17`, 15.86 MB, gitignored) **+ X218** (`dig210-rea-read-9fee40-bundle.json` md5 `bd8e9286833468579bbfa0699fb39162`, 2.37 MB, 2 records, gitignored), ISSUES **I49 (closed) + I51 (opened) + I36 (root-cause removed)**, VERIFIED **§12 note**. Tests: the 4 commit-1 `worldColorAt` arm-order pins + the 4 new I49 fix pins (`tests/mapgen/world-gen.test.mjs`, 26/26) + the api-surface `blitBackdrop` export pin + the NIGHT-loop yield (the I36 root cause — no assertion change) + the battery {32, 424, 4} exit 0 (2026-10-26 battery6 — the baseline re-count registered). Next free: entry **(211)**, **C183**, **X219**, **I52**, **A19**, **§8 row 78**.
-- **2026-11-03 (211) — dig #211: THE WINTER-BAND ROWS = THE CLASSIFY-OR-AIR — the surface band's SKY-ROW ROWS (bty 6..13 = display rows 54..61) are the noise band's own rows, and a mask-solid cell there now runs the SAME classify-or-air cell law the ty≥62 arm runs (the dig-#208 law extended to every row of the surface band); the ty<62 arm's flat-fill escape hatch (every mask-solid sky-row cell painted the unclassified noiseColor 0x6a5a44 = (106,90,68)) = REMOVED.** Plain language: "perfect match left to right" (the user's 2026-10-27 mandate) got its permanent meter — `mapgen/experiments/2026-11-03-dig211-surface-line.mjs` (per map column tx 0..70, 64 samples/tile, the FIRST SOLID row from wy −1024 through +512 on a SOLID-RUN detector (≥3 consecutive 4-px samples of vertical mass) applied to BOTH sides — ours = the full `worldColorAt` render vs the capture's lum≥24. Frame law for the meter: worldColorAt takes the DISPLAY frame — display col = biome col, display row = bty + 48; the −17920 game-frame x belongs to bandRampEval only (the splice lane's frame comment, dig #172) — the v1 meter mixed the frames (the west-of-35 columns sampled x<0 = the null wall = 0% coverage) and its pale-star filter (r>180 ∧ g>180 ∧ b>200) caught the classified snow (235,235,236) as "stars", shifting the winter medians ~+700; both are retired — the run detector replaced the filter). The lane attribution (`2026-11-03-dig211-lane-attribution.mjs`, METER-CLASS: E1 — the fix's own A/B, the code = the only variable) measured the defect at row 61, ours-solid/ours-flat vs the capture-solid: **(17,61) 75.7%/73.2% vs 40.7%; (18,61) 46.6/43.9 vs 23.8%; (27,61) 37.4/34.6 vs 9.5%; (34,61) 9.1/7.5 vs 0.0%; control (39,61) 7.0 vs 9.3 = fine** — the flat = the ty<62 arm's own `noiseColor(..., materialRgb=null)` ARG painting over cells whose mask cells were ALL classified (matIdx ≠ 255 everywhere: the walk's law = the mask ⇔ the classify's match). **NEW EVIDENCE:** (1) the fix (world-gen.mjs, the ty<62 arm's nzSky branch): the classify match → `materialColorByName(noiseMatAt's idx)`; the miss (idx 255 / unresolvable) = AIR → the sky art below (the C180 law's full extent — the ≥62 arm's law verbatim). (2) The post-fix lane attribution = the flat family ~0 at every probed tile, the winter's classified snow painting — (17,61) = (235,235,236) 52.7% + (219,219,220) 22.9% (the winter's own snow families; the remaining 75.7-vs-40.7 over-solid = the registered I50b placement class, NOT this defect); (34,61) = the classified sands/soils (54,49,30 4.5% + 82,79,45 4.0%). (3) The meters' post-fix state (meter v2, honest): **|d|≤50 = 46.4%** of the 3520 columns, the delta median **−20 px**, the worst = the winter band's ±100–260 class (15: **+256** = our surface nearly missing = the I50a tile-15 hole, the capture's = a flat plateau at wy ≈ 2±26 that we hold only near wy ≈ 250; 17: −256; 27: −240; 18: −228), (34: −148 = the mountain west's over-solid), (39: −100 = the tree pocket) — the mountain family (35–37) = ±1 and the HM (52–56) = 0 = aligned. (4) The data-side reads (the game's own files; the structure-tiles lane = the NEXT dig's fix target): the mountain family's art = COLOR-KEYED MATERIAL MASKS — left/right.png = black ~49% + white ~43% + (53,57,35) = rock_static's wang_color 7.6% + (54,49,30) = soil; left_entrance.png carries the teal keys (0,0,66) 27.4% / (10,51,68) 14.2% / (0,51,69) 3.0%; right_stub.png = 550×240 at (x−38, y) and left/right.png 512×512 at (x, y), the bottoms at (x, y+512) — placements = the Lua init() ONLY (the biome XMLs carry NO scene entries; `scripts/biomes/mountain/*.lua` read this session); the visual PNGs ≈ empty (a few deco px of (39,40,45)/(62,69,85) = the rock SHADES colors as art); (5) the map palette's red-browns ((55,34,29)/(37,21,17) = the capture's mountain-body/tree-pocket families) = NO art key and NO wang_color anywhere in the data tree (the I51 palette's origin lane, still open). **Tests: the 2 new pins (`tests/mapgen/world-gen.test.mjs` 28/28): (1) data-free injected = the sky-row mask-solid cell with the classify missing = AIR (the old = the flat), (2) data-gated = the winter (17,61) carries ~0 flat px (the old = 73.2%); the meter + the lane-attribution instruments committed.** Registers: ABOUT **(211)**, CONSTANTS **C183**, ISSUES **I51 (the ty<62 flat sub-lane closed — the row amended; the raw-wang palette + the family mix = the remaining open half)**, VERIFIED **§12 note**; the baseline = this dig's battery run (the +2 = the pins). Next free: entry **(212)**, **C184**, **X219**, **I52**, **A19**, **§8 row 78**.
+
+
+- **2026-11-03 (211) — dig #211: the winter-band rows = the classify-or-air — the surface band's sky rows (bty 6..13 = display rows 54..61) are the noise band's own rows; a mask-solid cell there runs the same classify-or-air law as the ty≥62 arm (the dig-#208 law extended to the whole surface band); the ty<62 flat-fill (unclassified noiseColor 0x6a5a44 = (106,90,68)) is removed.** Meter: `mapgen/experiments/2026-11-03-dig211-surface-line.mjs` (per map column tx 0..70, 64 samples/tile, first solid row from wy −1024 to +512 via a solid-run detector — ≥3 consecutive 4-px samples — on both sides: our full `worldColorAt` render vs capture lum≥24). Frame law: worldColorAt takes the DISPLAY frame (display col = biome col, display row = bty + 48); the −17920 game-frame x belongs to bandRampEval only (dig #172). Eliminated: the v1 meter mixed frames (west-of-35 columns sampled x<0 = null wall) and its pale-star filter (r>180 ∧ g>180 ∧ b>200) ate classified snow (235,235,236), shifting winter medians ~+700. Lane attribution (`2026-11-03-dig211-lane-attribution.mjs`, METER-CLASS: E1, code = only variable), row 61, ours-solid/ours-flat vs capture-solid: (17,61) 75.7%/73.2% vs 40.7%; (18,61) 46.6/43.9 vs 23.8%; (27,61) 37.4/34.6 vs 9.5%; (34,61) 9.1/7.5 vs 0.0%; control (39,61) 7.0 vs 9.3 — the flat = the arm's `noiseColor(..., materialRgb=null)` painting cells whose mask cells were all classified (mask ⇔ classify match). **NEW EVIDENCE:** (1) the fix (world-gen.mjs, ty<62 nzSky branch): classify match → `materialColorByName(noiseMatAt's idx)`; miss (idx 255) = AIR → sky art (C180's full extent). (2) Post-fix: flat family ~0 at every probed tile; (17,61) = (235,235,236) 52.7% + (219,219,220) 22.9% (remaining over-solid = I50b placement); (34,61) = classified sands/soils (54,49,30 4.5% + 82,79,45 4.0%). (3) Meter v2 state: |d|≤50 = 46.4% of 3520 columns, delta median −20 px; worst = winter ±100–260 (15: +256 = the I50a tile-15 hole; 17: −256; 27: −240; 18: −228), 34: −148 (mountain-west over-solid), 39: −100 (tree pocket); mountain 35–37 = ±1, HM 52–56 = 0. (4) Data reads: mountain art = COLOR-KEYED MATERIAL MASKS — left/right.png = black ~49% + white ~43% + (53,57,35) = rock_static's wang_color 7.6% + (54,49,30) = soil; left_entrance.png teal keys (0,0,66) 27.4% / (10,51,68) 14.2% / (0,51,69) 3.0%; right_stub.png = 550×240 at (x−38, y), left/right.png 512×512 at (x, y); placements = Lua init() only (biome XMLs carry no scene entries; `scripts/biomes/mountain/*.lua`); visual PNGs ≈ empty. (5) Red-browns (55,34,29)/(37,21,17) = no art key and no wang_color in the data tree (I51 open). Tests: `tests/mapgen/world-gen.test.mjs` +2 (injected: sky-row mask-solid + classify miss = AIR; data-gated: (17,61) ~0 flat px vs old 73.2%). Registers: C183, I51 (ty<62 flat sub-lane closed), VERIFIED §12.
 - **2026-11-08 (212) — dig #212: THE TILE-15 "HOLE" IS NOT TERRAIN — IT IS THE BACKDROP CLIP (C184): a biome's `background_image` starts at `max(chunk top, background_image_height)` when `limit_background_image` is on (defaults 225.0f / 1, byte-read), with the `limit_y/` edge sprite bottom-anchored on the height; above it the air renders the SKY. The dig-#177 law "every row-62 air cell = sky" (C152) was an over-generalization and is replaced.** Plain language: the capture's tx 15 at bty 14 (`empty.xml`, the chasm under the bridge — bty 12/14 = empty.xml, bty 13 = bridge.xml, zero MaterialComponents in both) is ALL AIR; the meter's lum≥24 "plateau" there was the biome's cave BACKDROP (`background_snowcave.png`, dominant (26,29,41) = 25.7% of the tile) starting around wy 194–240 — not ground. So the question became "what decides sky vs backdrop for an air cell", and the game's own docstrings + bytes answer it. **PREDICTION (pre-registered before the A/B, METER-CLASS: E1):** on the dig-#211 surface-line meter, column tx 15 moves from +256 to |d| ≤ 50 and the |d|≤50 share rises by ≥ 64 columns (1.8 pts); FALSIFIED if tile 15 does not move or any tile's |dMed| worsens by > 50 px. **Outcome:** tile 15 **+256 → −32** (ours 204 vs the capture's 232, median first-solid wy); |d|≤50 **46.4% → 47.5%** of 3520 columns; no tile worsened by > 50 (the lake tiles 4–10 moved −4..−8 px = this law's own edge band: their air at wy 194..224 now shows the `limit_y` fringe) — HELD. Repro: `node mapgen/experiments/2026-11-03-dig211-surface-line.mjs` with the old vs new `world-gen.mjs` (the code = the only variable). **NEW EVIDENCE:** (1) the attr docstrings in .rdata (`0x117a79c` "height were the background image starts", `0x117a7f0` "Will limit the background image to start at the cave height") and the shipped `data/weather_gfx/limit_y/folder_desc.txt` (the clipped-sprite edge rule); (2) the bind arm (X1, `0x49cf1d..0x49cf98`: use_neighbor → u8 +0x9c, image_height → f32 +0xa0, limit → u8 +0xa4) and the config ctor's defaults (X1, `0x495ebe..0x495ed9`: +0x98 = 0, +0x9c = 0, **+0xa0 = 225.0f, +0xa4 = 1**); (3) the consumer `0x72c180` + the sprite placer `0x72e330`, full REA reads this session (X219): skip when `limit && bottom < height`, start = `limit && top < height ? height : top`, the edge `limit_y/<name>` at `(x + w/2, (int)height)` with mode 1 = bottom-centre ⇒ `[height − 31, height)`; (4) the capture census (METER-CLASS: E1, all 55 tiles of bty 14, seed 78633191): pure-black sky px below wy 240 = **0** in every limit-on biome; **0 sky px at any height** in limit-off liquidcave/coalmine/pyramid; (5) the edge-anchor sweep (E1): `limit_y/background_snowcave.png` alpha≥128 vs ref/15_14 non-black, best vertical top = **194** = 225 − 31 (agreement 0.7739 vs 0.6568 at top 225). **Port:** `biomes.mjs` parses the pair with the byte defaults; `noise-terrain.mjs` `ensureBiomeBackdrop` carries limit/height + the `limit_y` edge; `world-gen.mjs`'s row-62 air arm = the clip law (world y = display y − (SKY_ROWS+14)·512, the C145 capture frame; the def comes from the generator tx/ty like the rest of the lane — the ≤12 px L3-anchor strip at chunk edges is a known approximation). Rows ≥ 63 are unchanged (225 < any of their tops); the ty < 62 sky band is unchanged (225 > their bottoms) except for limit-off biomes, which this port does not yet route there (no limit-off biome sits in the sky band's noise lane on the reference map). `background_use_neighbor` = not ported (0 shipped uses). **Tests:** `tests/mapgen/world-gen.test.mjs` — 5 injected pins (wy 300 = backdrop, the 224/225 boundary, limit off at wy 10, the edge band [194, 225) composited by alpha, the no-record default) — ALL 5 fail under the old law (verified: old file swapped in, 5 failed / 1 passed = the dig-#177 routing pin at wy −12, sky under both laws); data-gated: the parser pins (empty = 225/on, coalmine = off, liquidcave = 0/off) + the tile-15 probe (black below wy 240: old **130,066** → new **0**; above 225: **102,500** vs the capture's 98,619) — the probe runs as an ASYNC child (a `spawnSync` there tripped the I36 60-s watchdog on the first run). The dig-#177 C1–C3 pins still pass (black62 at tile 39 = 21,170 vs the capture's 21,669). Registers: CONSTANTS **C184** (+ C152's universal amended in place), VERIFIED §8 row **78** + §12 + §9.1a, ISSUES I50 (I50a's tile-15 half closed), MANIFEST **X219**, the seed file (+2: `0x72c180`, `0x72e330`). Next free: entry **(213)**, **C185**, **X220**, **I52**, **A19**, **§8 row 79**.
 - **2026-11-08 (213) — dig #213: THE CELL COLOUR LAW (C185) — a cell's map colour = its material's `<Graphics texture_file>` at the WORLD pixel (positive-modulo wrap, phase (0,0)); no texture ⇒ the `<Graphics color>` (wang_color back-fill), alpha composited. I51's half (a) — "the map palette is not any stored colour attribute" — is answered: it is the material TEXTURES.** Plain language: the capture's colour families at 38_14 ((70,65,40) 55.3% / (39,40,45) 27.0% / (95,87,49) 6.3% / (62,69,85) 3.0%) are exactly the pixels of `materials_gfx/earth.png` (sand_static: (70,65,40) 90.6% + (95,87,49) 9.4%) and `rock.png` (rock_static: (39,40,45) 90.6% + (62,69,85) 9.4%); the winter's (166,194,216)/(129,176,210) = `snow.png`, (62,87,114)/(74,115,164) = `snowrock.png`. The 0-hit grep of dig #210 failed because the colours live in PNG pixels, not in XML attributes. **PREDICTION (pre-registered, METER-CLASS: E1 — the colour-family census of our render, the code = the only variable):** at (38,62) the raw wang families (82,79,45)/(53,57,35)/(54,49,30) drop to ~0 and the texture families appear in ~90.6 : 9.4 pairs; FALSIFIED if a raw wang family survives on a noise-band cell or a texture family appears without its partner at the texture ratio. **Outcome — HELD:** (38,62) pre (53,57,35) 43.6% + (82,79,45) 41.5% → post (39,40,45) 39.7% + (62,69,85) 4.1% and (70,65,40) 39.2% + (95,87,49) 3.9%; (17,61) pre (235,235,236) 52.7% + (219,219,220) 22.9% → post (166,194,216) 44.8% + (129,176,210) 7.9% and (62,87,114) 20.8% + (74,115,164) 2.1%; (41,62) likewise (soil = soil.png's (35,32,24)/(39,38,24)). Repro: a 512×512 `worldColorAt` census at the three tiles with the old vs new `world-gen.mjs`. **NEW EVIDENCE:** (1) the texture-palette census (`materials_gfx/{soil,rock,earth,snow,snowrock}.png`) against the capture families; (2) the phase sweep (METER-CLASS: E1): 38_14's rock/earth px vs `tex[pmod(wx+dx, W), pmod(wy+dy, H)]` over all (dx, dy) — best **(0,0)** at 0.9830 / 0.9878, next ≤ 0.8658; (3) the REA reads (X220): `0x7409B0` (texture NULL → `[cd+0x64]`, the jitter arm, else `0x740580(x, y)`), `0x740580` (pmod wrap, RGBA → ARGB), `0x7364f0` (the CellData parser: wang_color → `[cd+0x40]`; `[cd+0x64] == 0 → [cd+0x40]`), `0xa702d0` (the Graphics validation wrapper); (4) the alpha check: water Graphics A0376259 over black = (35,61,56) = C145's capture water; (5) the classify-material census: 40/46 own a texture, the other 6 are root CellData. **Port:** `colorize.mjs` `materialColorAt` + `world-gen.mjs`'s two noise-band arms (world = display − (35·512, 62·512); the shared `DISPLAY_X0`/`DISPLAY_Y0` constants now also feed C184's arm). **Tests:** `colorize.test.mjs` +5 (texture sample, positive-modulo wrap, palette membership over a full period, water alpha, lava wang back-fill); `world-gen.test.mjs` +2 (tile (38,62): raw wang px **0** vs the old 85.1%; rock and earth families each ≥ 25%) — the world pins fail under the old law (verified: 2 failed). **Remaining (I51):** (b) the family MIX differs (capture earth 55.3% / rock 27.0% at 38_14 vs ours ~43 / ~44%) = the classify windows/placement, not the colour law; the wang-bin lane still paints the hand-calibrated `SHADES` (an approximation of these same textures — the next port); the splice/template lanes keep their own colour paths; CellDataChild Graphics inheritance is unread. Registers: CONSTANTS **C185**, VERIFIED §12 + §9, ISSUES I51 amended, MANIFEST **X220**, the seed file (+3). Next free: entry **(214)**, **C186**, **X221**, **I52**, **A19**, **§8 row 79**.
-- **2026-11-08 (214) — RETRO-ENTRY (docs-only): the dig-#214 commit `241860f` (I5 closed — the lava band is pure lava) landed WITHOUT its §6 entry: the gate journal (`mapgen/extractions/.gate-journal.log`) shows no pre-commit / commit-msg line before its `commit … DIG` line = a gate bypass (a registered process failure, charter 'one dig = one commit'). This entry fills the slot from the commit itself + ISSUES I5; no new evidence is claimed here.** The law (as committed): `lava.xml` = ONE `lava` MaterialComponent [−100, 100], `limit_y` 0 ⇒ pure lava at every row of the lava sea, coloured by C185 ((255,96,0) flat — `lava` has no texture, the Graphics colour); the invented `y+512 <= 14600` dark-matrix cutoff + the 3-shade mix in `renderLavaFill` (`lib/template-render.mjs`) were removed. Measured (METER-CLASS: E1, seed 78633191, rows 40–46, 95 lava chunks): mean |gen − capture| lava share 0.0043, max < 0.03 (was ≈ 0.99 at rows 42–46). Pin: `tests/mapgen/lava-band.test.mjs`. Residual: lava_90percent's `rock_hard_border` band (~2.3%) = A8. The follow-up non-dig commit `9cbed1c` (gated) closed I52 (the west lake = a flat water pool: the lake family takes surfaceField's early-zero arm) with the flagged stand-in A19. Next free: entry **(215)**, **C186**, **X221**, **I53**, **A20**, **§8 row 79**.
-- **2026-11-08 (215) — dig #215: THE WORK = THE MAIN BAND RE-READ — THE Y-WRAP LAW (C186). The game builds ONE wang material image P over the 70×48 biome map only (P = 3584 × 2457 cells, 1 cell = 10 px), every P read wraps both axes by positive modulo, so the rows above (Heaven) and below (Hell) the map re-read the MAIN band's wang content at y mod 24570 px; there the chunk biome = the clamped biome row 0 / 47 (the_sky / the_end on cols 27..41), whose `<Materials>` re-classify every P-placeholder cell (Heaven = cloud, Hell = skullrock) while explicit P materials pass through.** Plain language: Heaven and Hell are not their own generated levels — they are the main world's cave layout seen again through a wrap, repainted in the edge biome's materials. The old port gave the_end / the_sky vmap-extended wang areas (the_end 53 rows deep) and filled every Work row with their own atlas speckle (I3's 'entirely incorrect'). **Bytes (X221, fresh REA/Ghidra reads this session, full windows):** (1) the u16 P getter **`0x9fe4e0`** (full asm): `x<0 → x + (1 − x/w)·w`, `y<0` likewise with h, `x ≥ w → x % w`, `y ≥ h → y % h`, then `[P+0x18]` vector index `w·y + x`; (2) the P dims, Init **`0x905fb0`** window `0x907320..0x90739f` (read_bytes): `new(0xb8)` → the grid object, then `floor(([esi+0x54]·512)/10)` and `floor(([edi]·512)/10)` via the `0x66666667`/`sar 2` divide-by-10 idiom (H = 48, W = 70 ⇒ 2457 × 3584); (3) the sampler **`0x90d860`** (full decompile): `field = F32Grid[x, y]`; `field ≤ 0.5` or `P = [*job[8] + 0x1d4] == 0` ⇒ no P read (field < 0 marks the air plane); else `Noise_Warp` → the smoothstep round → `0x9fe4e0`; `id − 1 < 1` (the placeholder art) ⇒ `[*job[8] + 0x2a4] == 0` skips, else `0x908e70(x, y, field)` → `BiomeMaterials_Classify(round(x), round(y), v)`; else the explicit record `AssignRecord_Fetch(id − 1)`; (4) **`0x908e70`** (full asm): `m = 0x8fc900(f32(x·0.035), f32(y·0.07))`, `t = m·15.5f`, `s = 0x8fca60((f32(x)+t)·0.0489275f, (f32(y)+t)·0.0489275f)`, `v = field + s·((field − 0.5)·0.5)²·5.35f·0.95f`, `v = max(v, 0.5f)`; (5) the job biome — the dispatcher window **`0x90d1cf..0x90d20e`** (read_bytes): `call 0x909da0` (GetBiomeAt, C187) at `(x0 + w/2, y0 + h/2)` = the job-area CENTRE ⇒ the classify table = the chunk's own biome (≥ 41 px from every edge, so C187's displacement never reaches it). **PREDICTION:** none was pre-registered — the port was written in the interrupted 2026-11-08 session (WSL crash) and is committed here after the audit; the runs below are post-hoc and E2 = sentinels only, evidence for nothing in either direction. **Measured (METER-CLASS: E2, sentinel; hole-mask IoU per chunk, each side binarized at its own luma quantile 0.4, cols 29..39 step 2 × 24 strip rows, control = ours shifted one column; `mapgen/experiments/2026-11-08-work-layout-match.mjs` + `2026-11-08-work-port-vs-capture.mjs`):** capture vs capture — Heaven~Hell 0.604, Heaven~main 0.642, Hell~main 0.634 vs control 0.285 (the wrap is visible in the game's own render); our port vs the capture — Heaven 0.496 (control 0.428), Hell 0.415 (control 0.370), our MAIN band 0.387 (control 0.324) ⇒ the Work's residual ≈ the main band's own (P's content error rides through the wrap — UNATTRIBUTED beyond that). **NEW EVIDENCE:** (1) the X221 reads above — the getter's wrap arms, the P dims' divide-by-10, the sampler's P/classify chain, the 0x908e70 value law, the job-centre biome; (2) the capture-vs-capture wrap match (E2 above); (3) the port's own E2 sentinel vs the main band's. **Port:** `lib/the-work.mjs` (new: `WORK_PERIOD_Y` = 24570, `workWrapY`, `workClassifyValue` = 0x908e70, `workCellAt` = the P cell → air / explicit / classify verdict); `lib/biomes.mjs` (wang areas in-map only — the vmap extension removed); `lib/world-gen.mjs` (`workColorAt` for display rows outside the 48-row band whose clamped chunk biome is a wang biome: the wrapped P read from the RAW post-flood atlas `rawAreaMap` (+ its `raw/` bin cache) → `workCellAt` → C185 colour; P air → the chunk's template art → the biome backdrop → the sky); `lib/colorize.mjs` (`applyRandomFloods` split out of `colorizeArea`, unchanged behaviour); `lib/noise-terrain.mjs` (`ensureSurfaceTable` exported). **Tests:** `tests/mapgen/the-work.test.mjs` 7 pins — the 2457-row/24570-px period (not 24576), the positive-modulo wrap, the 0x908e70 range + clamp, the `workCellAt` arms (black/marker/dim grey = air, explicit passes, bright grey → classify); data-gated: wang areas in-map (the_end rows 43..47 — old law 95), NO wang area owns a Work-row chunk (old law: ≥ 31 per row), the_end → skullrock / the_sky → cloud at field 1.0 — all three data pins fail under the old vmap-extended areas. Battery {36 files / 455 passed | 4 skipped (459)}. **Open:** the Work's side walls (I6 — the biome-edge law, next dig), the Heaven palette (the capture's Heaven cloud families vs ours), the moon (I4). The classify frame passes the generator px (`gx − DISPLAY_X0`) while the colour uses the display px (C185) — an 11/12-px L3-anchor split inherited from C184's arm, not re-derived here. Registers: CONSTANTS **C186**, VERIFIED §8 row **79** + §9 item 2, ISSUES I3 amended, MANIFEST **X221**, the seed file (+2: `0x9fe4e0`, `0x908e70`). Next free: entry **(216)**, **C187**, **X222**, **I53**, **A20**, **§8 row 80**.
-- **2026-11-08 (216) — dig #216: THE BIOME-EDGE LAW (C187) — the per-cell biome lookup GetBiomeAt `0x909da0` displaces every noise-edged biome boundary inside a 41-px strip: both sides `big_noise_biome_edges` ⇒ the lookup point moves by `30·sin(0.005·Y) + 11·simplex(0.05·X, 0.05·Y)` in x and `30·cos(0.005·X) + 11·simplex` in y; else by `2.5·simplex` on both. The Hell side walls' 'sinusoid' (I6) IS this law (solid_wall | the_end, defaults ON).** Plain language: biome borders are not straight chunk lines — within 41 px of a chunk edge the game looks up the biome at a point pushed around by a slow sine (period ≈ 1257 px) plus a little noise, so the wall between Hell and its side rock snakes back and forth by up to ±41 px. **Bytes (X221 + X1, fresh this session):** (1) **`0x909da0`** full asm (0x909da0..0x90a2fa): `X = x + [this+0x38]`, `Y = y + [this+0x40]`; `[this+0x6c] == 0` ⇒ null; `cx = pmod(trunc(X) >> 9, W)`, `cy = clamp(trunc(Y) >> 9, 0, H−1)`, `lx = trunc(X) & 511`, `ly = trunc(Y) & 511`; `B = grid[cy·W + cx]`; `!B.noise (+0xc4)` or `B.fat (+0xc6)` ⇒ B; the 8 probes in byte order (`lx ≤ 0x29` → (cx−1, cy); `ly ≤ 0x29` → (cx, cy−1); `lx ≥ 0x1d7` → (cx+1, cy); `ly ≥ 0x1d7` → (cx, cy+1); then the 4 diagonals), the first chunk ≠ B = N (re-fetched @0x90a1cf); `!N` or `!N.noise` ⇒ B; both `+0xc5` (big) ⇒ `n = 0x8fc020(X·0.05, Y·0.05)·11`, `X' = trunc(sin(Y·0.005)·30 + n + X)`, `Y' = cos(X·0.005)·30 + n + Y`; else `n = 0x8fc020(X·0.05, Y·0.05)·2.5`, `X' = trunc(X + n)`, `Y' = Y + n`; `M = grid(X' >> 9, trunc(Y') >> 9)`; `M.noise` ⇒ M else B. Consts (f64): `0x11dfcb0` = 0.05, `0x11dff38` = 11, `0x11dfbc0` = 0.005, `0x11dff68` = 30, `0x11dfe98` = 2.5; `0x1033a34` = `jmp [0x114a520]` → `_libm_sse2_sin_precise`, `0x1033a22` = `jmp [0x114a514]` → `_libm_sse2_cos_precise` (the PE import table). (2) **`0x909c70`** full asm (the chunk fetch: in-range fast path; else `pmod(cx, W)`, `clamp(cy, 0, H−1)`) — the vmap clamp, byte-confirmed. (3) The flags: the Topology attr arm binds `noise_biome_edges` / `big_noise_biome_edges` / `fat_biome_edges` → u8 `+0xc4` / `+0xc5` / `+0xc6` (X1 `0x49d027..0x49d0a0`, strings `0x1179390` / `0x11793a4` / `0x11793bc`); the config ctor writes dword `0x101` to `+0xc4` (`0x495efc`, X221 read_bytes) ⇒ defaults **1 / 1 / 0**; shipped data: 7 × `noise_biome_edges="1"`, 30 × `"0"` (lava.xml = 0), the_end / the_sky / solid_wall unset = ON/ON/off. (4) The frame: Init `0x906c19..0x906c4d` (X221): `[+0x38] = [ebp−0x330]·0.5·512` (= W/2·512 = 17920), `[+0x40] = [ebp−0x34]·512`; `biome_offset_y` (`_biomes_all.xml`, 14) is parsed to `[loader+0x24]` @`0x904169` (X1) — the `[ebp−0x34]` local = that field through a struct copy (no direct writer in Init; the struct base −0x58 is INFERRED) ⇒ 7168, the sibling initializer's literal `0x11e00e0` = 7168.0 agrees, and C185's phase-(0,0) frame pins it independently ⇒ in the display frame X = wx, Y = wy − 48·512. (5) The callers: the field driver `0x908f40` calls GetBiomeAt FIRST at every cell (@0x908f5c); the sampler's job biome = GetBiomeAt at the job centre (C186). **PREDICTION (pre-registered before the first meter run, METER-CLASS: E1 — the per-row edge position, the capture vs the law; display rows 96..143 step 64 px, both Hell walls):** the capture's wall edge lies within ±42 px of the chunk line in ≥ 95% of rows, and the law's predicted edge matches it with median |cap − pred| ≤ 4 px, beating the straight-line control (expected ≥ 10 px); FALSIFIED if the median > 8 px or ≥ the control. **Outcome — HELD:** west 365/375 rows within ±42 (97.3%), median |cap − pred| **1 px** (69.1% ≤ 4 px) vs the control's **20 px**; east 381/383 (99.5%), median **0 px** (80.7% ≤ 4 px) vs **21 px**. The rendered port through the same meter (`render` mode): first run 7 / 8 px — two port bugs found by it (the wall tongue's frame check used the generator chunk, 11 px off the display frame; the P-air fallback read the WALL chunk's fill for a the_end tongue), fixed ⇒ **1 / 0 px** (67.1% / 79.9% ≤ 4 px) after switching the Work classify table to the job-centre biome (bytes, C186 (5)) — the medians unchanged by that switch. Repro: `node mapgen/experiments/2026-11-08-dig216-wall-edge.mjs [render] [rows]` (the capture tiles at L17; wall px = R ≥ 35 ∧ G ≥ 19 from the census: the wall = (37,21,17) 70% / (55,34,29) / (64,35,28) / (98,59,50); the_end interior = (4,0,0) / (20,10,10) / (14,7,7) / (32,16,14)). **NEW EVIDENCE:** (1) the GetBiomeAt body + the chunk fetch (X221); (2) the flag binding + ctor defaults (X1 + X221); (3) the sin/cos import resolution; (4) the E1 edge meter (law + render); (5) the wall colour census = exactly the `rock_hard` (55,34,29)/(98,59,50) and `rock_hard_border` (37,21,17)/(64,35,28) texture pairs (C185) — solid_wall's own classify materials (rock_hard [−100, 0.95], rock_hard_border [−0.25, 3.5]); the port's `DEEP_ROCK` hand fill draws these colours as random speckle (I6's open half). **Port:** `lib/biomes.mjs` — the three flags parsed with the byte defaults; `biomeChunkDef` (0x909c70) + `biomeAtPixel` (0x909da0). `lib/world-gen.mjs` `workColorAt` — the pixel's biome = `biomeAtPixel(wx, wy − 48·512)`: a wang pixel → the Work lane (classify table = the display chunk's biome); a non-wang pixel inside a wang display chunk → that neighbour chunk's own fill (`neighbourFillAt`); the P-air template art is read only from the pixel biome's own chunk. SCOPE: the Work rows only — the main band's boundaries still use the straight chunk lookup (I53). **Tests:** `tests/mapgen/biome-edge.test.mjs` 7 (the fetch wrap/clamp, the interior, the big-arm flip count = the formula's, the small arm, the three skip arms; data: the flag defaults + lava = 0, the Hell west wall at three capture rows) — 3 FAIL under the old chunk law (verified: the old lookup swapped in, 3 failed / 4 passed = the law-neutral pins); `tests/mapgen/world-gen.test.mjs` +1 (the rendered tongues: a the_end tongue inside the wall chunk ≤ 12/35 wall px, a wall tongue inside the_end ≥ 22/30; control 35/35) — FAILS under the dig-#215 render (verified). Battery {37 files / 463 passed | 4 skipped (467)}. Registers: CONSTANTS **C187**, VERIFIED §8 row **80** + §9 item 2, ISSUES I6 amended + **I53** (new), MANIFEST X221 (already lists this dig's records), the seed file (+2: `0x909da0`, `0x909c70`). Next free: entry **(217)**, **C188**, **X222**, **I54**, **A20**, **§8 row 81**.
-- **2026-11-09 (217) — dig #217: THE SURFACE PHASE IS RIGHT, AND I57 MEASURED VEGETATION — the hills' surface line = the band ramp's r = 0.51 contour, whose only seed input (xBase = Phase S u₂) is confirmed by a three-seed rank test; the "67.5 px surface-shape defect" (I57) was largely trees and grass, and the terrain-only residual is positional (game chunks x 8–9 on every seed), not a wrong surface law.** Plain language: the hills' wavy outline in our generator is a single smooth curve per column, and the only thing the seed changes is where along x that curve is sampled. Checking that phase against three in-game captures of three different seeds puts our computed phase in the top 1–3 % of all possible phases for two of them, so the seed→phase chain is right. The old I57 meter took the first coloured pixel as "the surface", but 69 % of those pixels in the hills are leaves and grass. Measured on terrain only, most hill chunks match within 4–39 px; the large errors cluster at chunks x 8–9 for all three seeds. **Bytes (X222, fresh REA/Ghidra `procedure_assembly` this session):** (1) Init **`0x905fb0`** Phase S `0x9060fd..0x9061d0` re-read: `call 0x9119d0` → `cvtdq2pd` + the `{0.0, 2³²}` sign-diddle `[0x11e0ba0 + 8·sign]` into **xmm1** → `call 0x452ba0` (ecx = the stack RNG `[ebp−0x2f8]`); a SECOND `call 0x9119d0` → the same diddle into **xmm0** → `call 0x8ed3a0`; then the three `call 0x10098c0` draws u₁/u₂/u₃ → `+0x30`, **`+0x48` = f32(u₂·200000 − 100000)** @0x906196, `+0x38`; the `0x906024` GetSeed ≠ 0 assert precedes. (2) **`0x452ba0`** (full): `movapd xmm0, xmm1`; `≥ [0x11e0220]` ⇒ ×`[0x11dfdd8]` (= 0.5); store `[ecx]`; ONE warm `call 0x10098c0` — the C120 ctor, confirmed. (3) **`0x8ed3a0`** (full): assert `[0x11e0210] < seed` (line 0x94), then `movsd` the seed into the GLOBALS `[0x13276d0]` and `[0x13276c8]` — it never touches the stack RNG, so C119's "mix 0x8ed3a0" is NOT a stream step and `phaseSXBase` is complete. (4) **`0x9119d0`** GetSeed (full): `[0x1329f8a] == 0` ⇒ assert (line 0x80), then `return [0x1327ffc]` — the world-seed global (its writers, X1: the seed-string parse `0x82c882` (+ the set flag 0x1329f8a), the random-seed path `0x9117d2` (two Lehmer draws × `[0x11e0218]`), the 0 → `0x22246` default `0x9118a2`, the save-load `0x6e2086`/`0x6e22c9`, `0x66285b`) = the plain run seed, no per-system mix. **PREDICTION:** none was written down before the runs (the rank test was run first, interactively) — the criterion is stated post hoc and the result weighs accordingly: a right seed→xBase chain should rank the computed xBase in the best ~10 % of 401 phases (xBase ∈ [−1e5, 1e5] step 500) for most seeds, a wrong chain ≈ the median (50 %). **Outcome (METER-CLASS: E2 — mean first-solid |dy| ours vs capture, game chunks x 4..9, current-build captures frozen91/92/93 = seeds 78633191/2/3):** ranks **0.7 %** (68.3 px vs median 107.4), **23.2 %** (94.1 vs 104.3), **3.0 %** (62.3 vs 81.7). Among the first ten Lehmer draws d0..d9 as xBase, the port's d2 (u₂) is the best for seeds …191 and …193. The full-range scan on run1b (step 50, 4001 phases) finds no sharp optimum (best 63.4 px at −63450; many values within 64–68) ⇒ the phase cannot absorb the residual — whatever remains is seed-independent. **The surface law (port trace, `surfaceField` per cell, game chunk x 8, seed 78633192):** v = 0.871429·r while r ≤ 0.51 (the gradW gate) ⇒ v ≤ 0.4444 < soil's material_min 0.45 = the lowest hills window (no comp carries add_perlin) ⇒ AIR; the first solid cell = the first r > 0.51 with `(2r−1)·per` lifting v past 0.45 ⇒ **the hills' surface = the r = 0.51 contour y = A(x) + 0.51·(B(x) − A(x))**, a smooth 1-D function of x (the overlay's "straight ramps" = smooth simplex segments on the 10-px cell grid). **Measured (METER-CLASS: E1 — the top-pixel colour census; E2 — the terrain-only line):** the capture's first non-dark px in the hills (cx 4..9, every 2nd column, frozen91) = 1,084 of 1,575 green (grass 96,128,48 / 112,144,64 / 128,176,48; leaves 80,128,64) + pink flowers ⇒ the I57 meter scored the `<VegetationComponent>` lane (I44, unported). Terrain-only (skip green/pink; the px must sit on a ≥ 16-px-wide, 20-px-deep solid mass) per-chunk median |dy|, seeds …191/…192/…193: cx 3 13/61/14, cx 4 8/30/12, **cx 5 107 ×3** (mountain_lake — the I52 stand-in lane, not hills), cx 6 106/26/16, cx 7 29/21/39, **cx 8 106/86/65**, cx 9 36/161/57, cx 10 (desert) 6/4/37, cx 11 12/7/7; correlation ours-vs-capture r = 0.77/0.51/0.68. Seed …192's cx 8–9 = a vertical cliff then a flat plateau at y ≈ −13 (= y 0 under the grass), which a smooth contour cannot draw; the y = 0 line coincides with the BitmapCaves band's top, but the caves port is solid in the matched valleys too, and seeds …191/…193 show no y ≈ 0 plateau ⇒ one instance, UNATTRIBUTED. The game's own seed differential (run1b vs the 2024 stitch, first-px line) moves cx 4, 6–10 by 90–150 px and leaves the fixed structures (cx 0, 1, 5) within 5–35 px ⇒ the hills surface IS seed-phased in the game. Repro: `SURFACE_V2=1 SEED=… REF=frozen9… MODE=rank|draws|chunks [TERRAIN=1] [CX=3,11] node mapgen/experiments/2026-11-09-dig217-surface-phase.mjs`. **NEW EVIDENCE:** (1) X222's four fresh reads (Phase S, the ctor, the global-seed store, GetSeed); (2) the three-seed xBase rank test + the draw-index test; (3) the vegetation share of the capture's top pixels; (4) the terrain-only per-chunk residual; (5) the r = 0.51 contour law (port trace + its pin). **Port:** none (the chain was already exact). **Tests:** `tests/mapgen/surface-contour.test.mjs` 5 — the xBase goldens for seeds …191/…192/…193; the hills' lowest window ≥ f32(0.45) with no add_perlin and 0.871429·0.51 below it; data: zero solid cells at r ≤ 0.51 across game chunks x 6..9 × y −1..0 (seed …192) with ≥ 1 solid cell in every column. Registers: CONSTANTS **C188**, VERIFIED §8 row **81** + §9 item 1, ISSUES I57 rewritten, MANIFEST **X222**, the seed file (+2: `0x452ba0`, `0x8ed3a0`). Next free: entry **(218)**, **C189**, **X223**, **I58**, **A22**, **§8 row 82**.
-- **2026-11-09 (218) — dig #218: THE BIOME-EDGE LAW IN THE MAIN BAND, HALF LANDED (C189, I53) — the user's "solid rock walls are straight at chunk borders but curved in a sinusoid along the band" is C187: the capture's main-band wall edges follow GetBiomeAt's displaced boundary to a median 1 px; the port now renders the wall side of every such edge.** Plain language: the game decides which biome a pixel belongs to after pushing the lookup point around by a slow sine plus a little noise near every chunk edge (dig #216), so the rock walls between the cave biomes snake back and forth by up to ±41 px. We had drawn that only in the Work. Now, wherever the pushed point lands in a noise biome (the solid_wall rock, the desert, the winter), the pixel is drawn by that biome's own terrain law, so the wall bulges into the caves as in the game. The opposite bulge (a cave pushing into the wall) needs data we have not read yet. **Bytes (X223, fresh REA this session; X1 for the call-site census):** (1) the field driver **`0x908f40`** (full): `B = GetBiomeAt(x, y)` (0x909da0) → `[B+4]` = kind: **0 ⇒ `surfaceField(B)` at `(x+0.5, y+0.5)` → `BiomeMaterials_Classify([B+0x2a4], trunc x, trunc y, v)`**; 1 ⇒ the `[B+0x1b0]` bitmap (pmod wrap, colour → `0x4b8080` record); 2 ⇒ the warped P read (C186) — so a displaced pixel is generated by the PIXEL's biome config, field and classify both; (2) the driver's three callers are all in the scene walk: `0x7930d3` (the terrain cell) and `0x7938d1` / `0x7938fe` (the vegetation stamp's x−1 / x+1 probes, record `+0xa8` / `+0xd4`); the walk origin `0x794187..0x79419b` = `chunk.x << 9`, `chunk.y << 9` (the A18 closure, re-confirmed); (3) the band matrix's map source = Init's `[ebp−0x249]` branch = the Lua path (strings `0x1174728` "BiomeMapLuaManager", `0x1174804` "temptemp/biome_map_lua.png"), driven by `magic_numbers.xml` BIOME_MAP = `data/scripts/biome_map.lua` = `BiomeMapSetSize(70, 48)` + `BiomeMapLoadImage(0, 0, biome_map.png)` — the shipped png unchanged. **PREDICTION (written before the capture meter ran, METER-CLASS: E1 — the per-row wall edge at every main-band vertical `solid_wall | wang` line, map rows 15..46, rows every 8 px, the 2024 stitch tiles (the law is seed-free)):** the capture's edge follows the law with median |capture − law| ≤ 6 px, beating the straight chunk line (expected ≥ 10 px); FALSIFIED if > 10 px or not below the line. **Outcome — HELD:** 208 segments, 4,287 rows: law **1 px** (79.5 % ≤ 4 px, 92.8 % ≤ 8) vs straight **21 px** (9.6 % / 18.5 %). The same meter on our render (wall = red-dominant rock family; the edge walked from the wall side): before the port **18 px** (10.7 % ≤ 4, 20.7 % ≤ 8), after **8 px** (43.1 % / 50.5 %) — the half the port covers. A first render run gave 17 px: the lanes read the generator frame (gx = wx + 11), so the edge lane must compare the pixel biome against the GENERATOR chunk, not the display chunk — fixed before the outcome above. The cave-side half: our wang area maps end at their chunk rects (map px vs chunk px within ±8 px for every area) ⇒ nothing to read past the edge; the game reads the global P there (kind 2) and P outside a wang area is unread ⇒ I53 (a). Repro: `node mapgen/experiments/2026-11-09-dig218-main-wall-edge.mjs` (capture) / `RENDER=1 node …` (our render). **NEW EVIDENCE:** (1) X223 (the driver's kind arms, the strings); (2) the X1 call-site census (the vegetation probes, the walk origin); (3) the BIOME_MAP Lua path + its script; (4) the main-band capture edge meter (law vs straight); (5) the render A/B; (6) the area-map extent check. **Port:** `lib/noise-terrain.mjs` `noisePixelFor(config, def, seed, gx, gy)` — the V2 noise lane for an arbitrary biome at one pixel (the same 10-px cell centre, frames and classify-or-air as `noiseChunkMask`); `lib/world-gen.mjs` `edgePixelAt` — main band (62 ≤ ty < 96), near a chunk edge: pixel biome = `biomeAtPixel(wx, wy − 48·512)`; if it differs from the generator chunk's biome and is a noise biome ⇒ its verdict (material colour C185, or air = its backdrop), the chunk's own scene art still on top. **Tests:** `tests/mapgen/biome-edge.test.mjs` +1 (the mirror: 0 mismatches over 2,028 cells of three surface chunks, > 200 solid; a wang def ⇒ null); `tests/mapgen/world-gen.test.mjs` +1 (the solid_wall tongue at map y 9624 inside the lake_deep chunk = ≥ 40/45 rock — the old law renders 0/45, verified by stash; the lake and wall interiors unchanged, 0/45 and 45/45). Registers: CONSTANTS **C189**, ISSUES I53 rewritten, MANIFEST **X223**, VERIFIED §9 item 2. Next free: entry **(219)**, **C190**, **X224**, **I58**, **A22**, **§8 row 83**.
-- **2026-11-09 (219) — dig #219: init() RUNS AS LUA (C190) — the user's "the level-4 room with the hourglass appears on both sides" = the template lane's STATIC parse of the per-chunk init(): it loaded every LoadPixelScene line in the body regardless of its branch.** Plain language: each special biome has a small script that decides, per chunk, which pre-drawn room to place. We used to read that script as text and place every room it mentions, so rooms meant as either/or alternatives all appeared. Now the script actually runs, so its coin flips and conditions decide, as in the game. **Data (the shipped Lua, read this session):** `snowcastle_cavern.lua` init: `is_right = ProceduralRandom(0,0) > 0.5`; right ⇒ `side_cavern_right` only where x > 0, left ⇒ `side_cavern_left` only where x < 0; `lavalake_pit.lua`: `lavalake_pit_cracked` iff 2000 < y < 2400, else `lavalake_pit`; `solid_wall_hidden_cavern.lua`: `location = ProceduralRandomi(1240, −750, 3)` ⇒ the cavern in ONE of four y-windows; `snowcave.lua`: 8 statue hands at `ProceduralRandomi(109, i·53, −2350, 2350)` / `ProceduralRandomi(111, i·2.9, 3140, 4500)` (dynamic offsets — the static parse dropped all of them); `rainforest.lua`: the hint statues need `RaytracePlatforms` (an engine query against generated terrain). **PREDICTION (before the capture check, E1):** seed 78633191 ⇒ `ProceduralRandom(0,0)` = 0.1159 < 0.5 ⇒ the hourglass cavern in the LEFT chunk (biome (30,24)) and plain wall in the right one (38,24); FALSIFIED if the capture shows the right cavern or both. **Outcome — HELD:** the noitamap tiles 30_24 / 38_24 (fetched this session): the hourglass cavern at (30,24), uniform rock at (38,24). **Measured (E1, seed 78633191, every chunk owned by a biome with an init hook):** 3,128 chunks — 3,051 identical under both laws, 77 differ (the side caverns, the lava-pit pieces, the hidden-cavern locations, the statue hands, the mountain's duplicated pieces), 5 Lua errors (rainforest's RaytracePlatforms stub; the calls recorded before the error are kept — the static parse loaded nothing there either). Render: chunk (30,72) 133,640 art px, (38,72) none. The background-plane chunk count 192 → 186 (the unchosen branches' background art). **NEW EVIDENCE:** (1) the five init() laws above; (2) the static-vs-Lua chunk census; (3) the capture check of the cavern side. **Port:** `lib/template-render.mjs` `runInitScenes` (the wang-scenes host runs init(x, y, 512, 512) per owned chunk, cached per (seed, biome, chunk)); `blitInitScenes` blits its records; the art pass now covers every def with an init hook; the temple family stays on its hand-ported arms (no double draw). `lib/wang-scenes.mjs`: `call(name, x, y, ...extra)` + the `LoadBackgroundSprite` record. **Tests:** `tests/mapgen/template-init.test.mjs` 3 (the cavern side per seed both ways; the lava pit's single piece by y; ≤ 1 hidden cavern per seed over 7 seeds — all fail under the static parse); `api-surface` (+ runInitScenes); `chunk-store` bg count 192 → 186. Battery {43 files / 511 passed | 4 skipped (515)}. Registers: CONSTANTS **C190**, VERIFIED §8 row **83**, ISSUES **I58** (new). Next free: entry **(220)**, **C191**, **X224**, **I59**, **A22**, **§8 row 84**.
-- **2026-11-09 (220) — dig #220: THE SPAWN-RECORD POSITION LAW (C191) — the user's "the rooms in the wang empty spaces are the wrong variants (placement right, choice wrong)" = the host called each spawn function 5–13 px from where the engine does, so every `ProceduralRandom(x, y)` pick drew from a different seed.** Plain language: when the game sees a spawn-colour pixel in a biome's wang map, it calls that biome's Lua function at a world position, and functions like `load_pixel_scene` pick their room with `ProceduralRandom(x, y)`. A few pixels of difference in (x, y) gives a completely different random number, so the right spot got the wrong room. **Bytes (X224, objdump of the pinned copy, this session):** (1) the spawn collector **`0x909370`** (full window, `ret $0x14` @0x909703): world px step 10, per px GetBiomeAt; for a wang biome the warp `0x908cb0` with flip 0 gives the global cell `wx = trunc((x + G2 + 0.5)·0.1)`; the spawn index comes from the biome's map-wide image (`0x9fe6b0`); the record's position = **`10·wx − 5 − (int)G2`, `10·wy − 5 − (int)G1`** (@0x909480..0x9094ab; G2 = 17920, G1 = 7168 = C170), asserted within 20 px of the walk px, pushed as `{x, y, 1, 1, idx}` (`0x9ff530`); (2) **`ProceduralRandom` = `0x834170`** (found through its registration `push $0x834170` @0x85948c, name string 0x1163f74): seed = `GetSeed() + NEW_GAME_PLUS_COUNT`, `0x48fd30`(seed, arg1, arg2) = SetRandomSeed, two args ⇒ one `0x10098c0` draw — the port's `seededPrng(seed, x, y).next()` already matched, so the second suspect in the user's note (the ProceduralRandom form) is eliminated. With the area's first cell at global cell trunc(x1·51.2) (world-gen `widthCells`), the call position of out_map cell i is `10·(trunc(x1·51.2) + i) − 5 − 17920` (same in y with 7168); the old `(x1 − 35)·512 + 10·i` is off by −5 − 10·frac(x1·51.2) = −5..−13 px per axis. **PREDICTION (E1, before the test run):** the fixed host's `load_oiltank` branch for 24 synthetic trigger cells in a coalmine area equals `seededPrng(seed, x, y).random(1, 100) ≤ 50` at the C191 position for all 24 with both arms present; FALSIFIED if any cell disagrees. **Outcome — HELD** (24/24, both arms). METER-CLASS: E1 (count/branch law only; no capture meter was run this dig). **NEW EVIDENCE:** (1) X224 [1] the spawn-record position law; (2) X224 [2] the ProceduralRandom binding. **Port:** `lib/wang-scenes.mjs` `spawnCallOrigin(x1, y1)` + `areaSceneCalls` calls at the C191 position and returns the scenes in the generator frame (`x = call + (generator cell origin − game cell origin)`, so the art keeps the game's (−5, −5) offset from its trigger cell; `callX/callY` = the game frame). The generator frame's own offset from the game's (0–8 px) is registered as I60, unmeasured. **Tests:** `tests/mapgen/wang-scenes.test.mjs` +1 (the C191 origin pins at x1 = 34/35/36, y1 = 14/15, each ≠ the old law); the count-law and RNG-law tests moved to the C191 frame (both fail under the old position, verified by swapping the old origin back in); `chunk-store` lazy == eager still exact, scene-chunk count 521 → 519. Battery {43 files / 512 passed | 4 skipped (516)}. Registers: CONSTANTS **C191**, VERIFIED §8 row **84**, ISSUES **I59** (closed) + **I60** (new), MANIFEST **X224**. Next free: entry **(221)**, **C192**, **X225**, **I61**, **A22**, **§8 row 85**.
-- **2026-11-09 (221) — dig #221: THE WANG CELL ORIGIN = THE SPAWN-RECORD POSITION (C192) — the game's kind-2 P read ROUNDS, so a wang cell t covers [10·t − 5, 10·t + 5) − G; dig #220's (−5, −5) scene offset is withdrawn (the scene sits at its trigger cell's origin, as before), and I60's per-area offset is +5 + 10·frac(c·51.2), not −10·frac.** Plain language: dig #220 got the call position right but assumed the drawn cell started 5 px to the right of it. The game's lookup rounds to the nearest cell, so the cell starts exactly where the spawn function is called. The rooms go back to where they were drawn before; only their random choice changes. **Bytes (X225, objdump of the pinned copy, this session):** (1) **`0x8fae40`** (full): floor of both coords, then `+1` when `(3 − 2f)·f² ≥ 0.5` = rounding; with the warp's `(x + G + 0.5)·0.1`, index = `floor((x + G + 5.5)/10)`; (2) Init `0x907673..0x9076e9`: an area's cell origin = `(x1·512)/10`, `(y1·512)/10` truncating. **PREDICTION (E2, written before the regroup):** if C192 holds, the C78 fit's per-chunk best offsets grow with frac(c·51.2) as `5 + 10·frac` on each axis; FALSIFIED if they are flat in frac or fall with it. **Outcome — HELD on y and on the clean x areas** (METER-CLASS: E2, `mapgen/out/l3-anchor-2026-09-24-preapply.json`, lum metric): dy 14/15 at frac 0.8 (8 chunks), 9–10 at 0.4 (4), 6 at 0 (2); dx 13 at 0.8 (coalmine, 7 of 8), 10–11 at 0.6 (bty 17), 7–8 at 0.4, 7 at 0.2 (liquidcave); the excavationsite chunks scatter (−14..35) and rule on nothing. **NEW EVIDENCE:** (1) X225 [1] the P read's rounding; (2) X225 [2] Init's area cell origin; (3) the per-chunk regroup of the C78 fit by frac. **Port:** `lib/wang-scenes.mjs` `areaSceneCalls` — scene (generator frame) = call + (generator cell origin − game cell origin), the game cell origin = the call origin (was call + 5). **Tests:** `tests/mapgen/wang-scenes.test.mjs` count-law expectations back to the cell origin (x −492/−412.., y 30); they fail under the dig-#220 translation; `chunk-store` lazy == eager exact, scene-chunk count 519 → 518. Registers: CONSTANTS **C192**, VERIFIED §8 row **85**, ISSUES **I60** re-scoped (the per-area anchor port), MANIFEST **X225**. Next free: entry **(222)**, **C193**, **X226**, **I61**, **A22**, **§8 row 86**.
-- **2026-11-09 (222) — dig #222: THE PER-AREA BIN ANCHOR (C193, I60 CLOSED) — the wang bins and the wang-scene art now register to the game per area, `+5 + 10·frac(c·51.2)` px (C192), instead of the fitted constant (+11, +12); the constant's per-chunk residual on the same tree equals the law's prediction and the port removes it.** Plain language: the game's wang cells start at a slightly different sub-cell offset in each area, because 512 px is not a whole number of 10-px cells. We had corrected all areas by one average offset, which left some areas up to 6 px off. Each area now gets its own offset, computed from where it starts. **PREDICTION (written before the A/B, METER-CLASS: E2 — the C78 instrument `mapgen/experiments/2026-09-24-l3-anchor-fit.mjs`, seed 78633191, the same 32 wang chunks; control = this tree with only the anchor reverted):** on the control, the per-chunk lum best offset follows `5 + 10·frac − (11, 12)` on the chunks with a clear peak; after the port it sits near (0, 0) and the zero-shift scores rise on most chunks; FALSIFIED if the control residual is flat in frac or the port's zero-shift scores fall on most chunks. **Outcome — HELD:** control lum residual = coalmine (2, 2) / (2, 3) [pred (2, 1)], liquidcave (−4, 2) / (−4, 1) [(−4, 1)], fungicave (−1, −3) / (0, −3) [(0, −3)], coalmine_alt (0, −5) / (−3, −5) [(−2, −7); dy at the scan bound −5], excavationsite clean chunks (−4, −4) [(−4, −3)]; the port: those chunks at (0, 0)..(0, 2); zero-shift means air 0.3600 → 0.3707 (24/32 up), edge 0.0606 → 0.0671 (27/32), lum 0.2115 → 0.2192 (24/32). The excavationsite / fungicave-18 chunks with far peaks (|d| ≥ 8) move with neither law and rule on nothing. **NEW EVIDENCE:** (1) the same-tree A/B of the C78 instrument (control vs port, per chunk); (2) the control residual's frac dependence. **Port:** `lib/world-gen.mjs` `binAnchor(a)`, `binSampleAt(world, wx, wy, tx, ty, gx, gy)` (the area among the C78 chunk + 8 neighbours whose map holds the per-area point and owns its chunk); `worldColorAt` reads the bins and the wang-scene buffers at that point and routes the px's other lanes to the chunk the point falls in (their C78 read clamped to its edge, ≤ 6 px — without it, a 7-row black strip appeared at tile (15,62)'s bottom, the backdrop-clip test caught it). The instrument gained `ANCHOR_FIT_CACHE` / `ANCHOR_FIT_OUT`. **Tests:** `tests/mapgen/world-gen.test.mjs` +1 (binAnchor at frac 0/.2/.4/.8) and the injected bin reads moved to the per-area anchor (the unshifted read = cell (0,1), (1,1) under C78); `tests/mapgen/wang-scenes.test.mjs` precedence tests on binAnchor. Battery {43 files / 513 passed | 4 skipped (517)}. Registers: CONSTANTS **C193** (+ C78 scope amended), VERIFIED §8 row **86**, ISSUES **I60** closed. Repro: `ANCHOR_FIT_CACHE=mapgen/out/gen-cache/r3m ANCHOR_FIT_OUT=mapgen/out/l3-anchor-<run>.json node mapgen/experiments/2026-09-24-l3-anchor-fit.mjs` (~80 s). Next free: entry **(223)**, **C194**, **X226**, **I61**, **A22**, **§8 row 87**.
+- **2026-11-08 (214) — retro-entry (docs-only): dig-#214 commit `241860f` (I5 closed — the lava band is pure lava) landed without its §6 entry (gate journal `mapgen/extractions/.gate-journal.log` shows no pre-commit / commit-msg line = a gate bypass, a registered process failure); this entry fills the slot from the commit + ISSUES I5, no new evidence claimed.** Law: `lava.xml` = ONE `lava` MaterialComponent [−100, 100], `limit_y` 0 ⇒ pure lava at every row of the lava sea, coloured by C185 ((255,96,0) flat — no texture); the invented `y+512 <= 14600` dark-matrix cutoff + 3-shade mix in `renderLavaFill` (`lib/template-render.mjs`) removed. Measured (METER-CLASS: E1, seed 78633191, rows 40–46, 95 lava chunks): mean |gen − capture| lava share 0.0043, max < 0.03 (was ≈ 0.99 at rows 42–46). Pin: `tests/mapgen/lava-band.test.mjs`. Residual: lava_90percent's `rock_hard_border` band (~2.3%) = A8. Follow-up commit `9cbed1c` closed I52 (west lake = flat water pool: lake family takes surfaceField's early-zero arm) with stand-in A19.
+- **2026-11-08 (215) — dig #215: the Work = the main band re-read — the Y-wrap law (C186). The game builds ONE wang material image P over the 70×48 biome map only (P = 3584 × 2457 cells, 1 cell = 10 px); every P read wraps both axes by positive modulo, so rows above (Heaven) and below (Hell) re-read the main band's wang content at y mod 24570 px; there the chunk biome = clamped biome row 0 / 47 (the_sky / the_end on cols 27..41), whose `<Materials>` re-classify every P-placeholder cell (Heaven = cloud, Hell = skullrock) while explicit P materials pass through.** Eliminated: the old vmap-extended wang areas for the_end / the_sky (the_end 53 rows deep) with their own atlas speckle (I3). Bytes (X221, full windows): (1) u16 P getter `0x9fe4e0`: `x<0 → x + (1 − x/w)·w`, `y<0` likewise with h, `x ≥ w → x % w`, `y ≥ h → y % h`, then `[P+0x18]` index `w·y + x`; (2) P dims, Init `0x905fb0` window `0x907320..0x90739f`: `new(0xb8)` grid, `floor(([esi+0x54]·512)/10)` and `floor(([edi]·512)/10)` via the `0x66666667`/`sar 2` divide-by-10 (H = 48, W = 70 ⇒ 2457 × 3584); (3) sampler `0x90d860`: `field = F32Grid[x, y]`; `field ≤ 0.5` or `P = [*job[8] + 0x1d4] == 0` ⇒ no P read (field < 0 = air plane); else `Noise_Warp` → smoothstep round → `0x9fe4e0`; `id − 1 < 1` (placeholder) ⇒ `[*job[8] + 0x2a4] == 0` skips, else `0x908e70(x, y, field)` → `BiomeMaterials_Classify(round(x), round(y), v)`; else `AssignRecord_Fetch(id − 1)`; (4) `0x908e70`: `m = 0x8fc900(f32(x·0.035), f32(y·0.07))`, `t = m·15.5f`, `s = 0x8fca60((f32(x)+t)·0.0489275f, (f32(y)+t)·0.0489275f)`, `v = field + s·((field − 0.5)·0.5)²·5.35f·0.95f`, `v = max(v, 0.5f)`; (5) dispatcher `0x90d1cf..0x90d20e`: `call 0x909da0` (GetBiomeAt, C187) at the job-area CENTRE `(x0 + w/2, y0 + h/2)` ⇒ classify table = the chunk's own biome (C187 displacement never reaches it). PREDICTION: none pre-registered (port written in an interrupted session, committed after audit). Measured (METER-CLASS: E2, sentinel, UNATTRIBUTED; hole-mask IoU per chunk, luma quantile 0.4, cols 29..39 step 2 × 24 strip rows, control = ours shifted one column; `mapgen/experiments/2026-11-08-work-layout-match.mjs` + `2026-11-08-work-port-vs-capture.mjs`): capture vs capture Heaven~Hell 0.604, Heaven~main 0.642, Hell~main 0.634 vs control 0.285 (the wrap is visible in the game's render); port vs capture Heaven 0.496 (control 0.428), Hell 0.415 (0.370), main band 0.387 (0.324). **NEW EVIDENCE:** the X221 reads; the capture-vs-capture wrap match; the port's E2 sentinel vs the main band. Port: `lib/the-work.mjs` (`WORK_PERIOD_Y` = 24570, `workWrapY`, `workClassifyValue` = 0x908e70, `workCellAt`); `lib/biomes.mjs` (wang areas in-map only); `lib/world-gen.mjs` `workColorAt` (rows outside the 48-row band with a wang clamped biome: wrapped P read from raw post-flood atlas `rawAreaMap` (+ `raw/` bin cache) → `workCellAt` → C185 colour; P air → template art → backdrop → sky); `lib/colorize.mjs` (`applyRandomFloods` split out); `lib/noise-terrain.mjs` (`ensureSurfaceTable` exported). Tests: `tests/mapgen/the-work.test.mjs` 7 pins (2457-row/24570-px period, not 24576; wrap; 0x908e70 range + clamp; `workCellAt` arms; data: the_end rows 43..47 in-map (old 95), no wang area owns a Work-row chunk (old ≥ 31 per row), the_end → skullrock / the_sky → cloud at field 1.0 — data pins fail under the old law). Open: Heaven palette, the moon (I4); classify frame uses generator px (`gx − DISPLAY_X0`) while colour uses display px — an 11/12-px L3-anchor split inherited from C184, not re-derived. Registers: C186, §8 row 79, VERIFIED §9 item 2, I3, X221, seeds +2 (`0x9fe4e0`, `0x908e70`).
+- **2026-11-08 (216) — dig #216: the biome-edge law (C187) — GetBiomeAt `0x909da0` displaces every noise-edged biome boundary inside a 41-px strip: both sides `big_noise_biome_edges` ⇒ the lookup point moves by `30·sin(0.005·Y) + 11·simplex(0.05·X, 0.05·Y)` in x and `30·cos(0.005·X) + 11·simplex` in y; else by `2.5·simplex` on both. The Hell side walls' 'sinusoid' (I6) IS this law (solid_wall | the_end, defaults ON).** (Sine period ≈ 1257 px; wall snakes up to ±41 px.) Bytes (X221 + X1): (1) `0x909da0` full (0x909da0..0x90a2fa): `X = x + [this+0x38]`, `Y = y + [this+0x40]`; `[this+0x6c] == 0` ⇒ null; `cx = pmod(trunc(X) >> 9, W)`, `cy = clamp(trunc(Y) >> 9, 0, H−1)`, `lx = trunc(X) & 511`, `ly = trunc(Y) & 511`; `B = grid[cy·W + cx]`; `!B.noise (+0xc4)` or `B.fat (+0xc6)` ⇒ B; 8 probes in byte order (`lx ≤ 0x29` → (cx−1, cy); `ly ≤ 0x29` → (cx, cy−1); `lx ≥ 0x1d7` → (cx+1, cy); `ly ≥ 0x1d7` → (cx, cy+1); then the 4 diagonals), first chunk ≠ B = N (re-fetched @0x90a1cf); `!N` or `!N.noise` ⇒ B; both `+0xc5` (big) ⇒ `n = 0x8fc020(X·0.05, Y·0.05)·11`, `X' = trunc(sin(Y·0.005)·30 + n + X)`, `Y' = cos(X·0.005)·30 + n + Y`; else `n = 0x8fc020(X·0.05, Y·0.05)·2.5`, `X' = trunc(X + n)`, `Y' = Y + n`; `M = grid(X' >> 9, trunc(Y') >> 9)`; `M.noise` ⇒ M else B. Consts (f64): `0x11dfcb0` = 0.05, `0x11dff38` = 11, `0x11dfbc0` = 0.005, `0x11dff68` = 30, `0x11dfe98` = 2.5; `0x1033a34` = `jmp [0x114a520]` → `_libm_sse2_sin_precise`, `0x1033a22` = `jmp [0x114a514]` → `_libm_sse2_cos_precise`. (2) `0x909c70` chunk fetch (in-range fast path; else `pmod(cx, W)`, `clamp(cy, 0, H−1)`) = the vmap clamp. (3) Flags: Topology attr arm binds `noise_biome_edges` / `big_noise_biome_edges` / `fat_biome_edges` → u8 `+0xc4` / `+0xc5` / `+0xc6` (X1 `0x49d027..0x49d0a0`, strings `0x1179390` / `0x11793a4` / `0x11793bc`); ctor writes dword `0x101` to `+0xc4` (`0x495efc`) ⇒ defaults 1 / 1 / 0; shipped: 7 × `noise_biome_edges="1"`, 30 × `"0"` (lava.xml = 0), the_end / the_sky / solid_wall unset = ON/ON/off. (4) Frame: Init `0x906c19..0x906c4d`: `[+0x38] = [ebp−0x330]·0.5·512` (= 17920), `[+0x40] = [ebp−0x34]·512`; `biome_offset_y` (`_biomes_all.xml`, 14) parsed to `[loader+0x24]` @`0x904169` (X1); `[ebp−0x34]` = that field via a struct copy (struct base −0x58 INFERRED) ⇒ 7168, agreeing with literal `0x11e00e0` = 7168.0 and C185's phase-(0,0) frame ⇒ display frame X = wx, Y = wy − 48·512. (5) Callers: field driver `0x908f40` calls GetBiomeAt first at every cell (@0x908f5c); sampler job biome = GetBiomeAt at job centre (C186). **PREDICTION (METER-CLASS: E1, per-row edge position, display rows 96..143 step 64 px, both Hell walls):** capture edge within ±42 px of the chunk line in ≥ 95% of rows, law median |cap − pred| ≤ 4 px, beating the straight-line control (expected ≥ 10 px); FALSIFIED if median > 8 px or ≥ control. Outcome HELD: west 365/375 within ±42 (97.3%), median 1 px (69.1% ≤ 4) vs control 20 px; east 381/383 (99.5%), median 0 px (80.7% ≤ 4) vs 21 px. Rendered port (`render` mode): first 7 / 8 px — two port bugs (wall-tongue frame check used the generator chunk, 11 px off; P-air fallback read the wall chunk's fill for a the_end tongue) fixed ⇒ 1 / 0 px (67.1% / 79.9% ≤ 4). Repro: `node mapgen/experiments/2026-11-08-dig216-wall-edge.mjs [render] [rows]` (capture at L17; wall px = R ≥ 35 ∧ G ≥ 19; wall = (37,21,17) 70% / (55,34,29) / (64,35,28) / (98,59,50); the_end interior = (4,0,0) / (20,10,10) / (14,7,7) / (32,16,14)). **NEW EVIDENCE:** GetBiomeAt + chunk fetch; flag binding + defaults; sin/cos import resolution; E1 edge meter; wall colour census = `rock_hard` (55,34,29)/(98,59,50) and `rock_hard_border` (37,21,17)/(64,35,28) texture pairs (C185) — solid_wall's classify materials (rock_hard [−100, 0.95], rock_hard_border [−0.25, 3.5]); the port's `DEEP_ROCK` hand fill draws them as random speckle (I6 open half). Port: `lib/biomes.mjs` flags + `biomeChunkDef` (0x909c70) + `biomeAtPixel` (0x909da0); `lib/world-gen.mjs` `workColorAt` pixel biome = `biomeAtPixel(wx, wy − 48·512)` (wang → Work lane, classify table = display chunk's biome; non-wang inside a wang chunk → `neighbourFillAt`; P-air template art from the pixel biome's chunk). Scope: Work rows only — main band still straight chunk lookup (I53). Tests: `tests/mapgen/biome-edge.test.mjs` 7 (3 fail under the old chunk law); `world-gen.test.mjs` +1 (the_end tongue in wall chunk ≤ 12/35 wall px, wall tongue in the_end ≥ 22/30; control 35/35) — fails under dig-#215 render. Registers: C187, §8 row 80, VERIFIED §9 item 2, I6, I53 (new), X221, seeds +2 (`0x909da0`, `0x909c70`).
+- **2026-11-09 (217) — dig #217: the surface phase is right, and I57 measured vegetation — the hills' surface line = the band ramp's r = 0.51 contour, whose only seed input (xBase = Phase S u₂) is confirmed by a three-seed rank test; the "67.5 px surface-shape defect" (I57) was largely trees and grass, and the terrain-only residual is positional (game chunks x 8–9 on every seed), not a wrong surface law.** Bytes (X222): (1) Init `0x905fb0` Phase S `0x9060fd..0x9061d0`: `call 0x9119d0` → `cvtdq2pd` + `{0.0, 2³²}` sign-diddle `[0x11e0ba0 + 8·sign]` into xmm1 → `call 0x452ba0` (ecx = stack RNG `[ebp−0x2f8]`); a second `call 0x9119d0` → same diddle into xmm0 → `call 0x8ed3a0`; then three `call 0x10098c0` draws u₁/u₂/u₃ → `+0x30`, `+0x48` = f32(u₂·200000 − 100000) @0x906196, `+0x38`; the `0x906024` GetSeed ≠ 0 assert precedes. (2) `0x452ba0`: `movapd xmm0, xmm1`; `≥ [0x11e0220]` ⇒ ×`[0x11dfdd8]` (= 0.5); store `[ecx]`; one warm `call 0x10098c0` — the C120 ctor. (3) `0x8ed3a0`: assert `[0x11e0210] < seed` (line 0x94), stores seed to globals `[0x13276d0]` and `[0x13276c8]` — never touches the stack RNG, so C119's "mix 0x8ed3a0" is NOT a stream step and `phaseSXBase` is complete. (4) `0x9119d0` GetSeed: `[0x1329f8a] == 0` ⇒ assert (line 0x80), `return [0x1327ffc]` = the world-seed global (writers, X1: seed-string parse `0x82c882` (+ flag 0x1329f8a), random-seed path `0x9117d2` (two Lehmer draws × `[0x11e0218]`), 0 → `0x22246` default `0x9118a2`, save-load `0x6e2086`/`0x6e22c9`, `0x66285b`) = the plain run seed. PREDICTION: none pre-registered (post-hoc criterion: a right chain ranks the computed xBase in the best ~10 % of 401 phases, xBase ∈ [−1e5, 1e5] step 500). Outcome (METER-CLASS: E2 — mean first-solid |dy|, game chunks x 4..9, captures frozen91/92/93 = seeds 78633191/2/3): ranks 0.7 % (68.3 px vs median 107.4), 23.2 % (94.1 vs 104.3), 3.0 % (62.3 vs 81.7); among Lehmer draws d0..d9 as xBase, d2 (u₂) is best for …191 and …193; full scan on run1b (step 50, 4001 phases) has no sharp optimum (best 63.4 px at −63450) ⇒ the residual is seed-independent. Surface law (port trace, `surfaceField`, game chunk x 8, seed 78633192): v = 0.871429·r while r ≤ 0.51 (gradW gate) ⇒ v ≤ 0.4444 < soil's material_min 0.45 (lowest hills window, no add_perlin) ⇒ AIR; first solid = first r > 0.51 with `(2r−1)·per` lifting v past 0.45 ⇒ the hills' surface = the r = 0.51 contour y = A(x) + 0.51·(B(x) − A(x)), smooth in x. Measured (METER-CLASS: E1 top-pixel colour census; E2 terrain-only line): capture's first non-dark px in hills (cx 4..9, every 2nd column, frozen91) = 1,084 of 1,575 green (grass 96,128,48 / 112,144,64 / 128,176,48; leaves 80,128,64) + pink flowers ⇒ I57 scored the `<VegetationComponent>` lane (I44, unported). Terrain-only (skip green/pink; px on a ≥ 16-px-wide, 20-px-deep mass) per-chunk median |dy| seeds …191/…192/…193: cx 3 13/61/14, cx 4 8/30/12, cx 5 107 ×3 (mountain_lake, I52 stand-in lane), cx 6 106/26/16, cx 7 29/21/39, cx 8 106/86/65, cx 9 36/161/57, cx 10 (desert) 6/4/37, cx 11 12/7/7; correlation r = 0.77/0.51/0.68. Seed …192's cx 8–9 = cliff then plateau at y ≈ −13 (a smooth contour cannot draw it; one instance, UNATTRIBUTED). Game's own seed differential (run1b vs the 2024 stitch) moves cx 4, 6–10 by 90–150 px, fixed structures (cx 0, 1, 5) within 5–35 px ⇒ the hills surface is seed-phased in the game. Repro: `SURFACE_V2=1 SEED=… REF=frozen9… MODE=rank|draws|chunks [TERRAIN=1] [CX=3,11] node mapgen/experiments/2026-11-09-dig217-surface-phase.mjs`. **NEW EVIDENCE:** X222's four reads; the rank + draw-index tests; vegetation share of top pixels; terrain-only residual; the r = 0.51 contour law. Port: none. Tests: `tests/mapgen/surface-contour.test.mjs` 5 (xBase goldens for …191/…192/…193; lowest window ≥ f32(0.45), no add_perlin, 0.871429·0.51 below it; data: zero solid cells at r ≤ 0.51 across game chunks x 6..9 × y −1..0 (seed …192), ≥ 1 solid per column). Registers: C188, §8 row 81, VERIFIED §9 item 1, I57 rewritten, X222, seeds +2 (`0x452ba0`, `0x8ed3a0`).
+- **2026-11-09 (218) — dig #218: the biome-edge law in the main band, half landed (C189, I53) — the capture's main-band wall edges follow GetBiomeAt's displaced boundary (C187) to a median 1 px; the port renders the wall side of every such edge.** The cave-side bulge (a cave pushing into the wall) needs P outside wang areas (unread). Bytes (X223; X1 call-site census): (1) field driver `0x908f40`: `B = GetBiomeAt(x, y)` (0x909da0) → `[B+4]` = kind: 0 ⇒ `surfaceField(B)` at `(x+0.5, y+0.5)` → `BiomeMaterials_Classify([B+0x2a4], trunc x, trunc y, v)`; 1 ⇒ the `[B+0x1b0]` bitmap (pmod wrap, colour → `0x4b8080` record); 2 ⇒ warped P read (C186) — a displaced pixel is generated by the PIXEL's biome config (field and classify); (2) the driver's callers are all in the scene walk: `0x7930d3` (terrain cell), `0x7938d1` / `0x7938fe` (vegetation stamp's x−1 / x+1 probes, record `+0xa8` / `+0xd4`); walk origin `0x794187..0x79419b` = `chunk.x << 9`, `chunk.y << 9` (A18 re-confirmed); (3) band matrix map source = Init's `[ebp−0x249]` branch = the Lua path (strings `0x1174728` "BiomeMapLuaManager", `0x1174804` "temptemp/biome_map_lua.png"), via `magic_numbers.xml` BIOME_MAP = `data/scripts/biome_map.lua` = `BiomeMapSetSize(70, 48)` + `BiomeMapLoadImage(0, 0, biome_map.png)` — shipped png unchanged. **PREDICTION (METER-CLASS: E1, per-row wall edge at every main-band vertical `solid_wall | wang` line, map rows 15..46, every 8 px, 2024 stitch tiles):** median |capture − law| ≤ 6 px, beating the straight chunk line (expected ≥ 10 px); FALSIFIED if > 10 px or not below the line. Outcome HELD: 208 segments, 4,287 rows: law 1 px (79.5 % ≤ 4, 92.8 % ≤ 8) vs straight 21 px (9.6 % / 18.5 %). Our render (wall = red-dominant rock family): before 18 px (10.7 % / 20.7 %), after 8 px (43.1 % / 50.5 %). Frame note: the lanes read the generator frame (gx = wx + 11), so the edge lane compares the pixel biome against the GENERATOR chunk (a display-chunk compare gave 17 px). Our wang area maps end at their chunk rects (±8 px) ⇒ nothing past the edge; the game reads global P there (kind 2), unread ⇒ I53 (a). Repro: `node mapgen/experiments/2026-11-09-dig218-main-wall-edge.mjs` / `RENDER=1 node …`. **NEW EVIDENCE:** X223 (driver kind arms, strings); X1 call-site census; BIOME_MAP Lua path; capture edge meter; render A/B; area-map extent check. Port: `lib/noise-terrain.mjs` `noisePixelFor(config, def, seed, gx, gy)` (V2 noise lane for any biome at one pixel, same cell centre/frames/classify-or-air as `noiseChunkMask`); `lib/world-gen.mjs` `edgePixelAt` (main band 62 ≤ ty < 96, near a chunk edge: pixel biome = `biomeAtPixel(wx, wy − 48·512)`; if it differs from the generator chunk's biome and is a noise biome ⇒ its verdict (C185 colour or air = its backdrop), chunk scene art on top). Tests: `biome-edge.test.mjs` +1 (mirror: 0 mismatches over 2,028 cells of three surface chunks, > 200 solid; wang def ⇒ null); `world-gen.test.mjs` +1 (solid_wall tongue at map y 9624 inside lake_deep = ≥ 40/45 rock, old law 0/45; interiors 0/45 and 45/45). Registers: C189, I53 rewritten, X223, VERIFIED §9 item 2.
+- **2026-11-09 (219) — dig #219: init() runs as Lua (C190) — the "level-4 hourglass room on both sides" = the template lane's static parse of the per-chunk init(), which loaded every LoadPixelScene line regardless of branch.** Data (shipped Lua): `snowcastle_cavern.lua` init: `is_right = ProceduralRandom(0,0) > 0.5`; right ⇒ `side_cavern_right` only where x > 0, left ⇒ `side_cavern_left` only where x < 0; `lavalake_pit.lua`: `lavalake_pit_cracked` iff 2000 < y < 2400, else `lavalake_pit`; `solid_wall_hidden_cavern.lua`: `location = ProceduralRandomi(1240, −750, 3)` ⇒ the cavern in ONE of four y-windows; `snowcave.lua`: 8 statue hands at `ProceduralRandomi(109, i·53, −2350, 2350)` / `ProceduralRandomi(111, i·2.9, 3140, 4500)` (dynamic offsets the static parse dropped); `rainforest.lua` hint statues need `RaytracePlatforms`. **PREDICTION (E1):** seed 78633191 ⇒ `ProceduralRandom(0,0)` = 0.1159 < 0.5 ⇒ hourglass cavern in the LEFT chunk (biome (30,24)), plain wall at (38,24); FALSIFIED if the capture shows the right cavern or both. Outcome HELD (noitamap tiles 30_24 / 38_24). Measured (E1, seed 78633191, every init-hook chunk): 3,128 chunks — 3,051 identical, 77 differ, 5 Lua errors (rainforest RaytracePlatforms stub; calls before the error kept). Render: chunk (30,72) 133,640 art px, (38,72) none; background-plane chunks 192 → 186. **NEW EVIDENCE:** the five init() laws; the static-vs-Lua census; the capture side check. Port: `lib/template-render.mjs` `runInitScenes` (runs init(x, y, 512, 512) per owned chunk, cached per (seed, biome, chunk)), `blitInitScenes`; art pass covers every def with an init hook; temple family stays on its hand-ported arms. `lib/wang-scenes.mjs`: `call(name, x, y, ...extra)` + `LoadBackgroundSprite` record. Tests: `tests/mapgen/template-init.test.mjs` 3 (cavern side per seed; lava pit single piece by y; ≤ 1 hidden cavern per seed over 7 seeds — all fail under the static parse); `api-surface`; `chunk-store` bg count 186. Registers: C190, §8 row 83, I58 (new).
+- **2026-11-09 (220) — dig #220: the spawn-record position law (C191) — the "wang-room wrong variants" = the host called each spawn function 5–13 px from the engine's position, so every `ProceduralRandom(x, y)` pick drew a different seed.** Bytes (X224, objdump of the pinned copy): (1) spawn collector `0x909370` (full window, `ret $0x14` @0x909703): world px step 10, per px GetBiomeAt; for a wang biome the warp `0x908cb0` (flip 0) gives the global cell `wx = trunc((x + G2 + 0.5)·0.1)`; spawn index from the biome's map-wide image (`0x9fe6b0`); record position = `10·wx − 5 − (int)G2`, `10·wy − 5 − (int)G1` (@0x909480..0x9094ab; G2 = 17920, G1 = 7168 = C170), asserted within 20 px of the walk px, pushed as `{x, y, 1, 1, idx}` (`0x9ff530`); (2) `ProceduralRandom` = `0x834170` (registration `push $0x834170` @0x85948c, name string 0x1163f74): seed = `GetSeed() + NEW_GAME_PLUS_COUNT`, `0x48fd30`(seed, arg1, arg2) = SetRandomSeed, one `0x10098c0` draw — the port's `seededPrng(seed, x, y).next()` already matched (that suspect eliminated). Call position of out_map cell i = `10·(trunc(x1·51.2) + i) − 5 − 17920` (y likewise with 7168); the old `(x1 − 35)·512 + 10·i` was off by −5 − 10·frac(x1·51.2) = −5..−13 px per axis. **PREDICTION (E1):** the fixed host's `load_oiltank` branch for 24 synthetic trigger cells in a coalmine area equals `seededPrng(seed, x, y).random(1, 100) ≤ 50` at the C191 position for all 24 with both arms present; FALSIFIED if any disagrees. Outcome HELD (24/24). METER-CLASS: E1. **NEW EVIDENCE:** X224 [1] position law; X224 [2] ProceduralRandom binding. Port: `lib/wang-scenes.mjs` `spawnCallOrigin(x1, y1)` + `areaSceneCalls` (calls at the C191 position; `callX/callY` = game frame; scene placement per C192, dig #221). Tests: `wang-scenes.test.mjs` +1 (C191 origin pins at x1 = 34/35/36, y1 = 14/15, each ≠ old); count/RNG-law tests in the C191 frame (fail under the old position). Registers: C191, §8 row 84, I59 closed, I60, X224.
+- **2026-11-09 (221) — dig #221: the wang cell origin = the spawn-record position (C192) — the game's kind-2 P read ROUNDS, so a wang cell t covers [10·t − 5, 10·t + 5) − G; a scene sits at its trigger cell's origin (no (−5, −5) offset), and I60's per-area offset is +5 + 10·frac(c·51.2).** Bytes (X225, objdump): (1) `0x8fae40`: floor of both coords, then `+1` when `(3 − 2f)·f² ≥ 0.5` = rounding; with the warp's `(x + G + 0.5)·0.1`, index = `floor((x + G + 5.5)/10)`; (2) Init `0x907673..0x9076e9`: area cell origin = `(x1·512)/10`, `(y1·512)/10` truncating. **PREDICTION (E2):** the C78 fit's per-chunk best offsets grow as `5 + 10·frac` on each axis; FALSIFIED if flat or falling in frac. Outcome HELD on y and the clean x areas (METER-CLASS: E2, `mapgen/out/l3-anchor-2026-09-24-preapply.json`, lum metric): dy 14/15 at frac 0.8 (8 chunks), 9–10 at 0.4 (4), 6 at 0 (2); dx 13 at 0.8 (coalmine, 7 of 8), 10–11 at 0.6 (bty 17), 7–8 at 0.4, 7 at 0.2 (liquidcave); excavationsite scatters (−14..35), rules on nothing. **NEW EVIDENCE:** X225 [1] rounding; X225 [2] area cell origin; per-chunk regroup of the C78 fit. Port: `areaSceneCalls` — scene (generator frame) = call + (generator cell origin − game cell origin), game cell origin = the call origin. Tests: `wang-scenes.test.mjs` count-law expectations at the cell origin (x −492/−412.., y 30), fail under the dig-#220 translation; `chunk-store` lazy == eager exact, scene chunks 518. Registers: C192, §8 row 85, I60 re-scoped (per-area anchor port), X225.
+- **2026-11-09 (222) — dig #222: the per-area bin anchor (C193, I60 closed) — the wang bins and wang-scene art register per area at `+5 + 10·frac(c·51.2)` px (C192) instead of the fitted constant (+11, +12); the constant's per-chunk residual equals the law's prediction and the port removes it.** (512 px is not a whole number of 10-px cells; one average offset left areas up to 6 px off.) **PREDICTION (METER-CLASS: E2 — C78 instrument `mapgen/experiments/2026-09-24-l3-anchor-fit.mjs`, seed 78633191, 32 wang chunks; control = only the anchor reverted):** control per-chunk lum best offset follows `5 + 10·frac − (11, 12)` on clear-peak chunks; port near (0, 0), zero-shift scores rise on most chunks; FALSIFIED if the residual is flat in frac or port scores fall on most. Outcome HELD: control lum residual coalmine (2, 2) / (2, 3) [pred (2, 1)], liquidcave (−4, 2) / (−4, 1) [(−4, 1)], fungicave (−1, −3) / (0, −3) [(0, −3)], coalmine_alt (0, −5) / (−3, −5) [(−2, −7); dy at scan bound −5], excavationsite clean (−4, −4) [(−4, −3)]; port: (0, 0)..(0, 2); zero-shift means air 0.3600 → 0.3707 (24/32 up), edge 0.0606 → 0.0671 (27/32), lum 0.2115 → 0.2192 (24/32). Far-peak chunks (|d| ≥ 8, excavationsite / fungicave-18) rule on nothing. **NEW EVIDENCE:** same-tree A/B per chunk; control residual's frac dependence. Port: `lib/world-gen.mjs` `binAnchor(a)`, `binSampleAt(world, wx, wy, tx, ty, gx, gy)` (area among the C78 chunk + 8 neighbours whose map holds the per-area point and owns its chunk); `worldColorAt` reads bins + wang-scene buffers there and routes other lanes to the point's chunk (C78 read clamped to its edge, ≤ 6 px — without it a 7-row black strip appeared at tile (15,62)'s bottom). Instrument gained `ANCHOR_FIT_CACHE` / `ANCHOR_FIT_OUT`. Tests: `world-gen.test.mjs` +1 (binAnchor at frac 0/.2/.4/.8), injected bin reads on the per-area anchor; `wang-scenes.test.mjs` precedence on binAnchor. Registers: C193 (C78 scope amended), §8 row 86, I60 closed. Repro: `ANCHOR_FIT_CACHE=mapgen/out/gen-cache/r3m ANCHOR_FIT_OUT=mapgen/out/l3-anchor-<run>.json node mapgen/experiments/2026-09-24-l3-anchor-fit.mjs` (~80 s).
 - **2026-11-09 (223) — dig #223: RaytracePlatforms READ AND PORTED (C194, I58 closed, A22 opened) — the rainforest init() ran into 5 Lua errors on the stub and placed no hint statues; it now runs clean on the byte-exact ray walk, whose miss output (the ray's end point) places the statues until a terrain probe exists.** Plain language: the rainforest script shoots a short ray from each hint statue's spot to find the ground, and places the statue where the ray stops. We had no such function, so the script crashed. The game's ray walk is now copied exactly; because our init step runs before the terrain is built, the ray never hits anything yet, and the statues land where the game puts them when the ray finds no ground. **Bytes (X226, objdump of the pinned copy, this session):** the binding `0x8227d0` → helper `0x7edc90` (f32 args, out = (0, 0), returns hit/x/y) → the tracer `0x66bfb0` (full): unit steps from p1, a new integer cell tested by the predicate, at most 1024 steps within `min(round(|d|²), 2^20)`; hit ⇒ the last passing position; miss ⇒ p2; zero length ⇒ p1 with the p2 cell tested. **PREDICTION (E1, before the run):** with the port, the rainforest init over chunks x −6..4 × y 12..16 (seed 78633191) logs 0 Lua errors and loads exactly 4 `rainforest_statue_0*` scenes (left/right/top/bottom; the script loads one per side when its spot is in the chunk), the left one at `ProceduralRandomi(87, −254, −2450, −2250) − 100 − 20`; FALSIFIED if any error remains or the count differs. **Outcome — HELD:** 0 errors (were 5), statues at (−2463, 7201), (45, 7002), (45, 7956), (1987, 7201) + `hole.png` at (36, 7217). The template world: fg chunks 4642 → 4644 (the statue art), bg 186 unchanged, lazy == eager exact. **NEW EVIDENCE:** (1) X226 [1]–[3] the binding, helper and tracer; (2) the rainforest init census. **Purification: 0 D-rows closed, A22 opened** — the stub was an unregistered stand-in; the scope re-opens on A22 (the terrain probe + the predicate's material test). **Port:** `lib/wang-scenes.mjs` `raytracePlatforms(x1, y1, x2, y2, blocks)` + the host's `RaytracePlatforms` (predicate = `host.blocksAt`, null ⇒ never blocks). **Tests:** `tests/mapgen/wang-scenes.test.mjs` +5 (miss, hit with the new-cell rule, first-cell block, zero length, the 1024 cap — the stub returns nothing, every one fails under it); `tests/mapgen/template-init.test.mjs` +1 (rainforest clean + 4 statues + the left statue's x); `chunk-store` fg 4642 → 4644. Battery {43 files / 519 passed | 4 skipped (523)}. Registers: CONSTANTS **C194**, VERIFIED §8 row **87**, ISSUES **I58** closed + **A22**, MANIFEST **X226**. Next free: entry **(224)**, **C195**, **X227**, **I61**, **A23**, **§8 row 88**.
 - **2026-11-09 (224) — dig #224: C185 IN THE WANG-BIN LANE, SOLIDS ONLY (C195, I51(c) closed for solids, A23 opened) — the bins' solid material cells now take their material's texture colour at the cell's world px; the first port also recoloured water and the capture refused it, so gases and flowing liquids keep their calibrated families.** Plain language: the level layers drew most material cells from small hand-picked colour lists. The game colours a cell from its material's texture at that spot (dig #213), and for rock, wood, steel, coal and gunpowder that gives the same colours, now placed by position instead of a hash; gold and radioactive rock get their real textures. Water does not follow that rule in the capture: wang water is drawn in a few lighter blue-greens, while the texture rule would make it one flat colour that the capture only shows in pre-drawn scene art. So water, oil and clouds keep their measured colours until their own rule is read. **PREDICTION (E1, written before the census):** with C185 on every material cell, the coalmine level-1 tiles' capture water is (35,61,56) — the colour C145 measured in the mountain_lake art; FALSIFIED if the capture's wang water there is another colour. **Outcome — FALSIFIED:** over 1,318 capture tiles, (35,61,56) = 37,716 px, all in pixel-scene tiles (40_14 29,712; 32_14, 40_0..4); the coalmine wang tiles show the family (39,67,63) / (42,70,67) / (45,73,71) / (39,66,62) (36_15: 2,573 / 37_15: 1,825 / 37_14: 736 px of (39,67,63) alone, 0 flat). Per the measurement law the port was restricted to the class the law was confirmed on (solids, dig #213) and the liquid / gas law registered as A23 — no colour was tuned. **NEW EVIDENCE:** (1) the capture water census (scene art flat vs wang water family); (2) materials.xml's render classes (`cell_type` + `liquid_sand` / `liquid_static`, `_parent`: water/oil/lava/acid = flow, cloud = gas, gold/coal/steel_static/wood_static/gunpowder_explosive = solid). METER-CLASS: E1 (the census, the class read); E3 sentinel (10 level-1 tiles, r3m vs r3n): 139,137 of 2,621,440 px change (wood/rock/radioactive cells), exact capture-colour px 429,847 → 433,147 — rules on nothing. **Port:** `lib/colorize.mjs` `materialRenderClass`, `c185Applies` (solid, or no calibrated family), C185 first in the explicit-material / single-material / y-gate branches; `lib/world-gen.mjs` passes the C192 cell origin as `worldX0/worldY0`; cache r3m → r3n (server, tests, the dig-#218 instrument). **Tests:** `tests/mapgen/colorize.test.mjs` +5 (gold per-cell texture — fails under the old hash family; the water family; lava keeps C185; cloud gas shade; the render classes). Battery {43 files / 524 passed | 4 skipped (528)}. Registers: CONSTANTS **C195**, VERIFIED §8 row **88**, ISSUES I51(c) + **A23**. Next free: entry **(225)**, **C196**, **X227**, **I61**, **A24**, **§8 row 89**.
 - **2026-11-09 (225) — dig #225: AIR-KEYED SCENE CELLS ARE EMPTY IN blitScene TOO (C196) — the Holy Mountain top pools (and every template scene's air) were painted air's own colour (0,0,66), the 'dark-blue air' of the user's caveat list; they now show the backdrop, matching the capture.** Plain language: the pre-drawn rooms mark their empty space with the colour the game uses for 'air'. One of our two scene painters treated that colour as a material and drew it dark blue; the other already left it empty. Both now leave it empty, so the room shows its background, as in the game. **Data + bytes:** `altar_top.png` (512×300): 122,594 px (120,108,66), **25,589 px (0,0,66) = wang 000042 = `air`**, 5,058 black; the splice lane already skipped air (C143, dig #168); blitScene did not. Also read to rule out the pool-variant suspect: Lua `SetRandomSeed` `0x832be0` and `Random` `0x832f00` = the port (C196). **PREDICTION (E1, before the change):** with air skipped, the plain-variant HM top pools render the backdrop colour the capture shows there ((12,16,25)), and the (0,0,66) px on the HM row (tiles 32..38_16) go to 0; FALSIFIED if the pools show another colour. **Outcome — HELD:** the plain pools at 33_16 / 34_16 = (12,16,25) 3,049 px each (capture 34_16: (12,16,25)); (0,0,66) px 98,796 → 0; exact capture-colour px on the seven HM tiles 363,774 → 393,789. METER-CLASS: E1 (the colour law at the pools) + E3 sentinel (the exact-match count). **NEW EVIDENCE:** (1) altar_top.png's air census; (2) the SetRandomSeed / Random bindings; (3) the HM-row capture comparison. Residual (I11): the pool VARIANT differs at 32_16 (ours lava, capture plain) and the capture's blood (33_16) / oil (36_16) are not reproduced by any call offset within ±60 px — chance-level, unexplained. **Port:** `lib/template-render.mjs` blitScene — `mname === "air"` ⇒ skip. **Tests:** `tests/mapgen/template-init.test.mjs` +1 (altar_top's 25,589 air px leave the buffer unset; fails under the old law, verified by swapping it back); `chunk-store` fg 4644 → 4635 (air-only scene chunks no longer painted), lazy == eager exact. Battery {43 files / 525 passed | 4 skipped (529)}. Registers: CONSTANTS **C196**, VERIFIED §8 row **89**, ISSUES I10 / I13 / I17 closed, I11 / I12 re-scoped. Next free: entry **(226)**, **C197**, **X227**, **I61**, **A24**, **§8 row 90**.
@@ -10372,26 +8950,28 @@ METER-CLASS (this entry covers meter history, E1-only): every row below
 - **2026-10-26 (209) — dig #209: A18 CLOSED VIA REA/GHIDRA — the walk's area-rect frame = the WORLD px, direct-pinned through the chunk-creation chain (`gridworld_world_creation.cpp`); the hills'-wave E1 = the plain-noise tiles ALIGNED (the outliers = the structure-lane's tiles). (The measurement+registry dig — no code change; the port's world-y = already-landed #208, now DIRECT-confirmed.)** Plain language: the user's directive = use REA, refer to the game — the pending A18 question (what feeds the area's bbox) went through the REA/Ghidra provider instead of hand-cut bytes: `procedure_callers(0x793e60)` → the single caller `0x796210` → the decompiled chain. **NEW EVIDENCE (X216, the REA bundle; the Ghidra 12.1.3 provider, the decompiled pseudocode with the assert-source strings):** (1) **`FUN_00793E60` = CreateNewChunk** (the asserts: `grid->GetChunkSize().x == 512` / `.y == 512` / `IsMainThread()` / `data->procedural_terrain` / `data->grid_world` / `data->grid_world->mThreadImpl` / `data->game_world`, file `d:\projects\nollagames\fallingeverything\build\vc12\..\..\source\grid\gridworld_world_creation.cpp`, lines 0x500-0x52F): the area = the ONE-chunk rect `{cellX·512, cellY·512, cellX·512 + 512, cellY·512 + 512}` (`shl 9` ×2), the "chunk already exists" log-arm, the Allocate64x64 + the field-fill (0x72C180) + the walk 0x792580 (the main-thread direct or the lambda off-thread via 0x8CEEA0/0x92B2C0 — **the DAT_012EB732 flag = the thread-lane's selector!**). (2) **`FUN_00796210`** = the chunk-range walk: the chunk-cells = `px >> 9` over the arg-rect, the grid-slot hash = the 256-centered `(chunk − 256 & 511)·512 + (chunk − 256 & 511)`, the absent slot → `new(0xD0)`/ctor `0x7964F0` + the RNG-draw store (`[0x1344B90]`'s vtbl+0x6C, the FSTP f64 = the chunk's seed-slot!) + `[obj+0x58/0x5C/0x60]` = the chunkX/chunkY/flat-idx → CreateNewChunk per-chunk. (3) **THE CHUNK-CELLS' SOURCE = the 0x910C20 record-iterator** (the dig-#198's = the buffered-pixel-scene records, the origins `[+4]/[+8]` = `10·cell − 5 − (int)G` = the WORLD px per C172) — one of the FIVE `FUN_00796660` callers (with 0x63EFD0/0x6E9500/0x796990/0xD60820) ⇒ **the chunk-cells = the world-px >> 9 — the world-chunk grid's y=0-line = the map-row 14 — the walk's y = the WORLD-Y — the port's world-y feed = THE GAME'S LAW (the C180 confirmed DIRECTLY, the semantic + the direct = both closed).** (4) **THE E1 HILLS-WAVE (the port's r = 0.5-crossing vs the capture's first-solid, the cols 31-44, the dig-#207-probe re-pointed to hills.xml):** the plain-noise tiles = ALIGNED — 34: +4/+14, 38: −76/−92, 39: −27/−9, 40: +138/+94, 42: +3/−89, 43: −107/−31, 44: −13/−8 (the deltas ≤ ~90 px, most ≤ 50); **the outliers = the STRUCTURE-tiles — 35: −456/0, 36: −648/0, 37: −362/0 = the mountain_left_entrance/mountain_right family = the art/pixel-scene lane's (the towers/gates = the LoadPixelScene-class!) — NOT the noise lane's** ⇒ **the hills' bty13 IoU-residue (0.471) = the structures'-lane's tiles + the placement's ± inside the noise-tiles — NOT the frame's, NOT the band-values'.** **METER-CLASS: E1** (the wave-crossing medians; no IoU/fG run this dig). **Landed:** ABOUT **(209)**, CONSTANTS **C181**, MANIFEST **X216** (`dig209-rea-a18-chunk-frame-bundle.json` md5 `0b9b34e3d36d2e9c6956f4515f324fe3` — the REA export, 5.77 MB, gitignored), ISSUES **A18-CLOSED**, VERIFIED **§12 note**. Next: **#210 = The Work (hell)/(heaven) = the pixel-scene consumer trace (the user's second anchor — the bounded question: the 105 Lua LoadPixelScene callers' chain = the 0x90-record → wg → sampler lane = the scene system; the temple_wall's walls = THE LANE'S — the C180's own consequence!) — or the hills'/desert's placement-residue's meter-drill first.** |
 - **2026-10-26 (208) — dig #208: THE CELL-LAW = THE CLASSIFY-OR-AIR + THE WORLD-Y LIMITS — the lake = LANDED (0.606 → 0.92006!), the winter's level = LANDED (0.122 → 0.60756 — the snow-window's floor = the capture's implied level), the A11 `v > 0.5` stand-in = RETIRED, the A18 semantic-half = settled (the limits' frame = the WORLD-y).** Plain language: the dig-#207's leftover question ("why is the game's winter surface ~250px above ours with the same band values?") dissolved the moment the classifier's gates were read as the CELL-LAW: the walk 0x792580's post-classify arm @0x7930D8 = `test eax,eax; jne 0x7935F4` (the paint path) — **the cell = painted iff the classify matches; the miss-exit 0x8F574C = `xor eax,eax` = the untouched zeroed grid = AIR.** The `v > 0.5` mask (the dig-#178-flagged stand-in A11) called the water air AND the no-component air solid — doubly wrong. And the classify's y = the WALK-Y = the **WORLD-y**: the limits' own values scream it (the hills' soil `[−1024, 424.229]` = the surface band's world-y; the lake's water `[225, 512000]` = the pool's top at wy +225!) — **the C76-era map-y (−24576) feed placed the limits in the map's sky rows where they NEVER matched** (the soil/snow/coal never painted = the old artifact; the flag-off comps = the old law's accidental-correct lane). **NEW EVIDENCE (B-grade; X215 fresh this dig, 5 windows; exe md5 re-verified = C13):** (1) the classify `0x8F5030..0x8F5757` FULL — the band gate `[table+0/+4]` CLOSED = the AGGREGATE v-range (the accumulation = 0x8F8720's min-then-max; the {0,0}-seed = harmless); the per-comp limit_y flag + the CLOSED limits; the main gate HALF-OPEN; the first match wins; **the miss-exit = the null**; (2) the walk's paint-arm @0x7930D8; (3) the wrapper's classify-feed = the walk's OWN truncated y+0.5/x+0.5 (the limits' frame = the walk's frame = the world-px). **PORT (noise-terrain.mjs's V2-lane):** the cell = SOLID iff the classify matches (the world-y feed); the caves-lane = ROW-GATED to the underground (the ty ≥ SKY_ROWS+15 = 63 — the caves-field-as-the-surface-source = the dead lane §8 row 75 killed; the caves' own mask keeps its `> 0.5` gate @0x90DBD0). **MEASURED (METER-CLASS: E1 + E2):** E1 (the chunk-probe): the lake(4,14) = 1560/2704 = 57.7% WATER vs the capture's fR 0.568 — **within 1%!**; the winter(19,13) = 1205 (44.6%) vs fR 0.596; the hills(39,14) = the soil-PAINTED (the 108-cells; the old = 0!); E2 (the C97, the same 56 tiles — **PREDICTION pre-registered: the lake/winter UP BIG (the windows = the missing paint), the hills/desert = the re-band's ±; the FALSIFIER = the lake/winter DOWN ⇒ re-read 0x8F5030/0x7930D8**): **the lake 0.606 → 0.92006 (the iouShift 0.951!), the winter 0.122 → 0.60756 (fG 0.458 vs fR 0.373), the overall 0.596 → 0.674; the hills 0.718 → 0.471 (the FRACTION = near-exact: fG 0.437 vs fR 0.436 — the bty13's wave-phase = the placement-class — OUT-of-prediction-side, logged UNATTRIBUTED per the meter law: the sentinel-class, the byte-laws carry the port); the desert 0.850 → 0.746 (the same class). The FALSIFIER did NOT fire.** The test-cascade (the honest ledger — the cell-law re-rolls every chunk's mask): the empty = **the game's own all-air** (the ZERO MaterialComponents — the VegetationComponent only, read fresh; the dig-#145's "textured empty" pins = the old mask's artifact); the temple_wall = **0** (the 4 rock_hard_border comps ship COMMENTED-OUT — the dig-#148's census; the game's temple walls = the pixel-scene lane's, not the classifier's); the solid_wall = **2704** (the wall's windows = the everything-match); the lake_statue(6,62) = **1560 = the water-pool = the CAPTURE'S OWN (the ref (6,14) fR 0.605, IoU 0.994!)**; the caves-filler/census = re-rowed to the underground's rows (the 63+). Tests: the composed-content +3 (the dig-#208 trio, all fail under the old law) + the re-pins; the battery {32, 412 passed | 4 skipped (416)} exit 0 (the baseline re-count registered; the I36 watchdog-stall = the flaky-class, the retry = the known). Landed: ABOUT **(208)**, CONSTANTS **C180**, MANIFEST **X215** (`dig208-cell-law-classify-or-air.asm` md5 `da98d494d33f2c33e2e6e99ff212a00b`), ISSUES **A11-CLOSED + I50-updated + A18-amended**, VERIFIED **§8 row 77 + §12 note**, SESSION_CONTEXT. Next: **#209 = the hills'/desert's bty13 wave-phase (the A18-direct's point-source read = the confirmation + the xBase/frame's residual) → then The Work (hell)/(heaven) = the pixel-scene consumer trace.** |
 - **2026-10-26 (207) — dig #207: THE HASH-CHAIN FIX + THE A4 CLOSURE — the case-5 core's corner-grad chain = `mod12t[perm16[j+dy] + i+dx]` (PERM CARRIES Y — the old port chained perm[X]+y = a full re-pattern, FIXED); the third corner's x-step = ABSENT in the game (the off-by-one quirk, mirrored verbatim); the band-matrix producer = READ (the fill loop stores the RAW resolved config pointers — the port's biomeAt stand-in = THE GAME'S OWN RESOLUTION — A4 CLOSED); the mGradientType/slope-arm suspect = ELIMINATED (the attr = a zero-hit string in the exe — §8 row 76).** Plain language: the dig-#206 addendum's prime suspect (the winter's `mGradientType="1"` engaging the slope arm) required the exe to parse the attr — the exe CANNOT (the string's absent; the C58 table binds [+0x24C] = mInsidePerlinForceInside, which no live file carries; C47's CE census = 0 across all 42 uids). With the suspects dead, the reads went to the two unread links: (a) the band-matrix producer (the A4 residual) and (b) the case-5 core's hash internals (the port's own FLAG, dig-#85-era). **NEW EVIDENCE (B-grade; X214 fresh this dig, 15 sections; exe md5 re-verified = C13; the byte-delta = file = trueVA − 0x400C00 for .text, − 0x400E00 for .rdata — the two-delta pitfall cost one constants re-read):** (1) **THE BAND-MATRIX PRODUCER (A4 CLOSED):** the fill loop `0x906C52..0x906E49` stores `matrix[idx] = 0x904230(&cache, cell[0])` RAW (`mov [eax],ecx` @0x906DA4; the 4-B entries; [PT+0x68]/[+0x6C] = the {ptr,count}); `0x904230` = the memoized linear scan over the 32-B records {key at +0x18 = the map color, value at +0x1C = the RESOLVED CONFIG PTR} (the loader `0x9FEC00`, the per-record resolve `0x9FECA0`, the store @0x906549) — **the game's band matrix = the per-cell BIOME CONFIG POINTERS from the parsed biome map — the port's `biomeAt`-based bandAt = THE GAME'S OWN RESOLUTION ⇒ the C120 "band-matrix VALUE path = D" contract PURIFIES to M (A4 CLOSED; the D-rows 9 → 8).** (2) **THE HASH-CHAIN LAW (the dig-#85-era orientation FLAG RESOLVED):** the core's three corner blocks read `mod12t[perm16[j + dy] + i + dx]` — (0,0) `perm16[ebx=j]+edi=i` @0x8FC182..90; (s1x,s1y) `perm16[j+s1y]+i+s1x` @0x8FC0F0..10F; (1,1) **`perm16[j+1] + i` — THE X-STEP ABSENT @0x8FC117..35** (the game's own off-by-one, mirrored verbatim); both lattice indices masked &0xff (movzx) BEFORE the sum ⇒ the sums ≤ 511 < 512 = IN-TABLE (no OOB lane); the tables = the 0x8FBFD0 build (512 u16 entries from the .rdata seed 0x114CC50 = PERM_SIMPLEX; NO skew writes there). **(3) THE CALL-SITE ARG-ORDER (the loop-closer):** the bandParams' mode-1/≥4 else-arm @0x90B750..79B calls `0x8FC020(scale·xr, scale·A)` then the tail `0x8FC020(scale·xr, scale·B)` — **XR = ARG1** ⇒ the game's effective hash = perm[A-side]+xr and the old port's perm[xr]+A = WRONG unambiguously (the equivalence new(x,y) = old(y,x) makes the arg-order pin LOAD-BEARING — both sides read fresh). (4) **THE SKEW = PINNED (the C39 "unpinned BSS" flags CLEARED):** the static initializers 0x4070E0/0x407110 compute F2 = (√3−1)/2 (sqrt(3.0) − 1.0)·0.5 and G2 = (3−√3)/6 (3.0 − sqrt(3.0))/6.0 — the port's literals were already exact. (5) **THE INSIDEPERLIN = RE-VERIFIED BYTE-EXACT (the full 0x90B110..0x90B27F):** the XI/YI chain (0x11DFCC8 = 0.05243442, 0x11DFD08 = 0.1, the F64 sx/sy slots +0x230/+0x238), the Squared/Clamped arms, and the SCALED arm = `(r·0.5+0.5)·(max−min)+min` @0x90B23C..68 with [0x11DFA94] = f32 0.5 — the port matches everywhere (the fbm's ABI = xmm1 = x, xmm2 = y, ecx = the kind). (6) **THE WALK FRAME (the open lever = A18):** the walk 0x792580 (the surfaceField's sole consumer chain: 0x7945F8 ← 0x793E60) evaluates `[area+0x24] + row` / `[area+0x20] + col` (ints → cvtdq2pd) over the area's rect = the accumulated map-cell bbox ×512 (the 0x92F710 accumulator; `shl 9` ×2 @0x79418F/92) — **the rect's CELL-FRAME = UNRESOLVED (the raw map rows = the map-px frame vs the world-relative chunk indices = the world-px frame)** — the winter's residual level-gap rides on THIS read. **PORT (the hash fix):** `simplex2DDeriv`'s chain = the game's law (the PERM16/MOD12T 512-entry module tables + the swapped orientation + the dropped x-step); the skew comments upgraded (the flags cleared). **MEASURED (METER-CLASS: E1 + E2):** E1 (the wave-crossing probe, mapgen/experiments/2026-10-26-dig207-wave-crossing.mjs — the port's r = 0.5-crossing vs the capture's first-solid profile, per column): the re-patterned wave = the medians −193..+42 (the deepest digs at the cols 17/22/29 = the capture's own deep set), the bare-ground tiles (15/27) = within ~50 px of the capture, the forested tiles' capture medians = the canopy-lifted (the vegetation = solid in the capture's luminance mask, our mask = terrain-only — the honest reading of every "surface" number on the winter/hills families); E2 (the C97 56-tile instrument, SURFACE_V2=1, the same seed/tiles — **PREDICTION pre-registered BEFORE the run: the pattern-dependent rows MOVE with the re-pattern — the winter UP from 0.104 (the game's pattern = now mirrored), the hills-bty13 = the mixed coin-flips, the desert/the bty14 = ~flat (the pattern-free deep band); the FALSIFIER = the winter DOWN ⇒ re-read 0x8FC0F0..0x8FC135**): **winter 0.104 → 0.12235 (dyOpt med 0 — the phase/shape aligned; the (11,13) overlay = the mound's silhouette agrees — the render); hills 0.72435 → 0.71835 (the bty13 half: 38_13 0.163→0.271 ✓, 44_13 0.184→0.295 ✓, 41_13 0.103→0.147 ✓, 33_13 0.085→0.035 ✗, 39_13 0.084→0.000 ✗ = the coin-flip class as predicted); desert 0.92272 → 0.84981 (the re-roll's coin-flips on the pattern-free tiles — OUT-of-prediction side, logged UNATTRIBUTED per the meter law: the desert's bty14 tiles lost 0.86-0.96 → 0.82-0.89 with dyOpt med −35 — the re-pattern moved the desert's insidePerlin tails and the desert's flat-top registration sits on them); overall 0.612 → 0.5965; the falsifier did NOT fire (the winter UP).** **⇒ THE WINTER'S RESIDUAL = THE LEVEL (the ~250 px: the game's winter band = solid from ~wy −300 down (fR 0.373), ours from ~wy −50 (fG 0.052)) = A18's lever (the walk's area-rect frame); the LAKE's fix = the A11 water-lane (the game's solid = the v ∈ [0, 0.5] liquid fill; ours = terrain-only → fG 0.002 vs fR 0.55) = #208.** Tests: band-ramp +3 (the dig-#207 trio: the golden pins FAIL under the old orientation; the arg-swap discriminator; the skew-purity pin), composed-content's FIELD0 counts re-pinned (lavalake 414→401, solid_wall 1367→1361, temple_wall 398→386 — the re-pattern's downstream counts, each FAILS under the old law), the battery {32, 409 passed | 4 skipped (413)} exit 0 (the baseline re-count registered). Landed: ABOUT **(207)**, CONSTANTS **C179**, MANIFEST **X214** (`dig207-hash-chain-and-bandfill.asm` md5 `2eb18f20d4b904cb2da5dd4bdaa7bd87`), ISSUES **A4-CLOSED + I50-updated + A18-new**, VERIFIED **§8 row 76 + §12 note**, SESSION_CONTEXT. Next: **#208 = the LAKE (the A11 water-lane port + the row-14 edge sub-read) + A18's point-source read (the area-rect's cell-frame) → the winter's level; then The Work (hell)/(heaven) = the pixel-scene consumer trace.** |
-- **2026-10-26 (206) — dig #206: THE WINTER/LAKE COLLAPSE DIAGNOSED — the band-matrix VALUES = the D-STAND-IN (the A4 residual): the port's bandAt = the biomeAt's map image; the game's band values = the PT+0x68 matrix filler = UNREAD; the hills = accidentally-working (the noise arms mask the band error); the winter's `mGradientType="1"` = the SIN-computed band values = impossible on the stand-in (C178-amended; A4/I50 updated; the diagnosis dig — no code change).** Plain language: the frame flip landed and the user CONFIRMED the visual (the hills' silhouette = the surfaceField's, in place). The winter/lake = the collapsed families. The diagnosis: the surfaceField's band ramp reads the BAND MATRIX — the port's = the stand-in (the biomeAt map image, the C120-flagged D path); the hills = accidentally-working because their shape = dominated by the NOISE arms (the ±234/−292 relief masks the band values' error); the winter's `mGradientType="1"` = the game computes its band values with the SIN form (the mGradientSinMultiple pair + the mGradientMaxY/MinY clamps — C120's registered pair, the bandParams' SIN arm = unported) ⇒ the linear stand-in = the wrong A/B ⇒ the ramp collapses to air (fG 0.041). The lake's mode 3 = the slope arm = ported ✓ — the same stand-in collapse. **NEW EVIDENCE (the data + the probe):** the winter.xml/lake.xml/hills.xml's Topology params read fresh this dig (the diffs: the winter = no noise_type + mGradientType=1 + the SIN/MaxY/MinY set; the lake = noise_type=SIN_CAPPED_SIMPLEX + mGradientAddNoise=3 + the mGradientSlope pair — the slope arm = ported ✓); the probe (the bandRampEval at the y-sweep) = the r values 0→0.5→1.0 = the ramp = the LINEAR form on all three (the hills' = the noise-dressed, the winter/lake's = the bare-linear stand-in). **⇒ THE FIX = the band-value producer's read (the PT+0x68 matrix filler — the A4 residual's producer, the dig-#200 re-opened unnamed = THE SAME THREAD) + the bandParams' SIN arm (C120's registered pair). The frame flip = LANDED + the user-confirmed; the winter/lake = the A4's fix list.** **METER-CLASS: none** (the diagnosis dig; the probe = the bandRampEval sweep = the r-values only). **Landed:** ABOUT **(206)**, CONSTANTS **C178-amended**, ISSUES **A4-amended + I50-updated**, SESSION_CONTEXT. Next free: entry **(207)**, **C179**, **X214**, **I51**, **A18**, **§8 row 76** — **#207 = the winter's surfaceField trace (the default-arm path: the winter's noise_type-absent ⇒ the parityLattice2d arm — the I22 red herring ELIMINATED same-dig (I22 = closed dig #113, the polarity fixed); the collapse = deeper in the default-arm's combine — the winter's r′ sweep = the probe's 0→0.5→1.0 = the ramp fine ⇒ the collapse = the COMBINE stage (the amp knobs/the tails/the slope arm [uid+0x24c] = the winter's mGradientType="1" = the arm ENGAGED)) + the band-value producer's read (the PT+0x68 filler — the A4 producer) + the bandParams' SIN arm port; then the winter/lake re-run; then The Work (hell)/(heaven) = the pixel-scene consumer trace.** |
+- **2026-10-26 (206) — dig #206: winter/lake collapse diagnosis (no code change; superseded by #207/#208).** Surviving facts: Topology params read — winter = no noise_type + mGradientType=1 + the SIN/MaxY/MinY set; lake = noise_type=SIN_CAPPED_SIMPLEX + mGradientAddNoise=3 + the mGradientSlope pair (slope arm ported); the bandRampEval y-sweep gives r 0→0.5→1.0 (linear) on hills/winter/lake. The SIN-arm/mGradientType hypothesis was eliminated by #207 (§8 row 76); the collapse was the cell law (#208). The frame flip (#205) was user-confirmed visually. METER-CLASS: none.
 - **2026-10-26 (205) — dig #205: THE FRAME FLIP — the surface band's shape = the TOPOLOGY lane (the surfaceField evaluator), NOT the caves field; the caves = the underground; the pixel-scene machinery = the structure drawer (C178 new; §8 row 75; I50 filed; the A14/I47/I48 re-frames; the measurement dig — no code change).** Plain language: the user's verdict — "today's progress visually looks meaningless; the surface has its own mechanism" — triggered the entry-point method: a deterministic surface feature (the lake biome = the fixed biome-map region, x 4–10 all rows) traced backward. The lake's config carries `bitmap_noise_file` = topology_lane.png's family — **the `<Topology>` element = the surface shape's definition** (the mGradient heightmap for the noise biomes / the rasterized topology images for the image biomes). Three checks, all from the game's own files: (1) **the pixel-scene machinery = the structure drawer** — 105 biome Lua scripts call LoadPixelScene (the boss arenas, the temples, the altars; endgame_end.lua draws endgame2.png through it) — the 0x90-record → wg → sampler chain = the scene system, not the hills; (2) **the CaveStructure stamps = the cave entrances** (the rendered shapes = the rounded pockets; the top-20-row placement = the underground field's mouth rows) — the caves' decorations, never the hills; (3) **topology_lake.png = the surface shape as a rasterized mask** (512×256 = the field frame; the solid everywhere + the 2-row surface strip — the deterministic flat lake). **THE MEASURED (METER-CLASS: E2, the C97 instrument, the SAME 56 tiles, the raw unshifted scores):** the surfaceField evaluator (the complete byte-model in noise-proto.mjs — the band-ramp #142 + the insidePerlin C126 + the C125 combine, env-gated SURFACE_V2, abandoned after one early-era score): **hills IoU 0.72435 RAW, dyOpt med = 0** (the silhouette lands IN PLACE — the caves lane = 0.607 raw needing −162), the profile residual 0.110 (the caves' half), the honest solidity 0.391 vs fR 0.436; **desert 0.923 raw, dyOpt −4**; overall dyOpt med = 0. The broken sub-lanes = I50 (the winter 0.104 near-all-air; the lake 0.604 = the grey-bake stand-in). **⇒ THE FRAME: the surface band = the Topology lane; the caves = the underground (the user's working caves); the pixel-scene = the structures. The caves-lane laws (C165–C176) stand for the underground; the surface application = dead (§8 row 75). The product flip (the V2 = the surface band's lane) = after the I50 fixes.** **METER-CLASS: E2** (the instrument A/B; the raw unshifted scores = the honest test — the registration offset = the frame's own falsifier). **Landed:** ABOUT **(205)**, CONSTANTS **C178**, VERIFIED **§8 row 75 + §12 note**, ISSUES **I50 + the A14/I47/I48 re-frames**, SESSION_CONTEXT. Next free: entry **(206)**, **C179**, **X214**, **I51**, **A18**, **§8 row 76** — **#206 = the I50 fixes: the winter's Topology params + the driver read; the lake's topology_lake.png decode (the C32 chain); then the product flip (the V2 = the surface band's lane) + the full instrument re-run.** |
 - **2026-10-26 (204) — dig #204: THE SEED LANE CLOSED + THE MINSTD ENGINE SWAP LANDED — the game's fnB draw chain = the MINSTD state seeded `f64(uint32(worldSeed))` at P+0 (the ctor 0x8F9470 = the P's ctor = the SAME function the record window calls for the stamp's local embed), persisted across ALL the fnB phases; the port's engine = SWAPPED (makeMinstd — the NollaPrng + warm-draw model RETRACTED); the measured = the overall/winter/desert IoU UP — the I48 winter decline PARTIALLY RECOVERING (C177 new; A17/I48 amended; the oracle = the honest partial = the phase-parity gap = the new lever).** Plain language: A17's seed question — which seed lane feeds the game's scatter — is answered: the world seed itself, wrapped to the signed 32-bit, stored as the f64 state on the P object, chaining through every fnB draw. The port now runs the same engine. **NEW EVIDENCE (B-grade; the fresh objdump windows this dig; exe md5 = C13):** (1) **THE STATE'S HOME = P+0** — the record window's f64 slot (`movsd (%edi)`) = `[P+0]` (edi = [−0x14c] = fnB's ecx = the P); the state steps at the blob phase's head too (0x8F07D3 = the cave_count roll reads the config's cave_count pair — the UP form). (2) **THE SEED LAW (0x8F9470's head):** `state = f64(seed) + [0x11E0BA0 + sign·8]` (the two-entry sign table = the negative-seed correction — the signed-32 wrap = the ctor's cvttsd2si trunc). (3) **THE P'S CTOR = 0x8F9470** — fnC1's build (`new(0xB8)` @0x8F3125 → `0x8F9470(P, [ebp+8])` @0x8F313C) = the SAME function the record window calls for the stamp's local embed ⇒ **the stamp's "variant roll" = a mini-P seeded by the parent state's draw** (the \$[lo-hi] resolution = inside the ctor's image-load path = the queued read). (4) **THE ENGINE SWAP (the port):** `makeMinstd(seed)` = the Schrage step + the u = state × 1/2³¹; the base = makeMinstd(seed), NO warm draw (the C27 warm-draw model RETRACTED); the tests = the classic MINSTD vector (the seed 1 → 16807 → 282475249) + the seed-wrap law + the 1000-draw positivity. (5) **THE MEASURED (METER-CLASS: E2, the C97 instrument, the baseline arm):** overall iouShift **0.77429 → 0.77755** (+0.0033), **winter 0.71058 → 0.72285** (+0.0123 — the I48 decline PARTIALLY RECOVERING: the old engine was part of it!), desert 0.94561 → 0.94881, hills 0.79153 → 0.78828 (the coin-flip side), dyOpt med −162 → −158; the stamped arm = the hills signature holds (profL1 0.24302, fG 0.6705). (6) **THE ORACLE STATE (the honest):** the C48 oracle's rows = the partial match under the swap (y192 11/12 = the deep-lane match; the blob zone 0-4/12 = **the phase draw-order parity gap** — the port's phase models' draw counts ≠ the game's fnB walk = the NEW lever, A17 d1b); the y224 bar = the all-base trivial row (insensitive — the swap unjudged by it). The pins re-pinned to the MINSTD-era values (the composed-content field% 90.07→94.29 class, the surface-compositor 2704→2698 counts + the air 110→61, the api-surface +makeMinstd). **Tests: the battery {32, 410, 3} exit 0 (+3 the makeMinstd tests; the re-pins).** **Landed:** ABOUT **(204)**, CONSTANTS **C177**, ISSUES **A17-amended + I48-amended**, scripts/precommit-baseline (the re-count), SESSION_CONTEXT. Next free: entry **(205)**, **C178**, **X214**, **I50**, **A18**, **§8 row 75** — **#205 = the fnB phase walk (the draw-order parity — A17 d1b: the port's phase models' draw counts vs the game's fnB walk, the oracle's blob-zone rows = the compass) + 0x8F9470's variant law + the C32 decode; then the exactness A/B + the gate-open decision.** |
 - **2026-10-26 (203) — dig #203: THE SCATTER'S EXACT CODE READ — the fnB record window's byte laws: the PRNG = MINSTD-Schrage (the f64 state chain), 5 draws per stamp-cycle (the count/variant/X/Y/strength), the fn870 blend = `dst' = dst + srcVal·(strength − dst)` (the lerp toward the DRAWN STRENGTH); the port's blend + overlay laws corrected in the same session (C177 new; A17 amended; the dig-#202 `v = lum × strength` form RETRACTED; the port fixes landed + the re-measured).** Plain language: A17's three debts were the exactness gap between our scatter and the game's. This dig read the game's scatter code (the fnB record window 0x8F1295..0x8F16C8 + the fn870/fn950 family) and answered all three. **NEW EVIDENCE (B-grade; the fresh objdump windows this dig; exe md5 = C13):** (1) **THE PRNG = MINSTD IN THE SCHRAGE FORM** — the per-draw sequence `imul $0x834e0b5f; add %esi,%edx; sar $0x10; ± the sign fix; imul $0x1f31d (127773); imul $0xb14 (2836); imul $0x41a7 (16807)` = the classic Schrage MINSTD step; **the state = a f64 slot** (`cvttsd2si (%edi)` in, `movsd %xmm0,(%edi)` out) **persisting across the templates** (the chain never resets per record); the normalizers: +1/2³1 (0x11DF988), 2±31−1 (0x11E0220), **−1/2±31 (0x11E0578)** — the NEGATIVE roll normalizer = the compiler's signed idiom: `min − trunc(span × (−u))` = **the UP form min + trunc(span·u)** — the port's X/Y roll form = CORRECT (the d1 form-half confirmed). (2) **THE DRAW SEQUENCE = 5 per stamp-cycle**: the count roll per 60-byte template (the [+0x1C]/[+0x20] pair, the arena walk at [holder+0x7c..0x80], the ÷0x3c idiom); per stamp: **the variant = the state → 0x8F9470(&local, state) = the embed ctor SEEDED by the state** (the $[lo-hi] resolution lives inside the ctor — the port's separate resolver draw = the EXTRA 6th draw), then X ([+0x28]/[+0x30]), Y ([+0x24]/[+0x2C]), the strength ([+0x34]/[+0x38], **the C50 closed form byte-exact** = `min + u·(max−min)` via 0x11DF988 — the port's form ✓), then `fn950(Y, X, strength)`. (3) **THE FN870 BLEND (0x8EF870 FULL, the A17 d2 answer):** `dst' = dst + srcVal·(strength − dst)` — the lerp toward the DRAWN STRENGTH weighted by the stamp's decoded pixel (the 0x949AD0 at() read on the src embed's +0x18 data; the dst-bounds clip; the full W×H loop; the dst write via the 0x9499F0 getter/setter pair). **The dig-#202 `v = lum × strength` form RETRACTED** (the operands were swapped-guessed; the bytes say the strength = the TARGET). (4) **THE MEASURED CORRECTION (the pixel reads): the srcVal = THE ALPHA** — the port's blend re-fixed to `srcVal = α` and the overlay's values = α (the shape mask; the lum = the color = the MATERIAL lane): the measured blends REACH the target exactly on the opaque body (the pit's flat strength-colored region; the white = the tRNS-transparent surround, α = 0 ⇒ skipped) — the tests re-pinned (the lerp property: every blended value ∈ [target, dst]). (5) **THE PORT STATE:** the blend + the overlay laws = byte-corrected and landed (env-gated as before); the PRNG swap (the MINSTD chain + the draw merge) = the remaining d1 half — the next read = the MINSTD state's seed source (the fnB prologue) + 0x8F9470's variant law + the C32 decode's formal read. **METER-CLASS: E2** (the re-measure after the correction: the hills signature holds — profL1 0.23351 / fG 0.65635 / dyOpt med −106 vs the dig-#202's 0.20747/0.62736/−106 — the same mechanism signature, the form-corrected values; the strict IoU = the A17 coin-flip unchanged). **Tests: the cave-stamps file = 5 (the two fn870 formula tests consolidated into the lerp-property form; the battery {32, 407, 3} exit 0 — the baseline re-count registered).** **Landed:** ABOUT **(203)**, CONSTANTS **C176-amended**, ISSUES **A17-amended**, SESSION_CONTEXT. Next free: entry **(204)**, **C178**, **X214**, **I50**, **A18**, **§8 row 75** — **#204 = the MINSTD chain's seed source + 0x8F9470's variant law + the C32 decode (the A17 residuals) → the port's PRNG swap → the exactness A/B → the gate-open decision.** |
 - **2026-10-26 (202) — dig #202: THE SCATTER PORT LANDED — the CaveStructure stamp lane (the decode law + the fn870 α-blend + the C175 hard overlay), env-gated `SURFACE_STAMPS=1`; the measured signature = the hills' profile/registration/fG all moving toward the capture (C176 new; A17 filed; NO default-render change — the gate stays opt-in).** Plain language: the C175 law said the silhouette = the stamps; this dig implemented it. **NEW EVIDENCE (the data + the port + the meter):** (1) **THE DECODE LAW (the pixel reads this dig):** the stamp PNGs = the grayscale value maps — the value = `(alpha/255) × (max(r,g,b)/255) × strength`; the solid core = the bright-and-opaque (cave_500 = (255,255,255,255)×80), the fringe = the low-alpha near-black ≈ 0 = air. (2) **THE TWO PAINT LANES:** (a) the fn870 α-blend into the P's field (`dst' = dst + α·(v − dst)` — the C48-era read, SOFT); (b) the C175 hard lane = **the stamp OVERLAY** — the stamp's rect = materialized from the stamp's OWN image by its own wg (C171's field gate = the LOCAL image read, no warp, no G); the overlay = the IMAGE frame (col = wx/10, row = (wy + fh)/10), the mask readers check it FIRST. (3) **THE DRAW PARITY = the load-bearing invariant:** the paint/overlay consume NO draws — the dig-#164 stream byte-identical with the lanes on/off (the tests pin it; the strength roll = now CONSUMED via the C50 closed form). (4) **THE MEASURED (METER-CLASS: E2, the C97 instrument; the PREDICTION pre-registered before the run — the hills IoU delta in either direction = IN-PREDICTION while the PRNG stand-in stands; the falsifier = the byte-plane/draw-count drift):** hills **profL1 0.25476 → 0.20747** (−18%), **fG 0.68488 → 0.62736** (toward fR 0.43561), **dyOpt med −162 → −106** (+56 px toward 0); the strict IoU 0.79153 → 0.76272 = the predicted mis-aligned-lump coin-flip (A17's PRNG stand-in); bty13 0.68619 → 0.68032 / bty14 0.83991 → 0.8363 = the neighbors flat (the stamps = the hills-band-local). **⇒ the mechanism's signature CONFIRMED; the next lever = the scatter's exact-code read (A17: the game's scatter draws — the counts/positions/variants + the seed lane).** **Tests: +6 (`tests/mapgen/cave-stamps.test.mjs` — the draw parity, the strength consumption, the fn870 formula, the skip arm, the data-gated fail-under-old + the symmetric-blend signature); the battery {31, 408, 3} exit 0.** **Landed:** ABOUT **(202)**, CONSTANTS **C176**, ISSUES **A17 + I47 updated**, SESSION_CONTEXT. Next free: entry **(203)**, **C177**, **X214**, **I50**, **A18**, **§8 row 75** — **#203 = the scatter's exact-code read (A17's d1–d3): the CaveStructure execution site — who draws the counts/positions/variants with which seed lane; then the exactness A/B; then the gate-open decision.** |
-- **2026-10-26 (201) — dig #201: THE SURFACE SHAPE IS FOUND — THE CAVE-STRUCTURE STAMPS. The game's hills silhouette = `<CaveStructure>` image stamps (hills.xml = 20; the 1000 pre-generated `cave_$[0-999].png` + the rocks/pits/brushes/vegetation — ALL ON DISK) scattered into the AABBs along the biome image's top rows; each stamp = one 0x90 record → the wg → the sampler — the shape AND the material assignment = ONE mechanism (C175 new, X213; A14 CLOSED; I47's lever = the scatter port; A16 unified; NO code change, docs-only dig).** Plain language: the user asked whether ~110 surface digs without "the shape" was normal — this dig answered by finding it. The chain: the rewrite loop's elements were misidentified as the scene-def wrappers — `0x944280`'s else branch DEREFERENCES its index argument, so Init's push at `0x907944` inserts `[*wrapper]` = **the biome config** (the C161 layout matches exactly: +4 = the kind, +0x74/+0x78 = the config's record array, +0x1D4 = P) ⇒ the rewrite loop iterates the CONFIGS, whose `[config+0x74]` record arrays = the stamped `<CaveStructure>` instances parsed from the biome XMLs. The stamps' origins = `10·t − 5 − (int)G` (the wang cell = 10 px; the biome origin baked in at stamp time; the G cancels at the warp). The triple loop (`0x907BB0..0x907F19`) = the parallel chunk-grid scene lane: 12-B {cell_obj, x, y} elements, `x·512 − (int)G2 / y·512 − (int)G1` @`0x907DCA..DF0`, 512×512 scenes via `0x7EBF60` — the structure grid = the biome map (512-px cells). The units reconcile: chunk = 512 px = 51.2 wang cells; `10·(chunk·51.2) = 512·chunk`. **NEW EVIDENCE (B-grade; X213 fresh this dig, 4 sections; exe md5 = C13; the DATA receipts read from the game's own files this dig):** hills.xml = 20 `<CaveStructure image_file aabb_min/max_x aabb_min/max_y count_min/max strength_min/max>` elements — `cave_$[0-999].png` (**1000 PNGs on disk**; aabb x∈[5,507], **y∈[0,20]** = the top 200 world px of the 2560-px band; count 5..12; strength 0.55..2.15), mountain_rock (18×15, count 0..4), skull_mountain (9×9, y∈[0,5]), pit/deep_pit, brush_03..06, eye_0$[1-4], the vegetation set. **The stamp images = SMALL (9×9..21×21 image cells = 90..210 world px — measured: cave_0 = 11×18, cave_500 = 20×21, mountain_rock = 18×15, skull_mountain = 9×9, pit = 15×15, brush_03 = 10×10).** **⇒ THE LAW: the hills' silhouette = the union of the small stamps scattered (count per structure, the seeded PRNG) into the top-row AABBs; each stamp = one record → the wg (the stamp's image = the field embed; the stamp's wang colors = the u16 pre-assignment per C171) ⇒ the stamps = ALSO A16's producers — the shape and the materials = ONE mechanism.** **⇒ THE VERDICTS: (a) the port's procedural caves field = THE WRONG OBJECT for the silhouette — a structurally different model, not a mis-tuned one; (b) A14 CLOSED — the anchor algebra was exact all along (the chunk rows 9..13 tile wy [−2560, 0) = the port's constant slab); the −162 = the stamps-vs-procedural content difference, re-owned by I47; (c) I47's lever = THE SCATTER PORT — parse the XMLs + decode the PNGs + implement the scatter (the PRNG lane = the exactness follow-up); (d) I48's gate OPEN (A14 closed; the winter decline = the same content difference — re-measure after the scatter port).** **METER-CLASS: none** (bytes + data reads; no meters run; the registered E2 state unchanged). **Purification: A14 CLOSED (the D-rows 8 → 7); A4's residual consumed dig #200.** **Landed:** ABOUT **(201)**, CONSTANTS **C175**, MANIFEST **X213**, ISSUES **A14 closed + I47 re-pointed + I48 gate opened + A16 unified**, VERIFIED **§12 note**, SESSION_CONTEXT. Tests: none (a read dig; the battery = the {31, 402, 3} baseline — run at the gate). Next free: entry **(202)**, **C176**, **X214**, **I50**, **A17**, **§8 row 75** — **#202 = THE SCATTER PORT: the CaveStructure XML parse + the stamp PNG decode + the scatter into the band (the count tests + the fail-under-old pins); the PRNG-lane exactness (the scatter's seed/draw order) after the shape lands; then re-measure with the C97 instrument.** |
-- **2026-10-26 (200) — dig #200: `0x9FEE40` = THE 4-CONNECTED REGION GROWER + THE TABLE-B CONSUMER = THE REGION-LOCAL COORD MAP — the A4 residual's both named halves READ and the A14 chain advanced to the scene-def wrapper (C174 new, X212; A4 CLOSED-with-rescope; NO code change, docs-only dig).** Plain language: dig #199 found the record origins = per-instance structure placements sourced from `0x9FEE40` (the A4-residual producer). This dig read `0x9FEE40` full-window and its consumption chain. **NEW EVIDENCE:** (B-grade; X212 fresh this dig, 6 sections; exe md5 = C13) — **(1) THE GROWER (`0x9FEE40..0x9FF307`, FULL):** args `ecx` = &out_rect (16 B), `edx` = the structure grid (`[grid]` = w, `[grid+4]` = h, the at() receiver = `grid+0x18`), `[ebp+8]` = &{seed_x, seed_y} (the LAST stack push — resolving dig #199's arg-order puzzle), `[ebp+0xC]` = &{cell_obj} (the identity); the seed bounds-checked vs the grid dims; `0x92E980` = the per-call visited plane (w·h bools); the BFS: 4 neighbors bounds-checked vs `[grid]−1`/`[grid+4]−1`, identity-compared (`0x94C700(grid+0x18, idx = w·y+x)` vs `[arg4]`), visited-marked (`0x94A9D0`), queue-pushed (`0x929850`, 8-B elems); per accepted cell the rect min/max updates (the cmovl/cmovg block @`0x9FF0A7..0x9FF0DC`); output = **{minx, miny, maxx, maxy} in the grid's cell coords**. ONE caller whole-text: the Init placement loop @`0x907529`. **(2) THE TABLE-B CONSUMER (`0x9075CE..0x907673`):** Init walks the region rect and per cell `0x94C7E0`-writes the **PT+0x8C container at idx = `[PT+0x70]·y + x`** with **`[cell] = the region-local x` (0-based per row) and `[cell+4] = the region-local y`** — the per-cell region-local coordinate map (the A4 "Table-B consumer" half). **(3) THE REGION→PX MATH (`0x907673..0x9076F0`):** four `imul $0x66666667`/`sar $2` (÷10) on {minx, miny, maxx+1, maxy+1}, each pre-multiplied `shl $9` (×512): **width = (maxx+1−minx)·51.2, height = (maxy+1−miny)·51.2** — the region unit × 512/10 = px. **(4) THE SCENE-DEF FILL (`0x90782B..0x907950`):** the 0x154 wrapper (ctor `0x904B10` — the record array +0x74/+0x78 EMPTY at ctor) gets `[+0x34] = the width`, `[+0x38] = the height`, `[+0x3C..0x4B] = the region rect`, `[+0x50] = [cell+0x1F8]`, `has_attr(0x1173EC0)` → `[+0x8C]`, the +0x90 embed via `0x8F95C0`, the `0x44E3C0` resource task → `[+0x14C/0x150]`. **⇒ THE SCENE = THE FLOOD-FILL REGION of same-object structure-grid cells; the scene's rect = the region's bounding rect. A4 = CLOSED-with-rescope: `0x9FEE40` is the structure-region grower, NOT a band-matrix value producer — the band-matrix VALUE producer (PT+0x68's filler) = re-opened UNNAMED (a narrower debt). A14: the per-instance model REINFORCED from a second angle (the regions = varying patches); the units question (the region's 51.2-px unit vs the templates' 10-px cells) + the wrapper record-array fill site = #201's target — the units cannot reconcile without it (extent·51.2 px vs the ×10 rewrite ⇒ the template coords ≠ the region coords directly).** **METER-CLASS: none** (bytes-only read dig; no meters run; the registered E2 state unchanged). **Purification: A4's residual consumed (the D-row count 8 → 7 net of the re-scope: the band-value producer re-opened unnamed inside A4's own row — the row stays OPEN with a narrower lever).** **Landed:** ABOUT **(200)**, CONSTANTS **C174**, MANIFEST **X212**, ISSUES **A4 amended (the residual read) + A14 amended**, VERIFIED **§12 note**, SESSION_CONTEXT. Tests: none (a read dig; the battery = the {31, 402, 3} baseline — run at the gate). Next free: entry **(201)**, **C175**, **X213**, **I50**, **A17**, **§8 row 75** — **#201 = the wrapper record-array fill site (who writes the 0x90-stride templates' +4/+8/+0x88/+0x8c from the scene defs) + the units reconciliation (the region's 51.2-px unit vs the templates' 10-px cells) — the last link before the port's anchor-model decision; then A16 (the prepared `a16.fixed` row); then re-measure.** |
-- **2026-10-26 (199) — dig #199: THE RECORD-ORIGIN VALUE LAW — the buffered-pixel-scene records' `[+4]/[+8]` = PER-INSTANCE STRUCTURE PLACEMENTS (`10·cell − 5 − (int)G`), written by Init's in-place rewrite over the per-cell placement templates — VARYING per instance, NOT one band-sized slab; the port's constant slab anchor is structurally NOT the game's model (C173 new, X211; NO code change, docs-only dig).** Plain language: dig #198 closed the anchor MECHANISM (`[wg+8]` = `[record+8]` = the warp's Y origin, consumed, non-zero) and left the VALUES question: do the surface band's records share one origin (the port's constant `worldY0 − fh` exact) or tile with varying origins (a real per-record layer)? This dig read the enqueue callers' record-field sources and the answer is VARYING. **NEW EVIDENCE:** (B-grade; X211 fresh this dig, 6 sections; exe md5 = C13 re-verified) — **(1) THE ENQUEUE CENSUS (whole-text):** `0x90C1F0` has FIVE call sites — `0x64CA42` (a global-static record 0x132A67C), `0x818C69` (the LoadPixelScene binding, the record = the Lua stack-arg block), **`0x907FC4` (Init — the surface band's materialization lane)**, `0x90BD19` (Update, the same ÷0x90 record-array idiom off the producer `0x9FE7D0`), `0xD15A52` (`new(0x1A0)` → ctor `0x65F480`). **(2) THE INIT PREP LOOP (`0x907F19..0x907FD0`, X211 [2]):** Init iterates the wrapper vector `[−0x284]` (0x154-byte wrappers: `new(0x154)` → ctor `0x904B10(new, [−0x270])` @`0x9077D9`, `[new] = the cell obj`, `[new+0x1C] ← [cell+0x1D8]`; the vector built by `0x944280` @`0x907944`); per wrapper the record array `[wrapper+0x74]/[+0x78]` (count = diff ÷ 0x90); **per record the IN-PLACE origin rewrite**: `[rec+4] = 10·[rec+4] − 5 − (int)[0x1327670]` (= G2, the X datum) @`0x907FA5` and `[rec+8] = 10·[rec+8] − 5 − (int)[0x13289A8]` (= G1, the Y datum) @`0x907FB4`, then `0x90C1F0(this = [−0x248], rec, 0)` @`0x907FC4` — the pre-rewrite values = CELL coords (10 px cells), the −5 = a HALF-CELL shift, the −G = the shift into the world-px frame (the same frame C172 pinned for `[wg+4]/[wg+8]`). **(3) THE PLACEMENT LOOP (`0x907423..0x907545`, X211 [3]):** per grid cell (`0x94C620` at() on the PT+0x18 container, idx = `[edi]·ecx + esi`) the cell object's gates IN ORDER — **`[obj+0x1D4] ≠ 0` (the biome's P = fnC1's BitmapCaves — the SAME P the sampler gates on)**, the visited byte (0x94A9D0), `[obj+0x1F0]` ⇒ `0x944320`, **`[obj+4] == 2`** (the kind), `[obj+0x1C4] ≠ 0`, the name string `[obj+0x1B4]` — then **`0x9FEE40(&{obj, cellY}, &{obj, cellX}, …)`** = the structure placement (THE A4-RESIDUAL PRODUCER — the two long-open threads meet here) writing the record templates' cell coords. **⇒ THE FRAME ALGEBRA (the A14-relevant consequence):** the game's canvas-frame sample point = `10·cell − 5 + local` — the record origin (world px) + the rect-local coords, with the G CANCELLING against the warp's G-add (C172: the warp inputs = `[wg+4]/[wg+8] + local`, and `[wg+4]/[wg+8]` = the record origins which already carry −G). The port samples at the canvas coords directly (the C80 frame) with ONE constant anchor ⇒ **the port's single constant-anchored slab is structurally NOT the game's per-instance model; the −162's exact value = the hills instances' actual cell values = `0x9FEE40`'s template writes = the A4 residual = the next read (#200).** The A14 row is amended (the mechanism closed #198; the model verdict = VARYING #199; the values = #200). **METER-CLASS: none** (bytes-only read dig; no meters run; the registered E2 state unchanged). **Purification: 8 → 8** (no D-row closes; no port lane). **Landed:** ABOUT **(199)**, CONSTANTS **C173**, MANIFEST **X211**, ISSUES **A14 amended**, VERIFIED **§12 note**, SESSION_CONTEXT. Tests: none (a read dig; the battery = the {31, 402, 3} baseline — run at the gate). Next free: entry **(200)**, **C174**, **X212**, **I50**, **A17**, **§8 row 75** — **#200 = `0x9FEE40`'s record-template writes (the A4 residual + the hills cell values in one read): the placement evaluator's output law — what cell coords the surface band's structure templates carry; then decide the port's anchor model (constant vs per-instance) BY BYTES; then re-measure.** |
+- **2026-10-26 (201) — dig #201: the CaveStructure stamps — `<CaveStructure>` image stamps (hills.xml = 20; `cave_$[0-999].png` + rocks/pits/brushes/vegetation, all on disk) are scattered into AABBs along the biome image's top rows; each stamp = one 0x90 record → wg → sampler, so a stamp carries both shape and material assignment (C175, X213; A14 closed; docs-only).** Current status: the claim that the stamps ARE the hills silhouette was eliminated by #205 (the surface = the Topology lane; §8 row 75); the stamps are cave entrances in the underground. Bytes (B-grade, X213, 4 sections; exe md5 = C13): `0x944280`'s else branch dereferences its index argument, so Init's push at `0x907944` inserts `[*wrapper]` = the biome config (C161 layout: +4 = kind, +0x74/+0x78 = the config's record array, +0x1D4 = P) ⇒ the rewrite loop iterates the CONFIGS, whose `[config+0x74]` arrays = the parsed `<CaveStructure>` instances. Stamp origins = `10·t − 5 − (int)G` (wang cell = 10 px; G cancels at the warp). The triple loop (`0x907BB0..0x907F19`) = the parallel chunk-grid scene lane: 12-B {cell_obj, x, y} elements, `x·512 − (int)G2 / y·512 − (int)G1` @`0x907DCA..DF0`, 512×512 scenes via `0x7EBF60`; chunk = 512 px = 51.2 wang cells, `10·(chunk·51.2) = 512·chunk`. Data: hills.xml's 20 `<CaveStructure image_file aabb_min/max_x aabb_min/max_y count_min/max strength_min/max>` — `cave_$[0-999].png` (1000 PNGs; aabb x∈[5,507], y∈[0,20] = top 200 world px of the 2560-px band; count 5..12; strength 0.55..2.15), mountain_rock (18×15, count 0..4), skull_mountain (9×9, y∈[0,5]), pit/deep_pit, brush_03..06, eye_0$[1-4], the vegetation set; image sizes cave_0 = 11×18, cave_500 = 20×21, mountain_rock = 18×15, skull_mountain = 9×9, pit = 15×15, brush_03 = 10×10 (90..210 world px). A14 closed: the anchor algebra was exact (chunk rows 9..13 tile wy [−2560, 0) = the port's constant slab). METER-CLASS: none. Landed: C175, X213, A14 closed, I47, I48, A16, VERIFIED §12.
+- **2026-10-26 (200) — dig #200: `0x9FEE40` = the 4-connected region grower + the table-B consumer = the region-local coord map (C174, X212; docs-only).** **NEW EVIDENCE:** (B-grade, X212, 6 sections; exe md5 = C13) (1) grower `0x9FEE40..0x9FF307` full: `ecx` = &out_rect (16 B), `edx` = structure grid (`[grid]` = w, `[grid+4]` = h, at() receiver `grid+0x18`), `[ebp+8]` = &{seed_x, seed_y} (the last stack push), `[ebp+0xC]` = &{cell_obj} (identity); seed bounds-checked; `0x92E980` = per-call visited plane (w·h bools); BFS: 4 neighbours bounds-checked vs `[grid]−1`/`[grid+4]−1`, identity-compared (`0x94C700(grid+0x18, idx = w·y+x)` vs `[arg4]`), visited-marked (`0x94A9D0`), queue-pushed (`0x929850`, 8-B elems); rect min/max (cmovl/cmovg @`0x9FF0A7..0x9FF0DC`); output {minx, miny, maxx, maxy} in grid cell coords; one caller: Init placement loop @`0x907529`. (2) Table-B consumer (`0x9075CE..0x907673`): per region cell `0x94C7E0` writes the PT+0x8C container at idx = `[PT+0x70]·y + x` with `[cell]` = region-local x, `[cell+4]` = region-local y. (3) Region→px (`0x907673..0x9076F0`): four `imul $0x66666667`/`sar $2` (÷10) on {minx, miny, maxx+1, maxy+1}, each pre-`shl $9` ⇒ width = (maxx+1−minx)·51.2, height = (maxy+1−miny)·51.2. (4) Scene-def fill (`0x90782B..0x907950`): the 0x154 wrapper (ctor `0x904B10`, record array +0x74/+0x78 empty at ctor) gets `[+0x34]` = width, `[+0x38]` = height, `[+0x3C..0x4B]` = region rect, `[+0x50] = [cell+0x1F8]`, `has_attr(0x1173EC0)` → `[+0x8C]`, the +0x90 embed via `0x8F95C0`, the `0x44E3C0` resource task → `[+0x14C/0x150]`. ⇒ a scene = the flood-fill region of same-object structure-grid cells. `0x9FEE40` is not a band-matrix value producer (that producer was read in #207, A4 closed). METER-CLASS: none. Landed: C174, X212, A4, A14, VERIFIED §12.
+- **2026-10-26 (199) — dig #199: the record-origin value law — the buffered-pixel-scene records' `[+4]/[+8]` = per-instance structure placements (`10·cell − 5 − (int)G`), written by Init's in-place rewrite over the per-cell placement templates — varying per instance, not one band-sized slab (C173, X211; docs-only).** **NEW EVIDENCE:** (B-grade, X211, 6 sections; exe md5 = C13) (1) enqueue census: `0x90C1F0` has five call sites — `0x64CA42` (global-static record 0x132A67C), `0x818C69` (LoadPixelScene binding, record = Lua stack-arg block), `0x907FC4` (Init), `0x90BD19` (Update, ÷0x90 record-array idiom off producer `0x9FE7D0`), `0xD15A52` (`new(0x1A0)` → ctor `0x65F480`). (2) Init prep loop (`0x907F19..0x907FD0`): iterates wrapper vector `[−0x284]` (0x154-B wrappers: `new(0x154)` → ctor `0x904B10(new, [−0x270])` @`0x9077D9`, `[new]` = cell obj, `[new+0x1C] ← [cell+0x1D8]`; vector built by `0x944280` @`0x907944`); per wrapper the record array `[wrapper+0x74]/[+0x78]` (count = diff ÷ 0x90); per record the in-place rewrite `[rec+4] = 10·[rec+4] − 5 − (int)[0x1327670]` (G2, X datum) @`0x907FA5`, `[rec+8] = 10·[rec+8] − 5 − (int)[0x13289A8]` (G1, Y datum) @`0x907FB4`, then `0x90C1F0(this = [−0x248], rec, 0)` @`0x907FC4` — pre-rewrite values = cell coords (10 px), −5 = half-cell, −G = into the world-px frame (C172's frame). (3) Placement loop (`0x907423..0x907545`): per grid cell (`0x94C620` at() on PT+0x18, idx = `[edi]·ecx + esi`) gates in order — `[obj+0x1D4] ≠ 0` (the biome's P = fnC1's BitmapCaves, the sampler's P), visited byte (0x94A9D0), `[obj+0x1F0]` ⇒ `0x944320`, `[obj+4] == 2` (kind), `[obj+0x1C4] ≠ 0`, name string `[obj+0x1B4]` — then `0x9FEE40(&{obj, cellY}, &{obj, cellX}, …)` writes the templates' cell coords. Frame algebra: the game's canvas sample point = `10·cell − 5 + local` (G cancels against the warp's G-add, C172) ⇒ a single constant-anchored slab is not the game's per-instance model. METER-CLASS: none. Landed: C173, X211, A14, VERIFIED §12.
 - **2026-10-26 (198) — dig #198: THE `[wg+4]`/`[wg+8]` PROVENANCE PINNED BY BYTES — the per-band anchor integers = THE BUFFERED-PIXEL-SCENE RECORD'S RECT ORIGIN (X origin at +4, Y origin at +8), copied by the record copy-ctor `0x79E440` out of the `0x910C20` iterator's record — NOT the biome-config's first two ints; the "anchor layer is numerically zero on shipped data" slot-parity inference is REFUTED, and the anchor is CONSUMED (the warp inputs = `[wg+4]+x`, `[wg+8]+y`) — C172 new, X210, §8 row 74, C165/X205 amended in-row (the +4/+8 axis labels swapped); NO code change, docs-only dig.** Plain language: the open dig-#198 question was whether the world-grid's first two integers (`[wg+4]/[wg+8]` — the floor-law anchors) are copies of the biome-config's first two ints (whose +4 = the `type` attr = 0 on every shipped biome per C161), which would have made the game's per-band anchor layer numerically zero and the port's omission of it right. This dig read the two named windows and the answer is NO on both counts. **NEW EVIDENCE:** (B-grade; X210 fresh this dig, 11 sections; exe md5 re-verified = C13; every window cut fresh via objdump this session) — **(1) THE ITERATOR WINDOW (`0x910D7D..0x910DC8`, X210 [1]):** `0x910C20` (DoBufferedPixelScenes, this = ebx) computes `count = ([ebx+4]−[ebx])/0x90` (the `0x38E38E39`+`sar 5` idiv idiom — stride 0x90 = 144) and per record calls **`0x90E840(ecx = record+i·0x90, edx = ebx = the 0x910C20 this)`** @`0x910D9A`; `0x90E840`'s prologue `mov %edx,%ebx` @`0x90E86E` ⇒ **its `this` = the PT** (the record-vector owner; the same object `0x909DA0` reads `+0x38/+0x40` = the G2/G1 f64s off) and the record its arg (`ecx` → `−0x2F0(%ebp)`). **(2) THE CONSTRUCTION WINDOW (`0x90F654..0x90F6C8`, X210 [4] — the ONE caller of `0x90CFB0`, whole-text census):** `push $0x1EC; call *0x114A34C` (operator new) @`0x90F65F` → **the descriptor ctor `0x90CE20(new, 0x9119D0())`** @`0x90F680` — the ctor (X210 [6], `0x90CE20..0x90D010` head) zeroes `+0x98`, inits the `+0x9C` embed template via `0x8F9470` with the 0x80-byte `0x9119D0` result, builds the `+0x168`/`+0x188` embedded containers, and **writes NEITHER `+4` NOR `+8`** → `mov %eax,0x84(%edi)` = **`[record+0x84] = the new wg`** @`0x90F690` (edi = the record, reloaded `−0x2F0` @`0x90F639`) → **`0x79E440(ecx = wg, arg = record)`** @`0x90F696` — the copy-ctor (X210 [5]): `[wg+0/4/8] = [record+0/4/8]` dword-exact, then the `+0xC/+0x24/+0x3C` strings, `+0x54`, `+0x58/59` bytes, `+0x5C`… → `[wg+0x90] = the CellFactory` @`0x90F6A7`, `[wg+0x94] = ebx` @`0x90F6B3` → **`0x90CFB0(this = wg)`** @`0x90F6BF`. ⇒ **`[wg+4] = [record+4]`, `[wg+8] = [record+8]` — the provenance is the RECORD, byte-pinned; no config object participates anywhere in the window.** **(3) THE FRAME PIN (X210 [3]+[9]+[10]+[11]):** `0x90E840`'s four corner `0x909DA0` calls feed `xmm1 = f64([record+4])` / `xmm2 = f64([record+8])` (and the +extent sums with `[record+0x88]`/`[record+0x8c]`); `0x909DA0` adds `[PT+0x38]` to its FIRST input and `[PT+0x40]` to its second; per X206 **G2 = 0x1327670 = the X datum (17920) lives at PT+0x38 and G1 = 0x13289A8 = the Y datum (7168) at PT+0x40** ⇒ first input = X ⇒ **`[record+4]` = X, `[record+8]` = Y, `[record+0x88]` = cols, `[record+0x8c]` = rows** (the 4-corner `0x94B040` probes agree: probe2 varies the second arg by `[record+0x8c]`, probe3 the first by `[record+0x88]`). The sampler consumes the anchors: `0x90DBED..0x90DBFD` computes `esi = [[ctx+0x24]] (= [wg+4]) + edi(x_inner)` → xmm2 and `edi = [[ctx+0x28]] (= [wg+8]) + [esp+0x14](y_outer)` → xmm3, then `call 0x908CB0` @`0x90DC19`; the warp's head (X210 [10]) pins the incoming roles — `addsd %xmm3,%xmm4` with `xmm4 = [0x13289A8]` = **adjY = xmm3-in + G1** @`0x908CC9`, `addsd %xmm2-in,%xmm1` with `xmm1 = [0x1327670]` = **adjX = xmm2-in + G2** @`0x908CD6` ⇒ **the warp inputs = `worldX = [wg+4] + x_local`, `worldY = [wg+8] + y_local`, BEFORE the warp's own G-add.** The ctx-slot map is functor-pinned (the batch loop's movdqu block; ctx = task+4 via the thunk `0xA9A120: add $0x4,%ecx; jmp 0x90D860`, X210 [7]): `ctx+0x0` = the 16-row band's y-base, `+0x8→rows`, `+0xC→16`, `+0x10→cols`, `+0x14→the file-loaded byte grid` (the `−0xF0` local, filled by `0x90E060` = has_attr(0x1165FC4)+file-read→grid{w,h,w·h,data@+0x18}), `+0x18 = wg`, `+0x1C→the ticket`, `+0x20→the rect-center config`. **(4) THE CORRECTIONS:** X205 W3's "`[this+4]` = worldY origin / THE FLOOR" and W6's "worldY = `[world-grid+4]` + field_row" (and C165's in-row text) had the +4/+8 axis labels SWAPPED — the true law: **worldX = `[wg+4]` + field_col, worldY = `[wg+8]` + field_row**; `[−0x78]` = the rect-center `0x909DA0` config (the P-gate source), not a worldX anchor. C165's dims (rows `[0, min([wg+0x8c], cap))` × cols `[0, [wg+0x88])`) and its row-major idx laws STAND (re-confirmed: the field-gate idx = `[wg+0x9C]·esi + edi` with esi = outer y / edi = inner x). **⇒ THE VERDICTS:** (a) the slot-parity inference is **REFUTED** (§8 row 74, do-not-re-test); (b) the anchor layer is **REAL and NON-ZERO** — it is the LoadPixelScene placement origin, and the port's C166 slab anchor (`worldY0 − fh`) is a CONSTANT stand-in for the per-record `[wg+8]`; whether the surface band's records share one origin (= the constant's justification) or tile with varying origins (= a real port gap) = **A14's amended next lever: the record `+4/+8` writers (the `0x90C1F0` enqueue callers `0x818C6E`/`0x907FC9`/`0x90BD1E`)**; (c) A16 (the assignment producers) is UNTOUCHED by this dig and stays next-in-queue after the A14 lever. **METER-CLASS: none** (bytes-only read dig; no meters run; the registered E2 state = dig #196's, unchanged). **Purification: 8 → 8** (no D-row closes; no port lane). **Landed:** ABOUT **(198)**, CONSTANTS **C172** (+ C165 amended in-row), MANIFEST **X210** (+ X205 W3/W6 gloss corrections in-row), VERIFIED **§8 row 74 + §12 note**, ISSUES **A14 amended** (the lever re-pointed; the zero-anchor hypothesis eliminated), SESSION_CONTEXT. Tests: none (a read dig; the battery = the {31, 402, 3} baseline unchanged — run at the gate). Next free: entry **(199)**, **C173**, **X211**, **I50**, **A17**, **§8 row 75** — **#199 = A14's lever: the record `+4/+8` writers (what x/y the surface band's LoadPixelScene records carry — the enqueue callers `0x818C6E` LoadPixelScene binding / `0x907FC9` Init / `0x90BD1E` Update), to settle whether the port's constant slab anchor equals the game's per-record origins; then A16 (the assignment producers, the prepared `a16.fixed` row); then re-measure.** |
 - **2026-10-25 (197) — dig #197: A15'S LAST GAP CLOSED — the `[wg+0x90]` arm = THE PRE-ASSIGNED-MATERIAL LOOKUP: the sampler's per-cell flow reads THREE assignment vectors BEFORE the classifier, and `GetCellData([wg+0x90-holder], id)` = a DIRECT mCellData row fetch (stride 0x290 = 656 B) dispatched by the row's own `[+0x38]` kind — the SAME storage dispatch the classify's record rides.** Plain: after the SHAPE loop (digs #193–#196 = the pick/field), the MATERIAL filling a solid cell does NOT always go through the Materials-windows classify: any cell pre-assigned by the writer lanes (the wg's u16 id-plane = id+1; the wg's u8 flag plane; the P's u16 plane read AT the warp's displaced snap) takes its material DIRECTLY by id; only unassigned cells classify. The mask (solid/air) does NOT care: both arms produce non-null records ⇒ the same solid verdict; the mask's gates = the byte-vector gate + the field gate ONLY. **NEW EVIDENCE:** (B-grade; X209 fresh this dig; the whole .text re-dumped THIS session = the freshly-dumped whole-text objdump (per the session journal), exe md5 8b611494212a69492dd0a4527d9c92e0 = C13 re-verified; every range boundary line verified pre-cut after two appends ran away on missing boundary lines 0x90de02/0x4b81e0) — **(1) THE ARM's BYTES (X209 [1], the full-window `0x90dcae..0x90dd95`):** `0x90dcc6 ecx = [0x28(esp)]; push %eax; add $0x20,%ecx; call 0x9fe4e0` = the u16 TileGrid GET (this = **[0x28(esp)] + 0x20 = P+0x20**; the P = [config+0x1d4] stored @0x90dbe1); `movzwl %ax; dec` = id1 @0x90dcd3/9; `jle 0x90dcfc` = the classify path (the inputs: the field value @0x24(esp) — the >0.5 gate @0x90dbc3 — and the P gate @0x90dbe5; the warp 0x90dc19 + the snap 0x90dc1e..0x90dcc5 produced the x pick = eax, the y pick = edx); id1 > 0 ⇒ `mov 0x18(%ebx),%eax; push %ecx; mov 0x90(%eax),%ecx; call 0x4b80e0` = **GetCellData([[ctx+0x18]+0x90], id1)** @0x90dcec; `mov %eax,%ecx; mov %ecx,0x28(%esp); jmp 0x90dd89` — **the SAME slot the classify path fills @0x90dd85 and the SAME merge junction**: `test %ecx,%ecx; je 0x90ddb0` (null = air-skip); `mov 0x38(%ecx),%eax; cmp $0x3; jne 0x90de0e` — the kind dispatch is IDENTICAL for both arms (X185 governs downstream: kind 3 = the map insert, no paint; ≠ 3 = the 8192-intern + the planter 0x7644d0). **(2) GetCellData's LAW (X209 [2], FULL `0x4b80e0..0x4b8288` = prologue→ret $0x4; the (89)-era cite re-read fresh this session):** `test arg; jns` = the `type >= 0` assert (line 0x361, expr 0x117cc3c, file 0x117cb10 = cellfactory); `cmp [this+0x28], type; jl` = the `type < mCellDataSize` assert (line 0x362, expr 0x117cc48); `type == 0 ⇒ return NULL` (dead at this call site — the caller decs first); else `imul $0x290, type; add [this+0x1c]; ret` = **ret = mCellDataBase + type·0x290** — the CellData rows = 656 B each. **(3) THE PRELUDE's PLANE READS (X209 [3], `0x90d860..0x90dcae`):** per cell, in order — the BYTE-vector gate = `call 0x949e80` on the container from [ctx+0x14] with `idx = *base·esi + edi`; `cmp $0,(slot); je 0x90ddb8` = the AIR skip (the (162) first gate ✓ — the container is [ctx+0x14]'s vector, NOT wg's); then the **wg's u16 read**: gated `[[ctx+0x18]+0xd8] ≠ 0` (= that vector's [this+4] count), `idx = [wg+0xbc]·esi + edi` — at the UNDISPLACED per-cell coords; `movzwl; dec` stored @0x28(esp)/0x20(esp); then the **wg's u8 plane**: getter `0x949bb0`, gated `[wg+0xf8]`, `idx = [wg+0xdc]·esi + edi`; **the byte 0xff ⇒ call 0x9443b0** (X209 [5] = the ATOMIC-TICKET claim: `lock xadd 0` = the read @[this+8]; the assert line 0x3f; `lock xadd %ebx(1)` = +1 the counter; the cap [this+4] @0x9444a8) — a side action (the flow continues into the id1a GetCellData check REGARDLESS): `0x90db80 ecx = [0x28(esp)] (= id1a); jle → the classify path; else call GetCellData([[ctx+0x18]+0x90], id1a) @0x90db92; jne 0x90dd8d = the merge` — so **the wg's u16 assignment ALSO short-circuits pre-warp**; then the field embed read (stride [wg+0x9c], plane wg+0xb4, getter 0x9499f0) + the >0.5 gate + the P gate + the warp + the snap, into the arm. **(4) THE GETTER FAMILY (X209 [4]):** `0x9fe4e0` = the u16 TileGrid GET full body — W = [this+0] / H = [this+4]; EACH coordinate wrap-mods its dim with the signed correction; and a second mod pass (`cmp; jl; idiv` @0x9fe52c for x-edited calls); **the args = edx = x / [ebp+8] = y**; gated [this+0x1c] non-null. The u8 setter **0x8FAFC0** (X209 [6]/[6b], FULL: holder ebx dims [ebx+0x40]/[+0x44], container [ebx+0x58], the flagship [ebx+0x5c] non-null skip; the asserts: line 0x434 = the x/y/value nonneg (the value INC'd then `jg`-tested), **line 0x435 = the value ≤ 0xff** (cmp $0xff; the expr 0x11737c8); the store `mov %cl,(at)` at `idx = [ebx+0x40]·y + x` via the at() getter 0x949bb0) + **the touched-list**: a stride-0xc vector scanned for the (x, y) — a MATCH updates the entry's [+8] = **value−1** (= the material id!), else `push_back` a {x, y, value−1} 12-B record via `0x92eb70` (2 whole-text callers: 0x8fb236 here + 0x8fa0cf = the SIBLING setter, the same TU, the assert line 0x263 — its body = A16's read). **⇒ THE SEMANTIC LAW (gap 3 CLOSED):** the sampler's per-cell material decision = the byte-vector gate; any PRE-ASSIGNED id (the wg's u16 pre-warp / the P's u16 post-snap at the displaced pick) ⇒ GetCellData = the assigned material DIRECTLY, skipping the classify; unassigned ⇒ the evaluator2 + the zone-classify's choice. The ids' +1 encoding + the at() family + the touched-journals = fully pinned; the WRITERS (which plane fills when, from what) = **A16 (NEW)**. **PORT DECISION: none — the assignment planes are the MATERIAL/color layer, not the shape flow; cavesShapedCellAt's shape is byte-complete FOR THE MASK; the ids' color divergence queues on A16. METER-CLASS: none (the reads; no render change — the registered E2 state = dig #196's: overall 0.77429 / hills 0.79153 / dyOpt med −162 orthogonal). Tests: none (a read dig; the battery = the {31, 402, 3} baseline unchanged). Landed: ABOUT **(197)**, CONSTANTS **C171**, ISSUES **A15 closed + A16**, MANIFEST **X209** (+ the X208 row's [5]-range correction `..0x90DD40` → `..0x90DCCE` carried in this commit), VERIFIED §12 note, SESSION_CONTEXT. Next free: entry **(198)**, **C172**, **X210**, **I50**, **A17**, **§8 row 74** — **#198 = A16: THE ASSIGNMENT PRODUCERS (the two setters' owning objects ≡ the records/fill lane; the CaveStructure fill pass's plane writes) → then the A14 anchor row-0 read (`0x909DA0`'s return semantics, the −162's home) → re-measure.**
 - **2026-10-23 (193) — dig #193: THE SHAPE HALF IS READ AND PORTED — the warp `0x908CB0`'s full body + the smoothstep's ±1 snap (`s(f) = (3−2f)·f²`, `floor(out) + [s ≥ 0.5]`) decoded; our caves gradAt now reads the field at the warp-displaced ±1-snapped point (`cavesShapedCellAt`) — the "4-corner bilinear" paraphrase is CORRECTED in the registries; measured (M-grade, fresh this dig, METER-CLASS: E2): overall registered **0.748→0.7636**, winter raw **0.605→0.630** / registered **0.670→0.7314**, hills registered **0.722→0.7434**, the deep rows up live (hills bty14 tiles 0.83–0.90 raw); the REMAINING = the hills' dyOpt med −162 px (the instrument's tile-pixel-row unit — the G1/G2 runtime-globals assumed zero!) + profL1 0.242→0.277 (the curve amplitude off!) — both point at the flagged unknowns; REGISTERED: the G1/G2-live-values + 0x8fc900's body + the [world-grid+0x90] arm = ISSUES A15 (the next dig = the trace).** Plain language: the C165 law said finite + anchored; this dig read the warp inside the sampler's per-cell decision pipe and found the smooth ±1-snapped displaced sample-point (the curved surface = the WORLD's own smoothing), and our port now applies it. **NEW EVIDENCE:** (B-grade; X206) — (1) **THE WARP'S FULL BODY** (W1): the 10px-cell transform `(x+G2+0.5)·0.1` / `(y+G1+0.5)·0.1` with the 2 runtime-global doubles (0x13289a8 = G1-on-wy, 0x1327670 = G2-on-wx — **live values unread, FLAGGED-zeroed**); `simplex2d((wx+G2)·0.13715, (wy+G1)·0.13717)` — **x-first, NOT swapped** (the paraphrase's correction); `0.45·n + 0.1`; then `latticeGrad2d((wy+G1)/9, (wx+G2)/9)` — **SWAPPED** at the 1/9d-EXACT scale ✓; the blend `w = (1−n1)·0.33 + 0.111`; the pair's return. (2) **THE SMOOTH ±1 SNAP** (W3): `s(f) = (3−2f)·f²` on both fracs + the `floor(out) + [s ≥ 0.5]`-pick — **a SNAP, not bilinear** (the correction). (3) **THE NOISE-FAMILY COVERAGE**: `0x8fca60` = **simplex2d = the C25 port** (W4: the const 0x11df9c0 = (√3−1)/2 = the SIMPLEX-SKEW ✓); `latticeGrad2d` ✓; **`0x8fc900` = a PERM-LATTICE noise (the table 0x114D700, the in-frame ·6.0) — the body UNREAD (the honest gap)** — the family-similar-but-unverified substitute = our latticeVal2d (FLAGGED in the code + here). (4) **THE MEASURED (M-CLASS: E2)**: overall registered 0.748→**0.7636**, winter raw 0.605→**0.630** / registered 0.670→**0.7314**, hills registered 0.722→**0.7434**; the deep rows live-up (the hills' bty14 tiles: 39_14 = 0.831, 41_14 = **0.896** raw); the hills' dyOpt med = **−162** (from −108) + profL1 0.242→0.277 = the un-settled gravity: **the placement's remaining ≈ the assumed-zero G1/G2 offsets = the honest unknown** ⇒ the next dig = trace (the G1/G2's writers + the [world-grid+0x90]-arm). **METER-CLASS: E2** (the instrument aggregates + the per-tile rows; the port's mechanism = the BYTE law X206, the aggregates = the verdict + the regression lock). **Purification: 9 → 9 (A14 stays; A15 = NEW (the three honest gaps); no closes).** **Landed:** ABOUT_MATH **(193)**, CONSTANTS **C167**, VERIFIED **the row-73-amend's tail as shaped**, MANIFEST **X206**, ISSUES **A14's shaped-stage + A15 new** — the tests: `caves-slab-row` = 13 (3 new: the warping's ±1-snap-law + the falsifier + the determinism!) + the api-surface row (the 5-arg shaped unit!) + the battery (expect 31/398/3). Next free: entry **(194)**, **C168**, **X207**, **I50**, **A16**, **§8 row 74** — **#194/#195 = the G1/G2-live-values's trace + the 0x8fc900's body + the [world-grid+0x90] arm; then measure again.**
 - **2026-10-23 (192) — dig #192: THE PORT IS IN — `cavesCellAt` (the C165/X205 band-anchored finite cell-read: `wy < −fh ⇒ air`, rows `[0,fh)` = the field, the deep = the wrap) wired into `noiseChunkMask`'s caves gradAt, AND the world-gen sky band (`ty<62`) now serves the noise-biome TERRAIN after the template/bin art (the boss-room law's order rule, dig #134 fix-3's pattern) — the flat floor is dead; measured (M-grade, fresh this dig, METER-CLASS: E2): overall IoU 0.602→**0.675** raw / 0.603→**0.748** shift-registered, winter 0.103→**0.605** (the collapsed lane), desert 0.922→0.814 (registered **0.934**), mountain 0.812→0.795, hills 0.686→0.575 raw but 0.687→**0.722 registered** (C166 new; caves-slab-row.test.mjs 10 tests + the api-surface contract row; battery 31/395/3 exit 0; the precommit maxBuffer gate defect also fixed in #191's commit).** Plain language: the C165 law said the field is finite and anchored at the band's top. This dig implemented it (`cavesCellAt` = the pure unit + count tests) and found the SECOND blocker: `worldColorAt`'s sky branch (`ty < 62`) preempted the noise lane entirely, so bty13 rendered nothing but the template slivers — the serve-order fix mirrors #134's documented fix for the same class. **NEW EVIDENCE:** (M-grade; the instrument artifacts + the direct-mask evidence) the serve + anchor: overall raw 0.675 (from 0.602), shift-registered **0.748** (from 0.603), winter 19 tiles 0.605 (from 0.103), desert registered 0.934, hills registered **0.722** (from 0.687), **and the falsifier FIRED: hills fG 0.628 vs fR 0.436 with dyOpt med −108 ≈ HALF A SLAB — the slab anchor `worldY0 − fh` is NOT yet the game's row-0 anchor** — per the measurement law that delta = a BYTE READ (the anchor's semantic beats inside `0x909DA0`'s return, a large gradient evaluator, unread), **REGISTERED OPEN as ISSUES A14, never accommodated in code.** The tests: 10 count tests (`caves-slab-row.test.mjs` — 0-entry air, the band's row 0, the N-entry rows + the col wrap, the deep wrap, the skip path + **the replacement test that FAILS under the old `wy < 0` arithmetic**) + the api-surface export row. **METER-CLASS: E2** (the instrument aggregates above; the port's mechanism motivation = C165's BYTE law, the aggregates = the verdict + the regression lock). **Purification: 8 → 9: **A14 added (the hills anchor's calibration — a REAL debt row) and A11's flat-floor stage LANDED (its remaining tail = the calibration too).** No D-row closes. **Landed:** ABOUT_MATH **(192)**, CONSTANTS **C166**, VERIFIED **see row 73 amendment**, ISSUES **A11/I47 landed-stage + A14 new**, tests + the battery baseline {31, 395, 3}. Next free: entry **(193)**, **C167**, **X206**, **I50**, **A15**, **§8 row 74** — **#193 = the hills anchor's ROW-0 calibration: read `0x909DA0`'s return semantics (the y-anchor's producer) and settle the slab offset (dyOpt med −108 px); then measure.**
-- **2026-10-23 (191) — dig #191: THE FLOOR LAW IS READ — per band, `worldY = [world-grid+4] + field_row`; the field is FINITE rows `[0, min([world-grid+0x8c], cap))` × cols `[0, [world-grid+0x88])`; THE SAMPLER IS THE CELL LOOP (x starts 0 inside it); the batch step-16 = dispatch granularity ONLY — so our port's mod-256 tiling from the C80 datum flattens the per-band stack and drops the silhouette below the sky line (C165 new, X205, §8 row 73 amended; NO code change, docs-only dig).** Plain language: dig #190 proved the field is finite and hard-bounded but left the y-frame open. This dig traced the caller end-to-end and found the law. **NEW EVIDENCE:** (B-grade; X205) (1) **THE PLANE-BUILDER'S `this` = THE WORLD-GRID** (`90F6BF call 0x90CFB0`, ecx = the world-grid; W5) — so its head rects are world-grid fields: `90D030 [−0x88] = [this+4]` = **the worldY ORIGIN = THE FLOOR ANCHOR**, `90D02A [this+0x88]` = width, `90D03F [this+0x8c]` = rows (W3); the trio `[world-grid+0/4/8]` is straight-copied from the band DRIVER by the assign-ctor `0x79E440` (`89 06`/`89 46 04`/`89 46 08`; W4) at `90F696`. (2) **THE SAMPLER IS THE CELL LOOP** (W2): `90D8E4 cmovb` ⇒ yLimit = min([−0x4c]=rows, [−0x7c]=cap); **`90D8F6 xor %edi,%edi` ⇒ x STARTS AT 0 INSIDE the sampler**, inner bound `90D8FC cmp %edi,(%eax)` = `[−0x58]`; the dense reads the E2 diagnostic proved (desert 0.92) are consistent — the batch loop's **y += 16 / x += 8** (W1) is DISPATCH GRANULARITY ONLY, refuting the pre-registered P2 (a convert/scale before the idx calc) and confirming P1 (placement from the driver frame). (3) **THE CLASSIFY FRAME (W6+W7):** worldX = `[−0x78]` + x (the anchor = `0x909DA0()`'s return); **worldY = `[−0x88]` + the field-row y ⇒ `worldY = [world-grid+4] + field_row`**. ⇒ **THE LAW: each band is its own finite field anchored at the band's top; our port's single `wy%256` tiling from `worldY0=31744` drops the band's top (where the mountain/surface-cave phases carve the silhouette) below the sky line — that is the whole floor defect.** **METER-CLASS: none** (bytes-only read dig; no meters run — the E2 diagnostic cited is the dig #190 artifact, re-cited as context only). **Purification: 8 → 8 (9th consecutive: #178 7→8, #179–#190 8→8).** No D-row closes (no port lane). **Landed:** ABOUT_MATH **(191)**, CONSTANTS **C165**, VERIFIED **§8 row 73 amended**, MANIFEST **X205**, ISSUES **A11/I47 re-pointed to the BAND-ANCHORED PORT**. Tests: n/a (docs-only; battery skipped). Next free: entry **(192)**, **C166**, **X206**, **I50**, **A14**, **§8 row 74** — **#192 = THE PORT: band-anchored finite caves field in `noiseChunkMask`'s gradAt (worldY0 = the band top, rows `[0,fh)` no tiling, above-band air, with 0/1/N count tests + the skip path), then measure with the surface-shape instrument.**
+- **2026-10-23 (191) — dig #191: the floor law — per band the field is finite, rows `[0, min([world-grid+0x8c], cap))` × cols `[0, [world-grid+0x88])`, anchored at the world-grid origin (axis labels per #198: worldX = `[wg+4]` + field_col, worldY = `[wg+8]` + field_row); the sampler is the cell loop (x starts 0 inside it); batch step-16 = dispatch granularity only — the port's mod-256 tiling from the C80 datum was the floor defect (C165, X205, §8 row 73 amended; docs-only).** **NEW EVIDENCE:** (B-grade, X205) (1) the plane builder's `this` = the world-grid (`90F6BF call 0x90CFB0`, ecx = world-grid; W5); head rects: `90D030 [−0x88] = [this+4]`, `90D02A [this+0x88]` = width, `90D03F [this+0x8c]` = rows (W3); the trio `[world-grid+0/4/8]` straight-copied by the assign-ctor `0x79E440` (`89 06`/`89 46 04`/`89 46 08`; W4) at `90F696` (source = the pixel-scene record, #198). (2) Sampler = cell loop (W2): `90D8E4 cmovb` ⇒ yLimit = min([−0x4c]=rows, [−0x7c]=cap); `90D8F6 xor %edi,%edi` ⇒ x starts at 0 inside the sampler, inner bound `90D8FC cmp %edi,(%eax)` = `[−0x58]`; the batch loop's y += 16 / x += 8 (W1) = dispatch granularity only (pre-registered P2 refuted, P1 confirmed). (3) Classify frame (W6+W7) as corrected by #198 (`[−0x78]` = the rect-centre config, not a worldX anchor). METER-CLASS: none. Landed: C165, X205, §8 row 73, A11/I47.
 - **2026-10-23 (190) — dig #190: THE CAVES-FIELD GETTER HARD-BOUNDS `idx` TO `[0, count)` — NO TILING, NO NEGATIVE READS — and the field stores NO y-origin, so our `wy%256` tiling + flat `wy=0` floor are INVENTIONS, and the hills' rising silhouette is rendered as air (C164 new, X204, §8 row 73; NO code change, docs-only dig).** Plain language: the user's surface defect ("floor should sit one chunk higher", "noise, no shape") is now ISOLATED. dig #189 left the field-owner fork resolved but the floor model unexamined. This dig read the field read's bytes and found our port's vertical model is invented. **NEW EVIDENCE:** (1) **THE FIELD READ IS AN INLINE LINEAR INDEX (B-grade; X204 W1):** the sampler computes `idx = W·y + x` INLINE — `90DBB4 imul %esi,%eax` (stride = `[uid+0x9c]` = W, times y in esi) → `90DBB7 add %edi,%eax` (+= x in edi) → `90DBB9 push %eax` → `90DBBA call 0x9499F0` → `90DBBF movss (%eax),%xmm0` → `90DBC3 comiss 0x11DFA94`(0.5) → `90DBD0 jbe` air. **NO modulo before the call — the getter decides bounds.** (2) **THE GETTER HARD-BOUNDS (B-grade; X204 W2):** `0x9499F0`: `949A01 test %ebx,%ebx` → `949A03 js 0x949A0E` (**idx<0 = ERROR/assert** — `push $0x4b` = line 75, an assert handler, NOT air and NOT a wrap) → `949A05 cmp 0x4(%eax),%ebx` (count) → `949A08 jl 0x949ABA` (idx<count → `949ABA mov (%eax),%eax` base → `949ABE lea (%eax,%ebx,4)` = base+idx·4). ⇒ **`0 ≤ idx < count = W·H = 131072`; the field is FINITE; the game NEVER tiles it and NEVER reads negative indices.** (3) **THE FIELD STORES NO y-origin (B-grade; X204 W3):** SetSize `0x92C9E0` stores `[this+0]`=W(stride), `[+4]`=H, `[+8]`=count, `[+0x18]`=array, `[+0x1c]`=count and takes **ONLY (W,H)** — no position/origin arg. The getter's `this` = `world-grid+0xb4` is a VIEW onto the array pointer (getter[+0]=array=embed[+0x18], getter[+4]=count=embed[+0x1c]=world-grid+0xb8) — reconciled byte-exact. ⇒ **the floor's world position = the SAMPLER's y-frame (the caller), not the field.** (4) **THE E2 DIAGNOSTIC (METER-CLASS: E2 — sentinel/diagnostic, NOT port-steering; fresh run this session, artifact `mapgen/out/surface-shape-2026-10-10-v3.json`):** overall IoU 0.602 (56 tiles); **desert 0.922, mountain 0.812 ⇒ the field source (fnC1's BitmapCaves generator) is CORRECT** — a wrong-object render would be a coin flip (the row-1 elimination signature), and hills row-14 tiles score 0.77–0.86 (fG 0.88 ≈ fR 0.96). **The defect = the surface band:** bty13 (30 tiles) IoU 0.232 with gen fG **0.088** vs capture fR **0.317**; hills bty13 tiles gen fG **0.024** (a near-constant thin sliver) vs capture fR **0.03–0.22** — our floor is pinned at `wy=0` (the `wy<0→air` guard) so the capture's rising silhouette (hills poking up into bty13) is rendered as air; the overlays (`33_13_hills.png` etc.) show the silhouette all-red (missed) + a thin bottom strip + scattered green sky dots. This matches the user's three complaints exactly. **CONSEQUENCES:** (a) our `gradAt` `wy % fh` tiling + `wy<0→air` guard are INVENTIONS (row 73) — the floor is FLAT at the C80 datum where the game's is the sampler's y-frame; (b) the `surface="hills"` XML lead was a FALSE lead (a substring of `audio_ambience_surface`) — no surface config XML exists; (c) **the lever = dig #191: read the sampler's caller to establish the field's y-frame** (what world-y `y=0` maps to, and whether the surface silhouette is the field's top or a separate layer), then port the floor law with count tests. **METER-CLASS: E2** (the instrument run above — regression sentinel + defect characterization; the floor port itself is motivated by the BYTE law (1)–(3), not by an IoU delta). **Purification: 8 → 8 (8th consecutive: #178 7→8, #179–#189 8→8).** No D-row closes (no port lane). **Landed:** ABOUT_MATH **(190)**, CONSTANTS **C164**, VERIFIED **§8 row 73**, MANIFEST **X204**, ISSUES **A11/I47 re-pointed to the y-frame**. Tests: n/a (docs-only; battery skipped). Next free: entry **(191)**, **C165**, **X205**, **I50**, **A14**, **§8 row 74** — **#191 = the sampler's y-frame (the caller): the field's world-y origin = the floor law; then PORT the floor with count tests.**
-- **2026-10-23 (189) — dig #189: THE FIELD-OWNER FORK IS RESOLVED — the sampler's `uid` = the plane-builder's WORLD-GRID, its field = the image-loaded embed `world-grid+0xb4`, and fnC1's P = the GATE only — so fnC1 does NOT fill the sampler's field (C163 new, X202+X203, §8 row 72 new + row 71 amended; NO code change, docs-only dig).** Plain language: entry (188) landed "the hills shape lever is fnC1." This dig traced whether fnC1's P is actually the object the sampler READS, and it is **NOT**: the sampler's field owner is the **plane-builder's world-grid**, and its field is the **image-loaded embed**. fnC1's P only *gates* whether the field is consulted at all (P≠NULL → read it). So the surface shape = the **IMAGE** loaded into `world-grid+0xb4`, and *which image for hills* becomes dig #190. **NEW EVIDENCE:** (1) **THE SAMPLER IS A VIRTUAL METHOD AND ITS UID IS THE WORLD-GRID (B-grade; X203 W1+W3+W4):** the sampler `0x90D860` is a virtual method on the 0x40-B dispatch ctx (vtable `0x118F9E4`); the thunk `0xA9A120` = `add $0x4,%ecx` → `jmp 0x90D860` ⇒ **sampler `this` = ctx+4**, so `uid = [this+0x18] = [ctx+0x1c]`. The ctx's only ORIGINAL construction = `0x90D529` in the plane-builder `0x90CFB0` (the other two vtable writes `0xA9A082`/`0xA9A0E2` are **copy-ctors**). The fill: `90D537 movdqu -0xc0(%ebp),%xmm0` → `90D53F movdqu %xmm0,0x14(%esi)` ⇒ **ctx[0x1c] = [ebp-0xb8]**, and `90D4F5 mov %edi,-0xb8(%ebp)` ⇒ **ctx[0x1c] = edi**; `edi` = the plane-builder's `this`, set **once** @`0x90CFDD` (`mov %ecx,%edi`, never reassigned) ⇒ **uid = edi = the world-grid** (built by `0x90CE20`). (2) **THE FIELD = THE IMAGE-LOADED EMBED (B-grade; X203 W2+W5 + X202):** the sampler reads stride `[uid+0x9c]` / plane `uid+0xb4` (X203 W5), exactly the embed the plane-builder image-loads: `0x90D1AB lea 0x9c(%edi),%ecx` → `call 0x8FA930` (SetSize + `LoadFromImageData` `0x8F9AB0`) ⇒ `world-grid+0x9c` = stride (embed[0] = W), `world-grid+0xb4` = field (embed[0x18]) — +0x18 on both sides. The embed ctor `0x8F9470` only zeroes `[embed+0x18]` and **never** calls fnC1's generator `0x8EFDD0`; fnC1's own window (X202) confirms it builds a **separate** P (`new(0xb8)`, `SetSize`, u16 grid `[P+0x38]`, MINSTD fill `0x8EFDD0`) stored at `config+0x1d4`. (3) **fnC1's P = THE GATE, NOT THE FIELD (B-grade; X203 W5):** the sampler's `P = [[ctx+0x20]]+0x1d4 = config+0x1d4 = fnC1's return`, a **SEPARATE object** from the field — `je 0x90E02B` only skips the *already-read* field when P is NULL. Neither the world-grid nor the plane-builder references `config+0x1d4`. **CONSEQUENCES:** (a) "the hills shape lever is fnC1" is **CORRECTED** — fnC1 is the gate, not the field-content source; (b) row 70's "the field = the image" is **CONFIRMED + identity-pinned** (owner = the world-grid); (c) the lever for the surface-shape fix = **the IMAGE the plane-builder loads into `world-grid+0xb4`** — dig #190 traces `0x90E060` (the `world-grid+0xc` source) to find which image hills loads. **METER-CLASS: none** (docs-only read dig — no meters run; the byte cites are the evidence). **Purification: 8 → 8 (7th consecutive: #178 7→8, #179–#188 8→8).** No D-row closes (no port lane). **Landed:** ABOUT_MATH **(189)**, CONSTANTS **C163**, VERIFIED **§8 row 72** (new) + **row 71** (amended), MANIFEST **X202+X203**, ISSUES **A11/I47 re-pointed to the image source**. Tests: n/a (docs-only; battery skipped). Next free: entry **(190)**, **C164**, **X204**, **I50**, **A14**, **§8 row 73** — **#190 = the hills image source (`0x90E060` / `world-grid+0xc`): which image the plane-builder loads into `world-grid+0xb4`.**
-- **2026-10-23 (188) — dig #188: THE P-DISPATCHER'S GATE SLOTS ARE BIOME-CONFIG XML FIELDS — `type`→config+4, `bitmap_noise_file`→config+0xa8 (size +0xb8), `BitmapCaves`→config+0xc0 — so for EVERY `<BitmapCaves>` biome (incl. hills) P = fnC1 `0x8F2FF0` (MATERIALIZED, NOT NULL), the image arm `0x8EE230` is the *lake* path only, and the hills shape lever = fnC1 (C161+C162 new, X201, §8 row 71; NO code change, docs-only dig).** Plain language: entry (187) left the fork open as "is P non-NULL for the hills config? the image is the lever only if it is." This dig settled it with a **data/config read** (not a disasm re-read): the C65 dispatcher's three gate slots are ordinary biome-config XML fields, and hills carries `<BitmapCaves name="bitmap_hills" size_x="512" size_y="256">`, so the kind-0 arm fires and **P = fnC1's return, non-NULL**. That simultaneously **kills 187's image lever for hills** (it is the lake-family path) and **refutes C122's "P … is NULL"** for BitmapCaves biomes. **NEW EVIDENCE:** (1) **THE PARSER'S THREE SLOT WRITERS (B-grade, byte-exact, X201 W1 `0x49CCD0..0x49D027`; string identities from `.rdata`, VA = fileoff+0x400E00):** `type`→config+4 — `mov $0x117915C("type"),%edx` @`0x49CCE8` → `has_attr` `0x4447F0` @`0x49CCF6` → fetch `0x9C81A0` @`0x49CD01` → `mov %eax,0x4(%esi)` @`0x49CD06` (an **integer kind**, the dispatcher compares it to 2 and 0); `bitmap_noise_file`→config+0xa8 — `mov $0x1179354("bitmap_noise_file"),%edx` @`0x49CFB2` → value `0x445820` → `lea 0xa8(%esi),%ecx; call 0x43A5A0` (std::string assign) @`0x49CFCE` ⇒ **config+0xb8 = its size** (+0x10, the "empty?" gate); `BitmapCaves`→config+0xc0 — `mov $0x1179384("BitmapCaves"),%edx` @`0x49CFF6` → fetch `0x9C8220` @`0x49D008` → `mov %eax,0xc0(%esi)` @`0x49D00D` (**a child-element pointer**, NULL if absent). Next attr @`0x1179390` = `noise_biome_edges`. (2) **THE ARM RESOLUTION (B-grade, X201 W2 `0x8F36CA..0x8F389E` + the slot map + `hills.xml`):** no biome XML carries a standalone numeric `type=` (verified 0 hits across `data/biome/*.xml` — only `noise_type=` substring-matches) and the **base ctor `0x68B2A0` zeroes the kind slot byte-exact (`movl $0x0,0x4(%ebx)` @`0x68B2DB`, called @`0x88C472`)**, so config+4 = **kind 0** → `test %ecx; jne 0x8F389E` @`0x8F377F` falls through → `cmp %ecx,0xc0(%eax)` @`0x8F3791` (tests `[config+0xc0]`==0) → **hills HAS `<BitmapCaves>` ⇒ `[config+0xc0] != 0` ⇒ NO jump** → `call 0x8F2FF0` @`0x8F37A4` → `mov %eax,0x1d4(%ecx)` @`0x8F37AE` ⇒ **P = fnC1 `0x8F2FF0`'s return, non-NULL**. (3) **CONSEQUENCES:** (a) C122's "the in-binary P … is NULL for non-attr biomes" is **WRONG for BitmapCaves biomes** (hills gets a live materialized P; it held only for biomes with neither `<BitmapCaves>` nor `bitmap_noise_file` — the static-1×1 @`0x132B518` arm); (b) entry (187)'s follow-on lever "identify the image `0x8EE230` loads" is the **lake-family** path and is **NOT the hills lever**; (c) the hills sampler field path (`owner+0x94` grid, P-gated @`0x90DBD6`) is **LIVE**, driven by **fnC1 `0x8F2FF0`** — the actual hills surface-shape source. **METER-CLASS: none** (docs-only read dig — no meters run; the byte cites are the evidence, and per the measurement law a docs-only read cannot be steered by a scalar anyway). **Purification: 8 → 8 (6th consecutive: #178 7→8, #179–#187 8→8).** No D-row closes (no port lane). **Scope RE-OPENED: dig #189 = fnC1 `0x8F2FF0`'s full window** (prologue→ret: how it fills the BitmapCaves field — the real hills surface shape). **Landed:** ABOUT_MATH **(188)**, CONSTANTS **C161+C162**, VERIFIED **§8 row 71**, MANIFEST **X201**, ISSUES **A11/I47 re-pointed to fnC1**. Tests: n/a (docs-only; battery skipped). Next free: entry **(189)**, **C163**, **X202**, **I50**, **A14**, **§8 row 72** — **#189 = fnC1 `0x8F2FF0` (the BitmapCaves field filler).**
+- **2026-10-23 (189) — dig #189: the field-owner fork resolved — the sampler's `uid` = the plane-builder's world-grid, its field = the image-loaded embed `world-grid+0xb4`, and fnC1's P = the gate only; fnC1 does not fill the sampler's field (C163, X202+X203, §8 row 72 + row 71 amended; docs-only).** **NEW EVIDENCE:** (B-grade) (1) sampler is a virtual method, uid = the world-grid (X203 W1+W3+W4): `0x90D860` is a virtual on the 0x40-B dispatch ctx (vtable `0x118F9E4`); thunk `0xA9A120` = `add $0x4,%ecx` → `jmp 0x90D860` ⇒ this = ctx+4, `uid = [this+0x18] = [ctx+0x1c]`; the ctx's only original construction = `0x90D529` in the plane-builder `0x90CFB0` (vtable writes `0xA9A082`/`0xA9A0E2` = copy-ctors); `90D537 movdqu -0xc0(%ebp),%xmm0` → `90D53F movdqu %xmm0,0x14(%esi)` ⇒ ctx[0x1c] = [ebp-0xb8]; `90D4F5 mov %edi,-0xb8(%ebp)`; edi = the plane-builder's this, set once @`0x90CFDD` ⇒ uid = the world-grid (built by `0x90CE20`). (2) Field = the image-loaded embed (X203 W2+W5 + X202): sampler reads stride `[uid+0x9c]` / plane `uid+0xb4`; `0x90D1AB lea 0x9c(%edi),%ecx` → `call 0x8FA930` (SetSize + `LoadFromImageData` `0x8F9AB0`) ⇒ `world-grid+0x9c` = stride (embed[0] = W), `+0xb4` = field (embed[0x18]); embed ctor `0x8F9470` only zeroes `[embed+0x18]`, never calls fnC1's generator `0x8EFDD0`; fnC1 (X202) builds a separate P (`new(0xb8)`, `SetSize`, u16 grid `[P+0x38]`, MINSTD fill `0x8EFDD0`) at `config+0x1d4`. (3) fnC1's P = the gate (X203 W5): `P = [[ctx+0x20]]+0x1d4`; `je 0x90E02B` skips the already-read field when P is NULL; neither the world-grid nor the plane-builder references `config+0x1d4`. Eliminated: "the hills shape lever is fnC1" (#188). METER-CLASS: none. Landed: C163, X202+X203, §8 rows 71/72, A11/I47.
+- **2026-10-23 (188) — dig #188: the P-dispatcher's gate slots are biome-config XML fields — `type`→config+4, `bitmap_noise_file`→config+0xa8 (size +0xb8), `BitmapCaves`→config+0xc0 — so for every `<BitmapCaves>` biome (incl. hills) P = fnC1 `0x8F2FF0` (materialized, non-NULL); the image arm `0x8EE230` is the lake-family path only (C161+C162, X201, §8 row 71; docs-only).** (hills carries `<BitmapCaves name="bitmap_hills" size_x="512" size_y="256">`; that fnC1 is the gate, not the field source, is #189.) **NEW EVIDENCE:** (B-grade, X201) (1) parser slot writers (W1 `0x49CCD0..0x49D027`; .rdata VA = fileoff+0x400E00): `type`→config+4 — `mov $0x117915C("type"),%edx` @`0x49CCE8` → `has_attr` `0x4447F0` @`0x49CCF6` → fetch `0x9C81A0` @`0x49CD01` → `mov %eax,0x4(%esi)` @`0x49CD06` (integer kind, compared to 2 and 0); `bitmap_noise_file`→config+0xa8 — `mov $0x1179354,%edx` @`0x49CFB2` → value `0x445820` → `lea 0xa8(%esi),%ecx; call 0x43A5A0` (std::string assign) @`0x49CFCE` ⇒ config+0xb8 = its size (the "empty?" gate); `BitmapCaves`→config+0xc0 — `mov $0x1179384,%edx` @`0x49CFF6` → fetch `0x9C8220` @`0x49D008` → `mov %eax,0xc0(%esi)` @`0x49D00D` (child-element pointer, NULL if absent); next attr @`0x1179390` = `noise_biome_edges`. (2) Arm resolution (W2 `0x8F36CA..0x8F389E`): no biome XML carries a standalone `type=` (0 hits in `data/biome/*.xml`), base ctor `0x68B2A0` zeroes the kind (`movl $0x0,0x4(%ebx)` @`0x68B2DB`, called @`0x88C472`) ⇒ kind 0 → `test %ecx; jne 0x8F389E` @`0x8F377F` falls through → `cmp %ecx,0xc0(%eax)` @`0x8F3791` → `[config+0xc0] != 0` ⇒ `call 0x8F2FF0` @`0x8F37A4` → `mov %eax,0x1d4(%ecx)` @`0x8F37AE`. (3) C122's "P is NULL for non-attr biomes" is wrong for BitmapCaves biomes (holds only for biomes with neither `<BitmapCaves>` nor `bitmap_noise_file` — the static-1×1 @`0x132B518` arm). METER-CLASS: none. Landed: C161+C162, X201, §8 row 71.
 - **2026-10-22 (187) — dig #187 (CORRECTED by synthesis): THE SAMPLER'S FIELD IS IMAGE-LOADED, NOT GRADIENT-FILLED — but `0x8F9AB0` = `LoadFromImageData` (C32), an IMAGE DECODER whose ±1.0f = decoded pixels, NOT a shape rule; dig #187's census/wrapper/twins were RE-READS of C37/C39/C62/C65, so the surface shape = the IMAGE decoded into the embed `owner+0x9c` (C160 new, X200, §8 row 70; NO code change, docs-only dig).** Plain language: entry (186) left the lever as "locate the SURFACE SAMPLER that reads the gradient's terrain plane." This dig located the field's actual FILL and it is **not** the gradient: the plane the sampler reads (`owner+0xb4`, the template's `+0x18`) is allocated+zeroed+populated by **`0x8FA930` → `0x8F9AB0`**, and `0x8F9AB0` writes a **±1.0f BINARY mask** — so the whole surface-shape question collapses to one decision law, not a noise threshold. **NEW EVIDENCE (SYNTHESIS FLAG: all three items were RE-READS of already-registered rows — the census = C37, the `0x8FA930` wrapper = C39, the ±1.0f twins = C62, the embed load = C65; only the (wrong) interpretation was novel):** (1) **`surfaceField` CENSUS (E1, whole-text direct-call):** `objdump -d noita_dev.exe | grep -c 'call.*0x90a860'` = **1** (site **0x908f96**, the driver `0x908F40`'s kind-0 arm). There the gradient's float return (`movaps %xmm0,%xmm3`) is passed straight into the **zone predicate `0x8F5030`** at **0x908fb0** (`this = [ebx+0x2a4]`, two integer coords) — **never stored into a plane** ⇒ **REFUTES "the gradient fills the sampler's field."** (2) **THE FIELD'S FILL (B-grade; X200 W2/W3):** the world-grid plane-builder `0x90CFB0` reaches the field template at `lea 0x9c(%edi),%ecx` (**0x90d1ab**) and calls **`0x8FA930`**. `0x8FA930` (this = the template): `push 0x18(%edi)`→`operator delete` (old plane) → `operator new` → **`mov %eax,0x18(%edi)`** (the new plane = **`owner+0xb4`**) + `mov %ebx,0x1c(%edi)` (end) → `memset(0)` via `0x1033a5e` → **`mov %edi,%ecx; call 0x8F9AB0`** (populate, this = the template); `ret $0xc`. (3) **THE ±1.0 MASK (B-grade; X200 W4):** `0x8F9AB0` writes into that plane through the SAME getter the sampler reads (`call 0x9499f0`): **`movl $0xbf800000,(%eax)` = −1.0 (air)** @0x8f9f04 and **`movl $0x3f800000,(%eax)` = +1.0 (solid)** @0x8f9f39, branched by a per-iteration counter (`cmp $0x1,%eax; jne` @0x8f9eea–0x8f9ef2) with zone lookups `0x92e800`/`0x92e850` and a noise read `0x9fe450` on `[esi+0xb4]`. **Consistency seal:** the plane is `memset(0)` first, and the sampler's gate is `v <= 0.5 → air` (C159); were `0x8F9AB0` to write a *different* plane, every cell would read 0 and the world would be all-air — so `0x8F9AB0` MUST populate `owner+0xb4`. **Consequence for A11/I47 (CORRECTED by synthesis):** the lever is **NOT** "wire the `bandParams()` gradient (`biomes.mjs:112`) into the mask" — TRUE. But `0x8F9AB0` = `BitmapNoise::LoadFromImageData` (**C32**), an IMAGE DECODER: its ±1.0f writes are **decoded pixels**, NOT a procedural "+1 solid/−1 air" shape decision. Our port's `v > 0.5` gate instead classifies the **walk-eroded caves field** (min 0 / max 2.999 / countLE05 13,021 — a *different object*, C158's stamps). The lever is now **CONDITIONAL (the field path is P-gated, C144: `[uid+0x1d4]==NULL` → air tail discards the field)**: first determine whether P is non-NULL for the hills config (C122 says NULL for non-attr biomes; the P-dispatcher @0x8f36ca..0x8f37e4 materializes it in every branch — unresolved); **only if P is materialized** is the lever the IMAGE decoded into the embed `owner+0x9c` — identify the plane-builder's image source; there is no shape rule to recover from `0x8F9AB0` (a decoder, C32). **PREDICTION OUTCOMES** (pre-registered): **P1** "the gradient's return is stored into a plane" — **FALSIFIED** (single caller → zone predicate); **P2** "the sampler's field is allocated by `0x8FA930`" — **CONFIRMED**; **P3** "the field is a smooth gradient the sampler thresholds at 0.5" — **FALSIFIED** (it is ±1.0f, a binary mask). METER-CLASS **E1** (a whole-text caller census + structural reads; no composed-output meter run or cited). **Purification: 8 → 8 (9th consecutive).** No D-row closes (docs-only read), so **the scope is RE-OPENED as dig #188**. A11/I47 re-pointed from "wire the gradient into the mask" to **the IMAGE decoded into the embed `owner+0x9c`** (identify the plane-builder's image source — NOT a decision law, since `0x8F9AB0` is a decoder); the `biomes.mjs:112` gradient TODO is now registered as aimed at the WRONG object. Landed: ABOUT **(187)**, CONSTANTS **C160**, MANIFEST **X200**, VERIFIED **§8 row 70**, ISSUES **A11 + I47 re-pointed**. No ported-code change; the battery baseline untouched {30, 385, 3}. Next free: entry **(188)**, **C161**, **X201**, **I50**, **A14**, **§8 row 71** — **#188 = the P-DATA QUESTION: determine whether `[uid+0x1d4]` (P) is non-NULL for the hills config** (its kind + `[0xc0]`/`[0xb8]` — a data/config read, resolving C122's "P is NULL" vs the P-dispatcher @0x8f36ca..0x8f37e4 that materializes it in every branch). **If P is materialized**, the follow-on is to identify the IMAGE the plane-builder `0x90CFB0` loads into the embed `owner+0x9c` (its image source at fn `0x90e840`'s `[ebp-0xf0]` vtable object); **if P is NULL for hills**, the field path is dead and the shape lever is the RECORD LANE, not the image — plus the Graphics→record promotion step (C156's caveat).
 - **2026-10-22 (186) — dig #186: THE CAVES FIELD IS GRADIENT-FREE — the sampler's field is an independent, self-driven walk field (built by `0x8EE8F0`, whose call tree never calls the gradient `0x8F5030`), the gradient writes a SEPARATE zone plane through a different virtual interface, and the sampler `0x90D860` reads the CHAMBER field — so A11/I47 re-point to the not-yet-located SURFACE sampler that reads the gradient's terrain plane (C159 new, X199, §8 row 69; NO code change, docs-only dig).** Plain language: entry (185) isolated the gradient (surfaceField) as the negative-capable field and queued #186 with one question — *does the gradient reach the plane the sampler reads (`owner+0xb4`)?* This dig answered **NO**, by three byte-laws, and in doing so reframed the lever: the caves field the sampler reads is an erosion field the game never feeds the gradient into. **NEW EVIDENCE:** (1) **THE CALL-TREE LAW (B-grade, fresh `objdump -d` this session, exe md5 `8b611494212a69492dd0a4527d9c92e0`, prologue→ret, zero `.byte`):** the caves field-build `0x8EE8F0` → `0x8EE9F7` → { `0x8EE620` ctor (→ `0x8F9470` template, `0x9499F0`/`0x949B10`/`0x949B80` allocs), `0x8EE750` setter, `0x8EE930` blend } — **the whole tree contains ZERO calls to `0x8F5030`** (the gradient). The gradient and the caves field are **independent paths** in the driver. (2) **THE CAVES FIELD IS SELF-DRIVEN:** per C155 the walk (`0x8EFE00`+) reads the field's OWN plane (`owner+0xb4`, stride `owner+0x9c`) and the setter/blend stamps write `scale = 0.1(t+1)(0.25u+0.75)` (C157, always ≥ 0) driven by that walk — **no gradient, no height, no distance**; it is a self-referential erosion field. (3) **THE GRADIENT WRITES A DIFFERENT OBJECT:** the gradient's store is `call *(%edx)` (a virtual store on the zone's plane object at `[zone+4]`), while the caves field's plane is reached through `call *0x30(%eax)` (the setter/blend's virtual) — **two different virtual interfaces ⇒ two different objects.** The gradient's plane is therefore NOT the caves field. (4) **THE SAMPLER IS THE CHAMBER SAMPLER, AND ITS CLASSIFY IS BYTE-EXACT `v <= 0.5`:** `0x90D860` reads the caves field (`mov 0x9c(%ecx)` = stride, `add $0xb4,%ecx` = plane, `call 0x9499f0` getter, `movss (%eax),%xmm0` = v) and then **`comiss 0x11DFA94,%xmm0; jbe 0x90e02b`** — the gate is **`v <= K → the arm at 0x90e02b`**, and **`0x11DFA94` = 0.5f** (read fresh from `.rdata`, VA 0x11DFA94 / fileoff 0xDDEC94, raw `0000003f`, this session) ⇒ **the game's caves-field classify is `v <= 0.5 → air`, so the port's `v > 0.5 ? 1 : 0` threshold is byte-correct for the caves field** (the difference is only the ≤ vs < tie at exactly 0.5, measure-zero on a float field). The gradient's terrain plane is read by a **separate, yet-unlocated** sampler (the surface sampler). **Consequence for A11/I47:** the lever is **NOT** "wire the gradient into the caves field" — the game's caves field is gradient-free, so wiring it there would be a **port-local invention** the measurement law bars. The lever is to **locate the surface sampler** that reads the gradient's terrain plane, and wire the ported `bandParams()` gradient into the field *that* sampler reads. **PREDICTION OUTCOMES** (registered before the reads): **P1** "the gradient reaches `owner+0xb4` directly" — **FALSIFIED** (the two paths never meet); **P2** "the caves field is self-driven (no external height input)" — **CONFIRMED**; **P3** "the sampler `0x90D860` is the surface sampler" — **FALSIFIED** (it reads the caves field). METER-CLASS **E1** (byte elimination + call-tree census; no composed-output meter run or cited). **Purification: 8 → 8 (8th consecutive).** No D-row closes (docs-only read), so **the scope is RE-OPENED as dig #187**. A11/I47 re-pointed from "wire the gradient into the caves field" to **the surface sampler (the gradient's terrain plane reader), which is not yet located**. Landed: ABOUT **(186)**, CONSTANTS **C159**, MANIFEST **X199**, VERIFIED **§8 row 69**, ISSUES **A11 + I47 re-pointed**. No ported-code change; the battery baseline untouched {30, 385, 3}. Next free: entry **(187)**, **C160**, **X200**, **I49**, **A13**, **§8 row 70** — **#187 = THE SURFACE SAMPLER: locate the function that reads the gradient's terrain plane (the surface mask's byte path), then wire the ported `bandParams()` gradient into that field.** — plus the Graphics→record promotion step (C156's caveat).
 - **2026-10-22 (185) — dig #185: THE BITMAP-CAVES FIELD CANNOT GO NEGATIVE — every setter/blend stamp writes `scale ≥ 0`, so A11's "make `countNeg > 0`" premise is ELIMINATED and C153's `v < 0` air arm must be fed by a DIFFERENT field (the gradient), re-pointing A11 to the unwired surfaceField — the caves field and the sampler's field are NOT the same object (C158 new, X197–X198, §8 row 68; NO code change, docs-only dig).** Plain language: entry (184) isolated A11's lever to "the field's missing NEGATIVE region" — the theory that the game's hills field goes negative (feeding C153's `v < 0` air arm) and our port's never does. This dig read the field's WRITERS — the setter `0x8EE750`, the blend `0x8EE930`, and all three setter call sites — fresh, prologue→ret, and the theory does not survive contact with the bytes: **every stamp writes `scale ≥ 0`, so the bitmap-caves field cannot go negative, in the game or in our port.** The `countNeg = 0` our port measures is therefore CORRECT, not a bug — and the "make countNeg > 0" contract registered in the count-law test (and queued as #179's lever) is IMPOSSIBLE as framed. **NEW EVIDENCE:** (1) **THE WRITER LAW (B-grade; X197 `dig185-writers-8ee750-8ee9b0.asm`, the setter `0x8EE750` + blend `0x8EE930`, 217 lines / 10,432 B, zero `.byte`, md5 `f803faaf56cabd285851c00076b0f73f`):** the setter's `ecx` = the field SHELL (`[+0]`=W, `[+4]`=H, `+0x18` = the plane), `xmm3` = **scale** (→ `[-0xc]`); the circle gate = `comiss %xmm2,%xmm3` against **`0x11DFBF0` = 1.0f** → `jb 0x8ee7df` (value > 1 → circle). The **single-cell arm (value ≤ 1)** @0x8ee776–0x8ee7d8: bounds-check → `cell = getter(shell+0x18, W·y+x)` → **`comiss -0xc(%ebp)(scale),%xmm0; jbe 0x8ee91c`** (skip unless `cell > scale`) → **`movss -0xc(%ebp),%xmm0; movss %xmm0,(%eax)` = write `scale` RAW.** The blend `0x8EE930`'s single-cell arm @0x8ee955–0x8ee9af is **byte-identical**. The high arms preserve non-negativity: the setter's circle target = `1 + t·(scale−1)` ∈ `[scale, 1]`, the blend's = `cell += (scale−cell)·w` with `w = t² ∈ [0,1]` ⇒ for `scale ≥ 0, cell ≥ 0` the result stays `≥ 0`. (2) **THE THREE SCALE-SITES (B-grade; X198 `dig185-scale-sites.asm`, three windows, zero `.byte`, md5 `8163d37b6e974231c99e68ad7e2b9a36`):** site 1 (0x8EF34C..0x8EF381, the `push $1; call` @0x8ef37c) = **`scale = clamp(v, 0, 1)`** (the `movss 0x11dfbf0`(1.0) → `comiss; jbe` clamp-high, then `xorps %xmm2,%xmm2; comiss; ja` clamp-low to 0.0); sites 2 (0x8F1E6D..0x8F20D6, `call` @0x8f20d1) & 3 (0x8F2881..0x8F2A71, `call` @0x8f2a6c) = **`0.1(t+1)·(lane factor) > 0`** (the `mulss`+`addss` on **`0x11DF974` = 0.1f**; site 2's lane = `mulss 0x11df9d0`( **0.25f**) → `addss 0x11dfb2c`( **0.75f**) = `0.25u+0.75`, the C81 lane-4 factor). **Four `.rdata` constants read this session (VA = fileoff + 0x400E00): `0x11DFBF0` = 1.0f, `0x11DF974` = 0.1f, `0x11DF9D0` = 0.25f, `0x11DFB2C` = 0.75f.** ⇒ **the caves field's range is `[0, ~3]`, `countNeg = 0` — C153's `v < 0` arm is INERT on it.** (3) **THE FIELD-SHELL ORIGIN (B-grade):** fnB (`0x8EEC70`, the walk) receives its field shell as arg1 from the external caller `0x8EFDD0` (prologue @0x8efdd1), which reads it from `[edx+0x1d4]`/`ebx` — a *pointer to a separate shell object*, not the embedded template at `owner+0x9c` (whose `+0x18` plane = `owner+0xb4`, exactly what the sampler reads with stride `[owner+0x9c]`). fnB's own `ret`s end at `0x8efdc8`, so the `call 0x8eec70` @0x8f0703 sits in that separate driver, not inside fnB. (4) **THE DEDUCTION (by elimination, from B-grade premises):** the caves field can't go negative [(1)+(2)]; C157 already proved the `v < 0` arm is the ONLY air writer for the u8 air plane; the game HAS air ⇒ **the sampler's field must go negative ⇒ it is NOT the caves field fnB carves.** The negative-capable candidate is the **gradient/terrain field** — surfaceField `0x90A860`, whose band params carry `mGradientLowNoise` = −292.571 and `mGradientStartY` = −1024 (both negative, `data/biome/hills.xml`); the driver `0x908F40`'s kind-0 arm calls it **exactly once** (@0x908f96) and stores its return via `0x8F5030` into `[band+0x2a4]` (the store's own target `[[band+0x2a4]+8]` → whether it reaches `owner+0xb4` is UNREAD — dig #186's question). (5) **THE PORT'S FIELD (M-grade, E1):** `buildCavesField` (seed 78633191, hills) = `min 0.0000, max 2.9990, countNeg 0, countLE05 13021` — consistent with the byte law; the `.fill(1.0)` at `caves-field.mjs:604` ("fn C1's bake") is therefore CORRECT for the caves field (its floor is site 1's clamp at exactly 0.0). **PREDICTION OUTCOMES** (registered in writing before opening the disasm): **P1** "the caves field can't go negative (all stamps write `scale ≥ 0`)" — **CONFIRMED**; **P2** "the sampler reads a different field than fnB's caves field" — **CONFIRMED by elimination** (the direct object-identity `[band+0x2a4]` → `owner+0xb4` is UNREAD, dig #186); **P3** "the gradient (surfaceField) is the negative-capable field" — **LEADING CANDIDATE, UNPROVEN** (the driver's store target is unread). METER-CLASS **E1** (structural reads + one counted field census; no shape/scalar meter run — the measurement law bars reading a composed-output delta as evidence). **Purification: 8 → 8 (7th consecutive: #178 7→8, #179–#185 8→8).** No D-row closes (docs-only read; A11's "make countNeg > 0" lever is now proven impossible and the correct lever — the gradient field — is isolated but its store path is unread), so **the scope is RE-OPENED as dig #186**. A11/I47 re-pointed from "the field's missing NEGATIVE region" to **the gradient/terrain field (surfaceField), which our port does not wire into the mask**; the count-law test's "make countNeg > 0" contract DELETED (Synthesis law — the impossible contract removed, not annotated). Landed: ABOUT **(185)**, CONSTANTS **C158**, MANIFEST **X197 + X198**, VERIFIED **§8 row 68**, ISSUES **A11 + I47 re-pointed**, the count-law test's comment amended. No ported-code change; the battery baseline untouched {30, 385, 3}. Next free: entry **(186)**, **C159**, **X199**, **I48**, **A12**, **§8 row 69** — **#186 = THE SAMPLER'S FIELD IDENTITY: does the gradient (surfaceField `0x90A860`, stored via `0x8F5030` into `[band+0x2a4]`) reach the plane the sampler reads (`owner+0xb4`)?** — plus the Graphics→record promotion step (C156's caveat).
-- **2026-10-22 (184) — dig #184: "AIR = NEVER WRITTEN" IS FALSIFIED — the three planes are `memset(0)` but the air plane's ONLY writer is C153's `v < 0` arm, so the null-record / kind-0 route is ELIMINATED as a mask-air source and A11's lever is uniquely isolated to the field's missing NEGATIVE region (C157 new, X195–X196, §8 row 67 + row 66's dangling pointer repaired; NO code change, docs-only dig).** Plain language: entry (183) left two "surviving" air candidates — C155's NULL-record arm and a kind-0 skip — on the theory that if the plane initialises to 0 then air simply falls out as "never written". This dig read the plane construction, the store, the dispatch and the air arm **fresh, prologue→ret**, and the theory does not survive contact with the bytes: the planes *are* zero-filled, but **zero is not air** — it is the *unmarked* default, and air requires an explicit stamp that a NULL record never reaches. The dispatch cited in entry (183) as `cmp $0x1,%ecx; je 0x90dd50; jg 0x90dd60; jmp 0x90ddb8` **does not exist**: `0x90DD50` and `0x90DD60` are not instruction boundaries anywhere in `.text` (zero labels, zero jumps to either) and C154 never stated it — the true dispatch is `mov 0x38(%ecx),%eax` → `cmp $0x3,%eax` → `jne 0x90de0e` (X185's own row already had this right). **NEW EVIDENCE:** (1) **THE THREE PLANES (B-grade; X195 `dig184-planector-90cfb0-90d85a.asm`, the full plane-building method 0x90CFB0 → `ret` @0x90D859, 631 insns / 31,847 B, zero `.byte`, md5 `c3ccb681ba653872a7a92e538066f230`):** one object carries **three** planes, each allocated with `call *0x114a35c` (operator new) and then **`push %esi; push $0x0; push %eax; call 0x1033a5e` = `memset(p, 0, size)`** — **`[obj+0x1a0]` = the u8 AIR plane** (stride `[obj+0x188]`) zeroed @0x90D369, **`[obj+0x1c0]` = the u8 SOLID plane** (stride `[obj+0x1a8]`) zeroed @0x90D275, **`[obj+0x1e0]` = the DWORD KIND plane** (stride `[obj+0x1c8]`) zeroed @0x90D2F9, whose size is `lea 0x0(,%eax,4),%esi` = count×**4** — matching X193's accessor `lea (%eax,%ebx,4)` and X185's DWORD store. **`0x1033A5E` is an IAT thunk** (`jmp *0x114a53c`) to the CRT `memset`, which the PE import table lists; the idiom `push size; push $0x0; push buf` is unambiguous. **CAVEAT (D-grade, honest scope):** the memset is on the REALLOC path only — `je 0x90d307` @0x90D2A3 and `je 0x90d371` @0x90D31C skip it when the size is unchanged, so a size-matched reuse of the same object would not re-zero; whether a separate per-generation clear exists is UNREAD and does not affect the first-construction law. (2) **THE AIR MARK, READ FRESH (B-grade):** @0x90E02B — `xorps %xmm1,%xmm1; comiss %xmm0,%xmm1; jbe 0x90ddb8` = **skip the stamp unless `v < 0.0`**, then `mov 0x188(%ecx),%eax` (the air stride) → `add $0x1a0,%ecx` → `call 0x94a9d0` (the u8 accessor) → **`movb $0x1,(%eax)`**. Its sibling @0x90E000 stamps the SOLID plane the same way through stride `+0x1a8` / base `+0x1c0`. This re-derives C153 independently. (3) **THE NULL-RECORD ARM IS NOT AN AIR SOURCE (the dig's elimination):** @0x90DD8B `test %ecx,%ecx; je 0x90ddb0` sends a NULL record to the **LOOP TAIL**, which is *upstream* of the air arm — so a NULL record leaves the air plane at its `memset` 0 = **NOT air**. C155's "a NULL record returns 0 = AIR" describes `0x740F80`'s *return*, and that 0 lands in the **kind** plane, a different plane with different semantics. (4) **THE STORE'S VALUE IS THE KIND, NOT A SLOT (C155 CONFIRMED, and the dig's own first reading corrected):** the sampler's atomic allocator @0x90DE16–0x90DE2C (`cmp $0x1,%eax` ⇒ **kind 1 only**; `lock xadd %eax,(%edx)` = a fetch-and-increment; `cmp $0x2000,%eax; jae` = a **8192-slot pool**; `mov 0x4(%edx,%eax,4),%eax` = `pool[n]`; else `xor %eax,%eax`) computes the **CLAIMED SLOT** passed as `0x740F80`'s arg5 — and the planter's tail **`call 0x740f80` @0x76468b then straight to the pops** (`eax` untouched ⇒ `ret $0x10`) returns `0x740F80`'s **kind** unchanged, which the sampler stores @0x90DE9C. So the plane holds the kind (C155's law stands), the pool supplies the claim index, and a full pool degrades to kind 0. (5) **`0x749A20` IS `CLiquidCell`'s CONSTRUCTOR, NOT A "KIND-1 PAINT" (B-grade; X196 `dig184-cliquidcell-ctor-749a20-749c12.asm`, 0x749A20 → `ret $0x4` @0x749C0F, 154 insns / 7,726 B, zero `.byte`, md5 `ea51dae79418930c20048193fe1323fa`):** the assert's file string @0x11A0A28 = `…source\grid\cells\cliquidcell.cpp` (format @0x1150F60, line `0xaa` = 170); it writes the vtable **@0x11A33DC** into `[this+0]` and **`movl $0x3,0x20(%ebx)`** @0x749A74 = **`[cell+0x20] = 3`**, and a NULL arg1 asserts then deliberately crashes via `xor %eax,%eax; movl $0x1ca9,(%eax)` (line `0x1ca9` = 7337). It also advances an **MSVC LCG per liquid cell** — `imul $0x343fd,0x4(%edi),%eax` → `add $0x269ec3,%eax` → `mov %eax,0x4(%edi)` = `s = s·214013 + 2531011`, so **`[cell+0x4]` is an RNG state** — a per-liquid draw that a stream trace must account for. C155's kind==1 arm calls it with `this` = the claimed slot, which independently confirms **kind 1 = LIQUID**. The cell family is named by `.rdata` source paths: **`icell.cpp`, `csolidcell.cpp`, `cliquidcell.cpp`, `cgascell.cpp`, `cfirecell.cpp`, `cellfactory.h/.cpp`** ⇒ `ICell` → {`CSolidCell`, `CLiquidCell`, `CGasCell`, `CFireCell`} + `CellFactory` (D-grade structural; class→kind mapping otherwise unread) — and **this is the code home of the user's liquid complaints** (missing lava-lake walls, floating water, lava bands not reaching the map edge). **PREDICTION OUTCOMES** (registered in writing before any new disasm window was opened): **P1** the zero-initialisation CONFIRMED, its air consequence FALSIFIED; **P2** the skip-stores-nothing CONFIRMED (0x90DDB8 = `mov 0x18(%esp),%ecx` + `inc %edi` + `jl`, no store); **P3** FALSIFIED as framed — the plane holds a kind, not a material id, and 3 is the SET-insert arm rather than a solid claim; **P4** FALSIFIED — `0x749A20` writes no plane at all. METER-CLASS **E1** (structural reads + counts only; no shape or scalar meters run this dig — the measurement law bars reading a composed-output delta as evidence). **Purification: 8 → 8 (6th consecutive: #178 7→8, #179–#184 8→8).** No D-row closes (docs-only read; A11's port is known to be the wrong lever and the correct lever is now isolated but unread), so **the scope is RE-OPENED as dig #185**. A11/I47 re-pointed from "the null-record / kind-0 arm" to **the field's missing NEGATIVE region**; entry (183)'s non-existent dispatch DELETED (Synthesis law — false wording removed, not annotated) and §8 row 66's dangling "surviving candidates" pointer repaired. Landed: ABOUT **(184)**, CONSTANTS **C157**, MANIFEST **X195 + X196**, VERIFIED **§8 row 67 + row 66 repaired + the §9 note**, ISSUES **A11 + I47 re-pointed**. No code or test change; the battery baseline untouched {30, 385, 3}. Next free: entry **(185)**, **C158**, **X197**, **I48**, **A12**, **§8 row 68** — **#185 = THE FIELD'S MISSING NEGATIVE REGION: what makes the game's hills field go negative, and why ours never does (`countNeg` = 0 vs `countLE05` = 13,021)** — plus the Graphics→record promotion step (C156's caveat).
+
+
+- **2026-10-22 (184) — dig #184: "AIR = NEVER WRITTEN" IS FALSIFIED — the three planes are `memset(0)` but the air plane's ONLY writer is C153's `v < 0` arm; the null-record / kind-0 route is ELIMINATED as a mask-air source and A11's lever is isolated to the field's missing NEGATIVE region (C157, X195–X196, §8 row 67; docs-only).** Zero is the *unmarked* default, not air; air requires an explicit stamp a NULL record never reaches. The dispatch once cited as `cmp $0x1,%ecx; je 0x90dd50; jg 0x90dd60; jmp 0x90ddb8` does not exist (`0x90DD50`/`0x90DD60` are not instruction boundaries in `.text`); the true dispatch is `mov 0x38(%ecx),%eax` → `cmp $0x3,%eax` → `jne 0x90de0e` (as X185 records). **NEW EVIDENCE:** (1) **THE THREE PLANES (B; X195 `dig184-planector-90cfb0-90d85a.asm`, 0x90CFB0 → `ret` @0x90D859, 631 insns / 31,847 B, zero `.byte`, md5 `c3ccb681ba653872a7a92e538066f230`):** one object, three planes, each `call *0x114a35c` (operator new) then `push %esi; push $0x0; push %eax; call 0x1033a5e` = `memset(p, 0, size)` — **`[obj+0x1a0]` = u8 AIR plane** (stride `[obj+0x188]`) zeroed @0x90D369, **`[obj+0x1c0]` = u8 SOLID plane** (stride `[obj+0x1a8]`) zeroed @0x90D275, **`[obj+0x1e0]` = DWORD KIND plane** (stride `[obj+0x1c8]`) zeroed @0x90D2F9, size `lea 0x0(,%eax,4),%esi` = count×4 (matches X193's `lea (%eax,%ebx,4)` and X185's DWORD store). `0x1033A5E` = IAT thunk (`jmp *0x114a53c`) to CRT `memset`. CAVEAT (D): the memset is on the REALLOC path only (`je 0x90d307` @0x90D2A3, `je 0x90d371` @0x90D31C skip it when the size is unchanged); a per-generation clear is UNREAD. (2) **THE AIR MARK (B, re-derives C153):** @0x90E02B `xorps %xmm1,%xmm1; comiss %xmm0,%xmm1; jbe 0x90ddb8` = skip unless `v < 0.0`, then `mov 0x188(%ecx),%eax` → `add $0x1a0,%ecx` → `call 0x94a9d0` → `movb $0x1,(%eax)`; the sibling @0x90E000 stamps the SOLID plane via stride `+0x1a8` / base `+0x1c0`. (3) **THE NULL-RECORD ARM IS NOT AN AIR SOURCE:** @0x90DD8B `test %ecx,%ecx; je 0x90ddb0` sends a NULL record to the loop tail, upstream of the air arm ⇒ the air plane stays memset 0 = not air. C155's "NULL record returns 0 = AIR" is `0x740F80`'s return, which lands in the **kind** plane. (4) **THE STORE'S VALUE IS THE KIND (C155 confirmed):** the sampler's allocator @0x90DE16–0x90DE2C (`cmp $0x1,%eax` ⇒ kind 1 only; `lock xadd %eax,(%edx)`; `cmp $0x2000,%eax; jae` = 8192-slot pool; `mov 0x4(%edx,%eax,4),%eax` = `pool[n]`; else `xor %eax,%eax`) computes the CLAIMED SLOT = `0x740F80`'s arg5; the planter's tail `call 0x740f80` @0x76468b → pops → `ret $0x10` returns the kind unchanged, stored @0x90DE9C. A full pool degrades to kind 0. (5) **`0x749A20` = `CLiquidCell`'s CONSTRUCTOR (B; X196 `dig184-cliquidcell-ctor-749a20-749c12.asm`, → `ret $0x4` @0x749C0F, 154 insns / 7,726 B, zero `.byte`, md5 `ea51dae79418930c20048193fe1323fa`):** assert file string @0x11A0A28 = `…source\grid\cells\cliquidcell.cpp` (format @0x1150F60, line `0xaa` = 170); vtable **@0x11A33DC** → `[this+0]`; `movl $0x3,0x20(%ebx)` @0x749A74 = `[cell+0x20] = 3`; NULL arg1 asserts then crashes (`xor %eax,%eax; movl $0x1ca9,(%eax)`, line 7337). It advances an **MSVC LCG per liquid cell** (`imul $0x343fd,0x4(%edi),%eax` → `add $0x269ec3,%eax` → `mov %eax,0x4(%edi)` = `s = s·214013 + 2531011`) ⇒ `[cell+0x4]` = an RNG state a stream trace must account for. C155's kind==1 arm calls it with `this` = the claimed slot ⇒ **kind 1 = LIQUID**. `.rdata` source paths `icell.cpp`, `csolidcell.cpp`, `cliquidcell.cpp`, `cgascell.cpp`, `cfirecell.cpp`, `cellfactory.h/.cpp` ⇒ `ICell` → {`CSolidCell`, `CLiquidCell`, `CGasCell`, `CFireCell`} + `CellFactory` (D-grade; class→kind otherwise unread) = the code home of the user's liquid complaints (missing lava-lake walls, floating water, lava bands short of the map edge). **PREDICTION OUTCOMES:** P1 zero-init CONFIRMED, its air consequence FALSIFIED; P2 skip-stores-nothing CONFIRMED (0x90DDB8 = `mov 0x18(%esp),%ecx` + `inc %edi` + `jl`); P3 FALSIFIED (the plane holds a kind; 3 = the SET-insert arm); P4 FALSIFIED (`0x749A20` writes no plane). METER-CLASS **E1** (structural reads/counts only). Purification 8 → 8; scope re-opened as #185. Landed: C157, X195 + X196, §8 row 67 (+ row 66's pointer repaired), A11/I47 re-pointed to the field's missing negative region. Next: #185 = what makes the game's hills field go negative (ours: `countNeg` = 0 vs `countLE05` = 13,021) + the Graphics→record promotion step (C156's caveat). Next free: (185), C158, X197, I48, A12, §8 row 68.
 
 - **2026-10-22 (183) — dig #183: THE MATERIAL `<Graphics>` XML PARSER FOUND (`0x73D0C0`, C156/X194) — and C155'S PALETTE-AIR ROUTE IS ELIMINATED BY SHIPPED DATA (§8 row 66): `randomize_colors` never appears in the data tree and no material colour is transparent ⇒ the assignment layer's AIR is NOT a transparent material colour, so the #182→#183 queue item is DEAD as framed; A11's lever moves to the NULL-record / kind-0-skip arm.** Plain language: dig #182 ended with the air source pinned to "a transparent palette pixel", and #183 was queued as the PORT that would finally retire A11. The port cannot be written, because the data that would drive it does not exist: the jitter that would scramble the palette index (`randomize_colors`) is supported by the parser but **written by no shipped file**, and **not one material colour in the game has alpha 0**. So the palette-alpha branch — byte-correct as a mechanism — never fires in practice. That is a real elimination, and it is worth more than a blind port: it retires a whole hypothesis class and redirects A11 to the only surviving air candidates.
   PREDICTION (registered in writing BEFORE any new disasm window was opened — the four predictions below were fixed on disk and re-read verbatim at the end of the dig, so the outcome lines cannot be back-filled): P1 — the record's four colour fields are NOT born in one ctor; the palette at `[+0x88]` is attached by a separate later step (FALSIFIER: a single ctor writing +0x38/+0x64/+0x6c/+0x88 together). P2 — the palette's pixels are decoded from GAME DATA, not synthesised (FALSIFIER: a procedural fill loop). P3 — at least one shipped palette contains an alpha-0 pixel (FALSIFIER: every shipped palette fully opaque). P4 — air-capable records carry `[+0x8c] != 0`, since `0x740F80`'s `je 0x740FF4` skips the colour call when the flag is 0 (FALSIFIER: air-capable records carry `+0x8c == 0`).
@@ -10399,11 +8979,15 @@ METER-CLASS (this entry covers meter history, E1-only): every row below
   **PREDICTION OUTCOMES:** **P1 UNTESTED** (out of reach this dig — the promotion step is unread, so no ctor was opened; not a falsifier, a scope limit). **P2 FIRED** as data: the colour values and the texture pixels are both file-sourced (`<Graphics color>` hex in XML; `texture_file` → a PNG on disk) — but the *link* from `[record+0x88]` to that PNG is UNPROVEN, so P2 stands only on the data side. **P3 FIRED** narrowly: exactly 2 of 157 shipped textures carry alpha-0 pixels, so the branch is *reachable in principle* and *irrelevant in practice*. **P4 UNTESTED** (`[record+0x8c]`'s promotion unread). The dig's own framing prediction — that #183 could retire A11 by porting the palette law — is **DEAD as framed**, and that is the result.
   **Purification: 8 → 8 (5th consecutive: #178 7→8, #179/#180/#181/#182/#183 8→8).** No D-row closes (no port landed, and the port is now known to be the wrong lever), so **the scope is RE-OPENED as dig #184**. A11/I47 re-pointed from "the palette port" to the NULL-record / kind-0-skip arm; the `pixel_*`/`Edge` machinery registered as the home of the curved-chunk-edges complaint. Landed: ABOUT **(183)**, CONSTANTS **C156**, ISSUES **A11 + I47 re-pointed + the §A log**, VERIFIED **§8 row 66 + the §9 note**, MANIFEST **X194**. No code or test change; the battery baseline untouched {30, 385, 3}. - **2026-10-22 (182) — dig #182: THE ASSIGNMENT LAYER'S OUTPUT LAW — the stored plane value = the KIND, and AIR = a TRANSPARENT PALETTE PIXEL (C155; the A11 air source FOUND, the record's class CLOSED, X189–X193; NO code change, docs-only dig).** Plain language: entry (181) left exactly one unread step — the planter's `virtual(+0x58)`, "the material producer". This dig went after it, hit a falsifier, re-read the bytes, and found something better: **the material is never painted by the planter at all — the SAMPLER stores it, two instructions after the planter returns, and the value it stores is the record's KIND, with AIR decided by whether the colour the record's PALETTE produces is transparent.** So the assignment layer's output is not a material index resolved from a material list: **it is a per-cell KIND map whose air cells are a PALETTE-ALPHA decision.** That is the air source A11 has been waiting for, and it is a fundamentally different mechanism from the field threshold our `v > 0.5` gate stands in for. **NEW EVIDENCE:** (1) **Five B-grade fresh full-window extractions**, all `objdump -d` from `noita_dev.exe` (md5 `8b611494212a69492dd0a4527d9c92e0`) this session, read **prologue→ret including every loop head and out-of-line block, ZERO `.byte` truncations** (each stop address chosen on an instruction boundary): **X189** `dig182-materialvalue-740f80-7412c0.asm` 0x740F80..0x7412C0 (273 lines / 13,469 B, md5 `26cd1ab2d4770485a8bb2c9af84a1d45`), **X190** `dig182-colourlookup-7409b0-740b70.asm` 0x7409B0..0x740B70 (145 lines / 7,119 B, md5 `b7ff617e4661ebdb3bb853c82d71b691`), **X191** `dig182-paletteread-740580-740780.asm` 0x740580..0x740780 (162 lines / 8,030 B, md5 `b1e51cd79ff39eb2ecd467a2bb67de8b`), **X192** `dig182-posmodulo-7404a0-740580.asm` 0x7404A0..0x740580 (75 lines / 3,745 B, md5 `9dcd111452bb67b481a8bd2b02b99fe7`), **X193** `dig182-planeaddr-95a5e0-95a6b8.asm` 0x95A5E0..0x95A6B8 (70 lines / 3,573 B, md5 `ec1a5713fe203e96c26fc4142cb3029c`). (2) **THE STORE IS IN THE SAMPLER, NOT THE PLANTER (the P1 falsifier's re-read):** immediately after the planter returns at 0x90DE51, the sampler does `mov 0x1c8(%ecx),%eax` (the STRIDE, `[sampler+0x18]+0x1c8`) → `add $0x1e0,%ecx` (the plane object at `[sampler+0x18]+0x1e0`) → `imul %esi` (stride·y) → `add %edi` (+x) → `call 0x95a5e0` → **`mov %ecx,(%eax)`** @0x90DE9C — a **DWORD** store. The accessor **0x95A5E0** (X193) = **`[plane+0] + index*4`** with the assert `0 <= index < [plane+4]` (line `0x4b` = 75) ⇒ **the material plane = a DWORD array, one dword per cell** — a THIRD plane, distinct from C153's u8 air plane (`+0x1a0`) and u8 solid plane (`+0x1c0`). (3) **THE MATERIAL-VALUE LAW (X189):** `0x740F80` (`ret $0x14` = 5 stack args + `this` in ecx) reads **`mov 0x14(%ebp),%ebx` = arg4 = the RECORD** and dispatches four ways: **a NULL record returns 0 = AIR** (`test %ebx,%ebx; jne`); `cmpb $0x0,0x8c(%ebx)` gates the colour call `0x7409B0`; then **`test $0xff000000,%eax; je` ⇒ an ALPHA-0 COLOUR RETURNS 0 = AIR**; otherwise **`mov 0x14(%ebp),%eax` returns THE KIND** — **the colour is computed solely to test its alpha; the stored dword is the kind, not a colour.** **Two subtleties a port must carry (both byte-confirmed, full detail in C155):** the kind is **SPILLED over the record pointer in arg4's own slot** (`mov %eax,0x14(%ebp)` @0x740FD8) *before* any path reads `0x14(%ebp)` back — so that slot holds the KIND from 0x740FD8 onward, not the record; and **`[record+0x8c] == 0` SKIPS the colour call entirely** (`je 0x740FF4`), so a palette-based AIR is impossible for such a record. `cmp $0x3,%eax; jne 0x7410c1` ⇒ **kind 3 asserts (line `0x366` = 870)**, self-consistent with the sampler routing kind 3 to the SET (C134). (4) **THE ARGUMENT CONVENTION INDEPENDENTLY VERIFIED (not inferred from the one call site):** the caller @0x7412EB pushes `push $0x0; push %eax` where **`call 0x4b80e0` produced `%eax`** ⇒ **arg4 = the record fetch `0x4B80E0`'s return** — dig #180's "pure reader" is finally connected to this chain, and it confirms arg4 = a RECORD. Census: `0x740F80` has **4** callers (0x7412eb, 0x76468b = the planter, 0x7936b5, 0x798224); `0x740580` has **exactly 1** (0x740b51) ⇒ **the palette read is exclusive to this chain**; `0x7404A0` has **2**, both inside X191. (5) **THE PALETTE MECHANISM (X190/X191/X192):** **`[record+0x88]` = a PALETTE IMAGE `{width@[+0], height@[+4], pixel buffer@[+0xc]}`**; **`[record+0x88]` NULL ⇒ return `[record+0x64]`** = a packed ARGB carried in the record itself; the **JITTER FLAG `[record+0x6c]`** (0 ⇒ skip the jitter) enables **two chained pseudo-random offsets** seeded from `(y + 0xd)` and `x·91 + 0x37E40765`, the second re-seeded from the first·91 + `0x9EEC9AD1`, both running the **MSVC `rand()` LCG `s = s·0x343FD + 0x269EC3`** (= 214013 / 25214903) with the `sar $0xd; xor` mix, a **variable `sar %cl`** (shift = `((seed0+0xd) & 0xf) + 1`), **`and $0x7fff`**, **`sub $0x3fff`** ⇒ [−16383, +16382], then **`mulsd 0x11DFAE0` = 6.103515625e-05 = 1/16384** and **`mulsd 0x11E0038` = 256.0** (both double constants read from `.rdata` this session) ⇒ **an integer offset in [−256, +256)**. (6) **`0x740580(pal, off1, off2)` IS THE PIXEL READ (X191):** asserts the dimensions (lines `0x2e7`/`0x2e8` = 743/744), **returns 0 = AIR when the pixel buffer `[pal+0xc]` is NULL** (@0x74058B), wraps both indices through **`0x7404A0` = POSITIVE MODULO `((v % n) + n) % n`** (X192: `cltd; idiv %ebx` then `lea (%ebx,%edx,1),%eax; test %edx,%edx; js` ⇒ keep `limit+rem`, else `mov %edx,%eax` — **a WRAP, not a clamp**), reads `base + (y'·W + x')·4` and packs **`(A<<24)|(R<<16)|(G<<8)|B`** from bytes p[3],p[0],p[1],p[2]. (7) **C154's OPEN CLOSED — THE RECORD'S CLASS:** the payload carries **kind `@[+0x38]`, a fallback packed-ARGB `@[+0x64]`, the jitter flag `@[+0x6c]`, the palette pointer `@[+0x88]`, a flag `@[+0x8c]`** — a struct ≥ 0x90 B, hence **NOT** the 64-B slot record (C135), which resolves the size contradiction an earlier draft of this dig walked into. (8) **THE NEXT UNREAD STEP, NAMED:** the kind==1 arm @0x7410C1 (`movl $0x0,0x10(%ebp)`; `cmpl $0x0,0x18(%ebp)` = the claimed slot): with a non-NULL claim it calls **`0x749A20`** (this = the claimed slot, y, x, record) — the claim path's own paint. **PREDICTION (registered in writing BEFORE any new disasm window was opened; the four lines are reproduced verbatim below):** **P1** "`0x7644D0` appears in a vftable and `+0x58` holds a different code address" — **FALSIFIED**: a byte-scan of **all 8 PE sections** (`.text`/`.rdata`/`.data`/`.detourd`/`.detourc`/`.tls`/`.rsrc`/`.reloc`, section table read from `objdump -h` this session) for the little-endian dword `D0 44 76 00` returned **0 occurrences** ⇒ the planter is a **non-virtual** wrapper that vcalls on its own `this`; per the charter the bytes were re-read rather than accommodated, and that re-read produced (2). **P2** "the producer does not allocate" — **held** (no `operator new` in any of the five windows; the only IAT slots touched are the assert/printf family). **P3** "the 0x84-byte zone entries are data-driven with a small ctor" — **UNTESTED** (out of scope once (7) resolved the payload's class by field layout instead). **P4** "an air source exists on our side" — **FIRED**: the air decision is the palette pixel's alpha (or a NULL palette buffer / NULL record). **METER-CLASS: E1** (counts + structural reads only) — no IoU/fG/rms/meanAbs/C79/C97 was run or cited in this entry; the only numeric claims are byte-pinned constants and caller/section censuses. **Purification: 8 → 8.** No D-row closes: A11's stand-in is the **field** plane's threshold and this law governs the **material** plane — related, but the port that would retire A11 is a code change, not a read, so A11/I47 point on to **#183**. This is the fourth consecutive 8→8, so the scope **RE-OPENS as dig #183**: **(a)** the PORT of C155's law (a transparent palette pixel ⇒ air) against the capture, which is the first lever that could actually retire A11, and **(b)** `0x749A20`, the kind-1 claim path's paint. Next free: entry **(183)**, **C156**, **X194**, **I48**, **A12**, **§8 row 66**.
 Next free: entry **(184)**, **C157**, **X195**, **I48**, **A12**, **§8 row 67** — **#184 = THE NULL-RECORD / KIND-0 SKIP READ: what the plane's initial value is, and whether "never written" = air** — plus `0x749A20` (the kind-1 claim path's paint) and the Graphics→record promotion step.
-- **2026-10-22 (181) — dig #181: THE "MATERIAL FILL PASS" AS FRAMED DOES NOT EXIST — the assignment record is a PER-ZONE PAYLOAD selected per cell (C154), the kind-3 map is a SET THAT NEVER PAINTS (§8 row 64), and C134's planter assert was INVERTED — leaving exactly ONE unread step, the planter's `virtual(+0x58)` = the material producer, so the fill framing closes and re-scopes to dig #182 (C134 amended in-row + C154 new, X184–X188; NO code change, docs-only dig).** Plain language: entry (180) narrowed the fill to whoever sets `[record+0x38]` (the kind) and to the kind-3 std::map's INSERT. This dig read both — and the answer is that **neither is a writer**: there is no pass that stamps materials into records. The record is a payload carried by whichever ZONE entry matches the cell, so the three digs (#179, #180, #181) that hunted a fill pass were hunting something the binary does not contain. **NEW EVIDENCE:** (1) **Five B-grade fresh full-window extractions**, all `objdump -d` from `noita_dev.exe` (md5 `8b611494212a69492dd0a4527d9c92e0`) this session, each read **prologue→ret including every loop head and out-of-line block, ZERO `.byte` truncations** (the sampler window's stop address was fixed by a per-address clean-decode probe so no instruction straddles the boundary): **X184** `dig181-mapinsert-a047d0-a048d0.asm` 0xA047D0..0xA048D0 (106 lines, md5 `a61cefaac6302be2df96378b4be207b3`), **X185** `dig181-samplerdispatch-90dd60-90dea0.asm` 0x90DD60..0x90DF02 (132 lines, md5 `ad0c337aa23e87e15f6515305cf687d4`), **X186** `dig181-arrayctor-8feff0-8ff044.asm` 0x8FEFF0..0x8FF044 (38 lines, md5 `0916dead8799e22e5b91f4f681e838c8`), **X187** `dig181-planter-7644d0-7646a0.asm` 0x7644D0..0x7646A0 (146 lines, md5 `b428eb35c41d966a297ff9000a4cfa3b`), **X188** `dig181-zonepred-8f5030-8f5760.asm` 0x8F5030..0x8F5760 (522 lines, md5 `8b570ef6e9c1d808c36b769895056a78`). (2) **`0xA047D0` IS AN INSERT, NOT A LOOKUP (§8 row 64):** it is `std::map::insert(hint,key,value) → pair<node*,bool>` — the miss path `push 0x14(%ebp)` (the VALUE) → `push %edi` (key) → `push %esi` (hint) → `push $0x1` → `call 0xa57d90` (**the NODE CTOR, whole-text sole caller**) → `movb $0x1,0x4(out)`; the hit path @0xa048a6 → `movb $0x0,0x4(out)`. The walk compares the key read through `mov (%edi),%ecx` against the node's key at **node+0x10**, tests `_Isnil` at **node+0xd**, and steps left `mov (%eax),%eax` / right `mov 0x8(%eax),%eax`; the comparator `0xa24980` is called @0xa0487e. **`[ebp+0xc]` — the record the sampler pushes — is NEVER READ in the window.** (3) **THE MAP IS A SET: its value is a never-written global byte.** All **4** call sites (0x765b4c, 0x90d74a, 0x90ddab, 0xc5e812) pass the same `movzbl 0x1344ce1,%eax` as the value, and the whole-text census of `1344ce1` = **28 references, every one a `movzbl` READ, ZERO writes** ⇒ the byte is a constant and **the map carries no material.** (4) **THE KIND-3 ARM NEVER PAINTS:** @0x90dd95 it loads that byte, @0x90ddab inserts, and @0x90ddb0 it falls straight into the **loop epilogue** — no planter call, no paint. (5) **THE PLANTER'S ASSERT IS INVERTED (C134 corrected):** `mov 0x10(%ebp),%eax` (the record) → **`cmpl $0x3,0x38(%eax)`** @0x7644d9 → **`jne 0x7645b3`** @0x7644ee ⇒ the assert block @0x7644f4..0x7645ad (line `0x63a` = **1594**, the `'Assert failed: (%s) in %s at line %d\n'` fmt 0x1150f60 → the reporter `0x10078c0` → `xor %eax,%eax; movl $0x1ca9,(%eax)`) is reached **only when kind == 3** ⇒ **the planter REJECTS kind-3 records** — the opposite of C134's "the assert `[record+0x38] == 3`", and **self-consistent with (4)**: the sampler routes kind 3 away from the planter and the planter guards itself against it. (6) **`slot[old]` IS A CLAIMED ZEROED RECORD POINTER, NOT A MATERIAL VALUE:** the array ctor X186 zeroes the `[block+0]` counter twice (`xchg %eax,(%ecx)` ×2 — **C135 confirmed**) and then loops **8192** times (`push $0x40` → `call *0x114a34c` = **operator new**, the same IAT slot dig #179 resolved and cross-validated → `push $0x40; push $0; push %esi; call 0x1033a5e` = **memset(rec,0,0x40)** → **`mov %esi,(%edi)`** → `add $0x4,%edi`), and the whole-text probe for a slot re-write `mov[bwlq] %reg,0x4(%reg,%reg,4)` = **0 sites** ⇒ **the slots are written only by the ctor.** So C134's "material = `[array + 4 + old×4]`" was a **mislabel**: that dword is the claimed record pointer, which the planter receives as its **5th** argument alongside the fetched record. (7) **THE MATERIAL PRODUCER = `virtual(+0x58)` (the one unread step):** the planter asserts `virtual(+0x58)` non-null (line `0x63b` = **1595**) then calls **`virtual(+0x58)(this, x, y, record, slot[old]|0)`** and follows with `mov %eax,%ecx; call 0x740f80`. **(8) THE REFRAMING — `0x8F5030` IS NOT A RECORD FETCH, IT IS A ZONE PREDICATE (C154):** the sampler's kind arm fetches its record from `0x8F5030` (3 whole-text callers: 0x908fb0, 0x90935b, 0x90dd7e) with `this = [*[sampler+0x20] + 0x2a4]`, and that function: gates `arg ∈ [this+0 .. this+4]` as f32; computes the entry count as `sub` of `[this+0xc]−[this+8]` through `imul $0x3e0f83e1` + `sar $5` = **(end−begin)/0x84** (the magic decodes to /132: 2³⁷÷0x3e0f83e1 = 131.99), independently confirmed by the loop's `add $0x84,%esi` @0x8f5713 ⇒ **a vector of 0x84-byte (132-byte) entries at `[this+8..+0xc]`**; **reduces BOTH coordinates mod 512** (`and $0x800001ff` @0x8f54f4 and @0x8f5511, each with the signed-mod epilogue `dec; or $0xfffffe00; inc; jns; add $0x200`) ⇒ **the entries are tested in CHUNK-LOCAL coordinates** — the same `>>9`/`&0x1ff` idiom entry (116) recorded for the sibling `0x909da0`; applies per-entry float bands `[+0x24]/[+0x28]` and `[+0x6c]/[+0x70]` (via `[+0x44]/[+0x45]` → `0x9fad90` or `0x8fc020`), bool gates at `[+0x2c]/[+0x38]/[+0x39]/[+0x44]/[+0x45]/[+0x46]/[+0x50]/[+0x74]`, `mulss` scales `[+0x30]/[+0x34]/[+0x48]/[+0x4c]`, and a second vector `[+0x78]/[+0x7c]` (stride 8) consumed through `0x10096a0`; and **returns the matching ENTRY's `[+4]` payload pointer** (`mov 0x4(%ebx),%eax` @0x8f5740 → `ret $0x8`) or NULL. **⇒ the record's kind comes from whichever zone entry matches the cell — which is exactly why digs #179/#180 found no writer.** **OPEN (the #182 target): the entry's class, `[+4]`'s class, and the kind domain of `[entry+4]+0x38`.** (9) **WHAT THIS MEANS FOR THE USER'S DEFECT — the honest limit:** this dig **eliminated a framing rather than producing a lever**. It found **no air source and no shape change**, so A11 and the surface defect are untouched; what it did deliver is the closing of a three-dig hunt (so no fourth dig is spent on it) and the reduction of the whole assignment-layer question to **ONE** unread function. **PREDICTION:** pre-registered before opening the disasm — **P1** "the kind-3 map's INSERT is a sibling function within ±0x2000 of `0xA047D0`, or absent from the binary" (**OUTCOME: neither — the INSERT IS `0xA047D0` itself, which dig #160 had mis-recorded as a lookup**); **P2** "the lookup's `this` is derived from the world singleton/store" (**OUTCOME: INCONCLUSIVE as stated — the map container is `[sampler+0x4]`, and the object the predicate runs on is reached through `[sampler+0x20]`→`[+0x2a4]`; not adjudicated here**); **P3** "if no C++ writes the map or `[record+0x38]`, the fill is data/predicate-driven and the correct next move is a data/structure read, not another disasm window" (**OUTCOME: FIRED — that is precisely what X188 shows**). **METER-CLASS:** **E1** — the only readings this entry carries are counts (28/28 read-only refs of `1344ce1`; 4 insert sites; 3 predicate callers; 2 planter callers; 1 node-ctor caller; the 8192-slot ctor loop; the 0x84 stride; the 1594/1595 line numbers); **NO IoU/fG/rms/meanAbs/C79/C97 was run or cited, and no instrument artifact was produced this entry** (a read dig). **Purification:** §A **8 → 8** — no D-row was added or removed, so per the law this dig's scope is **explicitly RE-OPENED as dig #182** (the ONE unread step: the planter's `virtual(+0x58)` = the material producer — **plus** the zone entry's class and `[+4]`'s class — **plus** the field's negative region, which remains the separate lever no dig has read). **A11's and I47's queue pointers move #181 → #182**; A11's precondition (`countNeg > 0`) is untouched. No other row's lane is touched. Landed: ABOUT **(181)**, CONSTANTS **C134 amended in-row + C154 new**, MANIFEST **X184/X185/X186/X187/X188**, VERIFIED **§9 (a DIG #181 NOTE) + §8 row 64** (the kind-3-map-as-material-store eliminated), ISSUES **A11 + I47 queue pointers moved to #182 + the §A purification line**; NO code change, NO test change, NO baseline bump (docs-only dig). Next free: entry **(182)**, **C155**, **X189**, **I48**, **A12**, §8 row **65**.
-- **2026-10-22 (180) — dig #180: THE STORE'S OWN CTOR BYTE — `0x13276C4`'s object IS A MUTEX (`_Mtx_init(store,0x102)`), so the store = mutex + vecA + vecB = 0x1C EXACT and C135's OPEN FLAG closes with the counter and the mutex on DIFFERENT objects — AND THE CREATOR `0x6DFA20` IS NOT THE MATERIAL FILL (full-window read), so the fill pass re-scopes to dig #181 (C135 amended in-row, X182/X183; NO code change, docs-only dig).** Plain language: entry (179) queued two things for #180 — the byte check on whether the store's `[+0]` is an atomic counter or a mutex, and the read of the pass that writes materials into the zeroed records (the surface-shape lever's whole point: the byte paints 37/65/47% solid, our port paints 100%). This dig did both, and the second came back NEGATIVE. **NEW EVIDENCE:** (1) **B-grade fresh full-window extractions:** **X182** = `dig180-creator-6dfa20-6e0830.asm`, **0x6DFA20..0x6E0830** (prologue → `ret` @0x6e082c + the int3 pad; **1033 lines / 49,471 B, ZERO `.byte` truncations**, md5 `f0142d4477fe799f2cf65e34048eb918`) and **X183** = `dig180-storector-8ff100-8ff150.asm`, **0x8FF100..0x8FF150** (29 lines / 1,210 B, zero `.byte`, md5 `4028eb4288f730dd8cab9f83ef498080`) — both `objdump -d` fresh this session, **both read in full prologue→ret** (X182 including every loop head and the SEH epilogue). (2) **THE BYTE CHECK — OPEN FLAG #180 CLOSED (C135 amended in-row):** the store ctor `0x8FF100` = `push $0x102; push %esi; call _Mtx_init` @0x8ff109 (esi = `this` = the 0x1C object) with the `test %eax; je; push %eax; call ?_Throw_C_error@std@@YAXH@Z` error arm, then `movl $0` into exactly `[+4] [+8] [+0xc] [+0x10] [+0x14] [+0x18]`, then `mov %esi,%eax` = **`return this`** ⇒ **`[+0]` is `_Mtx_init`'s own state, NOT an atomic counter**, and the layout is byte-exact: **`{mutex @+0, vectorA {@+4/+8/+0xc}, vectorB {@+0x10/+0x14/+0x18}}` = 4+12+12 = 0x1C**, matching the `push $0x1c` at 0x6dfa66. The atomic slot counter therefore lives on the **record ARRAY block's `[+0]`** (the 0x8004 block = counter + 8192 slots), which is exactly C134's "the atomic counter on a **shared array**" and the block whose `n = [block+0]` dig #179's RETIRE arm frees ⇒ **the mutex and the counter are on DIFFERENT objects, so a port may lock the store and `lock xadd` the array counter with no collision.** (3) **The lock/unlock are symmetric on the store pointer:** the getter locks `push %esi` with `esi = *(0x13276c4)` @0x8ff077..0x8ff081 and unlocks that same `%esi` @0x8ff0cc; the filler locks `push %eax` with `eax = *(0x13276c4)` saved to `−0x1c(%ebp)` @0x8ff245..0x8ff24e and unlocks `push −0x1c(%ebp)` @0x8ff3ed — **the same value on both sides of both passes** ⇒ no mismatch. (4) **A transcription error in C135 removed (dedup; C134 already had it right):** `cmpl $0x0,0x13276c4` @0x8ff17d sits inside the **getter** and is the **NULL-STORE ASSERT** (its zero arm = the log + the `*(int*)0` trap), *not* a lazy-init guard — the guard+`new`+store pattern belongs to **`0x13463C4`**. (5) **A SECOND, independent mutex singleton `0x13463C4` (17 whole-text sites):** `cmpl $0x0,0x13463c4` @0x6dff8b → `jne` → `push $0x10; operator new` → `_Mtx_init(obj, 2)` @0x6dffb6 → `movl $0` at `[+4] [+0xc]` → `[+8] = 0x9c01d0()` → `mov %esi,0x13463c4` @0x6dfffe, plus a second creator at 0x476c36 (`_Mtx_init(this,2)` in a thiscall ctor) and double-checked `load … store` pairs at 0x720fb4 / 0x8e5ab3 / 0x92c093 / 0xcec003 / 0xd84fe8. (6) **A third lazy singleton `0x1346E94`** = `new(0x14)` whose `[+0] = 0x118d7d4` is a **vtable**, `[+0x10]` = its one-shot init flag, installed @0x6e0078. (7) **The `0x1a0` object is ONE singleton at `0x134632C`, created under SEVEN duplicated lazy-init guards** (stores at 0x6e015d / 0x6e0222 / 0x6e02af / 0x6e0389 / 0x6e03fe / 0x6e0532 / 0x6e07c2, each `push $0x1a0; operator new; call 0x65f480`) — **the SAME static X181 showed the fill-caller reads `movsd 0x40(%edi)` from** ⇒ **the creator is upstream of the filler's budget object but is not itself the fill.** (8) **The material-list invariant:** `list = 0x9c6800(*(0x1344b90) + virtual(+0xAC))` @0x6dfaa9..0x6dfab6, and if it is NULL the function logs `'Assert failed: (%s) in %s at line %d\n'` (fmt 0x1150f60) with `('app_config', 'd:\...\source\god_game\deathm…', 0x243 = **579**) to `log_asserts.txt` (mode `'a'`, fmt `'%d, %d, %d - %d:%d\n'`), reports via `0x10078c0`, then `xor %eax,%eax; movl $0x1ca9,(%eax)` = the `*(int*)0` trap ⇒ **`list != NULL` is a hard invariant of world init.** (9) **THE ELIMINATION — the creator is NOT the material fill pass:** across the whole 1033-line window `call 0x8FEFF0` = **0** (the record-array ctor's sole caller remains the filler), there is no `push $0x40` (the record-sized alloc), and **none** of `0x4B80E0` / `0xA047D0` / `0x7644D0` / `0x8FF050` / `0x8FF150` appears — its largest writes are the `movl $0x6df7a0,0x1c(%eax)` callback patch @0x6dfbde and `movb $0x1,0x50(%eax,%edi,1)` on a **0x70-stride, 7-element** table inside the 0x6e0440 loop (`add $0x70,%edi; cmp $0x7,%esi`). The record fetch `0x4B80E0` is likewise a pure reader: **84 whole-text callers**, and its body's only calls are the assert reporter `0x10078c0` ×2 plus the log trio. **⇒ NEITHER the creator NOR the fetch writes materials** — the remaining candidate for the fill is whoever sets `[record+0x38]` (the kind) / the kind-3 std::map's INSERT, the counterpart of `0xA047D0`'s lookup. (10) **WHAT THIS MEANS FOR THE USER'S DEFECT — the honest limit:** the fill pass is **still unread**; this dig *narrowed* it and closed the layout hazard standing in front of any port, but it produced **no air source and no shape change**, so A11 and the surface defect are untouched. **PREDICTION:** none pre-registered as a meter prediction — a READ dig with no A/B and no instrument run; the two countable claims carry their falsifiers with them: **≥2 `call 0x8FF100` sites** would have meant a second store (this entry would then have to say which store `_Mtx_init`s), and **≥1 `call 0x8FEFF0` inside X182** would have made the creator a record allocator and kept it as the fill candidate — **OUTCOME: 1 and 0 (quoted in (2) and (9)); neither falsifier fired.** **METER-CLASS:** **E1** — the only readings this entry carries are counts (whole-binary call-site censuses, sites ≥ 0; the 0x1C store size; the 7 guard sites; the 84 fetch callers; the 7×0x70 loop); **NO IoU/fG/rms/meanAbs/C79/C97 was run or cited, and no instrument artifact was produced this entry** (a read dig). **Purification:** §A **8 → 8** — no D-row was added or removed, so per the law this dig's scope is **explicitly RE-OPENED as dig #181** (the material FILL pass, now narrowed to the `[record+0x38]` writer / the kind-3 map INSERT, **plus** the field's missing negative region). **A11's and I47's queue pointers move #180 → #181**; A11's precondition (`countNeg > 0`) is untouched because the field's negative region is the *separate* lever this dig did not read. No other row's lane is touched. Landed: ABOUT **(180)**, CONSTANTS **C135 amended (in-row; no new C-row)**, MANIFEST **X182/X183**, VERIFIED **§9 (a DIG #180 NOTE) + §8 row 63** (the creator-as-fill candidate eliminated), ISSUES **A11 + I47 queue pointers moved to #181 + the §A purification line**; NO code change, NO test change, NO baseline bump (docs-only dig). Next free: entry **(181)**, **C154**, **X184**, **I48**, **A12**, §8 row **64**.
-- **2026-10-21 (179) — dig #179: THE STACK FILLER'S FULL WINDOW — `0x8FF150` = a MUTEX-GUARDED, BUDGET-DRIVEN ARRAY-POOL manager with a SOLE caller passing `*(f64*)(this+0x40)` — and it writes NO material value, so the material FILL PASS (the whole of #160's "THE FIX") was NOT read here and re-scopes to dig #180 (C134 + C135 amended in-row, X180/X181; NO code change, docs-only dig).** Plain language: entry (178) re-pointed the surface-shape lever at the assignment layer (C134/§12 #160: the byte paints 37/65/47% solid, our port paints 100%, so the missing layer = where the caves' air comes from). This dig took the exact read that queue called for — #161's tail, *"the fill-source read (`0x8FF2CE..` the push body + `0x8FF150`'s caller = the budget's source)"* — and read both windows in full, prologue→ret. **NEW EVIDENCE:** (1) **B-grade fresh full-window extractions:** **X180** = `dig179-stackfill-8ff150-8ff420.asm`, **0x8FF150..0x8FF418** (the fn prologue → `ret` @0x8ff418; 233 lines; **ZERO truncated instructions**; md5 `1f9f0e64c7060902e6dc70f1c2e2bf5d`) and **X181** = `dig179-fillcaller-6e71e0-6e7210.asm`, **0x6E71E0..0x6E7208** (27 lines, zero truncated, md5 `88d78b9b1bfabf1b3aa6b3e2fc5d6b5a`) — both `objdump -d` fresh this session from `noita_dev.exe`, the whole window read including the loop head and epilogue. (2) **The sole-caller census (E1, whole-binary):** `objdump -d noita_dev.exe | grep -c 'call.*0x8ff150'` = **1** — the only call site in the entire text region is **0x6e71ec**, and therefore the budget has exactly one source, **`*(f64*)(caller_this + 0x40)`** (`movsd 0x40(%edi),%xmm0` @0x6e71e7 → `call 0x8ff150` @0x6e71ec) — **an object MEMBER, not a constant.** (The caller's `this` = a stack parameter, `mov 0x2c(%esp),%edi` @0x6e70b6 — OUTSIDE X181's window; the class identity is OPEN → #180.) (3) **The exit threshold = 0.013:** the loop's `comisd` tests against `[0x11dfc28]`, bytes `3ab4c876be9f8a3f` (byte-read `objdump -s` this session; `struct.unpack('<d',…)` = 0.013000000000000001, while `pack('<d',0.013)` = `39b4…` differs in the last mantissa nibble ⇒ it is a **float32 0.013 widened to double**, not the double literal) ⇒ the loop = `while (worldSingleton.virtual(+0x6C) − budget < 0.013)` — **BUDGET-DRIVEN**, resolving C134's "the loop while the accumulated value < the budget param" with the param's provenance. (4) **The pass is MUTEX-GUARDED:** `_Mtx_lock` @0x8ff24e with its `test %eax; je; push %eax; call ?_Throw_C_error@std@@YAXH@Z` error arm, matched by `_Mtx_unlock` @0x8ff3f0 on the same value saved at `−0x1c(%ebp)` ⇒ **the store is thread-shared.** (5) **The IAT names were resolved AND cross-validated, never assumed:** an `objdump -p` import-table walk (ImageBase 0x400000 + the IAT Directory RVA 0xd4a000 ⇒ IAT VA 0x114a000) resolved every thunk, and each is corroborated by the body's own semantics — `0x114a34c = operator new(unsigned)` fits `push $0x8004; call`, `0x114a348 = operator delete` fits both `push %ecx; call` (the block) and the element loop, `_time64`/`_localtime64`/`fopen`/`fprintf`/`fclose` fit a timestamped log (its args include `tm_year+0x76c` = +1900 and `tm_mon+1`), and the lock→`test`→`throw(eax)`→unlock triple fits `_Mtx_lock`/`?_Throw_C_error`/`_Mtx_unlock`. (6) **The second vector's real role — the RETIRE arm @0x8ff386 (C135 amended in-row):** `mov −0x4(%eax),%ecx` = `B.back()` → `mov (%ecx),%eax` = `n = [block+0]` → `cmp $0x2000; jae` → else a loop of `0x2000 − n` iterations @0x8ff3b0, each `push (%edi); call operator delete`, starting at `block+(n+1)·4` ⇒ **it `operator delete`s the block's NEVER-CONSUMED record pointers `[n+1..0x2000]`, then the block itself, then `B.end −= 4`.** This independently corroborates C135's record model — consumption runs upward from slot 1, exactly C134's `array + 4 + old×4`. (7) **The `0x13276C4` framing corrected (C135 amended in-row):** every use DEREFERENCES the dword (`cmpl $0x0,0x13276c4` = the lazy-init guard; `mov 0x13276c4,%ebx` → `lea 0x4(%ebx),%esi`; `mov …,%eax` → `push %eax` → `_Mtx_lock`) ⇒ **`0x13276C4` holds a POINTER to the store**, not the store itself. **OPEN FLAG → #180:** that same pointer value is passed as the `_Mtx_lock` handle while C135 puts the atomic slot counter at `[+0]` — one byte check must resolve counter-vs-mutex before any port touches the layout. (8) **The zero arm is a debug log + trap, not a reachable path:** `printf`, `_time64(NULL)`, `_localtime64(&t)`, `fopen`, `fprintf` (`tm_year+0x76c`/`tm_mon+1`), `fclose`, then `xor %eax,%eax; movl $0x1ca9,(%eax)` = the deliberate `*(int*)0` assert. (9) **WHAT THIS MEANS FOR THE USER'S DEFECT — the honest limit:** the filler **manages the ARRAY POOL under a budget and writes NO material value** (no material id and no record-field store anywhere in the 264-byte window) ⇒ C134's "the caves' solid share = the fill budget ÷ the field-solid count" enters only through record **CAPACITY** — and C135 already showed capacity (96 arrays × 8192 = 786,432 records) ≫ the field-solid ≈ 118k, i.e. **not the binding term.** The pass that WRITES materials into the zeroed records — the ratio's numerator and the entire content of #160's "THE FIX = the port of the assignment layer" — **was not read by this dig; it is the queued read #180.** **PREDICTION:** none pre-registered as a meter prediction — this is a READ dig with no A/B and no instrument run; the single countable claim (the caller census) carries its falsifier stated with it: **≥2 call sites** would have meant a per-caller budget that this entry had to enumerate, and **0** would have made the filler dead code — **OUTCOME: 1 site (quoted in (2)); neither falsifier fired.** **METER-CLASS:** **E1** — the only readings this entry are counts (whole-binary call sites, sites ≥ 0; the cap `0x60` = 96 arrays; the retire loop's `0x2000 − n` iterations); NO IoU/fG/rms/meanAbs/C79/C97 was run or cited, and **no instrument artifact was produced this entry** (a read dig). **Purification:** §A **8 → 8** — no D-row was added or removed, so per the law this dig's scope is **explicitly RE-OPENED as dig #180** (the material FILL pass + the `0x13276C4` counter-vs-mutex byte check + the caller's class identity). **A11's and I47's queue pointers move #179 → #180**; their precondition (`countNeg > 0`) is untouched here because **the field's missing negative region is a SEPARATE open lever that this dig did NOT read** — §9's #178 note sentence that named #179 as that read is corrected to say so. No other row's lane is touched. Landed: ABOUT **(179)**, CONSTANTS **C134 + C135 amended (in-row; no new C-row)**, MANIFEST **X180/X181**, VERIFIED **§9 (the #178 note's frontier sentence corrected + a DIG #179 NOTE)**, ISSUES **A11 + I47 queue pointers moved to #180 + the §A purification line**; NO code change, NO test change, NO baseline bump (docs-only dig). Next free: entry **(180)**, **C154**, **X182**, **I48**, **A12**, §8 row **63**.
-- **2026-10-21 (178) — dig #178: THE SAMPLER'S THREE-WAY CLASSIFY GATE = C153 — the AIR MARK is `v < 0` STRICTLY (`0.5` = the gate's ENTRY threshold, NOT the air mark; C136 amended in-row) — AND THE MASK PORT FALSIFIED + REVERTED, re-pointing I47's lever UPSTREAM to the FIELD's missing negative region (C153 new, X178/X179, §8 row 62, ISSUES A11 + I47 amended; NO code change beyond comments; one count law added).** Plain language: entry (177) left the surface band as flat noise with no silhouette — the user's standing report. The candidate fix was the air-window low end: our mask marks every `v ≤ 0.5` cell AIR, while the game's bytes leave those cells unmarked. This dig read the classify window in full and then TESTED the flip. **NEW EVIDENCE:** (1) **B-grade fresh full-window extraction** (X178 = fn 0x90d860 → ret 0x90de0d plus the out-of-line blocks to 0x90e060; X179 = the plane accessor 0x94a9d0, its window EXTENDED this session to 0x94aaa7 so the address math lies inside; both re-extracted and re-verified this session — X178 byte-identical, X179 re-dumped): the field read `mov 0x9c(%ecx)` (W) → `add $0xb4` → `call 0x9499f0` → `movss (%eax),%xmm0`; the ENTRY GATE `comiss 0x11dfa94,%xmm0` → `jbe 0x90e02b` with `[0x11dfa94] = 00 00 00 3f` = **0.5f** (byte-confirmed `objdump -s`, this session) ⇒ `v > 0.5` falls through to the claim path; the AIR ARM @0x90e02b..0x90e054: `xorps %xmm1,%xmm1` → `comiss %xmm0,%xmm1` → **`jbe 0x90ddb8` = SKIP the stamp when `0.0 ≤ v`**, and only `v < 0` falls through to `add $0x1a0,%ecx` + `call 0x94a9d0` + `movb $0x1,(%eax)`; the SOLID plane is a SEPARATE arm @0x90e000..0x90e026 at `add $0x1c0`, reached only by the claim path's success. **⇒ the three-way law: `v > 0.5` ⇒ claim; `0 ≤ v ≤ 0.5` ⇒ NO stamp from either plane = the band's base fill; `v < 0` ⇒ the air mark.** (2) **E1 field census** (artifact `mapgen/out/dig178-classify-air-law.json`): the hills caves field **never goes negative — `countNeg = 0`** — while `countLE05 = 13,021` of 131,072 (9.93%) and the per-band negative share is 0 in all eight 32-row bands ⇒ **the byte law's air arm is INERT on our data.** (3) **E1 lane-mismatch read (never accommodation):** the ported lines sit inside `if (SURFACE_V2) { … return {v2:true} }` (`noise-terrain.mjs`) while the instrument and the live view set only `SURFACE_V3=1` ⇒ the first run reproduced dig #177's 30,961 px EXACTLY — **the port had never executed.** (4) **E1 LANE-CONTROLLED A/B** (both arms `SURFACE_V2=1 SURFACE_V3=1`, ONLY the mask rule differing; a naive lane A/B is confounded — under the original rule the V3 lane gives 30,961 and the V2 lane 28,323, a 2,638-px lane delta): original `v > 0.5` ⇒ row-62 black **28,323**; ported `v >= 0` ⇒ **946**; capture **21,669** ⇒ the flip removes **27,377 px** where only **6,654 px** of excess existed — a **4.11× overshoot landing 20,723 px short**; R2 under the port = 254,629 (in-prediction), R3 = 0. (5) **The battery is the second falsifier:** with the port in the tree the full battery fails **6 tests across 2 files** — five `composed-content` census/anchor pins (the caves-filler re-anchor, the filler census, the I33 texture pin, the I34 world-anchor pin, and FIELD0's lavalake 414 → 1161) plus dig #177's C1 (`>= 1000 px` → 946); reverted, the battery returns to baseline. (6) **E1 corroboration (the sibling instrument `2026-10-21-field-vs-origin.mjs`, P1/P2/P3 pre-registered and all IN-PREDICTION on a fresh run THIS session):** the hills field is uniformly solid — per-band solid shares top→bottom **0.9556 / 0.8956 / 0.7971 / 0.7722 / 0.8719 / 0.9317 / 0.9843 / 0.997** over the eight 32-row bands of the 512×256 grid (mechanism (B): the horizon can only be the band origin, never an in-band silhouette), `countNeg = 0` re-confirmed, and `countLE05 = 13,021` + `countGT05 = 118,051` = 131,072 — with the byte plane measuring **3,076 / 131,072 = 2.35% nonzero**, which **CONSUMES I38's queued byte-coverage census** (amended in-row): wiring the byte gate today would mark **97.65% of the band AIR**, and it has no call site at all (`grep -rn "byteAt(" mapgen/ tests/` = 0 hits), so the gate is unwired at both ends in our port. **PREDICTION (pre-registered in the instrument header BEFORE its runs; outcomes recorded after, predictions NOT rewritten):** R1 = the row-62 count drops below 30,961 yet stays > 0 (a count ≥ 30,961 or = 0 is OUT-OF-PREDICTION); R2 = gen(39,61) ≥ 250,000; R3 = gen(39,63) = 0; F1 = `countNeg > 0` and strictly below `countLE05` (`countNeg == countLE05` OUT-OF-PREDICTION); B1/B2 = the flip removes sky and OVERSHOOTS rather than landing inside [21,000, 23,000]. **OUTCOMES: R1 OUT-OF-PREDICTION twice (30,961 = no change → the lane-mismatch read; then 946 ≈ R1's other out-of-prediction branch); F1 OUT-OF-PREDICTION (`countNeg = 0`); R2/R3/B1/B2 IN-PREDICTION.** Both out-of-prediction results were answered by the byte/structural reads above, never by tuning. **VERDICT: the byte law STANDS (C153); the mask PORT is REVERTED — this is a READ dig.** The committed `mask = v > 0.5 ? 1 : 0` is now a FLAGGED D-stand-in (A11, owner I47): it marks `[0, 0.5]` as AIR where the game leaves base fill, and it is held deliberately — porting the correct law would render our whole band solid until the field produces negative values. **Count test (fail-under-the-retracted-prediction VERIFIED this session): the new C153-precondition law in `tests/mapgen/surface-compositor.test.mjs` pins `countNeg === 0 && countLE05 > 0`; it FAILS under F1's arithmetic (`countNeg > 0`), and its dig-#179 contract is to make `countNeg > 0` and re-pin. The fail-under-the-PORT law is dig #177's C1, re-measured this session (946 < 1000 ⇒ the port cannot be committed without a red battery).** **METER-CLASS:** E1 (every meter in this entry) — row-presence black-px counts per 512×512 tile (px, 0..262,144) and field-cell counts over the 512×256 caves grid (cells, 0..131,072, stride 1); NO IoU/fG/rms/meanAbs/C79/C97 was run or cited. **Purification:** §A 7 → 8 — A11 ADDED because this dig *discovered* the stand-in (C153's read proved the committed gate is not the game's law); the dig's scope is explicitly RE-OPENED as dig #179, the read that removes it (the field's negative region = the assignment-layer fill source, C134/§12 #160). No other row's lane is touched. Landed: ABOUT **(178)**, CONSTANTS **C153 + C136 amended**, MANIFEST **X178/X179**, VERIFIED **§8 row 62 + §9 note**, ISSUES **A11 new + I47 amended + I38's queued byte-coverage census consumed**, the two E1 instruments (`2026-10-20-dig178-classify-air-law.mjs` header corrected to the reverted state, `2026-10-21-field-vs-origin.mjs` new), the count law (`tests/mapgen/surface-compositor.test.mjs`), comment-only changes at the mask site (`mapgen/lib/noise-terrain.mjs`), baseline bumped to 30/385/3. Next free: entry **(179)**, **C154**, **X180**, **I48**, **A12**, §8 row **63**.
-- **2026-10-20 (177) — dig #177: THE SURFACE-BAND SKY LAW — canvas row 62's AIR renders the SKY (black + stars, the C110 NIGHT law), NOT the biome's cave backdrop: the C109 per-area bg starts at row 63 (C152; §8 row 61; the port + three count laws, fail-under-old verified) + the field-chain full-window re-read closing A10's noise-arm queue item (the seven windows X171–X177; the composition/arm/ctor laws re-verified byte-exact; the seed-draw D-stand-in = dead code, dissolved).** Plain language: the committed family-census header (this dig's target note) records our generated tile (39,62) as "olive 206,928 + grey 13,088 + sky 0" vs the capture's "grey 157,169 + olive 56,380 + sky 21,669 px" — the generated surface band painted the biome's `background_cave_04_alt` where the game shows open sky, so the caves field's silhouette was invisible against the fill. Root cause (`mapgen/lib/world-gen.mjs`): the noise lane's AIR cell of canvas row 62 (display y 0..511 = world y 0..511 = capture Y14, the C151 frame + SKY_ROWS=48) fell through `bgImageAtInner`'s `ty >= 62` arm = the C109 backdrop. Fix = one branch: `ty === 62 → world.skyAt(...)` before the bg fallthrough (the bin lane + rows >= 63 untouched). It matters because the A10 capture-composite layer masks the defect at the captured seed (its coverage includes the surface band), while the generator's own render is what every other seed + the E1/E2 instruments see. **NEW EVIDENCE:** (1) **M-grade capture census** (the family census per tile; both black rules — census `alpha>=10 && r=g=b=0`, test `<3`/channel — agree on capture): ref/39_13..39_19 black = **237,697 / 21,669 / 0 / 0 / 0 / 0 px** per 512x512 tile ⇒ the sky covers every air cell of row 62 and NONE below. (2) **M-grade render census** (the new instrument; PREDICTION pre-registered in its header and IN-PREDICTION — **PREDICTION:** gen62 rises from 0 to ABOVE the capture's 21,669 px (falsifiers: gen62 ≤ 1000 or ≤ 21,669, gen63 > 0, gen61 < 100,000): post-fix gen(39,62) black = **30,961 px** (census rule; the test rule gives 30,994) vs the capture's 21,669; gen(39,63) = **0** (the sky stops at the band); gen(39,61) = **254,921** vs capture 237,697 (+17,224 px = the I37-family row-61 over-fill) — artifact `mapgen/out/dig177-surface-band-sky.json`, repro `SURFACE_V3=1 node mapgen/experiments/2026-10-20-dig177-surface-band-sky.mjs`. (3) **M-grade lane cross-check (the dig #121 code law re-confirmed at this tile):** the hills def (`bitmapCaves`) live mask air = **290 cells** (52x52 grid) = the CAVES field's <=0.5 cells; surfaceField's air at the same cell centers = **290 cells under BOTH offset forms** (the live integer cell-center and the kind-0 +0.5 frame) with only **28/29 shared** (the random-overlap scale ~31 expected) ⇒ the two lanes' air sets are near-disjoint ⇒ the dig's vprof instrument (surfaceField distribution) does NOT describe the rendered mask — its header retagged (lane honesty). (4) **B-grade fresh full-window reads** (the seven dig177-*.asm windows, X171–X177; predict-then-read: prediction = the ported composition matches C125/C126/C83/C114/C39; result = byte-exact at every window): the field exit @0x90b0d9..0x90b106 `xmm0 = [0x268]·gradW·per + [0x264]·rpost + [ebp−0x1c]` (the same left-to-right f32 order as the port's `f(uid.gradWCoef·gradW·per) + f(uid.perlinCoef·rpost) + add`); the ctor defaults (`movw $0x0,0x24c` @0x496118 clears the slope/seed flag pair; `movl $0x0` @0x49610e (+0x248) and @0x496121 (+0x260); `movl $0x3f800000` = 1.0f @0x49612b/0x496135/0x49613f (+0x264/+0x268/+0x26c) = C116/C125/C126); the envelope's cell-table gate `comisd 0x11e0050` @0x90b290 with **[0x11e0050] = f64 380.0 = C83's pin re-read — the (177)-preliminary "K = 508" claim FALSIFIED (a whole-binary constant sweep found no f64/f32 508.0; the code/test comments corrected)**; the four `call 0x9fe620` @0x90a9a7..0x90a9e5 (the C39 BitmapNoise reads, byte-confirmed at the field's call sites); `call 0x8fb570` @0x90ab9f (the C83 parity lattice); the seed arm `cmpb $0x0,0x24d(%esi)` @0x90b132 → `je 0x90b1d1` → the `call 0x9119d0` pair @0x90b175/@0x90b1a3; the slope arm `cmpb $0x0,0x24c(%ebx)` @0x90b0a2 → `je 0x90b0d9`, the lerp slab @0x90b0ab..0x90b0d4 ≡ the port's `slopeFlag` arm (inert on both sides: the ctor clears the flag + 0 live files bind the attr, C126/#155; the port never parses it ⇒ `undefined !== 1`). (5) **D-dissolution (dead-code honesty):** C84's seed-draw D-stand-in (the quote carried in C125, "the port's seed-draw VALUES remain a D-stand-in") = DEAD CODE on shipped data — the ctor word-write clears [+0x24c/+0x24d] and 0 shipped XMLs bind the attr ⇒ the insidePerlin seed draw + the slope lerp never execute ⇒ no live claim remains (C125 amended in-row). **Count tests (fail-under-old VERIFIED this session: port reverted ⇒ the C1 probe measured black62 = 0 and the assert failed): C1 gen(39,62) black >= 1000 / C2 gen(39,63) = 0 / C3 gen(39,61) >= 100,000. Battery: 30 files / 384 tests / 3 skipped.** **METER-CLASS:** E1 (every meter this entry) — black-presence counts per 512x512 tile (px, 0..262,144) + air-cell counts per 52x52 grid (0..2,704); no IoU/fG/rms/meanAbs/C79/C97 run; the vprof histogram = E1 on the FIELD lane (retagged, lane scope in its header).** **Purification:** the C84 seed-draw D-stand-in dissolved (above); the §A rows unchanged {A2, A4(residual), A5, A6, A9, A10} — none of their lanes is touched by this dig; **A10's queue item CONSUMED** (the surfaceField noise-arm read = X171/X173's windows; the row stays — the composite layer dies only when the lanes compose). Landed: ABOUT **(177)**, CONSTANTS **C152 + C125 amended**, MANIFEST **X171–X177**, ISSUES **I47 new + A10 consumed**, VERIFIED **§12 p2b amended + §8 row 61**, the port (`mapgen/lib/world-gen.mjs`), the count laws (`tests/mapgen/world-gen.test.mjs`), two instruments (`2026-10-20-dig177-tile-vprof.mjs` retagged + `2026-10-20-dig177-surface-band-sky.mjs` new), SESSION_CONTEXT refreshed, baseline bumped. Next free: entry **(178)**, **C153**, **X178**, **I48**, §8 row **62**.
+- **2026-10-22 (181) — dig #181: THE "MATERIAL FILL PASS" AS FRAMED DOES NOT EXIST — the assignment record is a PER-ZONE PAYLOAD selected per cell (C154), the kind-3 map is a SET THAT NEVER PAINTS (§8 row 64), C134's planter assert was INVERTED (C134 amended, X184–X188; docs-only).** No pass stamps materials into records; the record is the payload of whichever zone entry matches the cell (why #179/#180 found no writer). **NEW EVIDENCE:** (1) B-grade full-window extractions (exe md5 `8b611494212a69492dd0a4527d9c92e0`, zero `.byte`): **X184** `dig181-mapinsert-a047d0-a048d0.asm` 0xA047D0..0xA048D0 (106 lines, md5 `a61cefaac6302be2df96378b4be207b3`), **X185** `dig181-samplerdispatch-90dd60-90dea0.asm` 0x90DD60..0x90DF02 (132 lines, md5 `ad0c337aa23e87e15f6515305cf687d4`), **X186** `dig181-arrayctor-8feff0-8ff044.asm` 0x8FEFF0..0x8FF044 (38 lines, md5 `0916dead8799e22e5b91f4f681e838c8`), **X187** `dig181-planter-7644d0-7646a0.asm` 0x7644D0..0x7646A0 (146 lines, md5 `b428eb35c41d966a297ff9000a4cfa3b`), **X188** `dig181-zonepred-8f5030-8f5760.asm` 0x8F5030..0x8F5760 (522 lines, md5 `8b570ef6e9c1d808c36b769895056a78`). (2) **`0xA047D0` IS AN INSERT (§8 row 64):** `std::map::insert(hint,key,value) → pair<node*,bool>`; miss path `push 0x14(%ebp)` (value) → `push %edi` (key) → `push %esi` (hint) → `push $0x1` → `call 0xa57d90` (node ctor, sole caller) → `movb $0x1,0x4(out)`; hit path @0xa048a6 → `movb $0x0,0x4(out)`; key compare at node+0x10, `_Isnil` at node+0xd, left `mov (%eax),%eax` / right `mov 0x8(%eax),%eax`, comparator `0xa24980` @0xa0487e; `[ebp+0xc]` (the record) is never read. (3) **THE MAP IS A SET:** all 4 call sites (0x765b4c, 0x90d74a, 0x90ddab, 0xc5e812) pass `movzbl 0x1344ce1,%eax` as value; `1344ce1` = 28 refs, all `movzbl` reads, zero writes. (4) **THE KIND-3 ARM NEVER PAINTS:** @0x90dd95 load, @0x90ddab insert, @0x90ddb0 straight to the loop epilogue. (5) **THE PLANTER'S ASSERT IS INVERTED (C134 corrected):** `cmpl $0x3,0x38(%eax)` @0x7644d9 → `jne 0x7645b3` @0x7644ee ⇒ the assert block @0x7644f4..0x7645ad (line `0x63a` = 1594, fmt 0x1150f60 → reporter `0x10078c0` → `xor %eax,%eax; movl $0x1ca9,(%eax)`) runs only when kind == 3 ⇒ the planter REJECTS kind-3 records. (6) **`slot[old]` = A CLAIMED ZEROED RECORD POINTER:** X186 zeroes `[block+0]` twice (`xchg %eax,(%ecx)` ×2) then loops 8192× (`push $0x40` → `call *0x114a34c` = operator new → `push $0x40; push $0; push %esi; call 0x1033a5e` = memset(rec,0,0x40) → `mov %esi,(%edi)` → `add $0x4,%edi`); slot re-write probe `mov[bwlq] %reg,0x4(%reg,%reg,4)` = 0 sites ⇒ slots written only by the ctor; C134's "material = `[array + 4 + old×4]`" was a mislabel (= the claimed record pointer, the planter's 5th arg). (7) The planter asserts `virtual(+0x58)` non-null (line `0x63b` = 1595), calls `virtual(+0x58)(this, x, y, record, slot[old]|0)`, then `mov %eax,%ecx; call 0x740f80`. (8) **`0x8F5030` = A ZONE PREDICATE (C154):** 3 callers (0x908fb0, 0x90935b, 0x90dd7e), `this = [*[sampler+0x20] + 0x2a4]`; gates `arg ∈ [this+0 .. this+4]` (f32); entry count = (`[this+0xc]−[this+8]`)/0x84 via `imul $0x3e0f83e1` + `sar $5` (2³⁷÷0x3e0f83e1 = 131.99), confirmed by `add $0x84,%esi` @0x8f5713 ⇒ a vector of 132-byte entries; both coordinates reduced mod 512 (`and $0x800001ff` @0x8f54f4 and @0x8f5511, signed-mod epilogue `dec; or $0xfffffe00; inc; jns; add $0x200`) ⇒ chunk-local tests (cf. entry (116), `0x909da0`); per-entry float bands `[+0x24]/[+0x28]` and `[+0x6c]/[+0x70]` (via `[+0x44]/[+0x45]` → `0x9fad90` or `0x8fc020`), bool gates `[+0x2c]/[+0x38]/[+0x39]/[+0x44]/[+0x45]/[+0x46]/[+0x50]/[+0x74]`, `mulss` scales `[+0x30]/[+0x34]/[+0x48]/[+0x4c]`, a second vector `[+0x78]/[+0x7c]` (stride 8) via `0x10096a0`; returns the matching entry's `[+4]` payload (`mov 0x4(%ebx),%eax` @0x8f5740 → `ret $0x8`) or NULL. No air source and no shape change from this dig. **PREDICTION:** P1 the insert is a sibling of `0xA047D0` or absent — OUTCOME: it IS `0xA047D0` (mis-recorded as a lookup by #160); P2 the lookup's `this` derives from the world store — INCONCLUSIVE (container `[sampler+0x4]`, predicate object via `[sampler+0x20]`→`[+0x2a4]`); P3 no C++ writer ⇒ data/predicate-driven — FIRED (X188). METER-CLASS: **E1** (counts only). Purification 8 → 8; re-opened as #182.
+
+- **2026-10-22 (180) — dig #180: THE STORE'S OWN CTOR — `0x13276C4`'s object IS A MUTEX (`_Mtx_init(store,0x102)`), store = mutex + vecA + vecB = 0x1C; THE CREATOR `0x6DFA20` IS NOT THE MATERIAL FILL (C135 amended, X182/X183; docs-only).** **NEW EVIDENCE:** (1) B-grade full windows: **X182** `dig180-creator-6dfa20-6e0830.asm` 0x6DFA20..0x6E0830 (→ `ret` @0x6e082c; 1033 lines / 49,471 B, zero `.byte`, md5 `f0142d4477fe799f2cf65e34048eb918`); **X183** `dig180-storector-8ff100-8ff150.asm` 0x8FF100..0x8FF150 (29 lines / 1,210 B, md5 `4028eb4288f730dd8cab9f83ef498080`). (2) **Store layout:** ctor `0x8FF100` = `push $0x102; push %esi; call _Mtx_init` @0x8ff109 (error arm → `?_Throw_C_error@std@@YAXH@Z`), `movl $0` into `[+4] [+8] [+0xc] [+0x10] [+0x14] [+0x18]`, `return this` ⇒ **`{mutex @+0, vectorA @+4/+8/+0xc, vectorB @+0x10/+0x14/+0x18}` = 0x1C**, matching `push $0x1c` at 0x6dfa66. The atomic slot counter lives on the record ARRAY block's `[+0]` (the 0x8004 block = counter + 8192 slots) ⇒ mutex and counter are on different objects. (3) Lock/unlock symmetric: getter locks `esi = *(0x13276c4)` @0x8ff077..0x8ff081, unlocks @0x8ff0cc; filler locks `eax = *(0x13276c4)` saved to `−0x1c(%ebp)` @0x8ff245..0x8ff24e, unlocks @0x8ff3ed. (4) `cmpl $0x0,0x13276c4` @0x8ff17d (in the getter) = the NULL-STORE ASSERT, not a lazy-init guard (the guard+`new` pattern belongs to `0x13463C4`). (5) **Second mutex singleton `0x13463C4` (17 sites):** `cmpl $0x0,0x13463c4` @0x6dff8b → `push $0x10; operator new` → `_Mtx_init(obj, 2)` @0x6dffb6 → `[+4] [+0xc]` = 0, `[+8] = 0x9c01d0()` → `mov %esi,0x13463c4` @0x6dfffe; second creator at 0x476c36; double-checked pairs at 0x720fb4 / 0x8e5ab3 / 0x92c093 / 0xcec003 / 0xd84fe8. (6) Third lazy singleton `0x1346E94` = `new(0x14)`, `[+0] = 0x118d7d4` (vtable), `[+0x10]` = init flag, installed @0x6e0078. (7) The `0x1a0` object = one singleton at `0x134632C` under seven duplicated lazy-init guards (stores at 0x6e015d / 0x6e0222 / 0x6e02af / 0x6e0389 / 0x6e03fe / 0x6e0532 / 0x6e07c2, each `push $0x1a0; operator new; call 0x65f480`) — the same static the fill-caller (X181) reads `movsd 0x40(%edi)` from ⇒ the creator is upstream of the filler's budget object. (8) Material-list invariant: `list = 0x9c6800(*(0x1344b90) + virtual(+0xAC))` @0x6dfaa9..0x6dfab6; NULL ⇒ assert (fmt 0x1150f60, `'app_config'`, line 579) to `log_asserts.txt` + `*(int*)0` trap. (9) **ELIMINATION:** in X182 `call 0x8FEFF0` = 0, no `push $0x40`, none of `0x4B80E0` / `0xA047D0` / `0x7644D0` / `0x8FF050` / `0x8FF150`; largest writes = `movl $0x6df7a0,0x1c(%eax)` @0x6dfbde and `movb $0x1,0x50(%eax,%edi,1)` on a 0x70-stride, 7-element table (the 0x6e0440 loop). `0x4B80E0` = pure reader (84 callers; only calls = reporter `0x10078c0` ×2 + the log trio). PREDICTION: falsifiers ≥2 `call 0x8FF100` / ≥1 `call 0x8FEFF0` in X182 — outcomes 1 and 0, neither fired. METER-CLASS: **E1**. Purification 8 → 8; re-opened as #181.
+
+- **2026-10-21 (179) — dig #179: THE STACK FILLER'S FULL WINDOW — `0x8FF150` = a MUTEX-GUARDED, BUDGET-DRIVEN ARRAY-POOL manager, sole caller passing `*(f64*)(this+0x40)`; it writes NO material value (C134 + C135 amended, X180/X181; docs-only).** **NEW EVIDENCE:** (1) B-grade full windows: **X180** `dig179-stackfill-8ff150-8ff420.asm` 0x8FF150..0x8FF418 (→ `ret` @0x8ff418; 233 lines; md5 `1f9f0e64c7060902e6dc70f1c2e2bf5d`); **X181** `dig179-fillcaller-6e71e0-6e7210.asm` 0x6E71E0..0x6E7208 (27 lines, md5 `88d78b9b1bfabf1b3aa6b3e2fc5d6b5a`). (2) Sole caller (`call.*0x8ff150` = 1 site, 0x6e71ec): budget = `*(f64*)(caller_this + 0x40)` (`movsd 0x40(%edi),%xmm0` @0x6e71e7) — an object member; the caller's `this` = `mov 0x2c(%esp),%edi` @0x6e70b6 (outside X181). (3) Exit threshold = `[0x11dfc28]`, bytes `3ab4c876be9f8a3f` = 0.013000000000000001 (a float32 0.013 widened; the double literal is `39b4…`) ⇒ `while (worldSingleton.virtual(+0x6C) − budget < 0.013)`. (4) `_Mtx_lock` @0x8ff24e (error arm `?_Throw_C_error@std@@YAXH@Z`), `_Mtx_unlock` @0x8ff3f0 on `−0x1c(%ebp)` ⇒ thread-shared store. (5) IAT (ImageBase 0x400000 + IAT RVA 0xd4a000 ⇒ VA 0x114a000), each cross-validated by use: `0x114a34c = operator new(unsigned)` (`push $0x8004; call`), `0x114a348 = operator delete`, plus `_time64`/`_localtime64`/`fopen`/`fprintf`/`fclose` (log args `tm_year+0x76c`, `tm_mon+1`). (6) **RETIRE arm @0x8ff386 (C135):** `B.back()` → `n = [block+0]` → `cmp $0x2000; jae` → else a loop of `0x2000 − n` iterations @0x8ff3b0 deleting the never-consumed pointers `[n+1..0x2000]` from `block+(n+1)·4`, then the block, then `B.end −= 4` ⇒ consumption runs upward from slot 1. (7) `0x13276C4` holds a POINTER to the store (every use dereferences it). (8) The zero arm = debug log + `*(int*)0` trap (`movl $0x1ca9,(%eax)`). (9) No material id or record-field store in the window ⇒ the budget enters only via record capacity, which C135 showed is not binding (96 × 8192 = 786,432 ≫ ~118k field-solid). PREDICTION: falsifiers ≥2 or 0 call sites — outcome 1 site. METER-CLASS: **E1**. Purification 8 → 8; re-opened as #180.
+- **2026-10-21 (178) — dig #178: THE SAMPLER'S THREE-WAY CLASSIFY GATE = C153 — the AIR MARK is `v < 0` STRICTLY (`0.5` = the ENTRY threshold, not the air mark; C136 amended) — THE MASK PORT FALSIFIED + REVERTED; I47's lever moves UPSTREAM to the FIELD's missing negative region (C153, X178/X179, §8 row 62, A11 + I47).** **NEW EVIDENCE:** (1) **B-grade full windows** (X178 = fn 0x90d860 → ret 0x90de0d + out-of-line blocks to 0x90e060, byte-identical on re-extraction; X179 = plane accessor 0x94a9d0, window extended to 0x94aaa7): field read `mov 0x9c(%ecx)` (W) → `add $0xb4` → `call 0x9499f0` → `movss (%eax),%xmm0`; ENTRY GATE `comiss 0x11dfa94,%xmm0` → `jbe 0x90e02b`, `[0x11dfa94] = 00 00 00 3f` = **0.5f** ⇒ `v > 0.5` → claim path; AIR ARM @0x90e02b..0x90e054: `xorps %xmm1,%xmm1` → `comiss %xmm0,%xmm1` → `jbe 0x90ddb8` (skip when `0.0 ≤ v`), only `v < 0` reaches `add $0x1a0,%ecx` + `call 0x94a9d0` + `movb $0x1,(%eax)`; the SOLID plane = separate arm @0x90e000..0x90e026 (`add $0x1c0`), reached only on claim success. **⇒ `v > 0.5` ⇒ claim; `0 ≤ v ≤ 0.5` ⇒ no stamp (base fill); `v < 0` ⇒ air mark.** (2) **E1 field census** (`mapgen/out/dig178-classify-air-law.json`): the hills caves field never goes negative — `countNeg = 0`, `countLE05 = 13,021` of 131,072 (9.93%), negative share 0 in all eight 32-row bands ⇒ the air arm is inert on our data. (3) Lane mismatch: the first port sat inside `if (SURFACE_V2) { … }` (`noise-terrain.mjs`) while instrument/live view set only `SURFACE_V3=1` ⇒ it never executed (reproduced #177's 30,961 px exactly). (4) **E1 lane-controlled A/B** (both arms `SURFACE_V2=1 SURFACE_V3=1`; lane delta under the original rule = 30,961 V3 vs 28,323 V2): original `v > 0.5` ⇒ row-62 black **28,323**; ported `v >= 0` ⇒ **946**; capture **21,669** ⇒ removes 27,377 px where only 6,654 px of excess existed (4.11× overshoot, 20,723 px short); R2 under the port = 254,629, R3 = 0. (5) With the port the battery fails 6 tests across 2 files (five `composed-content` pins — caves-filler re-anchor, filler census, I33 texture pin, I34 world-anchor pin, FIELD0's lavalake 414 → 1161 — plus #177's C1 `>= 1000 px` → 946); reverted ⇒ baseline. (6) **E1 corroboration** (`2026-10-21-field-vs-origin.mjs`, P1/P2/P3 in-prediction): per-band solid shares top→bottom **0.9556 / 0.8956 / 0.7971 / 0.7722 / 0.8719 / 0.9317 / 0.9843 / 0.997** over the eight 32-row bands of the 512×256 grid (the horizon can only be the band origin), `countLE05 = 13,021` + `countGT05 = 118,051` = 131,072; the byte plane = **3,076 / 131,072 = 2.35% nonzero** (consumes I38's queued byte-coverage census): wiring the byte gate would mark 97.65% of the band AIR, and it has no call site (`grep -rn "byteAt(" mapgen/ tests/` = 0). **PREDICTION** (pre-registered in the instrument header): R1 row-62 count < 30,961 and > 0; R2 gen(39,61) ≥ 250,000; R3 gen(39,63) = 0; F1 `countNeg > 0` and < `countLE05`; B1/B2 the flip overshoots rather than landing in [21,000, 23,000]. OUTCOMES: R1 out-of-prediction twice (30,961 → the lane read; then 946); F1 out-of-prediction (`countNeg = 0`); R2/R3/B1/B2 in-prediction. **VERDICT:** the byte law stands (C153); the port is reverted. The committed `mask = v > 0.5 ? 1 : 0` = a FLAGGED D-stand-in (A11, owner I47), held because the correct law renders the band solid until the field produces negatives. Count law (`tests/mapgen/surface-compositor.test.mjs`) pins `countNeg === 0 && countLE05 > 0` (fails under F1's arithmetic); the fail-under-port law = #177's C1 (946 < 1000). METER-CLASS: **E1** (black-px counts per 512×512 tile, 0..262,144; field-cell counts over the 512×256 grid). Purification §A 7 → 8 (A11 added: a discovered stand-in). Landed: C153 + C136 amended, X178/X179, §8 row 62, A11 new + I47 amended, the two E1 instruments (`2026-10-20-dig178-classify-air-law.mjs`, `2026-10-21-field-vs-origin.mjs`), comment-only changes at the mask site (`mapgen/lib/noise-terrain.mjs`), baseline 30/385/3.
+
+- **2026-10-20 (177) — dig #177: THE SURFACE-BAND SKY LAW — canvas row 62's AIR renders the SKY (black + stars, C110 NIGHT law), not the cave backdrop; the C109 per-area bg starts at row 63 (C152; §8 row 61; port + three count laws) + the field-chain full-window re-read (X171–X177; the seed-draw D-stand-in = dead code, dissolved).** The family census had gen (39,62) = "olive 206,928 + grey 13,088 + sky 0" vs capture "grey 157,169 + olive 56,380 + sky 21,669 px": the noise lane's AIR cell of canvas row 62 (display y 0..511 = world y 0..511 = capture Y14, C151 frame + SKY_ROWS=48) fell through `bgImageAtInner`'s `ty >= 62` arm (C109 backdrop `background_cave_04_alt`). Fix (`mapgen/lib/world-gen.mjs`): `ty === 62 → world.skyAt(...)` before the bg fallthrough (bin lane + rows >= 63 untouched). The A10 capture-composite masks the defect at the captured seed only. **NEW EVIDENCE:** (1) **M capture census** (rules census `alpha>=10 && r=g=b=0` and test `<3`/channel agree): ref/39_13..39_19 black = **237,697 / 21,669 / 0 / 0 / 0 / 0 px** per 512x512 tile ⇒ sky covers every air cell of row 62, none below. (2) **M render census.** PREDICTION: gen62 rises from 0 to above 21,669 px (falsifiers: gen62 ≤ 1000 or ≤ 21,669, gen63 > 0, gen61 < 100,000). Outcome (in-prediction): gen(39,62) black = **30,961 px** (test rule 30,994); gen(39,63) = **0**; gen(39,61) = **254,921** vs 237,697 (+17,224 = the I37-family row-61 over-fill) — `mapgen/out/dig177-surface-band-sky.json`, repro `SURFACE_V3=1 node mapgen/experiments/2026-10-20-dig177-surface-band-sky.mjs`. (3) **M lane cross-check:** hills def (`bitmapCaves`) mask air = **290 cells** (52x52) = the CAVES field's <=0.5 cells; surfaceField air = **290 cells under both offset forms** (integer cell-center and kind-0 +0.5) with only **28/29 shared** (~31 expected by chance) ⇒ near-disjoint ⇒ the vprof instrument (surfaceField) does not describe the rendered mask (header retagged). (4) **B full-window reads (X171–X177; all byte-exact vs C125/C126/C83/C114/C39):** field exit @0x90b0d9..0x90b106 `xmm0 = [0x268]·gradW·per + [0x264]·rpost + [ebp−0x1c]` (same f32 order as the port's `f(uid.gradWCoef·gradW·per) + f(uid.perlinCoef·rpost) + add`); ctor defaults `movw $0x0,0x24c` @0x496118 (slope/seed flag pair), `movl $0x0` @0x49610e (+0x248) and @0x496121 (+0x260), `movl $0x3f800000` = 1.0f @0x49612b/0x496135/0x49613f (+0x264/+0x268/+0x26c); envelope gate `comisd 0x11e0050` @0x90b290 with **[0x11e0050] = f64 380.0** (C83) — a preliminary "K = 508" claim falsified (no f64/f32 508.0 in the binary); four `call 0x9fe620` @0x90a9a7..0x90a9e5 (C39 BitmapNoise); `call 0x8fb570` @0x90ab9f (C83 parity lattice); seed arm `cmpb $0x0,0x24d(%esi)` @0x90b132 → `je 0x90b1d1` → `call 0x9119d0` pair @0x90b175/@0x90b1a3; slope arm `cmpb $0x0,0x24c(%ebx)` @0x90b0a2 → `je 0x90b0d9`, lerp slab @0x90b0ab..0x90b0d4 ≡ the port's `slopeFlag` arm (inert both sides). (5) **D-dissolution:** C84's seed-draw D-stand-in (quoted in C125) = dead code on shipped data (ctor clears [+0x24c/+0x24d], 0 shipped XMLs bind the attr) ⇒ C125 amended. **Count tests** (fail-under-old verified: reverted ⇒ black62 = 0): C1 gen(39,62) black >= 1000 / C2 gen(39,63) = 0 / C3 gen(39,61) >= 100,000 (`tests/mapgen/world-gen.test.mjs`). METER-CLASS: **E1** (black counts per 512x512 tile; air-cell counts per 52x52 grid, 0..2,704; the vprof histogram = E1 on the FIELD lane). Purification: §A rows unchanged {A2, A4(residual), A5, A6, A9, A10}; A10's queue item consumed. Landed: C152 + C125 amended, X171–X177, I47 new, §12 p2b amended + §8 row 61, instruments `2026-10-20-dig177-tile-vprof.mjs` (retagged) + `2026-10-20-dig177-surface-band-sky.mjs`.
+
 - **2026-10-20 (176) — dig #176: THE CLASS-Y RECORD IS THE `<VegetationComponent>` — the record's full slot map byte-pinned from its own attr applier (I44(a) CLOSED at parse level) + the dispatch and all three leaf arms read fresh (I44(b)) + THE RECORD-LANE DEEP-BAND ATTRIBUTION FALSIFIED (the census's pre-registered P3) — the soil/rock question re-aimed to I45.** Plain language: for three digs the chain that plans "claims" over the deep band was believed to be what paints capture's soil-and-rock over our uniform sand. This dig opens the record's own parser, and every field it accepts is a plant parameter (seed, tree width, radius, probability, tree material); every consumer of the record reads those plant slots; at the anchor biome the only tree materials are moss and grass, and both records take the visual (tree-spawn) arm. The chain ends in vegetation spawns, so it cannot be the bulk soil/rock writer — the pre-registered P3 attribution is falsified at byte level, and which lane paints the deep band's soil/rock (the value field, the classify windows' y-gates, or the per-cell art-plane second writer) is re-registered as I45. **NEW EVIDENCE:** fresh extractions this session (the exe md5 re-verified `8b611494212a69492dd0a4527d9c92e0`): `mapgen/extractions/dig176-vegapplier-full-785f80-7865a0.asm` (X163, md5 `dc83ded53a207baff4df61f08dca4443` — the VegetationComponent attr applier's full window: prologue 0x785f80 → `ret $0x8` @0x786599 + int3 pad to 0x7865a0), `mapgen/extractions/dig176-dispatch-full-8f75c0-8f7920.asm` (X164, `987db83259c2e7027a18b9cc61a4557a` — the leaf dispatcher, prologue → `ret $0x14` @0x8f7919), `mapgen/extractions/dig176-visualarm-full-8f5eb0-8f6520.asm` (X165, `257a2e2ffea04a95d37c7f2bebe4a3c9` — the is_visual arm), `mapgen/extractions/dig176-leafA-full-8f6520-8f6d30.asm` (X166, `8ae12b4278097f01b38fad16c146e46c` — the real-pixels arm), `mapgen/extractions/dig176-leafB-full-8f6d30-8f75c0.asm` (X167, `df7f192fabbd2e0ed22626b265977180` — the non-real-pixels arm), `mapgen/extractions/dig176-vegattr-strings.txt` (X168, `d0d400d7724a618108071097ee694631` — the attr block 0x11a3b80–0x11a3de0 + the `is_grass` attr @0x119fb88 + the guard/log strings), `mapgen/extractions/dig176-stamplaw-793a00-793c80.asm` (X169, `5ae2124fea56d55b81e40afb651d76e3` — the (173) stamp window re-extracted fresh), `mapgen/extractions/dig176-sweeps.txt` (X170, `82a134b2de861118ed4cf56cf30172b0` — the whole-text censuses + the rdata table dump). Data-side reads this session: `data/biome/mountain_lake.xml` via `NOITA_DATA_DIR` (6 MaterialComponents + 2 VegetationComponents) and `mapgen/out/dig173-fill-census.json` (the (173) E1 artifact, re-read from disk). (i) **THE RECORD CLASS = `<VegetationComponent>`'s 224-B record — FULL SLOT MAP (B, fresh; X163+X168):** fn 0x785f80 = a thiscall attr applier: fixed-order name compares (0x4447f0), a match → typed read (bool 0x444850 / f32 0x444970 / int 0x4448e0 / string 0x445820+0x43a5a0) → store into `[esi+slot]` → `ret $0x8`; no match → the error path @0x78654b..0x786583 pushes the `VegetationComponent` name (0x11a3b94) between the `"Config error ( "` prefix (0x116b1c4) and the suffix `" ) - couldn't find the member\n"` (0x116b220, pushed @0x78657c) with the member node (edi). Byte-pinned record map (attr string VA → slot store in chain 1): **bools +0x04 `is_visual` @0x785fb6 · +0x05 `is_real_pixels` @0x785fe4 · +0x06 `is_grass` @0x786012** (attr 0x119fb88 — the previously uncaptured 3rd bool, X168) **· +0x07 `is_ceiling_plant` @0x786040 · +0x08 `check_safety` @0x78606e**; **f32 +0x0c `rand_seed` @0x78609c · +0x10 `tree_width` @0x7860cc · +0x14 `tree_radius_low` @0x7860fc · +0x18 `tree_radius_high` @0x78612c · +0x1c `tree_probability` @0x78615c** — EXACTLY the fill-source's five head slots C149(3)–(5) consumes; **bool +0x20 `is_rare` @0x78618c · i32 +0x24 `tree_extra_y` @0x7861ba**; **strings +0x28 `tree_image_file` (lea @0x7861ed) · +0x40 `tree_image_visual` (@0x78622e) · +0x58 `tree_material` (@0x78626f) · +0x70 `load_this_xml_instead` (@0x7862b0)** — a 24-B std::string ⇒ its **size field sits at +0x80**, cap at +0x84, so the dispatch's `cmpl $0,0x80` = the "load_this_xml_instead non-empty" test (the (174)-era "+0x80 = its size" note byte-closed as the string's size FIELD); **f32 +0x88 `visual_offset_x` @0x7862ec · +0x8c `visual_offset_y` @0x78631f**; **string +0x90 `visual_color` (lea @0x786357)**; **bool +0xa8 `grass_requires_neighbors` @0x786396 · string +0xac `material_on_top_of` (lea @0x7863cc; layout 0xac+24 = 0xc4)**; **i32 +0xc4 `height_check` @0x78640b · +0xc8 `max_y` @0x78643c**; **bool +0xcc `random_flip_x_scale` @0x78646d**; **i32 +0xd0 `mVisualColor` @0x78649e · +0xd4 `tree_material_id` @0x7864cf · +0xd8 `material_id_on_top_of` @0x786500**; **ptr +0xdc `mTreeData`** (0x9c83e0, store @0x786531). (ii) **THE FAMILY + ITS DISPATCH TABLE (B, fresh; X170):** whole-text census on X1: the chain-entry form `mov $0x11a3ba8` (the first attr, `is_visual`) = **7 sites** — 0x785f98, 0x7878e0, 0x788335, 0x788ee7, 0x789caa, 0x78a20e, 0x78a717 (plus one `%ecx`-form load @0x78a987); each chain's fall-through error pushes the same `VegetationComponent` name (7 error sites; the name string = 16 ref sites total); chain 2's destination census (lea form, fn 0x7878d0) = the SAME slot map (+0x04/05/06/07/08/0c/10/14/18/1c/20/24/28/40/58/70/88/8c/90/a8…) ⇒ the copies write an identical record layout. **Zero direct `call 0x785f80` and zero `call 0x957b00` in the 188 MB full-text disasm X1 (control `call 0x10325e5` = 2232 hits)** ⇒ the applier and the 0xe0-stride insert helper are invoked indirectly; the applier's address occurs **exactly once as data — file offset 14,197,600 = VA 0x118b160** (rdata delta file+0x400e00, re-verified this session against `tree_width` @0x11a3bf4) — inside a **17-entry pointer table 0x118b14c..0x118b18c** preceded by an MSVC COL dword (0x118b148 = 0x011ec034) carrying **all 7 chain starts** (slots 5,6,7,8,13,14,16 = 0x785f80/0x7878d0/0x7882f0/0x788ea0/0x78a200/0x789ca0/0x78a710) plus 10 sibling functions (incl. 0x7865a0 and the two `VegetationComponent`-error functions 0x784460/0x784550); installed as a vptr by exactly 2 sites (`movl $0x118b14c` @0x782a36 / @0x7843b2) ⇒ a class vtable. **The walker/parse loop that indexes this table — and the record's insertion into `[mBiomeMaterials+0x14]` — remain the I44(a) residual.** (iii) **THE DISPATCH — FRESH FULL RE-READ, byte-identical to entry (174)/X155 (B, fresh; X164):** 3 debug asserts (line nos 0x2d3/0x2d4/0x2d5; the `mInitialized` byte `[this+0x2c]` @0x8f776b) → **`cmpl $0,[rec+0xd4]` @0x8f7830**, jge else the invalid-record log that prints the **`+0x58` `tree_material` STRING** (lea @0x8f7848) + `false` @0x8f7861 → `is_visual [rec+4]` @0x8f786c: ≠0 → **`cmpl $0,[rec+0x80]` (the redirect string's size) @0x8f7872**, ≠0 → REDIRECT: `(float)argX − [rec+0x88]`, `(float)argY − [rec+0x8c]` (cvtdq2ps @0x8f787b–0x8f789f) → `lea ecx,[rec+0x70]` + `call 0x58e530` (&{x,y} pair, 0; edx = [0x1327b8c]) + `true`; =0 → `call 0x8f5eb0` @0x8f78d9; `is_visual==0` → `is_real_pixels [rec+5]` @0x8f78ea: ≠0 → `call 0x8f6520` else `call 0x8f6d30` (arm args = argX, argY, [ebp+0xc], [ebp+0x8], rec*). (iv) **THE THREE ARMS — THE LANE'S ONLY MATERIAL INPUT = `[rec+0xd4]` (B, fresh; X165–X167):** visual arm 0x8f5eb0: `push $1; push 0xd4(%ebx); …; call *0x20(%eax)` @0x8f60f1–0x8f60fd (**method8**) + the tree-image path `call 0x8f3c60` @0x8f62b4; leafA 0x8f6520 (real pixels): pixel checks incl. `call 0x949f60` @0x8f67f6 → `push $1, $0, 0xd4(%ecx), …; call *0x24(%eax)` @0x8f6b3e–0x8f6b4f (**method9**); leafB 0x8f6d30 (non-real): **0 (zero) `0xd4` displacements in its whole 0x8f6d30–0x8f75c0 window (X170)**, no method8/9 push pattern, one call to 0xd15bd0 — **leafB's write mechanism UNPINNED**; the spawn virtuals' bodies (`*0x20`/`*0x24` on the driver) = unread (I44(b)/I45 residual). (v) **THE STAMP WINDOW RE-READ FRESH — ITS FOUR READ SLOTS ARE VEGETATION SLOTS TOO (B, fresh; X169):** `cmp 0xc8(%edi),%eax` @0x793aa9 = **`max_y`** (the (173) "y-limit"), `cmpb $0,0x20(%edi)` + the `imul $0x343fd` LCG @0x793ab5–0x793abb = **`is_rare`** (the "probability flag"), `mov 0xd8(%edi),%eax` @0x793b0c = **`material_id_on_top_of`** (the (173)/(174) "material id at C144's slot" — the vegetation-attach material, not a bulk claim id), `mov 0xc4(%edi),%eax` @0x793b23 + `cmp 0xc4(%edx),%ecx` @0x793b97 = **`height_check`** (the "neighbor count") ⇒ the (173)/(174) chain reads VegetationComponent semantics at every site, fresh-verified. (vi) **P3 FALSIFIED — THE DEEP-BAND ATTRIBUTION RE-AIMED (B data-side + METER-CLASS: E1 census):** `data/biome/mountain_lake.xml` (read fresh from `NOITA_DATA_DIR` this session) carries exactly **6 MaterialComponents** (coal [0.51,0.55) · soil [0.45,0.53) `limit_y=1` y∈[−1024,424.229] · sand_static [0.53,0.95) · coal [1.1,1.2) `is_rare=1` · copper [1.05,1.25) `limit_y=1` y∈[750,2048] `is_rare=1` · rock_static [0.9,3.5)) and exactly **2 VegetationComponents, BOTH `is_visual="1"`** — tree_material **moss** (`grass_requires_neighbors=1`, `material_on_top_of="sand_static"`) and **grass** (…=0, …=`"soil"`), identical rand_seed 8376.86 / tree_width 76.1143 / tree_probability 0.828571 / radius [0.228571,0.414286]; **no `tree_material_id` and no `material_id_on_top_of` attrs ⇒ +0xd4/+0xd8 must be string-resolved — the resolve = open**). Both records take the is_visual branch (arm 0x8f5eb0 given the default-empty `load_this_xml_instead`) → method8 with `tree_material_id ∈ {moss, grass}`. **METER-CLASS: E1** (artifact `mapgen/out/dig173-fill-census.json`; repro `SURFACE_V3=1 node mapgen/experiments/2026-10-19-dig173-fill-census.mjs`; seed 78633191, tile 40_14, grey mask 104002 px; shares = fraction of the band's mask px, range 0..1): cap vs newFill — **320–383 (31621 px): soil 0.8052 / rock 0.1025 / sand 0.0924 vs sand 1.000 · 384–447 (30109 px): soil 0.4848 / rock 0.4179 / sand 0.0958 (+ coal 0.0008, fallbackSolid 0.0007) vs sand 1.000 · 448–511 (12799 px): rock 0.5216 / soil 0.3815 / sand 0.0969 vs sand 1.000** (the three bands sum 74529 px). The instrument's pre-registered line — **"P3 capture 320+ soil/rock vs our sand = the I44 residual"** — is FALSIFIED at byte level: the byte-closed record lane's only material inputs are vegetation slots, so porting it cannot move those shares (residual registered: the method8/9 bodies). The deep-band soil/rock writer is now **UNIDENTIFIED** → **I45**: candidates = the value field's v distribution, the classify-comp windows/y-gates (soil's `limit_max_y=424.229` straddles band 384–447), or the per-cell art-plane second writer of §8 row 59(c), which stands as data-side proof. **No meter run this entry (a read dig; the E1 artifact above is (173)'s, re-read from disk this session).** **Purification:** D-rows unchanged {A2, A4(residual), A5, A6}; **I44(a) CLOSED at parse level** (class + full slot map; residual = the vtable walker + the insertion into `[this+0x14]`), **I44(b) narrowed** (dispatch + visual + leafA read; leafB's writer, the `tree_material`→`+0xd4` resolve, 0x58e530, the method8/9 bodies remain); **NEW I45** (the deep-band attribution re-aim + the writer side of those residuals); **I42 amended** (its stamp→drain chain byte-closed as the vegetation lane; its soil/rock attribution clause superseded by I45); **§8 row 60** = the record-lane deep-band soil/rock attribution eliminated. Landed: ABOUT **(176)**, CONSTANTS **C150**, MANIFEST **X163–X170**, ISSUES **I44 rewritten + I45 new + I42 amended**, VERIFIED **row 138 amended + §8 row 60**, SESSION_CONTEXT refreshed; no code change, no cache bump. Next free: entry **(177)**, **C151**, **X171**, **I46**, §8 row **61**.
 - **2026-10-20 (175) — dig #175: THE RECORD CLASS RESOLVED — the fill-source's 0xe0 elements are NOT MaterialComponents (the two-vector law: mBiomeMaterials carries the 132-stride components at `[this+0x08]` AND the 224-stride claim records at `[this+0x14]`; the record's head f32s fall INSIDE a MaterialComponent's name-string region) + the fill-source's full column arithmetic pinned (u2/mixed/item.x, the 1612.0f correction) + dig #174's four claims corrected (C149, X158–X162, I44(a) re-aimed).** Plain language: entry (174) found the function that decides which material claims which column of the deep band, but read it as working directly on the parsed material definitions — the same objects our port models. This dig proves that reading is impossible: the game keeps TWO separate lists on the biome's material object, and the claim planner works on the second one — records whose first fields physically overlap where a material definition stores its NAME (text), so no attribute of a definition can surface there as a floating-point claim parameter. The records are built by an unread loader — that is now the single remaining mapping read (I44(a), overlapping I39(a2)'s P-wire). The dig also pins the planner's arithmetic exactly (the column hash, the random-in-range value, the sub-column position) and corrects four of entry (174)'s numbers — including a whole-.text sweep claim ("no f32 stores to +0x0c exist") that this session's re-sweep falsified outright (294/300 such stores exist; the class proof never depended on it). **NEW EVIDENCE:** fresh extractions this session (the exe md5 re-verified `8b611494212a69492dd0a4527d9c92e0`): `mapgen/extractions/dig175-ctor-7daeb0-7db050.asm` (X158, md5 `bf9fa5faea9d4c2cf03738575b530450` — the MaterialComponent ctor's full window), `mapgen/extractions/dig175-resolve-943380-943580.asm` (X159, md5 `6c13aefd0c4d415ddd4ec18ccd30bcc4` — the component-vector builder), `mapgen/extractions/dig175-applierT1-7d7a60-7d7e70.asm` (X160, md5 `b53cebb1e16a7b79e91e098a66c2b5fb` — the config-node applier family), `mapgen/extractions/dig175-rdata-globals.txt` (X161, md5 `f6a1181666f8059ef8ccd148e46e6091` — the cited globals' bytes), `mapgen/extractions/dig175-sweeps.txt` (X162, md5 `195c40423b8e56ba8275cb997b64a2f3` — the fresh re-extraction checks: X145/X150/X152 byte-identical this session; the store sweeps; the /132 + /224 magic checks). **(i) THE TWO-VECTOR LAW (B, fresh):** the fill-source (0x8f5760) and the classify (0x8f5030) thiscall the SAME object (mBiomeMaterials — both check `mInitialized` at `[this+0x2c]`, the fill-source @0x8f579b, the classify @0x8f5046) yet read DIFFERENT vectors on it: the classify's component matcher = begin `[this+0x08]`, stride **132** (X145); the fill-source's claim vector = begin `[this+0x14]` (@0x8f586d), end `[this+0x18]` (@0x8f5875), stride **224** (`imul $0xe0,(%esi,%eax,4),%edi` @0x8f5910; the count = /224 via the 0x92492493 magic @0x8f5883) — two adjacent std::vectors, one object. **(ii) THE CLASSES DIFFER — the airtight form (B, fresh):** the ctor 0x7daeb0 (X158) inits the name std::string by writing `size=0` at `[ecx+0x10]` and `cap=0xf` at `[ecx+0x14]` (@0x7daef6/0x7daefd, ecx = &comp->name) ⇒ on a MaterialComponent the name string occupies `+0x08..+0x1c` (16-B buf + size + cap); the record's lerp bounds `[rec+0x14]`/`[rec+0x18]` and probability `[rec+0x1c]` lie INSIDE that text region, and every embedding of a MaterialComponent in a larger record (header ≥ 0) maps record+0x14/+0x18 to comp offsets ≤ +0x18 — never onto a numeric slot (the first f32 field = material_min @+0x24) ⇒ **the 224-stride elements are a distinct class (the claim record / class-Y); no read of the fill-source's five head slots can be a MaterialComponent attribute pass-through.** **(iii) THE COMPONENT VECTOR'S BUILDER (B, fresh):** fn 0x943380 (X159) name-matches a registry entry, constructs the local via the ctor 0x7daeb0, fills it via `0xa01040`, and inserts into a **132-stride** vector (0x957a00 @0x943515 — its index math divides by 132 via the 0x3e0f83e1 magic @0x957a39: 2^37/0x3e0f83e1 = 131.96) ⇒ it builds the CLASSIFY's vector, not the record palette; the `add $0xe0` imm32 exists at exactly one site in .text (0x576914 — the `workshop_aabb` AABB consumer, whose string is at 0x1188128) ⇒ no inlined record-push exists; the palette's builder = the unread loader (I44(a) re-aimed). **(iv) THE FILL-SOURCE'S FULL COLUMN ARITHMETIC (B, fresh; slots relative to the record element `rec`):** the gates — spacing: `ucomiss [0x11df874]=0.0f, [rec+0x10]` + lahf/test-0x44/jnp ⇒ **discard iff spacing == 0.0** (an ordered-equality skip, not "> 0"); x-range: discard iff `x_right ≤ x_left` (`[0xc(%ebp)]` vs `[-0x44]`, x_left saved @0x8f5788); `x_key = floor(([rec+0x0c]·S + x_left)/[rec+0x10])` where S = the xmm2 arg saved at `[-0x34]` @0x8f5791 (the walk passes `[scene+0x30]`), `[-0x5c] = [rec+0x0c]·S` @0x8f5a29, the floor via cvttss2si + comiss/jbe/dec @0x8f5a4c–61; the column hash **u2 = hash9200(x_key, 69.0f)** in the port's formula — inlined with the y-fold constant-folded (floor(FOLD_Q·69) = 0 ⇒ fold(69,161) = 230): **u2 = frac(K9200·230²·fold(x_key,26)²)**, fold(x,b) = `x − 71·floor(FOLD_Q·x) + b`; globals: FOLD_Q `[0x11df8f4]`, K9200 `[0x11df8ac]`, 69.0f `[0x11e02b0]`, 71.0f `[0x11e02b8]`, lazy `[0x1349d08]=26.0f`/`[0x1349d0c]=161.0f` @0x8f5a79–8a; keep iff **u2 < [rec+0x1c]** @0x8f5b03–0a; the value hash `0x8f92f0(x_key_f32, 1612.0f)` — **CORRECTION: (174)/C148 said "1025.0"; the literal `0x44C98000` = 1612.0f** — out[3] at `[-0x74..-0x6c]` (edx = &(-0x74) @0x8f5b10), **v = lerp([rec+0x14],[rec+0x18], out[2])**, keep iff **v > 0** @0x8f5b27–41, the mixed key `mixed = out[0]·(1 − 2v) + v + x_key` @0x8f5b47–6e, **the second gate: discard iff mixed == 0.0 exactly** (ucomisd + lahf + test $0x44 + jnp @0x8f5b72–80 — (174)'s "> 0" wording wrong), the item x = `spacing·(double)mixed − [rec+0x0c]·S` @0x8f5b86–a8, the item = **{f64 x, rec\*}** written 12 B into a 16-B-aligned slot (`and $0xfffffff0` + the `sar $0x4` capacity math @0x8f5bc2–8f5c32). **(v) THE CTOR'S FLAG PAIRS (B, fresh — the committed port's slot comments confirmed + refined):** `movw $0x0,0x38(%ebx)` @0x7daf5d zeroes **{is_rare +0x38, limit_y +0x39}** as one pair; `movw $0x0,0x44(%ebx)` @0x7daf71 zeroes **{rare_use_perlin +0x44, rare_use_fbm_perlin +0x45}**; `movb $0x1,0x46(%ebx)` @0x7daf77 (rare_use_polka default TRUE) and `movb $0x1,0x64(%ebx)` @0x7dafa9 (rare_polka_is_boxed default TRUE) — `surface-level.mjs` lines 172/173/178/186 already carry these; the limit slots = +0x3c 100.0f / +0x40 2048.0f (**(174)'s entry mislabeled "limit_max_y = 2048 @+0x3c" — 2048.0f sits at +0x40; +0x3c = limit_min_y = 100.0f**); the classify's gates re-read fresh: limit_y CLOSED `[+0x3c,+0x40]` on (float)y @0x8f53f0–08, the main window HALF-OPEN `material_min ≤ v′ < material_max` (jb @0x8f55ba / jbe @0x8f55c8) — the port's law, byte-identical. **(vi) THE CORRECTIONS LEDGER:** (1) the hash literal: 1025.0 → **1612.0f**; (2) the mixed gate "> 0" → **== 0.0 discard**; (3) I44(a)'s "`movss`-stores to +0x0c = 0 hits in the whole .text" → **RETRACTED: 294 (X1 host) / 300 (X105 host) such stores exist** (X162) — the class proof rests on (i)+(ii); (4) the "comp vector" wording → the RECORD vector (the 224-stride class-Y); (5) the limit-slot mislabel. **No meter run this entry (a read dig; the acceptance meter stays I42's census deep-band shares, METER-CLASS: E1, repro `SURFACE_V3=1 node mapgen/experiments/2026-10-19-dig173-fill-census.mjs`). Purification:** the D-rows unchanged {A2, A4(residual), A5(blitScene-only), A6}; I44(a) re-aimed from "which comp attr" to "the record palette's builder/loader" (the single remaining mapping read); I42 unchanged (its two ends stay closed); the port dig (#176) = the record-lane port gated on I44(a)+(b). Landed: ABOUT **(175)**, CONSTANTS **C149 (+ C148's in-place corrections)**, MANIFEST **X158–X162 (+ X157's retracted note clause)**, ISSUES **I44(a) amended**, VERIFIED **the record-lane canon row amended in place**, no code change, no cache bump. Next free: entry **(176)**, **C150**, **X163**, **I45**, §8 row **60**.
 - **2026-10-20 (174) — dig #174: THE RECORD-PALETTE PRODUCER + THE DEEP-BAND WRITER'S CONSUMER CHAIN (I42's two open reads CLOSED at law level: the fill-source planner 0x8f5760 + the [driver+0x80] drain → 0x909bd0 → 0x8f75c0 → the leaf writers; C148, X150–X157, I44 new, I42 amended).** Plain language: entry (173) proved the deep band's overwrite happens AFTER the fill walk; this dig read both ends of that writer. On the producer side, one function builds the list the stamp works from: it takes the biome's material-component objects, SHUFFLES their order (so which material claims which column is itself randomized), then for each column computes a random value inside that component's own range and keeps the column with a per-component probability — the mechanism that can turn ONE art color into the capture's soil/rock/sand mix. On the consumer side, every stamped cell is queued as a 12-byte {x, y, record*} triple in the driver's vector, drained through a guard (unloaded chunks are deferred, not dropped), re-checked against the biome, and dispatched by three record flags into two concrete material-write leaves. **NEW EVIDENCE:** all fresh full-window extractions this session (the exe md5 re-verified `8b611494212a69492dd0a4527d9c92e0`): `mapgen/extractions/dig174-fillsource-8f5760-8f5d40.asm` (X150, md5 `01dad3228cf6ba44647b5d187f6ff6be`), `mapgen/extractions/dig174-walk-call-792d40-792e10.asm` (X151, md5 `33feb0ec778b39124d32bb60c2a15630`), `mapgen/extractions/dig174-stamp-drain-793bd0-793da0.asm` (X152, md5 `dad66e396948f36d59acfff194f172f5`), `mapgen/extractions/dig174-drain-7948e0-794b90.asm` (X153, md5 `005dd3c3c551e2ca3de273ee22b7f60d`), `mapgen/extractions/dig174-matwrite-909bd0-909d90.asm` (X154, md5 `b4203e86f5f333a806712bfee4bc06ff`), `mapgen/extractions/dig174-finalwrite-8f75c0-8f7920.asm` (X155, md5 `987db83259c2e7027a18b9cc61a4557a`), `mapgen/extractions/dig174-compsetter-7db100-7db680.asm` (X156, md5 `3c4fbccd4abdafae6b18236ffb82d439`), `mapgen/extractions/dig174-applier-7d7a40-7d7c60.asm` (X157, md5 `b78f6b83280bb33c76fba4dfb2eed601`). **(i) THE PRODUCER — fn 0x8f5760 (X150, ret $0xc @0x8f5c93), the V0 fill-source builder, instruction-level:** thiscall ecx = mBiomeMaterials; the sole caller = the walk fn @0x792daf (X151) — the biome resolved via 0x909da0, `[biome+0x2a4]` = mBiomeMaterials (either NULL ⇒ the build is skipped), the args = (xmm2 = `[scene+0x30]` scale-double, xmm3 = (double)x_left, stack = (double)x_right, &V0 at `[esp+0xcc]`); the walk copies V0 begin/end (`[esp+0xd0]`) into its state @0x792db4. The comp vector: `[this+0x14]` begin / `[this+0x18]` end, **stride 0xe0** (`imul $0xe0,(%esi,%eax,4),%edi` @0x8f5910; the count = (end−begin)/0xe0 via the 0x92492493 magic @0x8f589a); a NULL comp = the assert-crash idiom. **The claim order = SHUFFLED:** the identity index array 0..N−1 (@0x8f58c0) shuffled via 0x9faf60 with a seed derived from the double args (@0x8f58c8–8f58e7). Per comp: the spacing gate `[comp+0x10] > [0x11df874]` (@0x8f59e4–8f59f4); the column walk x from x_left while x < x_right stepping **x += `[comp+0x10]`** (@0x8f5c3c–8f5c64). Per column: **x_key = floor(([comp+0x0c]·(xmm2·[0x11dfb90]) + x)/[comp+0x10])** (the floor correction @0x8f5a4c–61); the hash 0x8f92f0(x_key_f32, 1025.0) → {u₁, u₂}; **v = lerp(`[comp+0x14]`, `[comp+0x18]`, u₁)** (@0x8f5b27–8f5b3e); keep iff **v > 0 ∧ frac(u₂) < `[comp+0x1c]`** (@0x8f5b03–8f5b0a — the per-column probability) ∧ the second mixed gate > 0 (@0x8f5b47–8f5b80); the item = {double x (the sub-column world-x), comp\*} in a 16-byte slot pushed to V0 (the byte layout confirmed: movsd + mov). Lazy globals: `[0x1349d08]` = f32 26.0, `[0x1349d0c]` = f32 161.0 (@0x8f5a79–8a). **(ii) THE CONSUMER — the stamp's queue + the drain chain (X152–X155):** the stamp pushes **12-byte `{int x, int y, record*}` triples** into `[driver+0x80]` (`lea 0x80(%ebx),%ecx; push &local; call 0x93edb0` @0x793beb–0x793c12) — **CORRECTION of entry (173)'s "set" wording: it is a std::vector** (the byte evidence: the drain's stride `add $0xc` @0x794b45 + the limit = byte-size/12 via the 0x2aaaaaab magic @0x794b57–68); the push is BIOME-GATED (the cell's biome via 0x909da0 @0x793bd8 must equal `[esp+0x64]`). The drain (0x7948e0–0x794b6f, X153): per element — the NULL check + **`[record+4] == 0`** (@0x794977–83) → `call 0x909bd0` (this = `[driver+0x70]`, args `([driver+0x6c], [driver+0x74], record, x, y)` @0x79498c–98; the debug-flash path gated by the global 0x1327698). 0x909bd0 (X154): the guard 0x909810 on the cell vs `[driver+0x74]` — fail ⇒ **DEFER** into `[this+0x18]` (a 20-byte pending vector via 0x931900) + false; pass ⇒ the biome lookup at the cell → `[biome+0x2a4]` → `call 0x8f75c0`. 0x8f75c0 (X155): the dispatcher — **`[record+0xd4] < 0`** ⇒ the invalid-record log + false; **`[record+4] != 0`** ⇒ { `[record+0x80] != 0` ⇒ the relative-position insert into `[record+0x70]` (offsets `[record+0x88]/[+0x8c]`, 0x58e530 @0x8f78b6 — the polka-center list); == 0 ⇒ `call 0x8f5eb0` }; **`[record+4] == 0`** ⇒ `[record+5] != 0` ⇒ **`call 0x8f6520`** else **`call 0x8f6d30`** (the two leaf material-writers — their internals = the remaining read). **(iii) THE MAPPING GAP (I44, new):** the fill-source's head slots (+0x0c offset / +0x10 spacing / +0x14/+0x18 the v-range / +0x1c the probability) are NOT class-A fields — fnA 0x7daeb0's poro config-tree object (X156/X157 + the ctor's defaults: the name std::string at +0x08..+0x1c, material_index = 10 @+0x20, limit_max_y = 2048 @+0x3c, rare_scale 0.05 @+0x48/4c, polka prob 0.2 @+0x5c, radius_high 0.65 @+0x60 — matching `data/biome/mountain_lake.xml`'s MaterialComponent attrs) occupies +0x08..+0x90, and `movss`-stores to +0x0c = 0 hits in the whole .text (the appliers pass field ADDRESSES to the helper 0x42cfe0; the jump tables T1 @0x7d7e70 / T3 @0x7d9858 / T4 @0x7da2bc all decode to the +0x50..+0x90 family) — so the 0xe0 comp's attr→slot parse = the OPEN read; candidates = material_min/max (the v-window semantics!), rare_required_min/max, rare_scale_x, rare_polka_probability (unresolved, I44). **No meter run this entry (a read dig; the port's acceptance measurement = the census deep-band shares in I42, counted E1). Purification:** the D-rows unchanged {A2, A4(residual), A5(blitScene-only), A6}; I42's consumer open CLOSED + its container-type correction; I39(a2) advances one step (the scene-parse producer is now bounded: the fill-source reads the parse's OUTPUT, so the P-wire window shrinks to the class-Y ctor). Landed: ABOUT **(174)**, CONSTANTS **C148** (+ C147's I44→I42 miscite fixed), MANIFEST **X150–X157**, ISSUES **I42 amended + I44 new**, VERIFIED **the deep-band record-lane canon row** (the two-layer distill), no cache bump. Next free: entry **(175)**, **C149**, **X158**, **I45**, §8 row **60**.
@@ -10420,22 +9004,28 @@ Next free: entry **(184)**, **C157**, **X195**, **I48**, **A12**, **§8 row 67**
   **Purification:** no D change — the active set {A2, A4-residual, A5, A6, A8(c)} carries; A5 EXTENDED (reused, not added: the seeded-fBm band choice now also covers the splice lane's grey fill; its magnitude = the (4) mix measurement = I39(d)); each remaining row's scope is unchanged and out of this dig's lane. Battery at this HEAD: **29 files / 378 tests / 3 skipped / exit 0** — `scripts/precommit-baseline.json` bumped per the C131 rule. E2 sentinel (C97 v3, SURFACE_V3=1, seed 78633191; instrument `2026-10-10-surface-shape-iou.mjs`, artifacts `surface-shape-2026-10-10-v3{,-pre170}.json`): **tile 40_14 (mountain_lake) IoU 0.8187 → 0.95192 (+0.133)** — the pre-registered ≥0.88 CONFIRMED (falsifier = ≤0.8187); the flanks 39/41/42_14 improved +0.026/+0.027/+0.023 (their (168)-era deficits shrink toward 0); the 56-tile mean IoU 0.46291 → 0.46825, iouShift 0.64740 → 0.65099 (rises as predicted); **changed 18 / unchanged 38, and changed-without-template-content = 0** — the falsifier check (instrument `2026-10-19-dig170-e2-tile-trace.mjs`, which reads both JSONs + the world's template buffers per tile's 2×2 chunks) **PREDICTION (3) CONFIRMED: no all-9 tile moved a pixel ⇒ the fix did not leak a lane.** METER-CLASS: E2, sentinel only (the 4 tiles the first trace pass flagged — 5_14/44_14/50_14/58_14 — were a `touched()` bug: the check read only the tile's top-left chunk, not its 2×2 span; the byte read `own[4]=true` for all four shows they carry template content, so they are legitimate movers, not leaks). Landed: ABOUT **(170)**, CONSTANTS **C145**, ISSUES **I41 resolved + I39(a3 corrected, d added) + §A A5 extended + X140's label corrected**, VERIFIED **§8 row 56**, MANIFEST **X145–X147**, the instrument + the lake-band suite + the baseline + the loader. Next free: entry **(171)**, **C146**, **X148**, **I42**; §8 row **57**.
 - **2026-10-18 (169) — dig #169: THE FLOOR'S TWO REGIMES — THE RECORD-LANE SPAWN READ (non-P biomes, byte-closed) + THE TOPOLOGY-P PATH FOUND (the lake family carries `bitmap_noise_file`; C122's "never a P build / DEAD for shipped data" universal = PROVEN WRONG, §8 row 55) — the lake anchor's directive answered: the ground under the lake sites comes from TWO mechanisms, and our floor gap at the anchor = a classify-window frame defect, measured.** Plain language: the user's question — "we are looking for functions that make some ground; it's always there but depends on the seed" — has a two-branch answer. (1) **For the anchor and most sites (mountain_lake, lavalake2's hills, watercave's mountain_tree): the ground = the record lane's stamps** — the generator's pre-placed, seed-rolled records stamped into the world; the game's sampler ALSO has a second, image-driven terrain path (a noise field, then a material classify), but that whole path sits behind one pointer test: `[uid+0x1d4] == NULL ⇒ the sampler returns AIR at that cell** (byte-fresh, the je at 0x90DBE5) and the records alone paint the floor. (2) **For the lake family (lake/lake_blood/lake_deep/lake_statue): the image input EXISTS** — `bitmap_noise_file="data/biome_impl/topology_lake.png"` (a 512×256 RGB PNG) — stored as a path string at [config+0xa8] by the parse chain; whether (and where) the game materializes that path into the P pointer = THE OPEN WIRE = #170. Our rendered floor at the anchor is 160 rows too low (the game's floor solid from y≈128, ours from y≈288): the mechanism = our classify window's soil `limit_y` band excludes the y-frame band under `canvas−24576`, so cells with v ∈ [0.5, 0.53) fall through to the null record = air — the read that fixes it = the record-lane writer (the continuation dig), not tuning.
   **NEW EVIDENCE:** (1) **THE SAMPLER GATE ORDER, full-window byte read THIS session (exe md5 8b611494212a69492dd0a4527d9c92e0; artifact X140 `dig169-sampler-window-90d8c0-90e0a0.asm` md5 `dd9ba0b822ba616ac0d047109845a267`):** per cell in the loop 0x90D8F3..0x90DDD7 — [a] byte-plane gate `0x949E80` read @0x90D912, == 0 ⇒ skip (C136 re-pinned in-window); [b] **record-id fetch** `[ebx+0x18][+0xd8]`, id > 0 ⇒ resolve `0x4B80E0` → the kind-3 material write via `0xA047D0` @0x90DD8D — **NO field evaluation on this path** (the records paint regardless of P); [c] field read @0x90DBA5 (getter `0x9499F0` on owner+0xb4); [d] the 0.5 gate @0x90DBC3; [e] **THE P-GATE @0x90DBE5: `test` of `[uid+0x1d4]`, `je 0x90E02B`** — NULL jumps to the air tail and the evaluator2 (`0x908E70`) + classify (`0x8F5030`) calls NEVER RUN; [f] classify-null ⇒ the explicit air store @0x90DDB0. ⇒ **the two regimes are one instruction apart: the record path is P-independent; the field+classify path = P-gated.** (2) **THE PARSE CHAIN (artifacts X141/X142/X143/X144; the whole attr region `dig169-parseregion-496000-4a9200.asm` md5 `d67e5d482f34e4e21a094f0d1710040f`):** ONE (name,value) setter function spans 0x49CCD0..0x49DFCF (34 `ret 0x8` arms; no prologue boundary between the two decisive arms) — **the `bitmap_noise_file` arm @0x49CFB2** (name-test vs the .rdata literal @0x1179354) copies the value string into **`[esi+0xa8]`** (`0x445820` temp + `0x43a5a0` assign), and the serializer @0x4A0E74 reads `[esi+0xa8]` back out for the same name — C122's path-string claim = CONFIRMED for this dispatch; **the `mBitmapNoise` arm @0x49D6B7** (name-test vs the literal @0x1179948 = the C++ MEMBER name, not the XML attr) calls **`0x9c8460`** and stores the result into **`[esi+0x1d4]`** (arm A; the same store fresh in the attach-arm-B switch @0x49E51F, artifact X142) — the P-slot writer C122 itself cited, whose GATE was always the member name. **`0x9c8460` (X143, full window 0x9c8460..0x9c84DE): a get-or-resolve-by-name through a global registry** — `[this+4]` vcall name → the IAT query on the global `0x12F0D8C` → hit ⇒ return the cached object `[[this+4]+4]`; miss ⇒ build via `0xA42D60` (the sibling `0x9c84e0` = the same skeleton on the global `0x12FC56C` + build `0xA42E20`). Whether a materializer ever feeds it the `[+0xa8]` path (or the image-loader chain 0x90E060/0x8FA930 reads that path) = **THE OPEN WIRE (#170)** — no image-loader call exists anywhere in the parse region (fresh grep). (3) **C122 FALSIFIED (data-side, fresh this session): `bitmap_noise_file` is carried by FOUR shipped biome defs** — `lake.xml`, `lake_blood.xml`, `lake_deep.xml`, `lake_statue.xml` — **all = `data/biome_impl/topology_lake.png`** (512×256 RGB, 3706 B, verified header); `mBitmapNoise` = 0 hits in data/biome (true — but it tested the WRONG NAME: the XML attr is `bitmap_noise_file`). ⇒ **§8 row 55: the "there is NO per-biome P grid in shipped data … DEAD for shipped data" universal = proven wrong as stated**; the field0≡1.0 port stance stays the honest behavior for non-attr biomes and the flag-gated stand-in for the lake family until the wire lands. (4) **THE LANE CENSUS (M: instrument `mapgen/experiments/2026-10-18-lake-floor-lane-trace.mjs`, artifact `mapgen/out/lake-floor-lane-trace.json`; lane mirror validated 0 mismatches vs worldColorAt):** tile 40_14 (the mountain_lake anchor, seed 78633191, SURFACE_V3=1) — noise-solid 96,656 (36.9%) / noise-air-bg 86,770 (33.1%) / **template 78,718 (30.0%) / area lane 0** (mountain_lake's `wang_template_file=""`); **no seeded-fBm fill exists in the lake chunk** — the P1 falsifier fired (template 78,718 ≠ 79,000) but explained: the 282-cell shortfall = a template-lane seam (registered I41, attribution open) and the A5 "seeded-fBm fill at these sites" wording = corrected by the census; art classes over 262,144 = miss 104,075 / hit:water 60,460 / hit:rock_hard 18,540 / air-hit 56,209 / black 22,860 (E1, the #168 law reproduced on the instrument). **The miss-class lanes: noise-solid 84,829 / noise-air-bg 13,322 / template 5,924 — the red (ref-solid/gen-air) mass = 13,322 cells on the noise lane's AIR arm (P2 CONFIRMED); ref water outside the art = 101 cells = 0.039% (P3 CONFIRMED — no game-side water-fill law beyond the scene).** (5) **THE MISS-ONLY ROW PROFILE = THE FLOOR GAP (M):** over the miss class the capture is solid 1.000 from row y≈128 down; ours = 0.000–0.231 until y≈288 (then 0.999) — **the mechanism: our V3 lane's solid onset requires `field > 0.53` through the classify window** — mountain_lake's Materials windows tile [0.45, 3.5] but the soil record's `limit_y=1` window [−1024, 424.229] excludes the band under the port's classify-y frame (canvas−24576 = world+7168), so v ∈ [0.5, 0.53) = null record = air; the arithmetic `0.871429·(y+835)/1859 > 0.53 ⇒ y > 277` matches the measured onset (y≈288). (6) **SITE REGIMES (M: biomeAt at each splice anchor):** mountain_lake (40,62) → the mountain_lake def (**no attr ⇒ the record-lane floor, the P-gate = NULL**); lake_statue (6,62) → a lake-family def (**WITH the attr ⇒ the P-wire question is live**); lavalake2 (39,62) → hills.xml (no P); watercave (31,62) → mountain_tree.xml (no P) ⇒ three of the four sites are non-P by data, the fourth opens #170. (7) **The rock_hard shade sub-item (I39b) measured on the same artifact:** refMean (59,36,31) vs genMean (43,44,48) over the rock_hard class — the reddish-vs-grey gap stands, registered under I39(b). (8) **No behavior change this dig (no tuning)** — the port's lanes, windows and field0 stance are untouched; the fixes queue behind their own reads. **Count tests:** `tests/mapgen/bitmap-noise-census.test.mjs` (data-dependent; RUNS when NOITA_DATA_DIR present) — exactly 4 shipped defs carry the attr, all → topology_lake.png, mountain_lake carries none; **FAILS under C122's old 0-hit arithmetic by construction**. Purification: the A5 seeded-fBm lake-fill claim = corrected by the census (M), no new D-rows opened; the wire + the record-lane writer = registered opens (I39 amended, #170). METER-CLASS: M (the lane census/profile/water probe), E1 (the art-class census counts + the water ratio), no E0 A/B (no render change) — the E2 sentinels were not run and no scalar motivates anything here. Landed: ABOUT **(169)**, CONSTANTS **C144**, ISSUES **I39 amended + I41**, MANIFEST **X140/X141/X142/X143/X144**, VERIFIED **§8 row 55 + §9/§12 notes**, the instrument + the census test, the noise-terrain V3-lane comment amendments (the "dead for shipped data" claims corrected to the two-regime law), the loader. Next free: entry **(170)**, C145, X145, I42, §8 row 56 — **#170 = THE P-WIRE READ (the [+0xa8] path → [uid+0x1d4] materializer / the C45 A-resolver chain, lake_statue as the live site) + the record-lane writer continuation; the (167) spawn-lane port stays queued.**
-- **2026-10-18 (168) — dig #168: THE PLZ CODEC REPRODUCED + THE SPLICE PAINT-CLASSIFICATION LAW PORTED — the lake-anchor directive lands the first splice-scene SHAPE truth: where the scene art says "air" or carries a color not in materials.xml, the game shows its OWN generated terrain below (the two-skip port in blitSplicedScenes); the gap the reveal opened (the terrain UNDER the splice scenes = too low/blocky, our rock_hard shades wrong for these sites) = registered I39 = THE FLOOR/FILL SPAWN = the next dig, exactly the "how the floor spawns" entry the anchor was meant to open.** Plain language: the mountain_lake art at world (2560,0) is a STENCIL, not a picture — the user's question "what value wraps the lake into the floor" has a byte answer now: each art cell's palette color is looked up in materials.xml, and the lookup RESULT is the wrap value — a hit paints that material's shade, an `air` hit or a miss (raw detail color) leaves the cell empty so the terrain the world generator made shows through. We used to paint both the air cells and the raw colors with the art itself, burying the real ground under a painted copy of the stencil. The container codec behind those art files (the .plz family) = fully reproduced this session, so the law is byte-derived + capture-counted, not inferred.
-  PREDICTION (pre-registered before the C97 E2 A/B run): (1) tiles OUTSIDE the splice scenes' AABBs — grown by the C78 worldColorAt read-shift (−11 x / −12 y: the anchor makes a tile's samples reach 11 px east / 12 px south) — change on ZERO of the 56 ref tiles (falsifier = any change outside); (2) tile 40_14's IoU rises to ≈0.8187 = the local anchor-dump number (falsifier = the dump number does not reproduce in the composed lane). **BOTH CONFIRMED** — (1) 9 changed / 47 byte-identical, changed-outside-anchor-expanded-AABBs = 0; (2) 0.74281 → 0.81870 = exact.
-  **NEW EVIDENCE:** (1) **THE CODEC, full-window byte reads THIS session (exe md5 8b611494212a69492dd0a4527d9c92e0; artifacts X137/X138/X139):** [a] **loader 0x90E220..0x90E676 + dispatch call 0x90E73C..0x90E754** (X137): header = 6×u32 LE `[ver][w][h][bpp][compLen][rawLen]`, field loads = RAW 32-bit moves (w @0x90E223, h @0x90E2E5, bpp @0x90E3B3, compLen @0x90E47E→[ebp-0x6C], rawLen @0x90E54F→edi/[ebp-0x4C]) — no sign-extension, no abs; asserts `w,h ≤ 0x10000` @0x90E61D/0x90E62A with **`ja` = UNSIGNED** → the error path 0x90E7BA = log + abandon (NO decode), `bpp−1 ≤ 3` @0x90E637; **THE RAW GATE @0x90E644: `cmp edi(rawLen),0x80 ; jge 0x90E73C`** — rawLen < 128 ⇒ NO decode: verbatim copy of compLen bytes (malloc @0x90E654, byte loop 0x90E668..0x90E671); ≥128 ⇒ malloc(rawLen) + `push edi` (room) + `push esi` (op) + `call 0x423220` @0x90E74F with ecx = payload (ebx) / edx = compLen. [b] **dispatcher 0x423220..0x423243** (X138): `level = (payload[0] >> 5) + 1`; 1 ⇒ `pop ebp; jmp 0x422980`, 2 ⇒ `pop ebp; jmp 0x423010` (tail-calls — the pop-ebp is why the level decoders see the CALLER's `[ebp+8]=op / [ebp+0xc]=room`), else `xor eax,eax; ret` = 0 = failure. [c] **level-1 0x422980..0x422B4C** (X139): `ctrl = payload[0] & 0x1f`, ip = 1; literal (ctrl < 0x20): len = ctrl+1 (0x422B03); match: len = (ctrl>>5)−1 with +3 written, **len == 6 ⇒ ONE extension byte `len = b + 6` (0x4229D3 — NO 0xff chain)**, dist = ((ctrl&0x1f)<<8) + low + 1 (NO extended-dist path), dist 1 ⇒ RLE fill (0x422A18); returns the WRITTEN COUNT, bounds fail ⇒ 0 (0x422B44). [d] **level-2 0x423010..0x42321B** (X139): same skeleton; len ext = `do { b = *ip++; len += b } while (b == 0xff)` from 6 (0x423066); extended dist when low == 0xff && offHi == 0x1F00: dist = BE16(ip) + 0x1FFF + 1 (0x42308B..0x4230AA); returns the written count, bounds fail ⇒ 0 (0x423214). [e] **the "level 8" anomaly resolved:** `lavalake2/4.plz` = the ONE rawLen < 128 file (ver 1, w 4, h 2, compLen 32, rawLen 32, file 56 B) with payload[0] = 0xff ⇒ level 8 = dispatcher-return-0 = failure IF dispatched — the gate consumes it verbatim FIRST, so it ships fine. (2) **THE DECODE CENSUS + CONTENT PINS (M: instrument `mapgen/experiments/2026-10-18-plz-decode.mjs`, data/biome_impl/spliced, 97 files):** decode-exact (out.length == rawLen) **97/97**, levels {L1 6, L2 90, raw-gate 1}; **`rawLen == |w|·|h|·4` 97/97 and file = 24 + compLen EXACTLY 97/97 — NO 4-byte trailer** (the I9-era "+4-byte trailer" claim wrong); **5 files carry NEGATIVE dims** (gourd_room/6-8 + lavalake2/23: w = h = −511; lavalake2/24: −511/−343; rawLen = |w|·|h|·4) — all five are XML-referenced (gourd_room.xml:15, lavalake2.xml:49) yet REFUSED by the loader's unsigned gate ⇒ in-game those fragments render NOTHING; our decoder ignores w/h and decodes them (length-exact only, no content pin). **Content pins: mountain_lake/0.plz vs mountain_lake.png = 262144/262144 bytes byte-identical (RGBA compare); lavalake2/4.plz = 8/8 cells vs the art at the XML pos.** (3) **THE PAINT-CLASSIFICATION TRUTH TABLE (E1: 961 samples, mountain_lake + cross-checked on lake_statue/watercave/lavalake2):** wang-palette `air` → below shows **208/208**; water-palette → the art's water shades **223/238** (remainder = same-family shades); rock_hard → the art's rock shades **59/59**; **RAW (non-materials.xml) colors → the terrain below shows 404/404 — NEVER the art's color: I9's "unmatched palette colors drawn raw" clause = PROVEN WRONG (§8 row 54)**; pure-black → below shows (materials.xml carries no `000000` key = a miss anyway). The classification census over the 262144-cell art: **air 56209 / miss 104075 / hit 79000 (water 60460 + rock_hard 18540) / black 22860**. (4) **THE PORT (template-render.mjs blitSplicedScenes): skip `mname === "air"` AND skip `!mname`** — the count test pins it (E1: chunk "40,62" = the mountain_lake column): **unset 183144 = 56209 air + 104075 miss + 22860 black; painted 79000 across EXACTLY 7 colors (4 water shades + 3 rock_hard template shades); miss-colors-in-buffer 0; water-set 60460; rock_hard-set 18540** — the test FAILS the old (black-only) arithmetic by construction (old law: unset 22860, miss 104075 painted raw). `blitFixedArt` left untouched = FLAGGED D (I40). (5) **THE E2 A/B (C97, v3 lane; METER-CLASS: E2 sentinel — the port is justified by B + E1, never by these numbers):** **E0: the pre-port run = md5-BYTE-IDENTICAL to the dig-#150 baseline (6025b179e88a1bc884891faac0d4ad48) — digs #151–#167 moved the composed render 0 bytes** (the user's ~19-dig frustration, now pinned to the bit); post-port (md5 643c7f5caa54f37b49400ba71e8a7569): **9 changed / 47 unchanged, changed-outside-splice-AABBs = 0** (PREDICTION 1 ✓; tile 5_14's one-cell change = splice-attributable via the C78 anchor — its east edge reads 11 px into lake_statue's art); **tile 40_14 IoU 0.74281 → 0.81870** (PREDICTION 2 ✓ exact vs the local dump), 7_14 0.63847 → 0.85698 (+0.21851), 6_14 +0.00023 / 8_14 −0.00020 / 32_14 +0.00026 (the lake_statue/tree slivers); **39_14 −0.02851 / 41_14 −0.02734 / 42_14 −0.02358 = THE REVEALED FILL GAP** (the lavalake2 flanks: our underlying fill too low/blocky where the art now correctly defers to it; fG 40_14 −0.27394 = the skipped cells now showing non-solid below = the expected direction); aggregates: overall IoU 0.46243 → 0.46291, fG 0.90961 → 0.89929, bty14 0.78958 → 0.79909; desert/winter/bty10–12 byte-identical. (6) **THE REVEAL = THE NEXT DIG:** the fill under the splice scenes = our own seeded-fBm approximation (A5's D) — the game's real floor-spawn (what the lake/watercave/lavalake2 art wraps INTO) = UNREAD = **I39 = #169 = the user's directive target ("how the floor spawns"); our rock_hard shades (54,55,60)/(48,49,54)/(60,61,66) are wrong for these sites (the ref shows reddish (55,34,29)/(98,59,50)) — registered under I39's shade sub-item; the splice visual layers (`*_visual.png`/`_visual.plz`) not applied + blitFixedArt raw paint = I40.** (7) **THE I36-RECURRENCE INTERVENTION (the battery cliff — the dig's landing evidence):** three consecutive full batteries aborted at the surface-compositor worker RPC — `8 passed | 1 skipped (10)` files / `215 passed | 3 skipped (221)` / 2 × `Timeout calling "onTaskUpdate"` / exit 1 — and surface-compositor SOLO died 2/2, IDENTICALLY with this dig's changes STASHED (null test ⇒ the class, not the dig's code; environment ruled out: MemAvailable 13 Gi, swap 0 B used, 919 G disk free at diagnosis). ROOT CAUSES NAMED + FIXED (every assertion byte-preserved): (a) birpc `DEFAULT_TIMEOUT = 6e4` (vitest 2.1.9, `node_modules/vitest/dist/chunks/index.68735LiX.js`) kills a worker whose task-update reply is still unprocessed across ONE contiguous sync span > 60 s — the due timer fires in the timers phase before the queued reply; (b) `renderTemplateWorld` = 48783 ms cold and `ensureWorld()`'s CALL = that render PLUS the eager `readFileSync` gen-cache load per area (`world-gen.mjs:277` + the `readCache` inside the `world.ready` map) — both suites ran these spans per test: the count law rendered the WHOLE world for one chunk (48783 ms → a ~49 s cliff), and surface-compositor built THREE fresh worlds (art-crust re-rendering the world its own `ensureWorld` had just built, two spans under one pending reply). FIXES: the count law now pins the exported `blitSplicedScenes` on a fresh map — chunk 40,62 full-vs-splice-only `byteEqual = true`, identical histograms (unset 183144 / painted 79000 / 7 colors / water 60460 + rock 18540), 48783 ms → 1825 ms (M: `mapgen/experiments/2026-10-18-splice-chunk-equiv.mjs`) — and surface-compositor's art-crust reads `world.templates` (byte-identical BY CONSTRUCTION: same fn/args as `world-gen.mjs:277`) with all three world tests sharing one `getWorld()` (solo 174 s → 71 s, 6/6, zero rpc errors). POST-FIX LIVE BATTERY: **27 files (26 passed | 1 skipped) / 371 tests (368 passed | 3 skipped) / exit 0 / zero rpc errors** — `scripts/precommit-baseline.json` updated to these totals (I36's count-of-record, the per-dig law). Purification: the deferred-D row "plz-spliced scenes — container format RE" (the 2026-09-09 deferral) = PURIFIED (the codec reproduced + count-tested); new D = the I40-flagged stand-ins (kept honest, not load-bearing for shape) + the I39 fill gap (registered, next dig). **Count tests:** `tests/mapgen/plz-codec.test.mjs` (12: synthetic format vectors — the header/gate/dispatch, L1 literal/match/RLE/single-ext-byte/bounds, L2 ext-len/ext-dist/back — plus the data-gated census + 262144 pin + the 4.plz XML-pos pin + the classification counts + the splice count law, the last scoped to `blitSplicedScenes` per (7)) + `tests/mapgen/api-surface.test.mjs` +1 block; session totals: plz-codec 12/12 solo (4.24 s), surface-compositor 6/6 (71 s), full battery 27 files / 371 tests / 3 skipped, exit 0. METER-CLASS: E0 (the md5 identity), E1 (the census/count laws + truth table), E2 (the C97 numbers, sentinel), M (the wall-clock/equivalence measurements in (7)). Landed: ABOUT **(168)**, CONSTANTS **C143**, ISSUES **I9 amended + I36 corrected + I39 + I40**, MANIFEST **X137/X138/X139**, VERIFIED **§8 row 54 + §10 row 10**, `mapgen/lib/plz.mjs` + the two-skip port + the `blitSplicedScenes` export + the three test suites (`plz-codec`, `api-surface`, `surface-compositor` scoping) + the instruments (`2026-10-18-plz-decode.mjs`, `2026-10-18-lake-anchor-40-14-dump.mjs`, `2026-10-18-splice-chunk-equiv.mjs`), the loader, `scripts/precommit-baseline.json`. Next free: entry **(169)**, C144, X140, I41, §8 row 55 — **#169 = THE FLOOR/FILL SPAWN READ (I39)** — the (167) spawn-lane port stays queued behind it.
+- **2026-10-18 (168) — dig #168: THE PLZ CODEC REPRODUCED + THE SPLICE PAINT-CLASSIFICATION LAW PORTED — where scene art says "air" or carries a colour not in materials.xml, the game shows its own generated terrain below (the two-skip port in blitSplicedScenes); the revealed fill gap = I39.** Each art cell's palette colour is looked up in materials.xml: a hit paints that material's shade; an `air` hit or a miss leaves the cell to the terrain below.
+  PREDICTION (before the C97 E2 A/B): (1) tiles outside the splice AABBs (grown by the C78 read-shift −11 x / −12 y) change on zero of 56 tiles; (2) tile 40_14 IoU rises to ≈0.8187 (the local anchor-dump number). BOTH CONFIRMED — 9 changed / 47 byte-identical, changed-outside = 0; 0.74281 → 0.81870 exact.
+  **NEW EVIDENCE:** (1) **THE CODEC (B; exe md5 8b611494212a69492dd0a4527d9c92e0; X137/X138/X139):** [a] loader 0x90E220..0x90E676 + dispatch call 0x90E73C..0x90E754 (X137): header = 6×u32 LE `[ver][w][h][bpp][compLen][rawLen]`, raw 32-bit loads (w @0x90E223, h @0x90E2E5, bpp @0x90E3B3, compLen @0x90E47E→[ebp-0x6C], rawLen @0x90E54F→edi/[ebp-0x4C]); asserts `w,h ≤ 0x10000` @0x90E61D/0x90E62A with `ja` = UNSIGNED → error path 0x90E7BA (log + abandon), `bpp−1 ≤ 3` @0x90E637; **RAW GATE @0x90E644: `cmp edi(rawLen),0x80 ; jge 0x90E73C`** — rawLen < 128 ⇒ verbatim copy of compLen bytes (malloc @0x90E654, loop 0x90E668..0x90E671); ≥128 ⇒ malloc(rawLen) + `push edi` + `push esi` + `call 0x423220` @0x90E74F (ecx = payload, edx = compLen). [b] dispatcher 0x423220..0x423243 (X138): `level = (payload[0] >> 5) + 1`; 1 ⇒ `pop ebp; jmp 0x422980`, 2 ⇒ `pop ebp; jmp 0x423010` (tail-calls: level decoders see the caller's `[ebp+8]=op / [ebp+0xc]=room`), else return 0. [c] level-1 0x422980..0x422B4C (X139): `ctrl = payload[0] & 0x1f`, ip = 1; literal (ctrl < 0x20): len = ctrl+1 (0x422B03); match: len = (ctrl>>5)−1 with +3 written, **len == 6 ⇒ one extension byte `len = b + 6` (0x4229D3, no 0xff chain)**, dist = ((ctrl&0x1f)<<8) + low + 1 (no extended dist), dist 1 ⇒ RLE fill (0x422A18); returns the written count, bounds fail ⇒ 0 (0x422B44). [d] level-2 0x423010..0x42321B: same skeleton; len ext `do { b = *ip++; len += b } while (b == 0xff)` from 6 (0x423066); extended dist when low == 0xff && offHi == 0x1F00: dist = BE16(ip) + 0x1FFF + 1 (0x42308B..0x4230AA); bounds fail ⇒ 0 (0x423214). [e] `lavalake2/4.plz` = the one rawLen < 128 file (ver 1, w 4, h 2, compLen 32, rawLen 32, file 56 B; payload[0] = 0xff ⇒ "level 8") — consumed verbatim by the gate. (2) **Decode census (M; `mapgen/experiments/2026-10-18-plz-decode.mjs`, data/biome_impl/spliced, 97 files):** decode-exact 97/97, levels {L1 6, L2 90, raw-gate 1}; `rawLen == |w|·|h|·4` 97/97 and file = 24 + compLen exactly 97/97 — no 4-byte trailer (the I9-era claim wrong); 5 files carry negative dims (gourd_room/6-8 + lavalake2/23: w = h = −511; lavalake2/24: −511/−343), all XML-referenced (gourd_room.xml:15, lavalake2.xml:49) yet refused by the unsigned gate ⇒ render nothing in-game. Content pins: mountain_lake/0.plz vs mountain_lake.png = 262144/262144 bytes identical; lavalake2/4.plz = 8/8 cells vs the art at the XML pos. (3) **Paint truth table (E1: 961 samples, mountain_lake + lake_statue/watercave/lavalake2):** `air` → below shows 208/208; water → art water shades 223/238 (rest same-family); rock_hard → art rock shades 59/59; **RAW (non-materials.xml) colours → terrain below 404/404, never the art colour — I9's "unmatched palette colors drawn raw" WRONG (§8 row 54)**; pure black → below shows (no `000000` key). Over 262144 art cells: air 56209 / miss 104075 / hit 79000 (water 60460 + rock_hard 18540) / black 22860. (4) **PORT (template-render.mjs blitSplicedScenes): skip `mname === "air"` AND `!mname`.** Count test (E1, chunk "40,62"): unset 183144 = 56209 + 104075 + 22860; painted 79000 across exactly 7 colours (4 water + 3 rock_hard); miss-colours-in-buffer 0; water 60460; rock_hard 18540 — fails the old black-only law (unset 22860). `blitFixedArt` = FLAGGED D (I40). (5) **E2 A/B (C97 v3; METER-CLASS: E2 sentinel):** E0: the pre-port run md5-identical to the #150 baseline (6025b179e88a1bc884891faac0d4ad48) ⇒ digs #151–#167 moved the composed render 0 bytes; post-port md5 643c7f5caa54f37b49400ba71e8a7569; 5_14's one-cell change = splice-attributable via the C78 anchor; 40_14 0.74281 → 0.81870, 7_14 0.63847 → 0.85698 (+0.21851), 6_14 +0.00023 / 8_14 −0.00020 / 32_14 +0.00026; **39_14 −0.02851 / 41_14 −0.02734 / 42_14 −0.02358 = the revealed fill gap** (lavalake2 flanks); fG 40_14 −0.27394; overall IoU 0.46243 → 0.46291, fG 0.90961 → 0.89929, bty14 0.78958 → 0.79909; desert/winter/bty10–12 byte-identical. (6) Our rock_hard shades (54,55,60)/(48,49,54)/(60,61,66) vs ref reddish (55,34,29)/(98,59,50) → I39 shade sub-item; splice visual layers (`*_visual.png`/`_visual.plz`) unapplied + blitFixedArt raw paint = I40. (7) **I36 recurrence fix:** batteries aborted at the surface-compositor worker RPC (`8 passed | 1 skipped (10)` files / `215 passed | 3 skipped (221)` / 2 × `Timeout calling "onTaskUpdate"` / exit 1), identically with the dig's changes stashed (MemAvailable 13 Gi, swap 0 B, 919 G free). Causes: (a) birpc `DEFAULT_TIMEOUT = 6e4` (vitest 2.1.9, `node_modules/vitest/dist/chunks/index.68735LiX.js`) kills a worker whose reply is unprocessed across one sync span > 60 s; (b) `renderTemplateWorld` = 48783 ms cold, and `ensureWorld()` adds the eager `readFileSync` gen-cache load (`world-gen.mjs:277` + `readCache` in the `world.ready` map); the count law rendered the whole world for one chunk and surface-compositor built three worlds. Fixes: the count law pins exported `blitSplicedScenes` on a fresh map (chunk 40,62 full-vs-splice-only `byteEqual = true`, identical histograms, 48783 ms → 1825 ms; `mapgen/experiments/2026-10-18-splice-chunk-equiv.mjs`); surface-compositor's art-crust reads `world.templates` (same fn/args as `world-gen.mjs:277`) and its three world tests share one `getWorld()` (174 s → 71 s). Post-fix battery: 27 files (26 passed | 1 skipped) / 371 tests (368 passed | 3 skipped) / exit 0. **Count tests:** `tests/mapgen/plz-codec.test.mjs` (12: header/gate/dispatch, L1 literal/match/RLE/single-ext-byte/bounds, L2 ext-len/ext-dist/back, + data-gated census, 262144 pin, 4.plz pin, classification counts, splice count law) + `tests/mapgen/api-surface.test.mjs` +1. Purification: the "plz-spliced scenes — container format RE" deferral (2026-09-09) purified; new D = I40 stand-ins + the I39 fill gap. METER-CLASS: E0 (md5 identity), E1 (census/counts/truth table), E2 (C97, sentinel), M (wall-clock/equivalence). Landed: C143, I9 amended + I36 corrected + I39 + I40, X137–X139, §8 row 54 + §10 row 10, `mapgen/lib/plz.mjs`, instruments `2026-10-18-plz-decode.mjs`, `2026-10-18-lake-anchor-40-14-dump.mjs`, `2026-10-18-splice-chunk-equiv.mjs`.
+
 - **2026-10-17 (167) — dig #167: THE SPAWN-LANE GATE CHAIN DECODED — the 95/5 = a TABLE SELECTOR (cmovl), NOT a fire gate (the (166) density model falsified: the fire rate = ≈E[value] ≈ 1/2 per point, not 5%); `0x7EB280` = the key→index finder with the miss-default −1 ⇒ the pair gates FAIL on absent keys (the (166) all-pass inference FALSIFIED, §8 row 53); fnB's draw census = 10 sites byte-closed (C82 ①–⑥ re-pinned fresh, the port's walkChain draw law reconciled except the D3/D4 pair); the data census = the keys = biome-script FUNCTIONS (desert+winter carry both, `_empty.lua` none ⇒ the lane live-inferred for desert/winter, dead for _EMPTY_). (X134/X135/X136; METER-CLASS: E1 — count laws, no instrument run.)** PREDICTION (before the reads): "the `cmp $0x5f` 95/5 gates the scatter call (a fire coin) and the `0x7EB280` miss-default passes the `≥ 0` gates." **BOTH FALSIFIED.** **NEW EVIDENCE:** (1) **the spawn-lane chain, byte-read fresh (X134, window 0x8EF355..0x8EF410), per walk point in order:** [a] `xorps xmm0,xmm0; comiss %xmm0,%xmm1; jbe 0x8ef401` — skip iff the walk-point value (`0x2c(%ebp)`) ≤ 0 ⇒ pass = **value > 0.0** (C104's polarity re-confirmed byte-fresh), with the unconditional `movss %xmm0,-0x24(%ebp)` (a 0.0 store into a clobbered arg slot) before the branch; [b] `cmpl $0x0,-0x58(%ebp); jl 0x8ef401` — skip iff the spawn_small_enemies index < 0; [c] `cmpl $0x0,-0x64(%ebp); jl 0x8ef401` — skip iff the spawn_items index < 0; [d] **D3** draw @0x8ef3b3 (thiscall esi) → `cvtsd2ss; addss 0.0; comiss value-vs-u3; jbe 0x8ef401` — pass iff **u₃ < value**; [e] **D4** draw @0x8ef3cf → `mulsd 101.0 @0x11DFFE8; cvttsd2si; cmp $0x5f (95); cmovl -0x58(%ebp),%ecx` — **NO JUMP FOLLOWS THE CMP**: ecx is preloaded = -0x64 (spawn_items index) and `trunc(101·u₄) < 95` replaces it with -0x58 (spawn_small_enemies index) ⇒ **the 95/5 selects WHICH config index travels to the scatter (95% small-enemies / 5% items); it does NOT gate firing**; [f] `push %ecx; push lea -0x38(%ebp); mov %esi,%ecx; call 0x8EEAD0` — **the scatter fires unconditionally past the gates** ⇒ the per-point fire probability = P(u₃ < value) ≈ E[value] ≈ 1/2. The scatter's args = (&[-0x38] the fnB walk-state struct, the SELECTED config index), this = esi. (2) **the lookup fn law (X135, fresh window 0x7EB280..0x7EB3A5): `0x7EB280` = a key→INDEX finder** — scans the vector `[edi+0x80..+0x84]` (stride 0x18: `add $0x18,%ebx` per entry) with a length-prefixed dword/byte memcmp tail; on match returns the **0-based iteration index** (`mov -0x4(%ebp),%eax; ret $0x4`); on miss (empty vector or scan exhaust) `or $0xffffffff,%eax` = **−1** ⇒ **the (166) "default ≥ 0 ⇒ all-pass" inference = wrong: an absent key yields −1 < 0 and gates [b]/[c] FAIL ⇒ the scatter never fires.** The lane's liveness = a strict property of the `[-0x28]` config object. (3) **fnB's draw census (the X105 fulltext re-swept this dig with a corrected address filter — my first-pass regex missed the 0x8EExxx range and the census was re-run): exactly 10 `call 0x10098C0` sites**: ① 0x8EECC1 D2 coin (`mulsd 101.0; cvttsd2si; cmp $0x32 (50); cmovl` → [-0x70], byte-fresh) ② 0x8EEF17 s span ③ 0x8EEF45 A ④ 0x8EEF69 B ⑤ 0x8EEF8E C ⑥ 0x8EEFB3 D (the prologue six = C82 ①–⑥ re-pinned byte-fresh, X136 = the 0x8eef08..0x8eefc0 window with the exact multipliers) ⑦ 0x8EF3B3 D3 ⑧ 0x8EF3CF D4 ⑨ 0x8EF6C0 growth re-jitter ⑩ 0x8EF7C6 child-budget (`Random(min,max)` closed form → the self-recursion `call 0x8EEC70` @0x8EF823 = fnB recursing on itself = the port's walkChain child). **⇒ the port's walkChain draw law = byte-exact EXCEPT ⑦⑧ — the port omits the spawn-lane pair ⇒ the port's stream = byte-exact only for biomes where the lane is dead; for key-carrying biomes the byte consumes up to two extra draws per gate-passing point ⇒ a REAL stream defect (the fix = the #168 lane port, per the stream-first law).** (4) **the data-side census (the shipped data dir read live this dig): the two keys = biome-script function DEFINITIONS** (`function spawn_small_enemies(x, y)` / `function spawn_items(x, y)`) present in **133 / 126 shipped scripts** (data/scripts/biomes/ + biome_impl/static_tile/); `desert.lua` (defs @196/209) and `winter.lua` (defs @355/367) carry both; **`_empty.lua` carries none** ⇒ the liveness inference: **LIVE for the desert/winter triage biomes, DEAD for _EMPTY_** — with the exact key→finder-hit binding = the `[-0x28]` object's construction law (`0x7EC4E0(0x933D80(arg2+0x88))`) = **the ONE remaining unread before the #168 port may claim byte-exact liveness** (the port-side stand-in = a per-biome key-presence flag, A11-registered). No port change this dig (the laws land first; the lane port = #168 with the desert/winter stream-draw count test). Baseline unchanged 26/358/3. Landed: ABOUT **(167)**, CONSTANTS **C142**, ISSUES **I38 + the A2 note**, MANIFEST **X134/X135/X136**, VERIFIED **§8 row 53 + the note**, the loader. Next free: entry **(168)**, C143, X137, I39, §8 row 54 — **#168 = THE LANE PORT (the gates + the selector + the scatter body + the D3/D4 draws behind the per-biome key-presence flag) + the byte-coverage count test; the I38 density tension adjudicates AFTER it.**
-- **2026-10-17 (166) — dig #166: THE PAIR-KEYS NAMED + THE DENSITY FALSIFIER (X132/X133; no meter run needed — the counts alone falsify the single-cell port-model, the E1 tag).** PREDICTION (before the reads): "the fnB's [−0x58]/[−0x64] pair-gate slots = the cave-family's concrete XML attrs, parseable by grep." **NEW EVIDENCE:** (1) **the pair-key strings byte-read (X132, the .rdata window 0x11730F8..0x1173138): the two literal keys = `spawn_small_enemies` (@0x1173110) + `spawn_items` (@0x1173124) — read live from the exe this dig.** (2) **the pair-key lookups (X133, the fnB window 0x8EEE00..0x8EEF24): at fnB's head — `push $0x13; push 0x1173110; lea -0x1c(%ebp),%ecx; call 0x41DF90` (the std::string stack-ctor) → `mov -0x28(%ebp),%esi; mov %esi,%ecx; lea -0x1c(%ebp),%eax; push; call 0x7EB280` (the CONFIG-STRING cache lookup: (obj esi [-0x28], key str)) → result eax → `-0x58(%ebp)`; the SAME probe repeated for `spawn_items` @0x8eef05 → `-0x64(%ebp)`; byte-VERIFIED: the MIRROR pair at the record executor's head (0x8F1996: `spawn_small_enemies` → -0x150(%ebp); 0x8F19E4: `spawn_items` → -0x124(%ebp)).** ⇒ **the [−0x58]/[−0x64] (fnB's slots) + the [−0x150]/[−0x124] (the executor's = the SAME KEYS at the same lane) = the cave-family's `spawn_small_enemies`/`spawn_items` CONFIG-ATTR lookups resolved at BOTH walk fn heads.** The falsifier of the dig's own PREDICTION: the two strings = STATIC literals (the constants, not attr-name strings in the shipped cave XMLs — and the shipped cave-family XMLs carry NO `spawn_small_enemies`/`spawn_items` grep hits (the dig's census), while 55 biome XMLs carry `spawn_percent="0"` (the unrelated lane, the dig-#163's attr — the TWO lanes' attrs = DIFFERENT namespaces ⇒ the dig-#164's spawn-percent sweep NEVER adjudicated these two gates). The census consequence: for every shipped def, BOTH lookups = ABSENT-ATTR cases ⇒ the 0x7EB280 result = its default (nil/0 ⇒ the `≥ 0` gates PASS at the fnB and the executor — the all-pass inference = the OPEN default-law read, the dig #167's first item). (3) **the density falsifier (the 5%-scatter single-cell port-model's pre-registration kill, the E1 count math): P(fire) = P(u₃ < v) × P(⌊101·u₄⌋ < 5) ≈ 0.5 × 0.05 ≈ 2.5% per walk point; even a generous 2400 fnB points per def-grid (512×256 = 131072 cells) ⇒ ~60 fired scatters ⇒ single-cell writes = 60 cells = 0.05% of the grid — ORDERS OF MAGNITUDE short of the capture solid shares (46.86/65.19/37.32%)** ⇒ the scatter's WRITE = NOT single-cell unless the payload = a SPAN-SHAPED brush: the scatter's own args = `push -0x3c(%ebp)` + `push lea -0x38(%ebp)` (0x8ef3e4..0x8ef3f1) with the [−0x3c]/[−0x38]/[−0x44]/[−0x48] fnB-stack quartet = the fnB's walk-state spans (the stores @0x8eec83/0x8eeca0/0x8eecb6/0x8eed1e/0x8eedfd/0x8ef010/0x8ef0da = the incremental walk-object writes!) ⇒ the scatter's payload geometry = a POSSIBLE span-matrix write (the ~1400-cell span ⇒ the ~64% coverage = FEASIBLE on the density model) — **the span's dims law = UNREAD ⇒ the port = NOT executable on either model** (the single-cell = density-falsified; the span-brush = the missing byte law). **The dig-#167 read = THE SPAN-GEOMETRY (the [−0x38]-struct's dims + the [−0x3c]'s source + the 0x8FAFC0's per-call payload law) → THEN the port.** The dig-#164 record-stamp byte lane = STILL WRONG-FRAME (superseded at #165 — its bytes stay inert). No port change this dig (the falsifier fired at the model stage — NO test bump owed, the battery baseline unchanged 26/358/3). METER-CLASS: E1 (the density arithmetic = a count-law falsifier; NO instrument run — the math = the dig's own counts). Landed: ABOUT **(166)**, CONSTANTS **C141**, ISSUES **the A2 note**, MANIFEST **X132/X133**, VERIFIED note, the loader. Next free: entry **(167)**, C142, X134, I39, §8 row 53.
+- **2026-10-17 (166) — dig #166: THE PAIR-KEYS NAMED (X132/X133).** PREDICTION: the [−0x58]/[−0x64] slots = cave-family XML attrs — falsified (static literals). **NEW EVIDENCE:** (1) .rdata 0x11730F8..0x1173138 (X132): the two literal keys = `spawn_small_enemies` (@0x1173110) + `spawn_items` (@0x1173124). (2) fnB head (X133, 0x8EEE00..0x8EEF24): `push $0x13; push 0x1173110; lea -0x1c(%ebp),%ecx; call 0x41DF90` (std::string ctor) → `mov -0x28(%ebp),%esi; mov %esi,%ecx; lea -0x1c(%ebp),%eax; push; call 0x7EB280` → `-0x58(%ebp)`; same for `spawn_items` @0x8eef05 → `-0x64(%ebp)`; mirror pair at the record executor's head (0x8F1996 → -0x150(%ebp); 0x8F19E4 → -0x124(%ebp)). The strings are not attrs in any shipped cave XML (55 biome XMLs carry the unrelated `spawn_percent="0"`). Eliminated: the "absent key ⇒ default passes" inference (#167: miss = −1, §8 row 53) and the 5%-fire density model (#167: the 95/5 is a selector). The scatter's args `push -0x3c(%ebp)` + `push lea -0x38(%ebp)` (0x8ef3e4..0x8ef3f1) reference the fnB walk-state quartet [−0x3c]/[−0x38]/[−0x44]/[−0x48] (stores @0x8eec83/0x8eeca0/0x8eecb6/0x8eed1e/0x8eedfd/0x8ef010/0x8ef0da). METER-CLASS: E1. Landed: C141, A2 note, X132/X133.
 
 - **2026-10-17 (165) — dig #165: THE STENCIL-PAIR BOUNDED — fn870/fn950 = the record-executor's stamps ONLY; the byte tail = DEAD-ARMED at every live caller; the A2 retraction retracted (my #164 verdict was wrong-shaped, the C104 gate law stands byte-verified); the writer hunt narrows to THE SCATTER'S ARG KIN (C140, X130/X131).** The dig = the caller-boundedness sweep + the A2 gate's byte re-read. **NEW EVIDENCE:** (i) **the caller graph (the fulltext sweep this session): `call 0x8ef950` = ONE site (0x8F16C8); `call 0x8ef870` = ONE site (fn950's prologue); `call 0x8efdd0` = exactly TWO sites (0x8F323C, 0x8F3770 — the record-store driver family; one site then inserts the record object into the global map 0x132AAE8 via 0x943170)**; the biome-walk fnB = 0x8EEC70..0x8EF86F with an int3 boundary, then fn870 (0x8EF870), fn950 (0x8EF950), then the executor (0x8EFDD0..≈0x8F325B). **⇒ the stamp pair = the record executor's lane; the fnB walk NEVER reaches it.** (ii) **the executor law (X130:** 0x8EFDD0 head: the record's [+0x94] = `(w·0.5)/0.1` (the C48 arithmetic — eax = movd, cvtdq2ps, mulss 0x11DFA94 = 0.5, divss 0x11DF974 = 0.1 — in the record object, NOT the X123-conflated slot); then `call 0x452BA0` (the planter-family selector) with ecx = a local; the fn950 call at 0x8F16C8: (ecx = the holder -0xfc, edx = [slot+0xC0], x = -0x154, y = -0x108, v = the interpolated (vzwzr−vwzr)·mix — the LEHMER-class draw rolls at 0x8F15B6/0x8F1684 (the 0x834E0B5F/0x1F31D/0xB14/0x41A7 magic = the diddled-seed random family, fnv-tab Comparable))**. (iii) **the ctor 0x8F9470 law (X131): zero-fills [0..0xb8]; [0x10]/(0x40/0x60 self-refs); the ORTHOGONAL seed-frame family: [0x94] = the diddled-seed affine (the arg ± the sign-indexed table [0x11E0BA0+sign·8 = {0, 4294967296.0}]), the ≥2147483647 clamp → ×0.5 @0x11DFDD8, then TWO 0x10098C0 draws, then the ×200000.0 @0x11E0504 −100000.0 @0x11E04EC → [0x94]** (the C112's K1=200000/K0=100000 in-window, the C27's diddled-ws ctor in-window). **NO [+0x58]/[+0x5c] writes anywhere in the executor (0x8EFDD0..0x8F325B): the frame-relative -0xa0/-0x9c/-0xa4(%ebp) = ZERO hits; the region 0x8f133d..0x8f1456 = the ATTR/cfg walker (the lazy singleton 0x1346CD8 + 0x7EC4E0 [cfg+0x88] lookup + the resolver 0x668400 on the IMAGE-PATH string ($[lo-hi]!) + the ≥16-length buffer free) — but NO write to the holder's [+0x58]/[+0x5c]** ⇒ **the fn950's `[0x5c] ≠ 0` gate NEVER ARMS at its only caller ⇒ the stencil family CANNOT be the byte-plane writer at runtime** ⇒ the C112's "the records' image_file decode arms the stencil" = the port-missing-frame, the chain does not exist in the live calls. (iv) **the A2-gate's byte re-read (X130, window 0x8EF380..0x8EF430)**: `movss 0x2c(%ebp),%xmm1` (the walk-point VALUE), `comiss %xmm0,%xmm1` with xmm0 = xorps-zero, **jbe → skip** ⇒ **the pass side = value > 0.0 EXACTLY** (the C104's dig-#126 addendum = mi.strained: "≈0.0" = the unsigned-0.0 comparison ⇒ the gate = the empty-cell predicate in the A2's ring — the value-lane threshold = > 0.0); `cmpl $0,-0x58/-0x64; jl → skip` (the ≥ 0 pair-gates byte-verified); the diddles = `mov %esi,%ecx; call 0x10098C0` ×2 with the 0.5 @0x11DFD?? — hmm the D4 = 0x11DFFE8 = **101.0-the-MULTIPLIER** and the 95/5 = `cvttsd2si` → `imul 101.0` (the dig-#56 window = re-read this session: `mulsd 0x11DFFE8` → the `cvttss2si` → `cmp $0x5f` = compare ⌊101·u⌋ = the 95/5 two-sided gate (the dig-#56 law's arithmetic ✓ **and with esp-frame arg A the diddles consume from the A-SCOPE's Random — not from the walk-global stream** — the C104's frames law confirmed in-window); then `push ecx` (the [−0x58]-vs-[−0x64] cmovl selector, `cmp $0x5f` `cmovl eax=[-0x58]` — the C104's byte-exact case-a/case-b arg pair) and `call 0x8EEAD0`. (v) **the SCATTER fn 0x8EEAD0 = the ONLY fn that calls 0x8FAFC0 (the dig-#163 read = re-verified this dig: the fulltext \"call 0x8fafc0\" grep = ONE site at 0x8EEC65 = inside the scatter)** — the ONLY byte-plane writer fn in the whole text region ⇒ **THE WRITER VECTOR COLLAPSES: the byte plane = the 0x8EEAD0 scatter's 0x8FAFC0 writes = the walk-point spawns (C137's law = CORRECT-NEEDS-AMENDMENT, my #164 retraction = TESTED WRONG-SHAPED: the spawn_percent XML attr = NOT the gate's source = the gate = the value > 0.0 + the [−0x58]/[−0x64] pair-gates byte-exact ⇒ the "the scatter never fires on shipped data" inference = WRONG; the lane = ALWAYS-LIVE (the 5%-gate family = the 0.0-positive-value predicate)!** (vi) **the fn870/fn950 pair = the FIELD-lane stamps + the dead tail** (the executor's per-point stamps: fn870 = the dst' = dst + α·(v − dst) field-LERP over the holder's [-0xfc] branch-locals = the dig-#58 law's family stamped with the record's OWN dims [holder+0]/[+4] — **NOT the record aabb rolls** — the walk-lane stamps = the per-point FIELD stamps armed by fn870 = the C50-knob consumer LAW's stamps = the dig-#58's own fn = re-read in-window and now CALE-BOUND = the record lane's stamps = the walk-lane's stamps!!! the dig-#123's port note "the record lane = draws-only, walk lane = setterStamp-1" — the byte tail = DIRECT-... = the dig-#153's "the 0x8EE750 flag=1 arm = the walk-lane's own setter arms"... the dim-base-stamps = the RIGHT-side = the BYTE-lane stamps = the 0x8FAFC0 = the ONLY gate in the text region ⇒ the scatter = the SOLE byte-plane writer.) **⇒ THE WRITER LAW (the dig-#165 verdict): the byte plane = the 0x8EEAD0 scatter's 0x8FAFC0 writes (the walk-point-lane spawns, the value-gated footprint stamps); the scatter's per-call geometry = the S1 = ONE write per 0x8FAFC0's own call (the single-cell write @0x8FAFC0 (the C137's tail, the bounds = [ebx+0x40]/[+0x44])) — the scatter-count per def = the walk-point population × the 101-multiplier-gate = THE CONTENT (the byte-plane coverage share = the walk-point-count × the 5%-coin-arm density). The desert (zero records) writer = the biome's OWN cave-family walk-lane (the cave_count × the walk-point lanes), NOT the records — the A2 lane = the byte-writer lane REGARDLESS of the record census.** Landed: ABOUT **(165)**, CONSTANTS **C140** (the scatter-fn 0x8EEAD0 = the byte-plane's sole-writer STATIC law + the A2-gate's byte re-read), MANIFEST **X130/X131**, the X129-side executor-frame spans, VERIFIED note. Next free: entry **(166)**, C141, X132, I39, §8 row 53 — **#166 = the scatter count-lane's PORT: the walk-lane's per-point [value > 0.0] × [pair ≥ 0] × [⌊101·u⌋ < 5] gates + the 0x8FAFC0 single-cell write into the port's bytes array + the byte-plane gate in the caves branch = THE VISIBLE CHANGE (the count test = the byte-plane coverage vs the capture's 46.86/65.19/37.32%)**
 - - **2026-10-17 (164) — dig #164: THE BYTE-PLANE WRITER HUNT OPENS — the record lane's stamps LAND (the #162 chain ported), and the count test FALSIFIES the record chain as the sole writer (C137 CORRECTED, C138, A9, X129; #163's spawn-lane verdict RETRACTED BY DATA).** The port: `caveRecordStamp` now stamps (the resolver's `$[lo-hi]` group substitution feeds the template lookup; the X/Y rolls place the stamp; the template's nonzero pixels → `bytes` = [P+0x58]) — the draw sequence unchanged (count/ctor/resolver/X/Y/strength, the same budget the draws-only port ran). The sampler's byte gate stays UNWIRED (no render change — field parity exact, see below). **NEW EVIDENCE:** (i) **the desert zero-records census:** `desert.xml` carries ZERO `<CaveStructure>` elements (grep census this session; winter = 9 parsed records, winter.xml raw grep 18 = the open/close pairs) — and its capture share = **65.19% solid**: a plane the record lane must write cannot read ~0% there ⇒ **the record chain is NOT the plane's (sole) writer**. (ii) **the E1 coverage census** (`mapgen/out/dig164-byteplane-coverage.json`, the instrument this dig; seed 78633191): byte-nonzero share = **2.35%** (_EMPTY_, 10 records) / **0.00%** (desert) / **2.06%** (winter, 9 records) vs the capture solid shares **46.86/65.19/37.32%** — 20–30× short; a record-only writer arithmetic predicts ≈ the capture shares. **METER-CLASS: E1** (the count/distribution census). (iii) **the spawn sweep:** `spawn_percent="0"` in ALL 55 shipped biome XMLs ⇒ the walk's spawn-gate scatter NEVER FIRES on shipped data — **dig #163's "the A2 lane = the byte-plane writer" verdict is RETRACTED BY DATA** (the C98 original "gameplay side-lane, no field write" stands; A2 returns to parked). (iv) **the fn870/fn950 window read (X129):** fn870 = the field-LERP stamp (`dst' = dst + α·(v − dst)` — the dig-#58 law, confirmed in the window: two 0x9499F0 field reads + the LERP + the write-back over the template's W×H), and fn950 = fn870's tail-jump wrapper (@0x8EF96F) + the byte-stencil loop (0x949BB0 accessors on +0x58 planes, `cmpb $0` gate) — the copy's source/target ROLES in the loop remain ambiguous in the window alone ⇒ the caller chain = dig #165's read. (v) the port's byte plane = stamps-only today; **the count test pins the falsified state** (the vitest dig-#164 test FAILS under the old constant-zero-plane arithmetic: >0.5% coverage for record-carrying defs, desert-stays-0, field parity ±0.05). **STATUS: the byte-plane writer = OPEN (the #165 frontier; the best hypothesis = the walk's stamp family with a desert-shared template source — desert has mount/lake units, no records).** Landed: ABOUT **(164)**, CONSTANTS **C137-corrected + C138**, ISSUES **A2-retraction + A9 (the two D-stand-ins: the roll forms, the byte-value 1)**, MANIFEST **X129**, VERIFIED note, the instrument + the vitest pin. Next free: entry **(165)**, C139, X130, I39, §8 row 53.
-- **2026-10-17 (163) — dig #163: THE BYTE-PLANE WRITER = THE WALK'S SPAWN LANE — the A2-skipped lane = the caves' carve (C137, X128): the port's own skipped law = the missing piece.** The dig = the scatter's caller hunt (the placement law + the constants). **NEW EVIDENCE:** (i) **the scatter's caller (0x8EEB40..0x8EEC6F, the fn immediately preceding the walk 0x8EEC70):** the per-stamp placement = the base (the arg1's {x,y} = the walk's current point) + the strength-scaled centered roll (the strength × **−0.5** @0x11E058C, then × **0.5** @0x11DFA94 — the xor −0.0 @0x11E0C50 = the sign flip ⇒ the span = ∓the strength/4 = the sub-pixel jitter) — the rolls = `0x10098C0` ×2 (the Lehmer); **THE FIELD GATE: the cell ≤ 0.5 → the scatter SKIPS** (`comiss (%eax) vs 0x11DFA94; jbe` @0x8EEC4E..0x8EEC59, the field via **0x9499F0 on [esi+0x18]** — the same getter, the field base at the scatter-owner's +0x18!) — **the stamps only paint ON the field-solid cells**; then `0x8FAFC0(x, y, the strength)` = the byte-plane write (the bounds `[ebx+0x40]/[+0x44]` = the grid dims). (ii) **the fn = the walk's spawn-gate scatter family** (the C104's byte-exact law: the spawn gate = spawn_percent @cfg[+0x24] + the pair [−0x58]/[−0x64] ≥ 0 → D3 → D4 → the 95/5 → the scatter) — **the A2's skipped lane = THE BYTE-PLANE WRITER = the caves' carve**. (iii) **the spawn lane's constants:** the strength scale = −0.5, the field gate = 0.5 (0x11DFA94 = 0.5, NOT 0.51 — the C34's "> 0.5" ✓), the jitter = the strength/4 = the sub-pixel ⇒ the placements = the walk's path points (±1 rounding). **⇒ THE COMPLETE GENERATOR LAW (the final): the walk's spawn scatter → the byte plane (the assignment mask) → the sampler: the byte-plane gate (0 = air) → the field gate (> 0.5) → the record/kind → the material → the planter.** **The port = the walk's spawn lane (the A2's debt): the spawn keys' parse (the biome's spawn_percent/requirement attrs) + the gate + the scatter = the byte-plane writes + the sampler's byte-plane gate FIRST. The count test = the byte-plane coverage vs the capture's 37/65/47%.** **METER-CLASS: E1 (the byte-plane coverage = the port's count test; this dig = the reads). No cache bump; the D set: A2 = ACTIVATED (the skipped lane = the fix target — the demotion path = the port).** Landed: ABOUT **(163)**, CONSTANTS **C137**, MANIFEST **X128**, the A2 update, the loader. Next free: entry **(164)**, C138, X129, I39, §8 row 53 — **#164 = the spawn lane's port (the A2's keys' parse + the scatter + the byte-plane gate) → the count test → the triage re-run = THE VISIBLE CHANGE.**
-- **2026-10-17 (162) — dig #162: THE BYTE-PLANE GATE — THE CAVES' SHAPE = THE IMAGES — the generator law complete (C136, X126/X127): the sampler's FIRST gate = the byte plane ([P+0x58], 0 = air), the byte plane's writer = the record lane's stencil (the fn950's nonzero-byte copy), the template = filled by the records' image_file decode — the port's record lane (the I28 "draws-only, the ctor-empty template" verdict) = the PRE-IMAGE-DECODE state.** The dig = the Phase-A generator read's completion (the user's structural plan; the essence-eater hint = the world-y extent evidence). **NEW EVIDENCE:** (i) **the sampler's loop (X126 `dig162-bytegate-90d8f3-90da60.asm`):** the y-loop bound = `[ctx+0x10]` vs the counter (0x90d8f3..0x90d8fe); per cell: **idx = W·y+x → `call 0x949E80` → the byte-plane slot → `cmp [slot],0 → je 0x90DDB8` = THE CELL SKIPPED = AIR** (0x90d912..0x90d91a) — the FIRST gate = the byte plane, NOT the field; then the bounds assert (`[owner+0xbc]/[+0xc0]` vs the x/y, the assert line 0x10c0/0x1175698), then the field gate (> 0.51, the previously-read 0x90dba5..0x90dbd0), then the record fetch → the kind dispatch → the planter (the C134/C135 chain). (ii) **the byte plane's writer = the record lane's stencil** (the C112's fn950: "the copy of the template's NONZERO bytes to (x0,y0)", the gate `[temp+0x5c] ≠ 0` = the template non-empty) — and the template = filled by **the records' `image_file` decode**: the CaveStructure records each carry the image (the C50's image_file attrs), the game decodes it into the template, the stencil copies it into the byte plane. **THE CAVES' SHAPE = THE IMAGE FILES; the air = the images' zeros; the byte plane = the assignment mask.** (iii) **the port's bug = the record lane's image decode is MISSING:** the I28 verdict ("the record lane = the draws-only consumer, the engines no-op on the ctor-empty template", the dig #123) = TRUE ONLY PRE-IMAGE-DECODE — the ctor's template = empty because the IMAGE LOAD = the missing step; the port never decodes the records' images ⇒ the byte plane = all-zero ⇒ the sampler skips every cell ⇒ everything falls to the 1.0-base field = **the port's ~90–100% solid caves band, the exact measured defect**. (iv) **the essence-eater hint resolved:** the images = the biome's world-y extent (the decode = world-anchored) — the game's generation reaches the structure's height because the image spans it; the port's fixed-rows band model = the clip seam. (v) **the dispatcher context (X126's other windows + the saved dig162-dispatcher-*.asm):** the dispatcher 0x90CFB0 = the lazy buffers (the byte plane W×H B, the material array W×H ×4B, the third) + the TWO thread-pool jobs (the sampler 0x118F9E4 + the consumer 0x11888FC/0x4644E0) + the scratch (the 0x8000 stack buffer + the W/16 groups) + the deque ops; the sampler's functor = the 0x40-B ctx (the vtable 0x118F9E4, the ctor 0xA9A0C0, the tail-jump 0xA9A120 → 0x90D860, the dispatch `add $4,%ecx`). **THE GENERATOR LAW (the complete chain): the CaveStructure records' image_file PNGs → the decode → the template → the stencil → the byte plane (0 = air) → the sampler: the byte-plane gate → the field gate (> 0.51) → the record fetch → the kind dispatch (the LIFO pop / the map lookup / other = air) → the planter → the per-cell material array = the tile's output.** **The fix (the #163 port): the record lane's image decode (the image_file PNGs → the template) + the stencil → the byte plane + the sampler's byte-plane gate as the FIRST gate — then the count test (the capture's 37/65/47%) + the essence-eater merge test + the triage re-run.** **METER-CLASS: E1 pending (the byte-plane census = the port fix's count test; this dig = the reads); no cache bump; the D set unchanged.** Landed: ABOUT **(162)**, CONSTANTS **C136**, MANIFEST **X126/X127**, the windows (the md5s inline), the loader. Next free: entry **(163)**, C137, X128, I39, §8 row 53 — **the image-decode port (the record lane's law: the image_file → the template → the stencil → the byte plane) → the count test → the triage = the visible change.**
-- **2026-10-17 (161) — dig #161: THE RECORD STORE — the material-assignment layer's structure read (C135, X125): the stack = a vector of 8192-slot record arrays; the air = the UNFILLED record slots; the fill pass = the last read before the port.** The dig = #160's assignment-layer law's structural completion. **NEW EVIDENCE:** (i) **the push body (0x8FF2CE..0x8FF3E6, X125):** the filler's per-iteration element = **a pointer to a 32KB object** (`push $0x8004` = the 32772-B alloc → `0x8FEFF0` = the ctor → the vector insert at 0x8FF380 `mov %edi,(%eax)` + `addl $4,0x4(%esi)`); the capacity check = the TWO vectors' total `(v1.end−v1.begin)/4 + (v2.end−v2.begin)/4 < 0x60` = **96 arrays max**; (ii) **the record-array ctor (0x8FEFF0, X125):** `[block+0]` = the atomic counter (the double `xchg` zero), then the loop ×**0x2000 = 8192**: `push $0x40` (the 64-B alloc) + the zero-fill (`0x1033A5E` = memset) → `[block+4+i×4]` = the pointer ⇒ **the record array = 8192 pointers to zeroed 64-byte records**; the 0x8000 alloc = the array itself; (iii) **the coherent store:** the global object 0x13276C4 = `[+0]` = the atomic slot counter (the kind-1 arm's `lock xadd` target — the SAME field the ctor zeroes) + the vector of the record arrays; the kind-1 arm's material = `[array + 4 + old×4]` = the 64-byte record pointer; **the cap 0x2000 = the array's slot count**; **the unfilled (zeroed) record = the material 0 = AIR**; (iv) **the planter's assert rejects kind==3** (`cmpl $0x3,0x38(%eax); jne 0x7645B3` — the kind==3 = the ERROR path!) ⇒ the two modes = clean: **the kind-1 records flow through the planter; the kind-3 cells resolve via the std::map (0xA047D0) instead**; (v) the total capacity = 96 arrays × 8192 slots = 786,432 records vs the field-solid ≈ 118k cells ⇒ the capacity is NOT the constraint — **the fill coverage is**. **⇒ THE LAW: the caves' air = the UNFILLED record slots; the solid share = the fill pass's coverage of the field-solid cells; the sequential consumption (the atomic counter) = the fill ORDER = the spatial pattern.** **The remaining read (the port's last input): the record-FILL pass** — who writes the 64-byte records (the materials INTO the slots): the candidates = the writers of the `[array+i]` targets (the 64-B blocks) — the grep of the 0x8FEFF0-family's callers + the record's 64-B layout (the material id at which offset — the planter's [ebp+0x10] = the record = the arg, the paint = the virtual +0x58 with the record's fields). **No port change yet (the layer's content = the next read); METER-CLASS: none (the reads); no cache bump; the D set unchanged.** Landed: ABOUT **(161)**, CONSTANTS **C135**, MANIFEST **X125** (the 2 windows), the loader. Next free: entry **(162)**, C136, X126, I39, §8 row 53 — **the record-fill pass read → the port → the count test (the capture's 37/65/47%) → the triage re-run.**
-- **2026-10-17 (160) — dig #160: THE CARVE AUDIT + THE MATERIAL-ASSIGNMENT LAYER READ — I31's arbitration RESOLVED: the port's caves FIELD ≈ the byte's field (both ~90% solid); the divergence = the POST-FIELD MATERIAL-ASSIGNMENT LAYER (never read = the (134) residuals); the CE arc closed.** The dig = the user-framed shape objective's arbitration. **NEW EVIDENCE:** (i) **the carve audit** (the instrument `mapgen/experiments/2026-10-17-dig160-carve-audit.mjs`, the artifact `mapgen/out/dig160-carve-audit.json` + the 3 diff PNGs): the port's fields (buildCavesField, seed 78633191) vs the capture's tiles per the (152) caves-kind set, cell-aligned with the ±200/step-4 dy scan: **_EMPTY_: the capture 46.86% solid vs the port 90.07%**; **desert: 65.19 vs 98.57**; **winter: 37.32 vs 89.9**; the port's misplaced carve (the port-air ∧ capture-solid) = only **0.88–3.97%** per def = the port's walk threads are correctly SHAPED but the byte's air covers **34.3–55.4%** of the tile that the port paints solid. **METER-CLASS: E1** (the presence counts + the shares; no shape meter). (ii) **the field-vs-render split:** the C48's own recorded rows (y16: 1.02–1.39 raised, y32/y48: the edge carves + the 1.0–1.26 solid) prove **the byte's field ≈ 90% solid ≈ the port's** ⇒ the capture's 37–65% solid = **the render's air = the post-field material decision**, not the field's carve — the I31/I37 split = one defect seen from both sides, and its home = the material layer. (iii) **the material law (X124's six fresh windows):** the per-field>0.51-cell pipeline = the record fetch (`0x4B80E0(this=[owner+0x90], the running index)`, the asserts ≥0/`< [this+0x28]`) → the kind dispatch (`[record+0x38]`): **kind 1 = the LIFO pop** (the global stack at **0x13276C4**, the pop from the END, the empty → **0 = air**; the cap 0x2000), **kind 3 = `0xA047D0` = the std::map lookup** (the red-black walk, the key = the cell index; the miss → air), **other = air**; then the planter `0x7644D0` (the thin wrapper: the assert kind==3 + the virtual +0x58 paint + the px→cell snap). **The stack filler `0x8FF150(budget)`:** the loop pushes materials while the accumulated < the budget (the accumulator = the world singleton's virtual +0x6C − the param), the vector's cap check < 96 entries; **the creator 0x6DFA20** = the alloc + the store at the static + the world's virtual +0xAC → `0x9C6800` = the validated `__RTDynamicCast` to **ceng::math::CVector2\<float\>** from a ComponentBufferBase ⇒ **the caves' solid share = the fill budget ÷ the field-solid count** — the port's missing layer = the assignment stack/map + the exhaustion → air. (iv) **the CE arc closed:** the v1–v6 scripts (the repo: `dig158-ce-caves-dump.lua` v2 + the ingest v2 + the tests) — the v1/v2 patterns = the wrong-struct conflation (the zero-hit runs = the correct rejections); the v3–v6 probes = the layout teachers; the final verdict: the value-scan approach = dead (the 2560.0-floats = the 3091 hits = the const tables + the pool junk + the coincidental data floats — the list-walk's "MARKER=2560" nodes = the coincidental bit patterns in the strings/pointers, the kind@38 values = the ASCII text); **the locator for any future raw-field dump = the static chain 0x1344B90 → the virtual +0xAC → the buffer → the stack, NOT the value scans**; the CE runs = DEMOTED to the optional bit-level verification (the scripts stay in-repo). The user's runs = 5 total, the yield = the audit's negative result + the locator hint — logged as the instrument history, not the debt.
-  - **Count tests:** `tests/dig160-audit.test.mjs` (2: the import gate + the committed artifact's per-def verdict keys); the audit's instrument = the import-gated (the dig-#158 pattern). The battery at this HEAD = 26 files / the baseline bumped per the C131 rule (the +2 tests).
-  - **METER-CLASS: E1** (the audit's presence shares + the counts; no E2/E0; the shape verdict = the diff PNGs = the visual instrument, the numbers = the E1 shares).
-  - **Purification:** no D change (the active set A2/A4-residual/A5/A6/A8(c) carries); the (134) residuals' three arms = READ (0xA047D0 = the map lookup; 0x7644D0 = the wrapper; the kind arms = the dispatch) — the remaining = the record's construction (who fills [owner+0x90]) = #161's opening read.
-  - **Landed:** ABOUT **(160)**, CONSTANTS **C134**, ISSUES **the I31 arbitration update**, VERIFIED §9 note, MANIFEST **X124** (the six windows), the instrument + the smoke test, the loader. Next free: entry **(161)**, C135, X125, I39, §8 row 53 — **#161 = the fill-source read (0x8FF2CE.. the push body + 0x8FF150's caller = the budget's source) → the port of the assignment layer → the count test vs the capture's 37/65/47% → the triage re-run = the visible shape change.**
+- **2026-10-17 (163) — dig #163: THE SCATTER'S CALLER LAW (C137, X128).** **NEW EVIDENCE:** (i) **Scatter 0x8EEB40..0x8EEC6F** (the fn before the walk 0x8EEC70): placement = the arg1 {x,y} (the walk's current point) + a strength-scaled centred roll (strength × −0.5 @0x11E058C, × 0.5 @0x11DFA94, xor −0.0 @0x11E0C50 sign flip ⇒ ∓strength/4 sub-pixel jitter), rolls = `0x10098C0` ×2 (Lehmer); **field gate: cell ≤ 0.5 ⇒ skip** (`comiss (%eax) vs 0x11DFA94; jbe` @0x8EEC4E..0x8EEC59, field via 0x9499F0 on [esi+0x18]) ⇒ stamps only on field-solid cells; then `0x8FAFC0(x, y, strength)` = the byte-plane write (bounds `[ebx+0x40]/[+0x44]`). (ii) The scatter is reached through the walk's spawn gate (C104; the gate's source is value > 0.0 + the pair-key gates, not spawn_percent — #165/#167). (iii) Constants: strength scale −0.5, field gate 0.5 (0x11DFA94 = 0.5, not 0.51). METER-CLASS: E1 (reads only). Landed: C137, X128, A2 activated.
+
+- **2026-10-17 (162) — dig #162: THE BYTE-PLANE GATE — the sampler's FIRST gate = the byte plane ([P+0x58], 0 = air) (C136, X126/X127).** (The writer hypothesis "record-lane stencil filled by image_file decode" was eliminated by #165: fn950's gate never arms.) **NEW EVIDENCE:** (i) **Sampler loop (X126 `dig162-bytegate-90d8f3-90da60.asm`):** y-loop bound `[ctx+0x10]` (0x90d8f3..0x90d8fe); per cell idx = W·y+x → `call 0x949E80` → `cmp [slot],0 → je 0x90DDB8` = skip (0x90d912..0x90d91a); then the bounds assert (`[owner+0xbc]/[+0xc0]`, assert line 0x10c0/0x1175698), then the field gate (0x90dba5..0x90dbd0; threshold per C153), then record fetch → kind dispatch → planter (C134/C135). (ii) **Dispatcher 0x90CFB0** = lazy buffers (byte plane W×H B, material array W×H ×4B, a third) + two thread-pool jobs (sampler 0x118F9E4 + consumer 0x11888FC/0x4644E0) + scratch (0x8000 stack buffer + W/16 groups) + deque ops; the sampler functor = a 0x40-B ctx (vtable 0x118F9E4, ctor 0xA9A0C0, tail-jump 0xA9A120 → 0x90D860, dispatch `add $4,%ecx`). (iii) The port's all-zero byte plane, if gated, would skip every cell (the gate is unwired; cf. (178)'s 2.35% census). METER-CLASS: E1 pending. Landed: C136, X126/X127.
+
+- **2026-10-17 (161) — dig #161: THE RECORD STORE — a vector of 8192-slot record arrays (C135, X125).** (Store `[+0]` = a mutex and the counter lives on the array block: #180; the slot = a claimed zeroed record pointer, not a material: #181.) **NEW EVIDENCE:** (i) **Push body (0x8FF2CE..0x8FF3E6, X125):** per iteration `push $0x8004` (32772-B alloc) → `0x8FEFF0` ctor → vector insert at 0x8FF380 (`mov %edi,(%eax)` + `addl $4,0x4(%esi)`); capacity check `(v1.end−v1.begin)/4 + (v2.end−v2.begin)/4 < 0x60` = **96 arrays max**. (ii) **Array ctor 0x8FEFF0:** `[block+0]` = the atomic counter (double `xchg` zero), loop ×**0x2000 = 8192**: `push $0x40` + zero-fill (`0x1033A5E` = memset) → `[block+4+i×4]` ⇒ 8192 pointers to zeroed 64-byte records. (iii) The planter rejects kind==3 (`cmpl $0x3,0x38(%eax); jne 0x7645B3`): kind-1 records flow through the planter; kind-3 cells go to the std::set insert (0xA047D0). (iv) Capacity 96 × 8192 = 786,432 records vs field-solid ≈ 118k ⇒ capacity is not the constraint. METER-CLASS: none. Landed: C135, X125.
+
+- **2026-10-17 (160) — dig #160: THE CARVE AUDIT + THE MATERIAL-ASSIGNMENT LAYER READ — I31's arbitration RESOLVED: the port's caves FIELD ≈ the byte's field (both ~90% solid); the divergence lives after the field (C134, X124); the CE arc closed.** **NEW EVIDENCE:** (i) **Carve audit** (`mapgen/experiments/2026-10-17-dig160-carve-audit.mjs` → `mapgen/out/dig160-carve-audit.json` + 3 diff PNGs; buildCavesField, seed 78633191, cell-aligned with ±200/step-4 dy scan, (152) caves-kind set): **_EMPTY_ capture 46.86% solid vs port 90.07%; desert 65.19 vs 98.57; winter 37.32 vs 89.9**; port-air ∧ capture-solid only 0.88–3.97% per def ⇒ the walk threads are correctly shaped, but the byte's air covers 34.3–55.4% of what the port paints solid. METER-CLASS: **E1**. (ii) C48's recorded rows (y16: 1.02–1.39 raised; y32/y48: edge carves + 1.0–1.26 solid) ⇒ the byte's field ≈ 90% solid ≈ the port's ⇒ the capture's air is decided after the field (I31/I37 = one defect). (iii) **Pipeline (X124, six windows):** per field-claim cell: record fetch `0x4B80E0(this=[owner+0x90], running index)` (asserts ≥0 / `< [this+0x28]`) → kind dispatch on `[record+0x38]`: kind 1 = the global pool at 0x13276C4 (cap 0x2000), kind 3 = `0xA047D0` (a set insert, §8 row 64), other = none; planter `0x7644D0` (thin wrapper: vcall +0x58 + px→cell snap; its assert rejects kind 3, #181). Filler `0x8FF150(budget)`: loops while (world singleton virtual +0x6C − param) < budget, cap < 96 (budget not binding: #179). Creator 0x6DFA20: alloc + static store + the world's virtual +0xAC → `0x9C6800` = validated `__RTDynamicCast` to `ceng::math::CVector2\<float\>` from a ComponentBufferBase. (iv) **CE arc closed:** value-scan approach dead (the 2560.0 floats = 3091 hits of const tables, pool junk and coincidental floats; the "MARKER=2560" list nodes and kind@38 values = coincidental bit patterns / ASCII); the locator for any raw-field dump = the static chain 0x1344B90 → virtual +0xAC → buffer → stack; the scripts (`dig158-ce-caves-dump.lua` v2 + ingest v2 + tests) stay as optional bit-level verification.
+  - **Count tests:** `tests/dig160-audit.test.mjs` (2: the import gate + the committed artifact's per-def verdict keys); battery 26 files, baseline bumped per C131.
+  - **METER-CLASS: E1** (presence shares + counts; the diff PNGs = the visual instrument).
+  - **Purification:** no D change (A2/A4-residual/A5/A6/A8(c)).
+  - **Landed:** C134, I31 arbitration update, VERIFIED §9 note, X124 (six windows), the instrument + smoke test.
+
+
 - **2026-10-17 (159) — dig #159: THE CE PATTERN CORRECTION — the dig-#158 v1 pattern was a WRONG-STRUCT CONFLATION and could never hit (the user's live zero-hit run falsified it); C133 v2 + the .lua/ingest/tests re-based to the C48-grid-owner's own law.** The user's CE run (`AOBScan` for dig-#158's v1 pattern `00 00 80 3F 00 00 34 45`) returned ZERO hits — a direct falsifier of that recipe. **NEW EVIDENCE:** (i) the fresh byte window `dig159-recordmark-k1k0-8f9583-8f95c0.asm` (X123): the 0x8F9470-record-template's [0x94] slot = `mulss 0x11e0504 / subss 0x11e04ec` = **the diddled-seed affine ×200000.0 − 100000.0** (K1/K0 bit-read LE `00 50 43 48` / `00 50 C3 47`) — a NEVER-2560.0 slot — the dig-#158 v1 pattern conflated THIS struct's [0x90]=1.0f adjacency with the C48's grid-owner law (**X122's v1 "(w·0.5)/0.1" tag = struck in place**; the C48's own artifact `mapgen/out/oracle/caves-grid-2026-09-21.json` = the true provenance: the pickup's `p94 = 2560.0` EXACT on the grid-owner, and the grid's first cells = 1.0 = the C1 all-1.0 base). (ii) **the corrected law (C133 v2):** the CE find = the wildcard byte-pattern **`00 00 20 45 ?? ?? ?? ?? 00 02 00 00`** = f32 2560.0 at [P+0x94] + 4 don't-care ([P+0x98]) + the stride int **W = 512 at [P+0x9c]** (LE `00 02 00 00` — the dig-#121 sampler law, X121); the dump = ONE region **starting AT the hit (P+0x94), 0x80020 B** = the 8-byte validation window + the grid 512×256 f32 (the grid base = INLINE owner+0xb4 = the hit+0x20, idx = W·y+x, the game's cell gate = > 0.51 @0x11dfa94). (iii) **the tooling re-based:** the .lua dump script v2 (the corrected pattern; the out dir MOVED OFF the user's Desktop to the game's own data area `%USERPROFILE%\AppData\LocalLow\Nolla_Games_Noita\ce-caves` — the v1's Desktop write retracted at the user's demand; the Desktop ce-caves folder = deleted), the ingest v2 (the layout DUMP_LAYOUT = {origin P+0x94, header 0x20, total 524,320}, the [0x00] bit-exact-2560.0 check, the [0x08] = 512 stride check, the grid at off 0x20), and the count tests re-pinned (5 tests: the layout, the well-formed census, the wrong-marker refusal (a 3712.0-bit dump = refused), the grid-only-dump refusal, the 1×1 family exclusion via the stride pin) — **5/5 PASS, the synthetic dry run = 48-edge-cells → edgeCarveSum 48/rows 8 ✓**. **No shape-side port change; METER-CLASS: none (the rig = the instrument; no reading produced). No cache bump; the D set unchanged.** Landed: ABOUT **(159)**, CONSTANTS **C133 (v2)**, MANIFEST **X122 (struck-in-place) + X123 (fresh)**, the .lua v2, the ingest v2, `tests/dig158-ingest.test.mjs` (5), the I31 run-sheet block amended to the v2 recipe. Next free: entry **(160)**, C134, X124, I39, §8 row 53 — the compare dig = gated ONLY on the user's re-run landing the bins.
 - **2026-10-17 (158) — dig #158: THE CE RUN SHEET — I31's full-grid capture made turnkey (C133; the ingest rig + its count tests; no shape-side port change).** The dig = the I31 gate's enablement: the (153)/(155) registers named the arbiter ("the full-grid caves dump, user-side") but never its operational recipe — this dig derives it byte-fresh and lands the ingest/compare tooling so the user's ONE CE session produces the dig #159's input directly.
   - **NEW EVIDENCE:** (i) **the grid-address law re-pinned fresh (X121 = `dig158-recipe-gridref-90dba0-90dbd8.asm`, the dig-#121 sampler window re-dumped):** `[ctx+0x18]` = the owner; **`[owner+0x9c]` = W (the stride int)** — `add $0xb4,%ecx; imul %esi,%eax; add %edi,%eax` ⇒ **the caves grid = INLINE at owner+0xb4, idx = W·y + x**; cell = `call 0x9499f0; movss (%eax)`, gate = `comiss 0x11dfa94` = **0.51** (the SAME const the surfaceField rp-arm reads). (ii) **the header adjacency (X122 = `dig158-recipe-ctor-8f9500-8f95c0.asm`, the ctor re-dumped):** `movl $0x3f800000,0x90(%esi)` = **1.0f at owner+0x90**; `movss %xmm0,0x94(%esi)` = the C48 marker (w·0.5)/0.1 = **2560.0 at owner+0x94** for w=512 — the two f32s = ADJACENT in memory ⇒ **the CE find = one 8-byte byte-pattern: `00 00 80 3F 00 00 34 45`** (python-verified against the bit laws). [0x9c] = 0-cleared pre-Init; the W fills on the area build (the dig #131 SetSize law). (iii) **the run sheet (C133):** seed 78633191 post-generation → the byte-pattern search → ONE dump from the hit, **0x80024 B** (the 0x24 header + the grid 512×256 f32 = 0x80000) → save `caves-<tag>-<seed>.bin` (EVERY retained hit = the per-def family; the 1×1-grid family self-excludes via its 5.0 marker). (iv) **the ingest rig** `mapgen/experiments/2026-10-17-dig158-ce-caves-ingest.mjs`: self-validating (bit-exact 1.0f/2560.0/512 header; the wrong-origin/wrong-structure/wrong-size refusals), parses the grid, prints the I31(b) full-grid census (the presence share, the x<12 edge band, the per-row carve) → `mapgen/out/dig158-ce-ingest.json`; the dig #159 = the per-def auto-match vs the port's own `ensureCavesField` grids. **Count tests:** `tests/dig158-ingest.test.mjs` (6, data-independent): the layout pins, the well-formed census (3-edge-cells → sum 3/rows 2), the wrong-origin refusal (≠ bit-exact 1.0f), the wrong-marker refusal (≠ bit-exact 2560.0), the grid-only-dump refusal (the owner+0x90 hint), the 1×1 self-exclusion via the marker — **6/6 PASS**; the run-directly gate pattern keeps the CLI body off the import path. The synthetic-dump dry run = passed (the fake 48-cell pattern → edgeCarveSum 48/rows 8).
