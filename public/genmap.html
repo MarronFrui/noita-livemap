@@ -50,7 +50,13 @@
       <b style="color:#ffffff66">▯</b> chunk grid
     </div>
     <canvas id="cv"></canvas>
-    <script>
+    <script type="module">
+      // State machines: the bridge link = /live-link.mjs (src/live-link.mjs);
+      // tile entries, the status poll and the status line = /genmap-viewer.mjs
+      // (src/genmap-viewer.mjs). Both are tested in tests/; this page renders.
+      import { createLiveLink, describe as describeLink } from "/live-link.mjs";
+      import { createTileCache, createStatusPoller, composeStatus, notice as makeNotice } from "/genmap-viewer.mjs";
+
       // canvas px = virtual-map px * 512; chunk (0,0) = biome px (0,-48) = world (-17920,-31744)
       // 71x144 chunks = clamped virtual map (48 sky rows + 70x48 band + 48 deep rows + 1 east col)
       const CHUNKS_W = 71, CHUNKS_H = 144;
@@ -94,11 +100,19 @@
         if (zF !== zFtarget) zFanim = requestAnimationFrame(zoomStep);
         else { zFanim = null; zAnchor = null; }
       }
-      const tiles = new Map(); // key -> {img, ok}
+      const tiles = createTileCache({ makeImage: () => new Image(), onSettle: () => draw() });
+      let gen = null; // latest /gen/status for `seed`
+      let unreachable = null; // { retryAt } while the status poll fails
+      let notice = null; // transient status message { text, until }
+      let tileCounts = { pending: 0, failed: 0 };
+      function setNotice(text) { notice = makeNotice(text); renderStatus(); setTimeout(renderStatus, 4050); }
+      function renderStatus() {
+        status.textContent = composeStatus({ seed, z, gen, unreachable, tiles: tileCounts, notice, marker, now: Date.now() });
+      }
       let zones = null, showZones = false; // per-chunk tags
       let epoch = 0; // server cache epoch (/gen/status) — busts the browser's immutable tile cache after a /gen/clear
       let captureOn = false; // capture-composite display layer (A10) — default OFF (user call 2026-10-21); the tile URL carries an explicit ?c=1/0 either way
-      let live = true, ws = null, marker = null, followMarker = false;
+      let marker = null, followMarker = false; // marker = last telemetry position (kept when live goes off)
 
       const liveBtn = document.getElementById("live");
       const tlInfo = document.getElementById("tl-info");
@@ -118,65 +132,78 @@
         return true;
       }
 
+      const TONE_COLORS = { ok: "#7ce38b", warn: "#ffd479", error: "#ff8f8f", muted: "#8a9aaa" };
       function updateTelemetryBox() {
-        if (!marker) {
-          tlInfo.textContent = "live: waiting for telemetry…";
-          return;
+        const { text, tone } = describeLink(link.model);
+        tlInfo.textContent = "";
+        const head = document.createElement("div");
+        head.textContent = text;
+        head.style.color = TONE_COLORS[tone];
+        tlInfo.appendChild(head);
+        if (marker) {
+          const mapNote = marker.seed === seed ? "" : ` (map: ${seed})`;
+          const pos = document.createElement("div");
+          pos.textContent = `seed ${marker.seed}${mapNote} · ${marker.biome ?? "?"} · ${Math.round(marker.wx)}, ${Math.round(marker.wy)}`;
+          if (link.model.state !== "live") pos.style.opacity = "0.55"; // last known, not current
+          tlInfo.appendChild(pos);
         }
-        const mapNote = marker.seed === seed ? "" : ` (map: ${seed})`;
-        tlInfo.textContent = `seed ${marker.seed}${mapNote} · ${marker.biome ?? "?"} · ${Math.round(marker.wx)}, ${Math.round(marker.wy)}`;
+      }
+
+      // live mode = the bridge link running (off ⇄ connecting/waiting/live/stale/retrying)
+      const link = createLiveLink({
+        url: `ws://${location.hostname || "localhost"}:8080`,
+        onChange: (m, prev) => {
+          if (m.telemetry && m.telemetry !== prev.telemetry) onTelemetry(m.telemetry);
+          if (m.state !== prev.state) renderLiveButton();
+          updateTelemetryBox();
+        },
+      });
+      const isLive = () => link.model.state !== "off";
+
+      function renderLiveButton() {
+        const on = isLive();
+        liveBtn.textContent = `live: ${on ? "ON" : "off"}`;
+        liveBtn.style.background = on ? "#2c5a2c" : "#1c2b3a";
+      }
+
+      function onTelemetry(t) {
+        if (t.seed == null) return; // no numeric seed — nothing to place on a map
+        marker = { wx: t.x, wy: t.y, seed: t.seed, biome: t.biome };
+        if (marker.seed !== seed) {
+          loadSeed(marker.seed);
+          if (!followMarker) centerOnPlayer(); // jumped to the live run — start at the player
+        }
+        if (followMarker) cam = { x: marker.wx + W2C.x, y: marker.wy + W2C.y };
+        draw();
       }
 
       function setLive(on) {
-        live = on;
-        liveBtn.textContent = `live: ${on ? "ON" : "off"}`;
-        liveBtn.style.background = on ? "#2c5a2c" : "#1c2b3a";
         if (on) {
-          connectBridge();
-          if (marker && marker.seed && marker.seed !== seed) {
+          link.start();
+          if (marker && marker.seed !== seed) {
             loadSeed(marker.seed);
             centerOnPlayer();
           }
+        } else {
+          link.stop();
         }
+        renderLiveButton();
+        updateTelemetryBox();
       }
-      liveBtn.onclick = () => setLive(!live);
-
-      function connectBridge() {
-        try {
-          ws = new WebSocket("ws://localhost:8080");
-          ws.onmessage = (e) => {
-            let m;
-            try { m = JSON.parse(e.data); } catch { return; }
-            if (!m || typeof m.seed !== "number") return;
-            marker = { wx: m.x, wy: m.y, seed: m.seed >>> 0, biome: m.biome };
-            if (live) {
-              if (marker.seed !== seed) {
-                loadSeed(marker.seed);
-                if (!followMarker) centerOnPlayer(); // jumped to the live run — start at the player
-              }
-              if (followMarker) {
-                cam = { x: marker.wx + W2C.x, y: marker.wy + W2C.y };
-              }
-            }
-            updateTelemetryBox();
-            draw();
-          };
-          ws.onclose = () => { if (live) setTimeout(connectBridge, 2000); };
-          ws.onerror = () => { try { ws.close(); } catch {} };
-        } catch {}
-      }
+      liveBtn.onclick = () => setLive(!isLive());
 
       function loadSeed(s) {
         const v = parseInt(String(s), 10);
         if (Number.isNaN(v)) return;
         seed = v >>> 0;
         tiles.clear();
+        gen = null;
+        unreachable = null;
         zones = null;
         if (showZones) loadZones();
         seedInput.value = String(seed);
         history.replaceState(null, "", `?seed=${seed}`);
-        status.textContent = `generating seed ${seed}… (first load warms the cache)`;
-        pollStatus();
+        poller.follow(seed); // supersedes the previous seed's poll loop
         updateTelemetryBox();
         draw();
       }
@@ -184,28 +211,22 @@
       const ZONE_COLORS = { 1: "127,217,127", 2: "224,91,91", 3: "240,160,48", 0: "89,184,255", 5: "255,91,216" };
 
       function loadZones() {
-        fetch(`/gen/zones/${seed}`).then((r) => r.json()).then((s) => { zones = s; draw(); }).catch(() => {});
+        const asked = seed;
+        fetch(`/gen/zones/${asked}`).then((r) => r.json()).then((s) => { if (asked === seed) { zones = s; draw(); } })
+          .catch(() => { if (asked === seed) setNotice("zones overlay failed to load"); });
       }
 
       function resize() { cv.width = innerWidth; cv.height = innerHeight; ctx.imageSmoothingEnabled = false; draw(); }
       addEventListener("resize", resize);
 
       function tileUrl(tx, ty, tz) { return `/gen/tile/${seed}/${tz}/${tx}/${ty}.png?e=${epoch}&c=${captureOn ? 1 : 0}`; }
-      function fetchTile(tx, ty, tz) {
-        const key = `${seed}/${tz}/${tx}/${ty}`;
-        if (tiles.has(key)) return tiles.get(key);
-        const t = { img: new Image(), ok: false };
-        tiles.set(key, t);
-        t.img.onload = () => { t.ok = true; draw(); };
-        t.img.src = tileUrl(tx, ty, tz);
-        return t;
-      }
+      const fetchTile = (tx, ty, tz) => tiles.request(`${seed}/${tz}/${tx}/${ty}`, tileUrl(tx, ty, tz));
 
       function draw() {
         document.getElementById("zlabel").textContent = zF.toFixed(1);
         ctx.fillStyle = "#000";
         ctx.fillRect(0, 0, cv.width, cv.height);
-        if (!seed) return;
+        if (seed == null) { renderStatus(); return; }
         const scale = 1 / 2 ** zF;
         const w0 = cam.x - cv.width / 2 / scale, h0 = cam.y - cv.height / 2 / scale;
         // one tile level over the viewport: fetch = request missing tiles
@@ -217,24 +238,22 @@
           const span = TILE * 2 ** L;
           const t0x = Math.floor(w0 / span), t0y = Math.floor(h0 / span);
           const t1x = Math.floor((w0 + cv.width / scale) / span), t1y = Math.floor((h0 + cv.height / scale) / span);
-          let missing = 0;
+          let pending = 0, failed = 0;
           for (let ty = Math.max(0, t0y); ty <= Math.min(gh - 1, t1y); ty++) {
             for (let tx = Math.max(0, t0x); tx <= Math.min(gw - 1, t1x); tx++) {
-              const t = fetch ? fetchTile(tx, ty, L) : tiles.get(`${seed}/${L}/${tx}/${ty}`);
-              if (!t || !t.ok) { missing++; continue; }
+              const t = fetch ? fetchTile(tx, ty, L) : tiles.peek(`${seed}/${L}/${tx}/${ty}`);
+              if (!t || t.state !== "ok") { if (t?.state === "error") failed++; else pending++; continue; }
               const sx = (tx * span - cam.x) * scale + cv.width / 2;
               const sy = (ty * span - cam.y) * scale + cv.height / 2;
               const s = span * scale;
               ctx.drawImage(t.img, Math.round(sx), Math.round(sy), Math.ceil(s), Math.ceil(s));
             }
           }
-          return missing;
+          return { pending, failed };
         };
         for (let L = z + 3; L > z; L--) drawLevel(L, false); // coarser placeholders
         drawLevel(z - 1, false); // finer tiles already loaded (zooming out)
-        const pending = drawLevel(z, true);
-        if (pending) status.textContent = `loading ${pending} tiles… (seed ${seed}, z${z})`;
-        else status.textContent = `seed ${seed}, z${z} — canvas px; world px = canvas − (17920, 31744)`;
+        tileCounts = drawLevel(z, true) || { pending: 0, failed: 0 };
         if (showZones && zones) {
           const cw = 512 * scale, ch = 512 * scale;
           for (let ty = 0; ty < CHUNKS_H; ty++) {
@@ -269,36 +288,33 @@
             ctx.moveTo(mx, my - r * 1.6); ctx.lineTo(mx, my + r * 1.6);
             ctx.stroke();
           }
-          status.textContent += ` · ${marker.biome ?? ""} (${Math.round(marker.wx)}, ${Math.round(marker.wy)})`;
         }
+        renderStatus();
       }
 
-      function pollStatus() {
-        if (!seed) return;
-        fetch(`/gen/status/${seed}`).then((r) => r.json()).then((s) => {
-          // a /gen/clear from elsewhere (CLI, another tab) bumped the epoch —
-          // drop everything local and re-fetch with the new epoch
+      // one status loop per page (genmap-viewer.mjs createStatusPoller)
+      const poller = createStatusPoller({
+        fetchStatus: (sd) => fetch(`/gen/status/${sd}`).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
+        onStatus: (sd, s) => {
+          if (sd !== seed) return;
+          unreachable = null;
+          // a /gen/clear from elsewhere (CLI, another tab) or a server restart
+          // bumped the epoch — drop everything local and re-fetch (I46)
           if (s.epoch != null && s.epoch !== epoch) {
             epoch = s.epoch;
             tiles.clear();
             zones = null;
             if (showZones) loadZones();
-            draw();
           }
-          if (!s.ready) {
-            status.textContent = `generating seed ${seed}: ${s.done}/${s.total} areas${s.errors.length ? ` — ${s.errors.length} errors` : ""}…`;
-            draw();
-            setTimeout(pollStatus, 500);
-          } else {
-            // I46 (fixed): the poll used to STOP at ready, so a server restart's
-            // epoch bump was never observed with the page open — the browser's
-            // year-immutable tile cache kept serving the pre-restart renders
-            // (the "floating lava on an old page" report). Keep polling slowly
-            // once ready; the epoch adoption above drops + re-fetches on change.
-            setTimeout(pollStatus, 5000);
-          }
-        }).catch(() => {});
-      }
+          gen = s;
+          draw();
+        },
+        onError: (sd, err, wait) => {
+          if (sd !== seed) return;
+          unreachable = { retryAt: Date.now() + wait };
+          renderStatus();
+        },
+      });
 
       const zonesBtn = document.getElementById("zones");
       const regenBtn = document.getElementById("regen");
@@ -327,20 +343,21 @@
           const r = await fetch(`/gen/clear/${seed}`, { method: "POST" }).then((x) => x.json());
           epoch = r.epoch ?? epoch + 1;
           tiles.clear();
+          gen = null;
           zones = null;
           if (showZones) loadZones();
-          status.textContent = `cache cleared — regenerating seed ${seed} from scratch…`;
-          pollStatus();
+          setNotice(`cache cleared — regenerating seed ${seed} from scratch…`);
+          poller.follow(seed);
           draw();
         } catch {
-          status.textContent = "cache clear failed (is the genmap server running?)";
+          setNotice("cache clear failed (is the genmap server running?)");
         } finally {
           regenBtn.disabled = false;
         }
       };
 
       centerBtn.onclick = () => {
-        if (!centerOnPlayer()) status.textContent = "no live telemetry yet (bridge on :8080?)";
+        if (!centerOnPlayer()) setNotice(`no player position yet — ${describeLink(link.model).text}`);
       };
       followChk.onchange = () => {
         setFollow(followChk.checked);
@@ -351,7 +368,7 @@
         const v = parseInt(seedInput.value, 10);
         if (Number.isNaN(v)) return;
         loadSeed(v);
-        if (live) setFollow(false); // manual load/UI wins over follow until re-enabled
+        if (isLive()) setFollow(false); // manual load/UI wins over follow until re-enabled
       }
       document.getElementById("load").onclick = load;
       seedInput.addEventListener("keydown", (e) => e.key === "Enter" && load());

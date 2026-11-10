@@ -12,6 +12,8 @@
 //   GET|POST /gen/clear/:seed          dev: drop one seed's disk cache + memory,
 //                                      next request regenerates from scratch
 //   GET|POST /gen/clear                dev: same, for every cached seed
+//   GET /, /genmap.html                the viewer (public/genmap.html) + its
+//                                      modules /live-link.mjs, /genmap-viewer.mjs
 //
 // Coordinate system: "canvas px" = biome-map px * 512 — canvas (0,0) is
 // biome px (0,0) = world (-17920, -7168). Area maps are placed at
@@ -146,6 +148,12 @@ function prewarm(seed) {
   if (gone.length) console.log(`[genmap] tile cache: removed ${gone.length} stale revision dir(s)`);
 }
 
+// the viewer's state-machine modules (genmap.html imports them; tested in tests/)
+const VIEWER_MODULES = {
+  "/live-link.mjs": path.join(repoRoot, "src/live-link.mjs"),
+  "/genmap-viewer.mjs": path.join(repoRoot, "src/genmap-viewer.mjs"),
+};
+
 process.on("uncaughtException", (e) => console.error("[genmap] uncaught:", e));
 process.on("unhandledRejection", (e) => console.error("[genmap] unhandled:", e));
 
@@ -222,6 +230,11 @@ const server = http.createServer(async (req, res) => {
       }
       res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-cache" });
       res.end(JSON.stringify({ w: WORLD_CHUNKS_W, h: WORLD_CHUNKS_H, tags }));
+      return;
+    }
+    if (VIEWER_MODULES[url.pathname]) {
+      res.writeHead(200, { "Content-Type": "text/javascript", "Cache-Control": "no-cache" });
+      res.end(fs.readFileSync(VIEWER_MODULES[url.pathname]));
       return;
     }
     if (url.pathname === "/" || url.pathname === "/genmap.html") {
