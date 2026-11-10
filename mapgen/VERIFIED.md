@@ -254,8 +254,9 @@ of these mechanisms, cite the row instead of re-running it.
 
 ## 9. Open frontier (ranked)
 
-The single ranked work list (ISSUES.md §0 points here). State as of dig #212
-(2026-11-08); sources = the cited files, read 2026-11-08.
+The single ranked work list (ISSUES.md §0 points here). Item 1 was last
+re-ranked at dig #212 (2026-11-08, sources read then); item 0 carries the user
+queue through 2026-11-09.
 
 0. **User queue (2026-11-09):** I62 FIXED (rooms filled with rock: the air state, the image-spawn lane, A24). I63 FIXED (splice placeholders = the P-empty arm). I64 FIXED (cursed rock = rock_static_cursed C185 + the edge law). I66 FIXED (2-px chunk-edge seams: the noise mask cell 51 + the bin edge strip, A25). Open: I65 (the Cauldron room at 42_24 is NATIVE — built by exe code, not data; the next step is an REA dig for the room builder).
 1. **Surface band — the only objective (user mandate; ISSUES §0).** The band's

@@ -17,3 +17,4 @@ mapgen/extractions/*
 
 # REA: the pinned RE target copy (scripts/rea-target.mjs)
 mapgen/re/target/
+CLAUDE.md
