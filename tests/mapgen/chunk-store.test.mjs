@@ -1,15 +1,14 @@
 // The lazy chunk store (mapgen/lib/chunk-store.mjs) — the per-chunk
-// materialization must be BYTE-IDENTICAL to the eager whole-world render it
-// replaced (renderTemplateWorld's eager Map, 4642 fg + 186 bg chunks for the
-// capture seed; the wang spawn-scene planes). Unit laws first, then the
-// exhaustive data-gated equivalence.
+// materialization must be BYTE-IDENTICAL to the eager render it replaced.
+// Unit laws first, then the data-gated equivalence on the wang spawn-scene
+// planes. (The exhaustive whole-world template comparison — ~150 s, half the
+// battery — was retired 2026-11-10; it lives in git history.)
 
 import { describe, test, expect, afterAll } from "vitest";
 import { LazyChunkStore } from "../../mapgen/lib/chunk-store.mjs";
-import { renderTemplateWorld, blitBackdrop } from "../../mapgen/lib/template-render.mjs";
-import { loadWangWorld, ensureWorld, buildWangScenes } from "../../mapgen/lib/world-gen.mjs";
-import path from "node:path";
-import { dataDir, hasNoitaData, CAPTURE_SEED, repoRoot } from "../helpers/data.mjs";
+import { blitBackdrop } from "../../mapgen/lib/template-render.mjs";
+import { ensureWorld, buildWangScenes } from "../../mapgen/lib/world-gen.mjs";
+import { dataDir, hasNoitaData, CAPTURE_SEED } from "../helpers/data.mjs";
 import { releaseWorld } from "../helpers/world.mjs";
 import { GEN_CACHE_DIR } from "../../mapgen/server/gen-cache.mjs";
 
@@ -93,20 +92,7 @@ async function comparePlanes(eager, lazy) {
   return { ok, bad, missing, extra };
 }
 
-describe.skipIf(!hasNoitaData())("lazy == eager, exhaustively (capture seed) — data-gated", () => {
-  test("renderTemplateWorld: every fg + bg chunk byte-identical (4644 + 186)", async () => {
-    const { config } = loadWangWorld(dataDir);
-    const lazy = renderTemplateWorld(dataDir, config, CAPTURE_SEED, { eager: false });
-    await new Promise((r) => setImmediate(r));
-    let eager = renderTemplateWorld(dataDir, config, CAPTURE_SEED, { eager: true }); // the ~37 s reference span
-    await new Promise((r) => setImmediate(r));
-    const fg = await comparePlanes(eager, lazy);
-    const bg = await comparePlanes(eager.get("bg"), lazy.get("bg"));
-    eager.get("bg")?.clear(); eager.clear(); eager = null; lazy.clear(); // ~3.5 GB back
-    expect(fg).toEqual({ ok: 4644, bad: 0, missing: 0, extra: 0 }); // I62: → 4644 (an air write creates its chunk buffer, TPL_AIR); dig #223: 4642 → 4644 (the rainforest hint statues, C194); dig #225: → 4635 (air-only scene chunks no longer painted, C196)
-    expect(bg).toEqual({ ok: 186, bad: 0, missing: 0, extra: 0 }); // dig #219: 192 → 186 — init() runs as Lua, the unchosen branches' background art (the second side cavern, …) no longer loads
-  }, 240000);
-
+describe.skipIf(!hasNoitaData())("lazy == eager on the wang scene planes (capture seed) — data-gated", () => {
   let world = null;
   afterAll(() => { releaseWorld(world); world = null; });
   test("the wang spawn-scene planes: lazy == eager (fractional Lua origins included)", async () => {
