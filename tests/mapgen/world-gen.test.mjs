@@ -16,6 +16,7 @@ import { writePng } from "../../mapgen/lib/images.mjs";
 import { dataDir, hasNoitaData, CAPTURE_SEED, repoRoot } from "../helpers/data.mjs";
 import { biomeByName } from "../helpers/golden.mjs";
 import { releaseWorld } from "../helpers/world.mjs";
+import { GEN_CACHE_DIR } from "../../mapgen/server/gen-cache.mjs";
 
 // ONE in-process world per file (memory law, 2026-11-08): an ensureWorld()
 // world WAS ~4.6 GB RSS (renderTemplateWorld's 4643 eager template chunk
@@ -26,7 +27,7 @@ import { releaseWorld } from "../helpers/world.mjs";
 // shares this one world; only probes that need module-load env flags
 // (SURFACE_V3=1) still spawn a child, and they run BEFORE the shared world
 // exists (the dig #177 describe sits above the cached-generation describe).
-const SHARED_CACHE_DIR = path.join(repoRoot, "mapgen/out/gen-cache/r3o");
+const SHARED_CACHE_DIR = GEN_CACHE_DIR;
 let _sharedWorld = null;
 const sharedWorld = async () => {
   _sharedWorld ??= ensureWorld(CAPTURE_SEED, dataDir, { cacheDir: SHARED_CACHE_DIR, onProgress: () => {} });
@@ -381,7 +382,7 @@ describe.skipIf(!hasNoitaData())("surface-band sky (dig #177) — the row-62 air
     const fs = await import("node:fs");
     const path = await import("node:path");
     const dataDir = findNoitaDataDir();
-    const cacheDir = path.join(repoRoot, "mapgen/out/gen-cache/r3o");
+    const cacheDir = ${JSON.stringify(GEN_CACHE_DIR)};
     const world = ensureWorld(78633191, dataDir, { cacheDir, onProgress: () => {} });
     await world.ready;
     const isBlack = (c) => !c || (c[0] < 3 && c[1] < 3 && c[2] < 3);

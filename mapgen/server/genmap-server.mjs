@@ -25,7 +25,7 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { findNoitaDataDir, repoRoot } from "../lib/paths.mjs";
-import { clearGenCache } from "./gen-cache.mjs";
+import { clearGenCache, GEN_CACHE_DIR } from "./gen-cache.mjs";
 import { TileService, sourceRevision } from "./tile-service.mjs";
 import { CAPTURE_SEED, CAPTURE_DEFAULT } from "./capture-layer.mjs";
 import { TilePool } from "./tile-pool.mjs";
@@ -40,7 +40,7 @@ import {
 
 const PORT = Number(process.env.GENMAP_PORT ?? 8082);
 const dataDir = findNoitaDataDir();
-const cacheDir = path.join(repoRoot, "mapgen/out/gen-cache/r3o"); // r3o (dig #226: air-keyed bin cells = bin air → the backdrop law); r3n (dig #224: C185 colours every material cell of the bins at the C192 cell origin, I51(c)); r3m (r3j + the sky-band fix 2026-11-08: the y-gated placeholder material law, the cloud families, the C185 colour of family-less materials, the static-tile materials path; r3k/r3l = abandoned mid-fix revs; r3j = r3i + the spawn-colour → air display law, wang-scenes lane): this cache dir stores ONLY the wang-area bins (world.maps, seed+area-keyed) — independent of the cave-field lane. DIG #192 PRODUCT FLIP (2026-10-23): the caves-field lane is ON by default (no env needed — `npm run gen:server` starts ALL lanes); the old opt-in belonged to the D-grade era, superseded by the C165/C166 port. SURFACE_V3=0/2=0 = the old detached lane (the instrument baselines). Bump to a fresh rev only when a cached build's output observably changes.
+const cacheDir = GEN_CACHE_DIR;
 
 const worlds = new Map(); // seed -> { world, progress, ready }
 // A world was ~4.6 GB RSS when the template planes rendered eagerly; with the
