@@ -149,7 +149,7 @@ describe("biomes.mjs", () => {
 
 describe("paths.mjs", () => {
   test("exports match the documented surface", () => {
-    expect(Object.keys(paths).sort()).toEqual(["CAPTURE_SEED", "captureTilesources", "findNoitaDataDir", "repoRoot", "wasmPath"]);
+    expect(Object.keys(paths).sort()).toEqual(["CAPTURE_SEED", "captureTilesources", "findNoitaDataDir", "repoRoot"]);
     expect(paths.CAPTURE_SEED).toBe(78633191); // the reference seed
     expect(typeof paths.repoRoot).toBe("string");
     expect(typeof paths.captureTilesources).toBe("object");

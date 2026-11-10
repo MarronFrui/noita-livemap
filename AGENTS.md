@@ -42,18 +42,11 @@ git config core.hooksPath .githooks   # MANDATORY commit gates (scripts/precommi
 npm run dev:bridge   # bridge WebSocket server on :8080
 npm run dev          # Vite dev server on http://localhost:5173/
 
-# Map-gen bench — LEGACY lane (see mapgen/README.md §pipeline): bench:gen runs
-# noitool's OBSOLETE wang-wasm — generate-exact.mjs is the real model (the
-# genmap server uses it) — so bench/bench:diff score the LEGACY fill, not the
-# current pipeline. A regression baseline, never a game reference. The real
-# shape instrument = mapgen/experiments/2026-10-10-surface-shape-iou.mjs.
-npm run bench        # legacy generate + fetch reference + diff (mapgen/out/report.html)
-npm run bench:gen    # seed -> wang-layer chunk PNGs (LEGACY wasm model) in mapgen/out/gen/
-npm run bench:ref    # fetch capture tiles (seed 78633191) -> mapgen/out/ref/  [still-valid ground truth]
-npm run bench:diff   # score chunks, write stats.json + report.html
+# Map generation (generate-exact.mjs is the model; the genmap server runs it)
+npm run capture:fetch  # fetch capture tiles (seed 78633191) -> mapgen/out/ref/  [ground truth]
 npm run gen:server   # generated-map tile server on :8082 (mapgen/server/genmap-server.mjs)
 npm run gen:clear    # wipe the generated-world cache (-- --seed N scopes to one seed)
-node mapgen/experiments/2026-09-03-fit-transform.mjs       # cross-correlate gen vs ref masks
+node mapgen/experiments/2026-10-10-surface-shape-iou.mjs  # the shape instrument (E2 sentinel)
 
 # Capture analysis (see mapcap/README.md; artifacts in mapcap/out/, gitignored)
 node mapcap/analyze-capture.mjs --name <run> --seed <seed> [--stitched <png>] [--chunks true]
@@ -113,7 +106,7 @@ The byte side of every dig reads `noita_dev.exe` through the REA MCP server
 | Path | What it is |
 | ---- | ---------- |
 | `bridge/index.js` | File watcher + WebSocket broadcaster (Node ESM: `ws`, `chokidar`) |
-| `mapgen/` | Map-gen bench: wasm loader, biome layout parser, chunk renderer, reference slicer, diff/fit rig (plain ESM `.mjs`) |
+| `mapgen/` | Map generation: biome layout parser, wang fill, terrain lanes, chunk renderer, tile server, capture fetcher (plain ESM `.mjs`) |
 | `mapgen/extractions/` | Byte-extraction dumps (gitignored, path-stable) + tracked `MANIFEST.md` — the manifest rows that docs and code cite (charter: extraction protocol) |
 | `mapcap/` | Capture-based ground truth: noita-mapcap slicing, seed-differential analysis, predetermined zones (`mapcap/README.md`) |
 | `mods/noita-live-map/` | Noita Lua telemetry mod (`init.lua`, `files/telemetry.lua`) |
@@ -128,7 +121,7 @@ The byte side of every dig reads `noita_dev.exe` through the REA MCP server
 | `public/noitamap/` | **Generated** — do not edit; comes from `vendor/noitamap/public` |
 | `dist/` | Build output — do not edit |
 | `vendor/noitamap/` | Git submodule (fork of acidflow-noita/noitamap) |
-| `vendor/noita-tools/` | Git submodule (TwoAbove/noita-tools) — **OBSOLETE reference**: legacy data/wasm container only; never a comparison target (see `mapgen/VERIFIED.md`) |
+| `vendor/noita-tools/` | Git submodule (TwoAbove/noita-tools) — **OBSOLETE reference**: data container only (the coalmine overlay, `lib/has-path.mjs`); never a comparison target (see `mapgen/VERIFIED.md`) |
 | `ROADMAP.md` | Phased plan (Phases 0–5) |
 | `SESSION_CONTEXT.md` | **The session context loader** (gitignored by design) — read at session start |
 
@@ -281,9 +274,7 @@ rules, with the incident that motivates each in one line:
 - Noita install: `/mnt/e/Programmes/Steam/steamapps/common/Noita`
   (`noita_dev.exe` = the RE target, `tools_modding/` ships `wang_gen.exe`).
 - RE toolchain (REA's Ghidra provider): Ghidra 12.1.3 at `~/tools/ghidra`,
-  JDK 21 at `~/tools/jdk` (`npm run re:doctor` checks both). The repo's
-  ignored `tools/` dir only holds an unused Zig toolchain (from the obsolete
-  noitool-wasm rebuild plan) — safe to delete.
+  JDK 21 at `~/tools/jdk` (`npm run re:doctor` checks both).
 - Extracted game data (Step 0 done, `-wizard_unpak`): `/mnt/c/Users/xan98/AppData/LocalLow/Nolla_Games_Noita/data/` — resolved via `NOITA_DATA_DIR` with that path as fallback, never copied into the repo.
 - Windows user for telemetry/bridge paths: `xan98`.
 - Noita runs on Windows; the bridge typically runs in WSL. `/mnt/c/...` paths

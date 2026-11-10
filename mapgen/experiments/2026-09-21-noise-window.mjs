@@ -24,7 +24,7 @@ const x0 = 4, x1 = 10;   // dig #24's second window = the LAKE set (bitmap_noise
 // dig #24 enumerating turned the coordinate model on its head: the noise
 // lane's areas live at tx (lake 4–10, hills 6–42, desert 45–58, pyramid
 // 53–57) × canvas cy 48+. We measure EVERY V2 chunk mask and fetch the
-// ref tile for it on the fly (bench:ref writes per-biome-px tile files).
+// ref tile for it on the fly (capture:fetch writes per-biome-px tile files).
 const CY0 = 48, CY1 = 82;
 const refDir = path.join(repoRoot, "mapgen/out/ref");
 const lumr = (r, g, b) => 0.299 * r + 0.587 * g + 0.114 * b;
@@ -52,7 +52,7 @@ await world.ready;
 const rows = [];
 let sumN = 0, sumFlatSq = 0, sumSq = 0, sumFlatN = 0, genSolid = 0, refSolid = 0, refSky = 0, refVoid = 0, probeV2 = 0;
 for (let cy = CY0; cy <= CY1; cy++) {
-  const tyBiome = cy - 48; // ref tiles are written by BIOME-px ty (bench:ref)
+  const tyBiome = cy - 48; // ref tiles are written by BIOME-px ty (capture:fetch)
   for (let tx = x0; tx <= x1; tx++) {
     const maskInfo = noiseChunkMask(config, tx, cy, 78633191);
     const refPath = path.join(refDir, `${tx}_${tyBiome}.png`);

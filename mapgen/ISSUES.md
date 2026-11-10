@@ -93,8 +93,7 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
 > {excavationsite, solid_wall_tower_2} (excavationsite.png). The name lists
 > were provably non-exhaustive (all tower_* share one name; _EMPTY_ missed).
 > The name-list @prov debt for these flags is RETIRED; remaining noitool
-> debt unchanged (wasm fill in bench/legacy tests, start_x=0x8e constant —
-> now understood as the stairs-band search, C20).
+> debt: the start_x=0x8e constant (understood as the stairs-band search, C20).
 
 > The `lib/biomes.mjs` name-list flags tagged `@prov noitool` are gone
 > (replaced by the path rule above). Supporting census (still useful):
@@ -102,12 +101,9 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
 > `do_beginning_paths`/`do_beginning_down` attrs exist ONLY in desert/
 > forest/hills*/mountain_right_stub/mountain_tree — **coalmine.xml
 > carries none** (its `<BitmapCaves>` = plain structures), so the hax is
-> NOT flag-selected. Live noitool artifacts remaining (both tagged,
-> = debt): `lib/wang-wasm.mjs`'s wasm (bench + legacy tests) and the
-> `start_x=0x8e` constant (understood as the stairs-band search, C20).
-
-### 6. Bench pipeline coverage
-- [x] **I17. Bench wang-layer script skips template biomes — CLOSED 2026-11-09 (scope note, not a defect):** `bench:gen` is the LEGACY lane (AGENTS.md: noitool's obsolete wasm, a regression baseline only); template rendering is validated by the genmap pipeline + the capture instruments (C97, C151).
+> NOT flag-selected. Live noitool artifact remaining (tagged, = debt):
+> the `start_x=0x8e` constant (understood as the stairs-band search, C20).
+> The wasm bench lane was deleted 2026-11-10.
 
 ### 7. Registry/doc defects
 

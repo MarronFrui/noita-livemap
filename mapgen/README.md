@@ -1,4 +1,4 @@
-# mapgen/ — Map-Gen Prediction bench
+# mapgen/ — Map-Gen Prediction
 
 Tools to reverse-engineer and validate Noita's procedural world generation
 ("Map Gen Prediction").
@@ -14,8 +14,7 @@ the method charter lives in `AGENTS.md`.
 game oracles. **`vendor/noita-tools` (noitool) is OBSOLETE** — historical
 reference only, never a comparison target or authority (its wasm output was
 eliminated as game terrain, and its shipped hax code is a silent no-op due
-to constant/data mismatch). Legacy wasm paths below are regression baselines
-only. See `VERIFIED.md` header.
+to constant/data mismatch). See `VERIFIED.md` header.
 
 **Goal**: given a seed, produce the same world the game produces, verified
 against the noitamap capture of seed `78633191`.
@@ -26,23 +25,17 @@ Prerequisites: extracted game data (machine paths in `AGENTS.md` →
 "Environment notes"; auto-detected, or set `NOITA_DATA_DIR`), then:
 
 ```bash
-npm run bench        # 2-generate → 1-fetch-capture → 3-compare
+npm run gen:server      # generated-map tile server on :8082 (the viewer: /genmap.html)
+npm run capture:fetch   # download capture tiles (cached) → mapgen/out/ref/*.png
 ```
 
-Open `mapgen/out/report.html` for the chunk heatmap + side-by-side images.
-`npm test` runs determinism/golden tests. Individual steps:
-
-```bash
-npm run bench:gen    # wang layer for CAPTURE_SEED → mapgen/out/gen/*.png
-npm run bench:ref    # download capture tiles (cached) → mapgen/out/ref/*.png
-npm run bench:diff   # score + report
-```
+`npm test` runs the determinism/golden tests and the rest of the battery.
 
 ## Layout
 
 ```
 lib/          reusable code
-pipeline/     the bench, in run order (1 → 2 → 3)
+pipeline/     capture fetcher (ground-truth tiles)
 experiments/  dated one-off investigations (do NOT import from these)
 re/           REA inputs: Ghidra seed file + the pinned exe copy (target/, gitignored) — see AGENTS.md
 out/          artifacts (gitignored)
@@ -60,10 +53,9 @@ graduates into `lib/` or `pipeline/`.
 
 | File | Purpose |
 | ---- | ------- |
-| `paths.mjs` | Resolves extracted game data dir (`NOITA_DATA_DIR` / WSL scan / Proton), legacy noita-tools wasm path (obsolete vendor), capture tile sources, `CAPTURE_SEED` (78633191) |
+| `paths.mjs` | Resolves extracted game data dir (`NOITA_DATA_DIR` / WSL scan / Proton), capture tile sources, `CAPTURE_SEED` (78633191) |
 | `images.mjs` | PNG/JPEG decode+encode (pngjs, sharp): `readPng`, `writePng`, `readImageRaw`, PNG header peek, color conversions (RGBA ints, ARGB hex) |
 | `biomes.mjs` | Parses `_biomes_all.xml` + biome XMLs + `biome_map.png` (70×48); connected-component **areas** per biome color; `biomeAt(tx,ty)` lookup. Game-truth parser (noitool's maps.json = obsolete) |
-| `wang-wasm.mjs` | **LEGACY** loader for the obsolete noitool prebuilt `noita_random.wasm`; `generateArea()` = the old noitool pipeline — regression baseline only, NOT a game reference (superseded by `generate-exact.mjs`) |
 | `wang-js.mjs` | **Our own JS port** of the corner-mode stbhw builder: exact `NollaPrng` + `SetRandomSeed` (diddle table), template parser, vertex grid, fill scan, pluggable vertex-coloring (sequential vs position-seeded) — the laboratory for coloring hypotheses |
 | `coords.mjs` | bigMap ↔ world/chunk mapping with anchor hypotheses (mode names `noitool`/`snap`/`exact` are historical labels) and correction knobs (offsets, flips) — the fitting ground for placement math |
 
@@ -72,8 +64,6 @@ graduates into `lib/` or `pipeline/`.
 | File | Purpose |
 | ---- | ------- |
 | `1-fetch-capture.mjs` | Downloads noitamap ground-truth tiles (DZI, seed 78633191, CDN) for a biome-map window; slices to 512×512 chunk PNGs; caches webp tiles in `out/cache/` |
-| `2-generate.mjs` | Runs the wang layer (via `wang-wasm`) for a seed/window; writes chunk PNGs + `manifest.json` (area, crop, world anchor per chunk) |
-| `3-compare.mjs` | Scores generated vs captured chunks (mean abs diff, air/solid mismatch %); writes `out/stats.json` + `out/report.html` (heatmap + side-by-sides) |
 
 ### server/ (generated-map tile server + cache tooling)
 
@@ -115,7 +105,7 @@ the newest §6 entry and in `VERIFIED.md` §12.
 
 | File | Purpose |
 | ---- | ------- |
-| `update-golden.mjs` | Re-blesses `out/golden.json` (regression baselines for the wasm output AND the wang-js port). Refuses to overwrite without `--force` — re-goldening is always a deliberate act; log the reason in `ABOUT_MATH.md` §6 |
+| `update-golden.mjs` | Re-blesses `out/golden.json` (the wang-js port regression baseline). Refuses to overwrite without `--force` — re-goldening is always a deliberate act; log the reason in `ABOUT_MATH.md` §6 |
 
 ### Wang Lab (`mods/noita-wang-lab/` + `lib/wang-template-writer.mjs`)
 

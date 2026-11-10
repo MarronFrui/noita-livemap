@@ -14,7 +14,7 @@
 // capture-calibrated airDark (colorize.mjs:52)). No discriminating signal.
 // This instrument therefore scores three STRUCTURE-SENSITIVE metrics:
 //   air  — IoU of air masks (lum < AIR_THRESHOLD = 24, the pipeline constant
-//          at mapgen/pipeline/3-compare.mjs:18; rock ≈ (70,65,40) lum ≈ 64).
+//          (C78); rock ≈ (70,65,40) lum ≈ 64).
 //   edge — IoU of strong-luminance-step masks (central-diff |gx|+|gy| ≥ 30):
 //          boundary agreement; peak is sharper than region overlap.
 //   lum  — zero-mean NCC of the raw luminance fields (parameter-free,
@@ -70,7 +70,7 @@ for (const k of ["SURFACE_V2", "SURFACE_V3", "PROC_FILL"]) {
   }
 }
 
-const AIR_THRESHOLD = 24; // CONSTANTS/pipeline: mapgen/pipeline/3-compare.mjs:18
+const AIR_THRESHOLD = 24; // C78
 const EDGE_THRESHOLD = 30; // strong-step detector on summed central diffs
 const DX0 = -15, DX1 = 35, DY0 = -5, DY1 = 25; // world px, ±5 margin on the certified bound
 const COARSE_STRIDE = 4;

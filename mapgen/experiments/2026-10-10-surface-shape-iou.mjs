@@ -45,7 +45,7 @@ const { readPng, writePng } = await import("../lib/images.mjs");
 const { loadBiomeConfig } = await import("../lib/biomes.mjs");
 
 // --- C79 constants reused verbatim (C97: identical tile set) ---------------
-const AIR_THRESHOLD = 24;   // lum < 24 = air (pipeline/3-compare.mjs:18, C78)
+const AIR_THRESHOLD = 24;   // lum < 24 = air (C78)
 const RUN_MIN = 20;         // px solid run to count as a surface line (filter only)
 const SKY_TOP_ROWS = 8;     // ref sky-top check window
 const SKY_TOP_MIN_AIR = 6;  // ≥6 of rows [0..7] air else column = no transition

@@ -51,11 +51,6 @@ export function findNoitaDataDir() {
   );
 }
 
-export const wasmPath = path.join(
-  repoRoot,
-  "vendor/noita-tools/src/services/SeedInfo/noita_random/noita_random.wasm"
-);
-
 export const captureTilesources = JSON.parse(
   fs.readFileSync(
     path.join(repoRoot, "vendor/noitamap/src/data/tilesources.json"),
