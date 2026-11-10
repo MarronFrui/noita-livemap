@@ -6,7 +6,7 @@ Tools to reverse-engineer and validate Noita's procedural world generation
 **Docs:** `VERIFIED.md` is the distilled canon — verified truths, eliminated
 hypotheses (do not re-test), and the ranked open frontier; feed session
 context from it. `ABOUT_MATH.md` is the full research journal (evidence log
-§6+); `ghidra-ledger.md` tracks the decompilation processing state.
+§6+).
 `SESSION_CONTEXT.md` (repo root, gitignored) = the session context loader;
 the method charter lives in `AGENTS.md`.
 

@@ -21,7 +21,7 @@ Noita Lua mod  →  telemetry JSON  →  Node bridge  →  frontend  →  noitam
 3. `src/main.ts` (Vite frontend) receives telemetry, displays it, and drives a
    player marker inside the embedded noitamap iframe.
 
-Long-term goal (see `ROADMAP.md`; the campaign frontier = `mapgen/VERIFIED.md`
+Long-term goal (README.md §Roadmap; the campaign frontier = `mapgen/VERIFIED.md`
 §9 + `SESSION_CONTEXT.md`): procedurally generate
 the world map for the live seed using our own Ghidra-reconstructed generation
 (`mapgen/VERIFIED.md` is the canon), instead of showing pre-captured tiles.
@@ -122,7 +122,6 @@ The byte side of every dig reads `noita_dev.exe` through the REA MCP server
 | `dist/` | Build output — do not edit |
 | `vendor/noitamap/` | Git submodule (fork of acidflow-noita/noitamap) |
 | `vendor/noita-tools/` | Git submodule (TwoAbove/noita-tools) — **OBSOLETE reference**: data container only (the coalmine overlay, `lib/has-path.mjs`); never a comparison target (see `mapgen/VERIFIED.md`) |
-| `ROADMAP.md` | Phased plan (Phases 0–5) |
 | `SESSION_CONTEXT.md` | **The session context loader** (gitignored by design) — read at session start |
 
 ## Campaign method charter
@@ -266,7 +265,7 @@ rules, with the incident that motivates each in one line:
     source pointer); when new evidence overturns a canon row, the false claim
     leaves the canon and becomes ONE §8 do-not-retest row (no struck-through
     ghost left behind). Feed session context from
-    `VERIFIED.md`; read `ABOUT_MATH.md`/`ghidra-ledger.md` only for the
+    `VERIFIED.md`; read `ABOUT_MATH.md` (and `git log -p`) only for the
     history of a specific claim.
 
 ## Environment notes

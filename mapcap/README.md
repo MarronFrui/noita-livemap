@@ -46,7 +46,6 @@ run1b = ref+1, run2 = ref+2. The in-game seed is confirmed by telemetry
 | `diff-captures.mjs` | Diff two analyzed captures: per-chunk stats, diff heatmap (= free foreground mask for same-seed pairs), chunkmap, report. Same-seed pair → cross-run noise floor; different-seed pair → seed dependence |
 | `diff-vs-reference.mjs` | Diff an analyzed capture against the cached noitamap reference (seed 78633191); handles the biome-px→world-chunk mapping (ref tile `i_j` = chunk `(i-35, j-14)`) |
 | `stitch-tiles.mjs` | Backup median-stitcher (WSL-side); the mod's own stitcher is authoritative — untested, unused so far |
-| `PREDICTABLE_ZONES.md` | The predetermined-zone record: seed-independent zones, why they are fixed, and their roles in RE |
 
 ```bash
 node mapcap/analyze-capture.mjs --name run2 --seed 78633193 \
@@ -96,7 +95,31 @@ captures agree to ~0.01):
   `temple_wall`/`temple_altar*` template biomes + `solid_wall` fills. No wang
   generation → measured **95.1% seed-independent** (cy=2, three-seed test).
 - Sky/void above the surface (j ≤ 13): black with background disabled.
-- Full band map, zone table and roles: `mapcap/PREDICTABLE_ZONES.md`.
+- Zone table (biome rows j; world chunk cy = j − 14; evidence: the biome
+  map + the 3-way diff of seeds 78633191/92/93 over world chunks
+  cx −5..10, cy −2..3; per-row fg stability: sky cy=−2 97.9%, surface cy=−1
+  72.9%, Mines cy=0 47.3%, cy=1 60.0%, HM cy=2 95.1%, Coal Pits cy=3 55.1%):
+
+| Zone | Biome rows | Composition | Seed-independence | Role in RE |
+| --- | --- | --- | --- | --- |
+| Sky / void | j=1..13 (cy -13..-1) | hills*, mountain_tree, winter, desert (parallax silhouettes) | black with background disabled; BUT contains seed-text overlay → mask | registration zero-point; tripwire (must be black) |
+| Spawn surface band | j=12..14 | mountain_left/right/top/tree/lake, hills, coalmine(small) | mostly fixed scenes; measured 47-98% stable | near-spawn anchors |
+| **Holy Mountain bands** | j=16, 19, 23, 26, 30, 34 (+temple_wall_ending j=39) | temple_wall, temple_altar_left/right, solid_wall | ~95% measured (cy=2); template biomes, NO wang | **best anchors**: pixel landmarks for cross-capture alignment; exclude from wang scoring |
+| solid_wall rows | interleaved with all bands | flat solid fills | seed-independent fills | tripwire; exclude from wang scoring |
+| Lava bands / The Work | j=40..42 | lava_90percent, lava, solid_wall | template-dominated (verify) | bottom-of-map anchor |
+| Mines | j=14..15 | coalmine(+alt), liquidcave, orbroom_07, lavalake | WANG: 47-60% stable, ~11-12% all-3-distinct | wang scoring target |
+| Coal Pits | j=17..18 | excavationsite, fungicave | WANG: 55% stable, 15.7% all-3-distinct | wang scoring target |
+| Snowy Caverns | j=20..22 | snowcave(+tunnel/secret) | WANG (expected) | wang scoring target |
+| Hiisi Base | j=24..25 | snowcastle | WANG (expected) | wang scoring target |
+| Vault (rainforest bands + vault) | j=27..29, 31..33 | rainforest(_open), vault | WANG (expected) | wang scoring target |
+| Temple of the Art | j=35..39 | crypt, boss_arena, wandcave, wizardcave | WANG (expected) | wang scoring target |
+| The End / hell top | j=43..47 | the_end, solid_wall, lava | mixed | bottom anchor |
+
+Special single-chunk biomes (likely fixed rooms, verify individually):
+`orbroom_07/08`, `boss_arena(_top)`, `wizardcave_entrance`, `alchemist_secret`,
+`potion_mimics`, `biome_darkness`, `sky_light_injector`, `snowcave_secret_chamber`,
+`friend_1/2`, `meat`, `wandcave`.
+
 - Roles: cross-capture registration anchors; pipeline tripwires (any diff
   there = pipeline bug, not world gen); exclusion zones for wang scoring.
 
@@ -140,7 +163,7 @@ captures agree to ~0.01):
    divergence must match the game's **26.5%**; HM bands must come out 100%
    seed-independent (if not, the bug is in our layering).
 4. **L3 geometry IoU in wang bands only**: air/solid after global-shift fit,
-   excluding HM/sky/solid_wall zones (`PREDICTABLE_ZONES.md`).
+   excluding HM/sky/solid_wall zones (§Predetermined zones above).
 
 Accept a fill-hypothesis knob only if L1 holds and L3 improves; otherwise
 revert and log in the mismatch DB.

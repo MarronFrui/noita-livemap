@@ -84,7 +84,7 @@ const CANDS = [
   [-11, -12], [11, 0], [0, 12],
 ];
 const TX0 = 29, TX1 = 47; // capture window (ref stitch)
-const ROWS = [14, 15, 17, 18]; // wang rows in the window; 16/19 = HM — excluded from scoring (mapcap/PREDICTABLE_ZONES.md)
+const ROWS = [14, 15, 17, 18]; // wang rows in the window; 16/19 = HM — excluded from scoring (mapcap/README.md §Predetermined zones)
 const N = 512 * 512;
 
 const lum = (r, g, b) => Math.round(0.299 * r + 0.587 * g + 0.114 * b);

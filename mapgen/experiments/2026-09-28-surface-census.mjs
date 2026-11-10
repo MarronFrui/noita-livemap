@@ -87,8 +87,8 @@ function hasDump(entry) {
 
 // ---- doc-mention coverage -------------------------------------------------
 const DOC_FILES = [
-  "mapgen/ghidra-ledger.md", "mapgen/CONSTANTS.md", "mapgen/VERIFIED.md",
-  "mapgen/ABOUT_MATH.md", "mapgen/ISSUES.md", "SESSION_CONTEXT.md", "Current_work.md",
+  "mapgen/CONSTANTS.md", "mapgen/VERIFIED.md",
+  "mapgen/ABOUT_MATH.md", "mapgen/ISSUES.md", "SESSION_CONTEXT.md",
 ];
 const mentioned = new Set();
 let docAddrs = 0;

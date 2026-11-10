@@ -63,15 +63,40 @@ Then open `http://localhost:5173/` in your browser.
 ├── scripts/             # Build helpers
 ├── src/                 # Vite frontend
 ├── vendor/noitamap/     # Forked noitamap submodule
-├── vendor/noita-tools/  # noitool submodule — OBSOLETE reference (data container only)
-└── ROADMAP.md           # Planned features and open questions
+└── vendor/noita-tools/  # noitool submodule — OBSOLETE reference (data container only)
 ```
 
-## Planned features
+## Roadmap
 
-- **Fungal shift solver** — integrate [liquidcake's fungus solver](https://pub.colonq.computer/~liquidcake/fungus/) for seed-specific fungal shift predictions.
+**Generated map (the long-term goal).** Replace noitamap's pre-captured
+tiles with tiles generated on demand for any seed, from our own
+reconstruction of `noita_dev.exe`. The genmap tile server
+(`npm run gen:server`, viewer at `http://localhost:8082/genmap.html`)
+already renders arbitrary seeds and follows the live player. The current
+research frontier lives in `mapgen/VERIFIED.md` §9; defects and debt in
+`mapgen/ISSUES.md`.
 
-See `ROADMAP.md` for more details and open questions.
+Open product work:
+
+- Serve generated tiles inside the noitamap viewer (OpenSeadragon) instead of
+  the captured DZI; carry `?seed=` into that view.
+- Define the fallback for areas that fail to generate (they currently render
+  black).
+- Seed-prediction overlays (fungal shifts — e.g. via
+  [liquidcake's fungus solver](https://pub.colonq.computer/~liquidcake/fungus/) —
+  shops, perks, LC/AP recipes), derived from the game binary/data, drawn as
+  markers on the generated map.
+- Quality of life: configurable telemetry write rate; clearer UI errors when
+  Noita or the bridge is not running; copy less of noitamap's build output.
+- Distribution: package the bridge as one executable; publish the mod to the
+  Steam Workshop (the mod-data folder then becomes the Workshop ID — the
+  bridge must detect it); decide between a browser page and a desktop shell;
+  support save slots other than `save00`.
+
+## Credits
+
+Map viewer: [noitamap](https://github.com/acidflow-noita/noitamap) by
+acidflow / WUOTE (GPL-3.0).
 
 ## License
 

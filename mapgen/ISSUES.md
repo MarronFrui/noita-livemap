@@ -28,7 +28,7 @@
 
 - **Predictable spawns in The Work:** the **moon** (top/heaven band) and the
   **dark moon** (bottom/hell band). Seed-independent → registration anchors +
-  validation targets (same role as the HM bands, mapcap/PREDICTABLE_ZONES.md).
+  validation targets (same role as the HM bands, mapcap/README.md §Predetermined zones).
   Zones where elements cannot spawn around them are also predictable.
 - Extension mechanics that are verified and stay: clamped biome-map sampling
   (48 sky rows, 48 deep rows, 1 east col), per-cell clamping (L-shaped areas),
@@ -118,7 +118,7 @@ reconstruction · priority HIGH/MED/LOW, user-weighted.
   y = canvas py − 24576) eliminated the world-frame candidate via claim
   (c) — "the hills-family noise band lives at CANVAS ty 48..50 = biome
   rows 0..2" (`mapgen/experiments/2026-09-21-noise-window.mjs:4-6`) —
-  but the capture puts ground at bty 12..14 (`mapcap/PREDICTABLE_ZONES.md:31-32`
+  but the capture puts ground at bty 12..14 (`mapcap/README.md §Predetermined zones`
   spawn surface j=12..14; dig #100 census: transitions bty 10..14, none
   ≤9) ⇒ the noise band cited at canvas ty 48..50 is SKY, so the
   elimination's premise does not pin the surface. Re-running it with

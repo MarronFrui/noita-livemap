@@ -4,8 +4,8 @@
 > map generation — verified facts only, each with a source pointer. It exists
 > so context can be fed from one file instead of re-reading the research
 > trail. Research traces, false leads, hypotheses and their stories live in
-> `ABOUT_MATH.md` (evidence log §6+) and `ghidra-ledger.md` (decompilation
-> processing state); this file holds only what survived.
+> `ABOUT_MATH.md` (evidence log §6+) and git history; this file holds only
+> what survived.
 >
 > **Tl;dr state (2026-11-08):** **the wang layer is prediction-solved end
 > to end** (worldseed → GetRNG → per-attempt sub-seed → vertex coloring
@@ -21,7 +21,7 @@
 >   "current" truths. Superseded text is deleted, not annotated (AGENTS.md
 >   Synthesis law; git history is the archive).
 > - To research a specific entry's history, follow its source pointer into
->   `ABOUT_MATH.md` / `ghidra-ledger.md`.
+>   `ABOUT_MATH.md` (or `git log -p` for removed text).
 
 Legend: ✅ empirically verified (ran it / byte-compared / measured in-game) ·
 🔬 asm-verified (read from `noita_dev.exe` disassembly, constants byte-checked) ·
@@ -125,7 +125,7 @@ L4 pixel scenes / decor. ABOUT_MATH §5.1.
 
 ## 7. Binary infrastructure map (noita_dev.exe)
 
-All 🔬 (decompiled + byte-verified); details in `ghidra-ledger.md`.
+All 🔬 (decompiled + byte-verified); the pre-REA decompilation narrative: `git log -p -- mapgen/ghidra-ledger.md`.
 
 | Item | Where | What |
 | --- | --- | --- |
