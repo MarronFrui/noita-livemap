@@ -997,7 +997,7 @@ export function attachNoiseTerrain(world, dataDir, seed = 0) {
     const ch = world.noiseAt?.(tx, ty);
     if (!ch || !ch.matIdx) return { idx: 255, names: null };
     const lx = (wx - tx * CHUNK) / 10, ly = (wy - ty * CHUNK) / 10;
-    if (lx < 0 || ly < 0 || lx >= 51 || ly >= 51) return { idx: 255, names: null };
+    if (lx < 0 || ly < 0 || lx >= 52 || ly >= 52) return { idx: 255, names: null }; // cell 51 = the 2-px remainder (CELLS_PER_CHUNK)
     return {
       idx: ch.matIdx[52 * Math.floor(ly) + Math.floor(lx)],
       names: ch.matNames ?? null,
@@ -1013,7 +1013,7 @@ export function noiseSolidAt(world, wx, wy) {
   const ch = world.noiseAt?.(tx, ty);
   if (!ch) return null;
   const lx = (wx - tx * CHUNK) / 10, ly = (wy - ty * CHUNK) / 10;
-  if (lx < 0 || ly < 0 || lx >= 51 || ly >= 51) return 0;
+  if (lx < 0 || ly < 0 || lx >= 52 || ly >= 52) return 0; // cell 51 = px 510..511 (was rejected: a 2-px air line on every noise chunk edge)
   return ch.mask[52 * Math.floor(ly) + Math.floor(lx)];
 }
 

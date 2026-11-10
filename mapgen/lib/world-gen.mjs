@@ -142,6 +142,23 @@ export function binSampleAt(world, wx, wy, tx, ty, gx, gy) {
   }
   return own ? { ...own, hit: false } : { idx: -1, x: gx, y: gy, hit: false };
 }
+// FLAGGED D (ISSUES §A A25, the bin edge strip): an area spanning n chunks
+// = n·512 px has only trunc(n·51.2) cells (C192), so up to 9 px at its far
+// x / y edge read past its last cell. When no neighbour area covers them (a
+// bin MISS: the neighbour is a noise / template chunk), every lane used to
+// return null there (2-px null lines through the terrain, e.g. 23_15..22 x
+// 499..500). The game reads the next P cell (t = trunc(n_end·51.2), outside
+// the area: its content is unread); the stand-in = the area's own last cell.
+// E1 over the capture's 51,981 such px: solid agreement 0.27 (null) →
+// 0.765 own last cell (0.735 for the neighbour's px).
+function binLocal(a, m, bx, by, hit) {
+  let lx = bx - a.area.x1 * CHUNK, ly = by - (a.area.y1 + SKY_ROWS) * CHUNK;
+  if (!hit) {
+    if (lx >= m.w * 10 && lx < m.w * 10 + 10) lx = m.w * 10 - 1;
+    if (ly >= m.h * 10 && ly < m.h * 10 + 10) ly = m.h * 10 - 1;
+  }
+  return { lx, ly };
+}
 const BIN_CANDIDATES = [[0, 0], [-1, 0], [0, -1], [-1, -1], [1, 0], [0, 1], [1, 1], [1, -1], [-1, 1]];
 // dig #233: a grey PLACEHOLDER cell = the game's P-empty arm (the same law
 // as the Work lane, the-work.mjs header, C186): field = the grey's
@@ -195,7 +212,7 @@ export function worldColorAt(world, wx, wy) {
   // the bin-lane sample point (C192): the wang area whose map holds the
   // display px under ITS anchor (the true area boundary sits up to ±6 px from
   // the C78 chunk boundary, so the neighbours are candidates too)
-  const { idx: binIdx, x: bx, y: by } = binSampleAt(world, wx, wy, tx, ty, gx, gy);
+  const { idx: binIdx, x: bx, y: by, hit: binHit } = binSampleAt(world, wx, wy, tx, ty, gx, gy);
   // the px's chunk = the chunk its per-area sample falls in (a hit: the
   // area's own chunk; a miss from a wang chunk: the neighbour). When it is not
   // the C78 chunk, the px lies in the ≤ 6 px strip between the two
@@ -260,7 +277,7 @@ export function worldColorAt(world, wx, wy) {
         const a = world.areas[idxB];
         const m = world.maps.get(a.key);
         if (m) {
-          const lx = bx - a.area.x1 * CHUNK, ly = by - (a.area.y1 + SKY_ROWS) * CHUNK;
+          const { lx, ly } = binLocal(a, m, bx, by, binHit);
           if (lx >= 0 && ly >= 0 && lx < m.w * 10 && ly < m.h * 10) {
             const ax = Math.floor(lx / 10), ay = Math.floor(ly / 10);
             const p = 3 * (ay * m.w + ax);
@@ -372,7 +389,7 @@ export function worldColorAt(world, wx, wy) {
     const a = world.areas[idx];
     const m = world.maps.get(a.key);
     if (m) {
-      const lx = bx - a.area.x1 * CHUNK, ly = by - (a.area.y1 + SKY_ROWS) * CHUNK;
+      const { lx, ly } = binLocal(a, m, bx, by, binHit);
       // area maps are in atlas px: 1 atlas px = 10 world px
       if (lx >= 0 && ly >= 0 && lx < m.w * 10 && ly < m.h * 10) {
         const ax = Math.floor(lx / 10), ay = Math.floor(ly / 10);

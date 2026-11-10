@@ -989,3 +989,44 @@ describe.skipIf(!hasNoitaData())("I64 — the cursed rock's texture and displace
     expect(wallOk / wall).toBeGreaterThan(0.95);
   }, 240000);
 });
+
+// I66 (2026-11-10): the 2-px chunk-edge seams. (a) the noise accessors
+// rejected mask cell 51 (px 510..511, the 51.2-cell remainder the mask DOES
+// compute) ⇒ a 2-px air/null line on every noise chunk's right/bottom edge;
+// (b) an area of n chunks has trunc(n·51.2) bin cells, so its last ≤ 9 px
+// read past the bin; with a non-bin neighbour every lane returned null
+// (A25 stand-in: the area's own last cell).
+describe("I66 — no 2-px seams at chunk edges", () => {
+  test("noiseSolidAt / noiseMatAt serve cell 51 (px 510..511)", async () => {
+    const { noiseSolidAt } = await import("../../mapgen/lib/noise-terrain.mjs");
+    const mask = new Uint8Array(52 * 52).fill(1);
+    const world = { noiseAt: () => ({ mask }) };
+    for (const [x, y] of [[510, 5], [511, 5], [5, 510], [5, 511], [511, 511]]) {
+      expect(noiseSolidAt(world, 3 * CHUNK + x, 7 * CHUNK + y)).toBe(1);
+    }
+    expect(noiseSolidAt(world, 3 * CHUNK + 509, 7 * CHUNK + 509)).toBe(1);
+  });
+  test.skipIf(!hasNoitaData())("seed 78633191: no null px between two painted neighbours on the seam lines", async () => {
+    const world = await sharedWorld();
+    let seams = 0, checked = 0;
+    const c = (x, y) => worldColorAt(world, x, y);
+    // vertical bin-edge seams (winter_caves → noise neighbour): 23_15..22, 18_15..19
+    for (const [tx, ty0, ty1] of [[23, 15, 22], [18, 15, 19]]) for (let ty = ty0; ty <= ty1; ty++) {
+      const X0 = tx * CHUNK, Y0 = (ty + SKY_ROWS) * CHUNK;
+      for (let j = 0; j < 512; j += 2) {
+        if (!c(X0 + 498, Y0 + j) || !c(X0 + 501, Y0 + j)) continue;
+        checked++; seams += !c(X0 + 499, Y0 + j) || !c(X0 + 500, Y0 + j);
+      }
+    }
+    // horizontal noise-cell-51 seams in the surface row (biome ty 13)
+    for (let tx = 16; tx <= 30; tx++) {
+      const X0 = tx * CHUNK, Y0 = (13 + SKY_ROWS) * CHUNK;
+      for (let i = 0; i < 512; i += 2) {
+        if (!c(X0 + i, Y0 + 497) || !c(X0 + i, Y0 + 500)) continue;
+        checked++; seams += !c(X0 + i, Y0 + 498) || !c(X0 + i, Y0 + 499);
+      }
+    }
+    expect(checked).toBeGreaterThan(3000);
+    expect(seams).toBe(0); // before the fix: 5,507 of these px were null
+  }, 240000);
+});
