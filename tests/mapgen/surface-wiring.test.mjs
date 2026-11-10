@@ -40,6 +40,7 @@
 // Data-gated: needs the extracted biome map + hills.xml (no extracted
 // data → skipped, like the rest of the battery).
 
+import "../helpers/lane-v2-off.mjs"; // must precede noise-terrain (lane flags are load-time)
 import { describe, test, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
@@ -185,7 +186,7 @@ function hillsChunks(ty, limit = 99) {
   return out;
 }
 
-describe.skipIf(!hasNoitaData() || process.env.SURFACE_V2 === "1")(
+describe.skipIf(!hasNoitaData())(
   "SURFACE_V3 field→gate→classify wiring (dig #101, data-gated)",
   () => {
     test("round-trip: mask 1 ⇒ field gate ∧ classify hit (surface row)", () => {

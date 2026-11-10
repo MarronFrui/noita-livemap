@@ -2,6 +2,6 @@
   "comment": "the I36 count law's reference (dig #156, scripts/precommit-gates-lib.mjs): the full battery must report EXACTLY these vitest summary totals at every gated commit — any deficit = the silent-truncation class, refused with one retry allowed. Updated per dig when the committed test set changes (the dig's own battery run is the source).",
   "filesTotal": 45,
   "testsTotal": 567,
-  "testsSkipped": 4,
-  "source": "npm test 2026-11-10 (legacy wasm lane retired: golden.test 4 -> 3, wasm determinism replaced by wang-js determinism): 45 files / 563 passed | 4 skipped (567)."
+  "testsSkipped": 1,
+  "source": "npm test 2026-11-10 (vitest 2.1.9 -> 5.1.0; surface-wiring's 3 V3-lane tests now run instead of skipping): 45 files / 566 passed | 1 skipped (567)."
 }

@@ -8,7 +8,9 @@ export default defineConfig({
     // keep ample headroom for slower WSL-mount access to game data.
     testTimeout: 120_000,
     hookTimeout: 120_000,
+    // one worker at a time: the data-gated suites each hold multi-GB worlds.
     pool: "forks",
-    poolOptions: { forks: { singleFork: true } },
+    maxWorkers: 1,
+    fileParallelism: false,
   },
 });
