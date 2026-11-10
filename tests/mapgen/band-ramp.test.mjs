@@ -1,20 +1,15 @@
-// tests/mapgen/band-ramp.test.mjs — dig #142: the kind-0 band-ramp lane
-// count tests. Byte law: r-eval true 0x90B280 (X82, prologue→ret fresh
-// this session), params true 0x90B680 (dig137 asm, fresh re-read), fbm
-// true 0x9FAD90 (X98, fresh incl. the 9fae16..9fae45 gap), cell accessor
-// 0x909C70, frame C119 (baseX 17920 / baseY 7168 / 70x48 / count 3360),
-// Phase-S draw 0x10098C0 (Lehmer 16807 mod 2147483647, INV
-// 4.656612875e-10 — NOT wang-js's tile LCG).
+// Kind-0 band-ramp lane count tests. Byte law: r-eval true 0x90B280 (X82),
+// params true 0x90B680, fbm true 0x9FAD90 (X98), cell accessor 0x909C70,
+// frame C119 (baseX 17920 / baseY 7168 / 70x48 / count 3360), Phase-S draw
+// 0x10098C0 (Lehmer 16807 mod 2147483647, INV 4.656612875e-10 — not
+// wang-js's tile LCG).
 //
-// Structure per the count-test charter: every branch gets 0/1/N counts
-// plus the skip path; every replacement/discriminator below FAILS under
-// the old arithmetic (pre-#142 = the noiseDispatch surrogate r-site, and
-// per-sub-law the no-clamp / unscaled-args / 3-octave / surrogate restat-
-// ements). Port-only fixtures — the one data-gated block is marked.
+// Every branch gets 0/1/N counts plus the skip path; each discriminator
+// fails under the rejected readings (noiseDispatch surrogate r-site,
+// no-clamp, unscaled args, 3 octaves). Port-only fixtures except the one
+// marked data-gated block.
 //
-// METER-CLASS: n/a — these are E0/E1 byte-law pins (golden literals +
-// branch counts), not composed-output meters; no IoU/fG/rms/meanAbs
-// numbers are cited here.
+// METER-CLASS: n/a — E0/E1 byte-law pins, not composed-output meters.
 
 import { describe, test, expect } from "vitest";
 import fs from "node:fs";
@@ -401,14 +396,13 @@ describe("bandParams mode arms (true 0x90B680): 0/1/2/3 + else-arm", () => {
     expect(out[0]).toBe(expA);
     // out1 = the SHARED TAIL: engine ALWAYS the simplex core with f64
     // args (@0x90b79b → 0x8fc020; the jmp @0x90b74e lands mode 2 on the
-    // same tail head @0x90b77f) — the pre-#142 fbm-tail expectation
-    // FAILS here
+    // same tail head @0x90b77f)
     const expB = 20 + simplex2DDeriv(scale * coord, scale * 20) * 100;
     expect(out[1]).toBe(expB);
     expect(out[1]).not.toBe(20 + fbmGradient(f(scale * coord), f(scale * 20)) * 100);
     // shared-tail identity: mode 1 and mode 2 tails are the SAME code
     // path — same band ⇒ bit-identical out1 (1-count discriminator vs
-    // the old "mode-2 tail = fbm" law)
+    // a "mode-2 tail = fbm" reading)
     const b1 = BAND(10, 20, { mode: 1, gradNoiseScale: scale });
     expect(bandParams(d, b1, coord)[1]).toBe(out[1]);
     // mode-1 vs mode-2 discriminator at the same inputs (out0: core vs fbm)
@@ -423,8 +417,7 @@ describe("bandParams mode arms (true 0x90B680): 0/1/2/3 + else-arm", () => {
       expect(core(mode), `mode=${mode}`).toEqual(base);
     }
     expect(core(2)).not.toEqual(base); // the fbm OUT0 arm is distinct (1-count)
-    // …but its tail is the shared core path: bit-identical out1 (the
-    // (mode 2: fbm) tail reading was the dig-#142 port bug)
+    // …but its tail is the shared core path: bit-identical out1
     expect(core(2)[1]).toBe(base[1]);
     expect(core(3)).not.toEqual(base); // the slope arm is distinct
     expect(core(0)).toEqual([10, 20]); // const arm distinct from the rest
@@ -435,8 +428,7 @@ describe("bandParams mode arms (true 0x90B680): 0/1/2/3 + else-arm", () => {
     const r = bandRampEval(dC, uid, -7.5, 3.5); // no seam: lx = 504
     expect(r).toBe(f(103.5 / 200));
     expect(f(r * 10)).toBe(5.174999713897705);
-    // replacement discriminator: the pre-#142 surrogate arithmetic gives
-    // a different r entirely — this pin FAILS under the old law
+    // discriminator: the noiseDispatch surrogate gives a different r
     expect(f(r * 10)).not.toBe(f(noiseDispatch(5, -7.5, 3.5) * 10));
   });
 });
@@ -581,9 +573,8 @@ describe("driver frame contract (C119) + the surfaceField guard", () => {
       gradStartY: -512,
       gradEndY: 512,
       gradSlopeStartX: 0,
-      // dig #145 (fresh ctor read): [+0x280] gradSlopeDelta default = f64
-      // 1.0 (movsd %xmm1,[0x11e0b40] @0x49615d) — the port's old invented
-      // 0.01 default is gone (C121).
+      // [+0x280] gradSlopeDelta ctor default = f64 1.0 (movsd
+      // %xmm1,[0x11e0b40] @0x49615d; C121).
       gradSlopeDelta: 1.0,
       mode: 1,
       gradNoiseScale: 0,
@@ -636,7 +627,7 @@ describe("driver frame contract (C119) + the surfaceField guard", () => {
     expect(() => surfaceField({ ...base, driver: undefined }, 0, 0, 0))
       .toThrow(/driver missing/);
     // with a driver attached the lane runs: band (100,200) at (0,0) →
-    // r = 0 → rp = r·field0 = 0 (field0 ≡ 1.0, dig #146) → the gates are
+    // r = 0 → rp = r·field0 = 0 (field0 ≡ 1.0) → the gates are
     // skipped → FINAL = 0, no throw
     const ok = { ...base, driver: drvOf(BAND(100, 200, { mode: 0 })) };
     expect(surfaceField(ok, 0, 0, 0)).toBe(0);
@@ -698,13 +689,12 @@ describe.skipIf(!hasNoitaData())("makeBandDriver on the real config (data-gated)
 });
 
 describe("dig #207 — the case-5 hash-chain law (0x8fc0f0..0x8fc135) + the skew pins", () => {
-  // Byte law (fresh this dig): the core 0x8fc020's corner-grad chain is
-  //   mod12t[perm16[j + dy] + i + dx]  — PERM CARRIES Y, the add carries X:
+  // Byte law: the core 0x8fc020's corner-grad chain is
+  //   mod12t[perm16[j + dy] + i + dx]  — perm carries Y, the add carries X:
   //   (0,0) mod12t[perm16[j] + i] · (s1x,s1y) mod12t[perm16[j+s1y] + i+s1x]
-  //   (1,1) mod12t[perm16[j+1] + i] — the X-STEP ABSENT (the game's quirk,
+  //   (1,1) mod12t[perm16[j+1] + i] — the X step is absent (game quirk,
   //   0x8fc117..0x8fc135). Tables = 0x8fbfd0 (512 entries, PERM_SIMPLEX[k&0xff]).
-  // The old port chained perm[i]+j — a full re-pattern. Every golden pin
-  // below FAILS under that old orientation (the replacement-test rule).
+  // Every golden pin below fails under the perm[i]+j orientation.
   test("golden pins (fresh bytes; fail under the old perm[i]+j orientation)", () => {
     const pins = [
       [0.37, 1.41, 0.1894057695264049],
@@ -725,15 +715,13 @@ describe("dig #207 — the case-5 hash-chain law (0x8fc0f0..0x8fc135) + the skew
     expect(simplex2DDeriv(0, 0)).toBe(0);
   });
   test("the skew doubles are PINNED static-init forms (0x4070e0/0x407110): F2=(√3−1)/2, G2=(3−√3)/6", () => {
-    // The C39-era "unpinned BSS" flag is CLEARED: 0x4070e0 computes
-    // F2 = (sqrt([0x11dfea0]=3.0) − [0x11dfe30]=1.0) · [0x11dfdd8]=0.5 and
-    // 0x407110 computes G2 = ([0x11dfea0] − sqrt(3.0)) / [0x11dfef0]=6.0.
-    // The core's lattice geometry therefore matches the standard simplex
-    // skew EXACTLY — assert the wrap-point symmetry the skew implies.
+    // 0x4070e0 computes F2 = (sqrt([0x11dfea0]=3.0) − [0x11dfe30]=1.0) ·
+    // [0x11dfdd8]=0.5; 0x407110 computes G2 = ([0x11dfea0] − sqrt(3.0)) /
+    // [0x11dfef0]=6.0 — the standard simplex skew exactly.
     const F2 = (Math.sqrt(3) - 1) / 2;
     const G2 = (3 - Math.sqrt(3)) / 6;
     // at a lattice-corner point the field must be the corner-grad dot = 0
-    // in BOTH the old and the new orientation (the skew-invariant pin)
+    // in either orientation (the skew-invariant pin)
     expect(simplex2DDeriv(0, 0)).toBe(0);
     expect(Number.isFinite(F2 + G2) && F2 > 0.36 && G2 > 0.21).toBe(true);
   });

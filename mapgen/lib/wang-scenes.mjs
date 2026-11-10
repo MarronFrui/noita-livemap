@@ -256,8 +256,7 @@ export class WangLuaHost {
   }
 }
 
-// Spawn triggers INSIDE a placed pixel-scene image (2026-11-08, the sky-band
-// fix): the engine's spawn pass also walks the material image of a spliced /
+// Spawn triggers inside a placed pixel-scene image: the engine's spawn pass also walks the material image of a spliced /
 // fixed scene — a px whose colour is registered in the HOSTING biome's spawn
 // table calls that function at the px's world position (the spliced tree.png
 // carries one 0xc2d0b4 px = mountain_tree.lua's spawn_pillars: the six
@@ -296,13 +295,11 @@ export function sceneImageSpawnCalls(dataDir, scenes, hostFor, readImage) {
 // G1 = 7168 (C170) — the record's {x, y} is what CallSpawnFunction hands the
 // Lua function (and so what ProceduralRandom(x, y) seeds on). The area's
 // out_map pixel i sits at global cell tx = trunc(x1·51.2) + i (the per-term
-// GetWidthFromPix frame, world-gen widthCells), so the call is NOT the old
-// `(x1 − 35)·512 + 10·i` (off by −5 − 10·frac(x1·51.2) = −5..−13 px — enough
-// to reseed every load_random_pixel_scene pick: the wrong-variant report).
-// The record position IS the game cell's origin: the bin content samples P
-// through the C167 ±1 snap (s(f) ≥ 0.5 ⇒ +1 = rounding), so cell t covers
-// [10·t − 5, 10·t + 5) − G — the per-area C78 fit confirms it (dx ≈ 5 +
-// 10·frac(x1·51.2), dy ≈ 5 + 10·frac(y1·51.2); I60). The returned scenes are
+// GetWidthFromPix frame, world-gen widthCells). This differs from the
+// generator frame `(x1 − 35)·512 + 10·i` by 5..13 px, enough to reseed
+// every ProceduralRandom pick. The record position is the game cell's
+// origin: the bin content samples P through the C167 ±1 snap (rounding), so
+// cell t covers [10·t − 5, 10·t + 5) − G (I60). The returned scenes are
 // translated into the GENERATOR frame the bin lane renders (cell i at
 // (x1 − 35)·512 + 10·i), keeping the game's zero offset from the trigger
 // cell; `callX/callY` = the game-frame position.

@@ -1,33 +1,24 @@
-// tests/mapgen/plz-codec.test.mjs — dig #168: the .plz container codec
-// (mapgen/lib/plz.mjs) + THE SPLICE PAINT-CLASSIFICATION LAW (blitSplicedScenes'
-// air/miss skips, template-render.mjs).
+// tests/mapgen/plz-codec.test.mjs — the .plz container codec
+// (mapgen/lib/plz.mjs) and the splice paint-classification law
+// (blitSplicedScenes' air/miss skips, template-render.mjs).
 //
-// Claim levels: the codec windows = B (BYTE, this-session full-window reads —
-// MANIFEST X137/X138/X139); the census/content pins = M (MEASURED, this
-// script); the render counts = E1 count law (see the count-test comment).
+// Claim levels: codec windows = B (MANIFEST X137/X138/X139); census/content
+// pins = M (this script); render counts = E1 count law.
 //
-// COUNT-TEST NOTE (charter: a replacement test must FAIL under the old law's
-// arithmetic): TWO laws pin this lane. (1) dig #168's classification: the OLD
-// law = skip pure-black only; air cells painted with fallbackSolid, miss cells
-// painted with the ART's RAW RGB — chunk "40,62" then has miss-painted =
-// 104075; the pin below (0) fails that arithmetic. (2) dig #170's grey-fill
-// law (C145): pure-grey placeholder px (104653 at alpha>=10) fill with the
-// HOSTING BIOME's MaterialComponent band shades; the OLD law (grey =
-// keep-content skip, unset 183144) fails the new unset/paint pins by
-// construction. Both laws are capture-counted (E1: the #168 truth table in
-// ABOUT entry (168); the #170 fill/defer split — art-grey cells are capture
-// SOLID 104002/104002 = 100.000% while art-black "below shows" is 46.2% dark
-// — in ABOUT entry (170)), NOT derived from the tile IoU.
+// Two laws pin this lane: (1) classification — air and raw-art miss cells are
+// skipped, never painted with the art's RGB; (2) the grey-fill law (C145) —
+// pure-grey placeholder px fill with the hosting biome's MaterialComponent
+// band shades. Both are capture-counted (art-grey cells are capture solid
+// 104002/104002), not derived from tile IoU.
 //
-// SCOPE: the count law pins the exported blitSplicedScenes on a fresh map —
-// chunk 40,62's full-render content is byte-identical to that blit (M:
-// mapgen/experiments/2026-10-18-splice-chunk-equiv.mjs, byteEqual true,
-// 48783 ms full render vs 1825 ms splice-only). No whole-world render runs
-// in this file: that single ~49 s sync span sits on vitest single-fork's
-// 60 s worker-RPC cliff (the I36 `Timeout calling "onTaskUpdate"` class).
+// Scope: the count law pins blitSplicedScenes on a fresh map; chunk 40,62's
+// full-render content is byte-identical to that blit (M:
+// mapgen/experiments/2026-10-18-splice-chunk-equiv.mjs). No whole-world
+// render runs here: that ~49 s sync span hits vitest single-fork's 60 s
+// worker-RPC timeout (I36).
 //
-// The codec section needs no game data; the census/render sections auto-skip
-// without it (they RUN in this repo's gates — data is present there).
+// The codec section needs no game data; the census/render sections
+// auto-skip without it.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -85,8 +76,8 @@ describe("plz codec — format vectors (dig #168, byte law)", () => {
   });
 
   test("THE RAW GATE: rawLen < 0x80 -> verbatim, no dispatch (4.plz shape)", () => {
-    // payload[0] = 0xff would dispatch as level 8 = reject — but the gate
-    // comes first (loader 0x90E644), exactly like the shipped 4.plz.
+    // payload[0] = 0xff would dispatch as level 8 = reject, but the gate
+    // comes first (loader 0x90E644), like the shipped 4.plz.
     const payload = Buffer.from([0xff, 0, 0, 0, 0xaa, 0xbb, 0xcc, 0xdd]);
     expect(payload.length).toBeLessThan(PLZ_RAW_THRESHOLD);
     const f = makePlzFile({ rawLen: payload.length, payload });
@@ -261,16 +252,10 @@ describe.skipIf(!hasData)("plz census + splice paint law (dig #168, measured)", 
     const { loadMaterials, MATERIAL_SHADE, SHADES } = await import("../../mapgen/lib/colorize.mjs");
     const { readPng } = await import("../../mapgen/lib/images.mjs");
 
-    // SCOPED PIN (dig #168, re-measured dig #170): chunk 40,62's FULL
-    // renderTemplateWorld content == a splice-only blit into a fresh map,
-    // byte-identical — measured by
-    // mapgen/experiments/2026-10-18-splice-chunk-equiv.mjs (M: byteEqual
-    // true; both laws, same config+seed args). The full render is ONE ~50 s
-    // sync span — right at vitest single-fork's 60 s worker-RPC cliff (the
-    // I36 `Timeout calling "onTaskUpdate"` class) — so the count law pins
-    // blitSplicedScenes directly. No other pass touches the chunk
-    // (biomeAt(40,62) = the_end, template:false; the extension leaves
-    // non-lava/tower/wall/lake defs void).
+    // Chunk 40,62's full renderTemplateWorld content == a splice-only blit
+    // into a fresh map (M: mapgen/experiments/2026-10-18-splice-chunk-equiv.mjs),
+    // so this pins blitSplicedScenes directly. No other pass touches the
+    // chunk (biomeAt(40,62) = the_end, template:false).
     const config = loadBiomeConfig(DATA_DIR);
     const buffers = new Map();
     blitSplicedScenes(buffers, DATA_DIR, config, 78633191);
@@ -287,47 +272,27 @@ describe.skipIf(!hasData)("plz census + splice paint law (dig #168, measured)", 
       const k = key(i);
       painted.set(k, (painted.get(k) ?? 0) + 1);
     }
-    // dig #170 (the grey-fill law, C145 fix B): mountain_lake's own
-    // 104002 pure-grey px (alpha>=10 — there are NO grey px at alpha
-    // 10..127) fill with the hosting biome's shades, PLUS 651
-    // fill-THROUGH cells: lavalake2.png (2560x2392 at game (2048,0),
-    // blitted BEFORE mountain_lake, SPLICE_PNGS order) overlaps this
-    // chunk, and its grey->band fill lands under mountain_lake's
-    // below-shows cells (transparent 56209 + black 22860 + non-grey miss
-    // 73 = 79142 skip cells, of which 651 keep lavalake2's fill; M: the
-    // per-cell attribution instrument is this test's own blit-vs-art scan,
-    // and mapgen/experiments/2026-10-19-dig170-lake-band-counts.mjs
-    // reproduces the totals). Hence unset = 79142 - 651 = 78491 and fill
-    // = 104002 + 651 = 104653. OLD law (grey = keep-content for BOTH
-    // scenes): unset 183144 / fill 0 → FAILS these pins by construction.
-    //
-    // dig #172 re-pins painted.size: the fill is now the game's driver law
-    // (classify(surfaceField) — noise-terrain surfaceFillLane), so the
-    // distinct-color count = 4 water + 3 rock_hard (the art hits, same as
-    // #170) + the lane's classify shades: 3 sand (95,87,49 / 132,114,54 /
-    // 62,69,85 — the dark sand_static family per the capture census) +
-    // 2 soil (70,65,40 / 64,58,41) + 4 coal (the RARE comp's polka arm,
-    // 25 px — the byte law's rare path riding along). FAIL-UNDER-OLD: the
-    // #170 fill gave 12 (5 fbm shades incl. the fallback slab 90,90,95 /
-    // 80,80,85, NO soil, NO dark sand) — the two family assertions below
-    // fail that arithmetic directly.
-    // I63 (2026-11-09): the splice placeholder = the P-empty arm — 8 of
-    // lavalake2's 651 fill-through cells now classify to no material (keep)
-    // ⇒ 78491 → 78499; the soil shade is gone from this chunk (the registered
-    // soil-top residual, ISSUES I63) and the rock_static family appears.
+    // Grey-fill law (C145): mountain_lake's 104002 pure-grey px (alpha>=10;
+    // no grey px at alpha 10..127) fill with the hosting biome's shades via
+    // classify(surfaceField) (noise-terrain surfaceFillLane). lavalake2.png
+    // (2560x2392 at game (2048,0), blitted before mountain_lake in
+    // SPLICE_PNGS order) overlaps this chunk: its fill shows through
+    // mountain_lake's skip cells (transparent 56209 + black 22860 + non-grey
+    // miss 73 = 79142), 643 of which take a fill shade; the splice
+    // placeholder is the P-empty arm (I63), so cells classifying to no
+    // material stay unset. Totals reproduce with
+    // mapgen/experiments/2026-10-19-dig170-lake-band-counts.mjs.
     expect(unset).toBe(78499);
-    // dig #229: the art's rock_hard hits take C185 (rock_hard's texture = 2 colours, (98,59,50)/(55,34,29) —
-    // the capture's wall pair, I6) instead of the 3-shade hand family ⇒ 16 → 15
-    expect(painted.size).toBe(12); // I63: 4 water + 2 rock_hard + 3 sand + 3 rock_static family (39,40,45 / 42,43,48 / 36,37,42)
-    // the law, not the incidental count: the fill paints the classifying
-    // MATERIALS' shades (soil + the dark sand here) and never the fallback
-    // slab (the old law's 90,90,95 / 80,80,85 family)
+    // 4 water + 2 rock_hard (C185 texture pair) + 3 sand + 3 rock_static
+    // family (39,40,45 / 42,43,48 / 36,37,42)
+    expect(painted.size).toBe(12);
+    // the fill paints the classifying materials' shades, never the fallback
+    // slab (90,90,95 / 80,80,85)
     expect(painted.has(0x5f5731), "the dark sand shade (95,87,49) is painted").toBe(true);
     expect(painted.has(0x5a5a5f) || painted.has(0x505055), "no fallback slab colors").toBe(false);
 
-    // the raw-art miss colors must never reach the buffer (the dig #168
-    // guard; still 0 under the #170 fill — the fill paints MATERIAL shades,
-    // never the art's own RGB)
+    // raw-art miss colors never reach the buffer (the fill paints material
+    // shades, never the art's own RGB)
     const img = readPng(path.join(DATA_DIR, "biome_impl/spliced/mountain_lake.png"));
     const materials = loadMaterials(DATA_DIR);
     const missHex = new Set();
@@ -342,10 +307,9 @@ describe.skipIf(!hasData)("plz census + splice paint law (dig #168, measured)", 
     for (let i = 0; i < buf.length; i += 3) {
       if (missHex.has(key(i).toString(16).padStart(6, "0"))) missPainted++;
     }
-    expect(missPainted).toBe(0); // OLD law (pre-#168): 104075 -> FAILS
+    expect(missPainted).toBe(0); // painting miss cells with art RGB would give 104075
 
     // the hit cells paint their wang material's shades, exact counts
-    // (dig #168 pins, unchanged by #170)
     const inSet = (set) => {
       let n = 0;
       for (let i = 0; i < buf.length; i += 3) if (set.has(key(i))) n++;
@@ -355,11 +319,11 @@ describe.skipIf(!hasData)("plz census + splice paint law (dig #168, measured)", 
       (SHADES[MATERIAL_SHADE.get("water")] ?? []).map((s) =>
         (s.rgb[0] << 16) | (s.rgb[1] << 8) | s.rgb[2])
     );
-    // dig #229: rock_hard (solid) paints C185 = its texture pair
+    // rock_hard (solid) paints C185 = its texture pair (98,59,50)/(55,34,29)
     const rockSet = new Set([(98 << 16) | (59 << 8) | 50, (55 << 16) | (34 << 8) | 29]);
     expect(inSet(waterSet)).toBe(60460);
     expect(inSet(rockSet)).toBe(18540);
-    // the dig #170 fill count: everything painted beyond the art hits
-    expect(paintedTotal - 60460 - 18540).toBe(104645); // I63: 104002 + 643 fill-through (was 651)
+    // fill count: everything painted beyond the art hits
+    expect(paintedTotal - 60460 - 18540).toBe(104645); // 104002 + 643 fill-through
   });
 });

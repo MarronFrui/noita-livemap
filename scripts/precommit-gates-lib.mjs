@@ -1,28 +1,22 @@
-// scripts/precommit-gates-lib.mjs — the PURE decision core of the precommit
-// battery gate (dig #156, I36's registered fix forms (a)+(b); extracted so
-// vitest can test the gate without importing the gate CLI's side effects).
+// scripts/precommit-gates-lib.mjs — the pure decision core of the precommit
+// battery gate (I36), kept separate so vitest can test it without the gate
+// CLI's side effects.
 //
-// I36 (opened dig #148): the full battery truncated silently under the
-// surface-compositor IPC watchdog — two of three 2026-10-16 runs reported
-// only 9/22 files / 205 tests — and the gate read only the exit code, so the
-// two truncated runs' outcomes were UNMEASURED (I36). The fix = capture the
-// output, parse vitest's own summary totals, and refuse any run whose total
-// ≠ the tracked baseline (form (a) — count law, independent of the exit
-// code), with ONE retry whose trigger = the observed watchdog stall class
-// (form (b) — `Timeout calling "onTaskUpdate"`); a retried run must then hit
-// the baseline or the gate refuses (never masks, never lowers the bar).
-// Form (c) (splitting the heavy files) NOT taken: the parser removes the
-// truncation risk without doubling battery latency. The charter bar holds:
-// counts RUN, not skip — the baseline ALSO pins the skipped count.
+// The battery can truncate silently under the vitest worker RPC watchdog, so
+// the exit code alone is not trusted: parse vitest's own summary totals and
+// refuse any run whose total ≠ the tracked baseline (independent of the exit
+// code), with one retry on the watchdog stall (`Timeout calling
+// "onTaskUpdate"`); a retried run must then hit the baseline or the gate
+// refuses. Charter: counts run, not skip — the baseline also pins the skipped
+// count.
 
-// The watchdog stall class seen at the (146)/I36 journal (the vitest worker
-// RPC timeout): lines like `Error: Timeout calling "onTaskUpdate" (2 × 5006ms)`.
+// The watchdog stall class (vitest worker RPC timeout): lines like `Error: Timeout calling "onTaskUpdate" (2 × 5006ms)`.
 export const STALL_RE = /Timeout calling "(?:onTaskUpdate|onCountTaskStart|onUserLog)"/;
 
 // parseVitestSummary — the `Tests N passed | M skipped (T)` tail line
 // (vitest 2/3 summary, indented): fields in any order, one trailing `(total)`.
-// Returns null when no Tests line is found (= truncated BEFORE the summary
-// = the pre-summary abort class; the caller treats null as refuse-too).
+// Returns null when no Tests line is found (truncated before the summary;
+// the caller refuses on null).
 // total falls back to the fields' sum when the trailer is absent.
 export function parseVitestSummary(output) {
   const line = (/^[ \t]*Tests\s+(.*)$/m.exec(output ?? "") ?? [])[1];

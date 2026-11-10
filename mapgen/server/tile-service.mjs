@@ -1,5 +1,5 @@
 // The tile service — every tile the viewer asks for, rendered at most once
-// per generator revision (perf C, 2026-11-08).
+// per generator revision.
 //
 //   memory LRU (PNG bytes) → disk (mapgen/out/tile-cache/<rev>/<seed>/…) →
 //   compute (deduplicated: concurrent asks share one render)
@@ -7,19 +7,19 @@
 // compute:
 //   z ≤ directMaxZ  the direct tile law (tile-render.mjs renderTileRGBA) —
 //                   a z ≤ 4 tile samples ≤ 4 world px per output px and touches
-//                   ≤ ~120 chunks (measured: z4 cold 4.1 s / warm 0.23 s)
-//   z > directMaxZ  the PYRAMID: the 4 child tiles at z−1, combined 2×2 → 1
+//                   ≤ ~120 chunks
+//   z > directMaxZ  the pyramid: the 4 child tiles at z−1, combined 2×2 → 1
 //                   by the direct law's own rule (solid iff solid·2 ≥ total;
 //                   colour = the most frequent solid child px). The direct
-//                   law at z ≥ 5 touched 900–7500 chunks per tile and
-//                   thrashed the chunk cache (12–42 s per tile, warm).
+//                   law at z ≥ 5 touches 900–7500 chunks per tile and
+//                   thrashes the chunk cache.
 // A pyramid px reads "air" as RGB (0,0,0) — the direct law's own air output;
 // a painted pure-black child px therefore also counts as air at the coarser
 // level (display-only; black is black either way).
 //
 // The revision key = a hash of the generator + tile-law sources and the env
 // flags that change the paint, so a code change never serves a stale tile and
-// a server restart never discards a valid one (the old Date.now() epoch did).
+// a server restart never discards a valid one.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -76,7 +76,7 @@ export function sourceRevision(files, extra = "") {
 
 export class TileService {
   // renderDirect(seed, z, x, y, captureOn, { key, priority }) -> Promise<Uint8Array RGBA>
-  // onBump(key): a HIGH ask joined an in-flight LOW (prewarm) render
+  // onBump(key): a high ask joined an in-flight low (prewarm) render
   constructor({ root, rev, renderDirect, gridW, gridH, directMaxZ = 4, maxZ = 7, memTiles = 1024, onBump = () => {}, log = () => {} }) {
     Object.assign(this, { root, rev, renderDirect, gridW, gridH, directMaxZ, maxZ, onBump, log });
     this.mem = new Map(); // key -> PNG Buffer (insertion-order LRU)

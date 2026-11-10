@@ -1,12 +1,7 @@
-// tests/mapgen/template-init.test.mjs — dig #219: the per-chunk init(x, y, w, h)
-// runs as the real biome Lua (template-render.mjs runInitScenes), so its
-// branches decide what loads.
-//
-// COUNT-TEST NOTE (charter: must FAIL under the old law): the old law =
-// parseInitPixelScenes, a static parse that loaded EVERY LoadPixelScene line
-// of the init body in every owned chunk — both side caverns in both cavern
-// chunks, both lava-pit pieces in every pit chunk, the hidden cavern in all
-// of its chunks. Each pin below expects ONE branch.
+// tests/mapgen/template-init.test.mjs — the per-chunk init(x, y, w, h) runs
+// as the real biome Lua (template-render.mjs runInitScenes), so its branches
+// decide what loads. Each pin expects ONE branch, so a static parse that
+// loads every LoadPixelScene line of the init body fails here.
 
 import { describe, test, expect } from "vitest";
 import { dataDir, hasNoitaData } from "../helpers/data.mjs";
@@ -71,9 +66,8 @@ describe.skipIf(!hasNoitaData())("dig #219 — init() runs as Lua", () => {
   });
 });
 
-// dig #225 (C143's 'air' arm in blitScene): an air-keyed art cell (wang
-// 000042) is EMPTY — the backdrop / the lanes below show. The old law painted
-// air's own colour (0,0,66): the dark-blue pools of the HM tops.
+// C143's 'air' arm in blitScene: an air-keyed art cell (wang 000042) is
+// empty — the backdrop / the lanes below show, not air's own colour (0,0,66).
 describe.skipIf(!hasNoitaData())("dig #225 — blitScene skips air-keyed cells", () => {
   test("altar_top.png: its 25,589 air px leave the buffer unset (old law: painted (0,0,66))", async () => {
     const { blitScene } = await import("../../mapgen/lib/template-render.mjs");
@@ -95,7 +89,7 @@ describe.skipIf(!hasNoitaData())("dig #225 — blitScene skips air-keyed cells",
   });
 });
 
-// dig #226: the same air arm in the fixed-scene lane (_pixel_scenes.xml art,
+// The same air arm in the fixed-scene lane (_pixel_scenes.xml art,
 // blitFixedArt) and in the wang-bin colours (colorizeArea) — air-keyed px
 // are empty. A synthetic 3×1 art: air | templebrick | air.
 describe.skipIf(!hasNoitaData())("dig #226 — air-keyed px are empty in blitFixedArt and the bins", () => {
@@ -123,9 +117,9 @@ describe.skipIf(!hasNoitaData())("dig #226 — air-keyed px are empty in blitFix
 });
 
 
-// dig #228 (C143: an `air` hit WRITES air): a later scene's air px clears an
-// earlier scene's paint at that cell (the pyramid's boss_limbs.png over
-// reward.png: the radioactive cells under boss_limbs' air were left green).
+// C143: an `air` hit WRITES air — a later scene's air px clears an earlier
+// scene's paint at that cell (e.g. the pyramid's boss_limbs.png over
+// reward.png).
 describe.skipIf(!hasNoitaData())("dig #228 — an air px clears earlier paint", () => {
   test("brick then air at the same px ⇒ the cell is AIR (TPL_AIR, I62; old law: the brick stays)", async () => {
     const fs = await import("node:fs");
@@ -147,9 +141,8 @@ describe.skipIf(!hasNoitaData())("dig #228 — an air px clears earlier paint", 
   });
 });
 
-// dig #229 (C195 in the template lane): a SOLID scene material px = C185
-// (its texture at the world px) — templebrick_static was a hand family
-// (79,73,50)/(81,76,52); the capture (and C185) = (81,74,49)/(64,58,41)…
+// C195 in the template lane: a solid scene material px = C185 (its texture
+// at the world px).
 describe.skipIf(!hasNoitaData())("dig #229 — scene solids take C185", () => {
   test("a templebrick px of altar_top.png = templebrick_static's texture at that world px", async () => {
     const { blitScene } = await import("../../mapgen/lib/template-render.mjs");

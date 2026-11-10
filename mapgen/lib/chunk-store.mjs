@@ -1,8 +1,7 @@
 // Lazy chunk store — the template/scene planes materialized per chunk on
 // first read (the game's own law: a chunk exists only once something looks
-// at it). Drop-in for the eager `Map("cx,cy" -> Uint8Array 512*512*3)` the
-// paint primitives used to fill for the WHOLE world up front (4642 chunks ≈
-// 3.5 GB RSS, a 37 s sync span; measured 2026-11-08).
+// at it). Drop-in for an eager `Map("cx,cy" -> Uint8Array 512*512*3)` filled
+// for the whole world up front (~4600 chunks ≈ 3.5 GB RSS).
 //
 // Law: the paint primitives (template-render.mjs) are pure — every pixel is a
 // function of (op args, x, y); none reads a buffer back. So a world plane =

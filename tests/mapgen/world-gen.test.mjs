@@ -18,15 +18,11 @@ import { biomeByName } from "../helpers/golden.mjs";
 import { releaseWorld } from "../helpers/world.mjs";
 import { GEN_CACHE_DIR } from "../../mapgen/server/gen-cache.mjs";
 
-// ONE in-process world per file (memory law, 2026-11-08): an ensureWorld()
-// world WAS ~4.6 GB RSS (renderTemplateWorld's 4643 eager template chunk
-// buffers ≈ 3.8 GB; lazy since chunk-store.mjs, ~0.6 GB). Five separate builds in
-// the singleFork worker plus child-process probes holding their own copy
-// drove the battery to an OOM kill (exit 137) and starved the whole WSL VM
-// (the VS Code server lost its ptyHost heartbeat). Every in-process test
-// shares this one world; only probes that need module-load env flags
-// (SURFACE_V3=1) still spawn a child, and they run BEFORE the shared world
-// exists (the dig #177 describe sits above the cached-generation describe).
+// One in-process world per file (memory law): several ensureWorld() builds in
+// the singleFork worker plus child-process probes OOM the battery. Every
+// in-process test shares this world; only probes that need module-load env
+// flags (SURFACE_V3=1) spawn a child, and they run before the shared world
+// exists (that describe sits above the cached-generation describe).
 const SHARED_CACHE_DIR = GEN_CACHE_DIR;
 let _sharedWorld = null;
 const sharedWorld = async () => {
@@ -85,7 +81,6 @@ describe("worldColorAt — injected world (no data needed)", () => {
     expect(worldColorAt(w, 35 * CHUNK + 15 - AX, 62 * CHUNK + 5 - AY)).toEqual([4, 5, 6]); // cell x=1
     expect(worldColorAt(w, 35 * CHUNK + 5 - AX, 62 * CHUNK + 15 - AY)).toEqual([7, 8, 9]); // cell y=1
     // unshifted display reads content 5/13 px further = atlas cell (0,1)
-    // (the C78 constant (11,12) read cell (1,1) = [10,11,12] here)
     expect(worldColorAt(w, 35 * CHUNK, 62 * CHUNK)).toEqual([7, 8, 9]);
   });
 
@@ -108,11 +103,9 @@ describe("worldColorAt — injected world (no data needed)", () => {
     const o = 3 * (100 * CHUNK + 40);
     buf[o] = 120; buf[o + 1] = 121; buf[o + 2] = 122;
     w.templates.set("0,0", buf);
-    // dig #170 (C145): the template lane reads at the DISPLAY frame —
-    // cell (40,100) of chunk "0,0" shows at display (40,100). The pre-#170
-    // generator-local read sampled local (51,112) here (9 -> null) and
-    // returned this color at (40-11, 100-12) — both old-law coordinates
-    // fail the pins below.
+    // C145: the template lane reads at the display frame — cell (40,100) of
+    // chunk "0,0" shows at display (40,100), not at the generator-local
+    // (−11,−12) offset.
     expect(worldColorAt(w, 40, 100)).toEqual([120, 121, 122]);
     expect(worldColorAt(w, 40 - 11, 100 - 12)).toBeNull(); // old-law coord: local (29,88) = unset
   });
@@ -125,7 +118,7 @@ describe("worldColorAt — injected world (no data needed)", () => {
     buf[0] = 10; buf[1] = 20; buf[2] = 30; // art (0,0)
     w.templates.set("40,62", buf);
     expect(worldColorAt(w, 40 * CHUNK, 62 * CHUNK)).toEqual([10, 20, 30]);
-    // fail-under-old: the generator-local read samples local (11,12)
+    // a generator-local read would sample local (11,12)
     const buf11 = new Uint8Array(CHUNK * CHUNK * 3).fill(9);
     const o11 = 3 * (12 * CHUNK + 11);
     buf11[o11] = 77; buf11[o11 + 1] = 78; buf11[o11 + 2] = 79;
@@ -139,10 +132,8 @@ describe("worldColorAt — injected world (no data needed)", () => {
     expect(worldColorAt(w, 7, 10 * CHUNK + 5)).toEqual([55, 56, 57]); // old law: local (18,17) = 9 -> null
   });
 
-  // dig #210 (entry (210), I49): the worldColorAt arm-order pins the obs-1
-  // fix touches. Each test names whether it SURVIVES the fix (the arm the
-  // fix keeps) or is CONSCIOUSLY REVISED with it (the fix commit replaces it
-  // with a test that FAILS under this law's arithmetic).
+  // I49: worldColorAt arm-order pins. Each test names whether it survives the
+  // obs-1 fix or is revised with it.
   test("bin material px: raw rgb returned AND it beats the template lane (I49 pre-fix pin, survives)", () => {
     const w = mkWorld();
     const buf = new Uint8Array(CHUNK * CHUNK * 3).fill(9);
@@ -150,8 +141,7 @@ describe("worldColorAt — injected world (no data needed)", () => {
     w.templates.set("35,62", buf);
     // display (35*512, 62*512) -> generator (+5,+13) (C192) = atlas cell (0,1) = [7,8,9]
     // (non-airDark ⇒ the wang terrain); the bin lane precedes the template
-    // lane, so the sentinel [77,78,79] must NOT surface (old-law order:
-    // template first ⇒ [77,78,79]).
+    // lane, so the sentinel [77,78,79] must not surface.
     expect(worldColorAt(w, 35 * CHUNK, 62 * CHUNK)).toEqual([7, 8, 9]);
   });
 
@@ -191,11 +181,11 @@ describe("worldColorAt — injected world (no data needed)", () => {
     expect(worldColorAt(w, 39 * CHUNK, 63 * CHUNK - L3_ANCHOR.y)).toEqual([70, 70, 70]);
   });
 
-  // dig #212 (C184, the backdrop CLIP law, 0x72c180): a row-62 air cell
-  // renders the BACKDROP at world y >= the biome's background_image_height
-  // (default 225.0f) and the SKY above it; a limit-off biome renders the
-  // backdrop at every height; the limit_y edge sprite fills
-  // [height − edge.h, height). The display row 62 starts at world y 0.
+  // C184 backdrop clip law (0x72c180): a row-62 air cell renders the backdrop
+  // at world y >= the biome's background_image_height (default 225.0f) and
+  // the sky above it; a limit-off biome renders the backdrop at every height;
+  // the limit_y edge sprite fills [height − edge.h, height). Display row 62
+  // starts at world y 0.
   describe("dig #212 backdrop clip law (row 62)", () => {
     const Y0 = 62 * CHUNK; // display y of world y 0
     const mk = (backdrop) => {
@@ -238,23 +228,20 @@ describe("worldColorAt — injected world (no data needed)", () => {
     });
   });
 
-  // dig #211 (the winter-band rows law): the surface band's SKY-row rows
-  // (bty 6..13 = display 54..61) carry the winter/mountain noise band, and
-  // its cell decisions run the SAME classify-or-air law the ty >= 62 arm
-  // runs (the dig-#208 law). The classify's miss (idx 255 / unresolvable)
-  // = AIR — under the previous law every mask-solid sky-row cell painted
-  // the flat unclassified noiseColor (0x6a5a44), the over-fill class.
+  // Winter-band rows law: the surface band's sky rows (bty 6..13 = display
+  // 54..61) carry the winter/mountain noise band and run the same
+  // classify-or-air law as the ty >= 62 arm. A classify miss (idx 255 /
+  // unresolvable) = air, not the flat noiseColor (0x6a5a44).
   test("dig #211: a sky-row (ty<62) mask-solid cell whose classify misses = AIR (fails under the flat-fill law)", () => {
     const w = mkWorld();
     // canvas (17,61) = a bty13 sky-row chunk; the probe lands on the
     // noise-solid path with the classify missing
     w.noiseSolidAt = () => 1;
     w.noiseMatAt = () => ({ idx: 255, names: null });
-    // old law: noiseColor(..., null) = [106,90,68] returned here
     expect(worldColorAt(w, 17 * CHUNK + 5, 61 * CHUNK + 5)).toBeNull();
   });
 
-  // --- I49 (dig #210 obs-1 fix): the background_file fg/bg plane split ------
+  // --- I49: the background_file fg/bg plane split ---------------------------
   // The real write path: a 2×2 opaque airDark PNG (the right_stub_background
   // color family) blitted through blitBackdrop at a game-frame origin.
   // Frames: setWorldPx keys game (wx,wy) at canvas chunk floor(w/512)+(+35,+62)
@@ -281,11 +268,10 @@ describe("worldColorAt — injected world (no data needed)", () => {
     expect(bg).toBeInstanceOf(Map);
     const o = 3 * (5 * CHUNK + 7);
     expect([bg.get("40,62")[o], bg.get("40,62")[o + 1], bg.get("40,62")[o + 2]]).toEqual([13, 14, 18]);
-    // old law: the px landed in the FG buffer (and no "bg" plane existed) —
-    // the fg lane then returned them pre-noise at every scene cell
+    // nothing lands in the fg buffer
     expect(buffers.get("40,62")).toBeUndefined();
-    // contract: at the scene-air cell (no bin, no fg art, no noise lane) the
-    // bg plane now surfaces the backdrop color instead of null
+    // at the scene-air cell (no bin, no fg art, no noise lane) the bg plane
+    // surfaces the backdrop color instead of null
     const w = mkWorld();
     w.templates = buffers;
     expect(worldColorAt(w, 40 * CHUNK + 7, 62 * CHUNK + 5)).toEqual([13, 14, 18]);
@@ -298,8 +284,7 @@ describe("worldColorAt — injected world (no data needed)", () => {
     w.templates = buffers;
     w.noiseSolidAt = () => 1; // the noise evaluator solids every cell
     w.noiseMatAt = () => null;
-    // noiseColor(62, solid) = the provisional surface shade 0x6a5a44;
-    // old law (px in the fg buffer): the fg lane returned [13,14,18] pre-noise
+    // noiseColor(62, solid) = the provisional surface shade 0x6a5a44
     expect(worldColorAt(w, 40 * CHUNK + 7, 62 * CHUNK + 5)).toEqual([106, 90, 68]);
   });
 
@@ -321,9 +306,8 @@ describe("worldColorAt — injected world (no data needed)", () => {
     blitFixtureBg(buffers, 2567, -507);
     const w = mkWorld();
     w.templates = buffers;
-    // I49's clause returned null (the sky) here; the capture shows the init
-    // LoadBackgroundSprite art in the sky-band rows (the pyramid hallway
-    // 53_13: exact px 2,337 → 30,550; 11 tiles 449,278 → 517,165, ABOUT (227))
+    // the capture shows the init LoadBackgroundSprite art in the sky-band
+    // rows (the pyramid hallway 53_13)
     expect(worldColorAt(w, 40 * CHUNK + 7, 61 * CHUNK + 5)).toEqual([13, 14, 18]);
   });
 });
@@ -356,25 +340,19 @@ describe.skipIf(!hasNoitaData())("loadWangWorld — full biome/world skeleton", 
 });
 
 describe.skipIf(!hasNoitaData())("surface-band sky (dig #177) — the row-62 air renders the SKY, not the cave backdrop", () => {
-  // dig #177 port (world-gen.mjs: the noise lane's air branch): the AIR
-  // cell of canvas row 62 (display y 0..511 = the surface band; capture
-  // Y14 = the C151 frame + SKY_ROWS=48) renders the SKY (black + stars,
-  // the C110 NIGHT law); rows >= 63 keep the cave backdrop (the C109
-  // per-area bg). M-grade anchor: the capture census ref/39_13..39_19 =
-  // black 237,697 / 21,669 / 0 / 0 / 0 / 0 px (repro: the family census
-  // per tile). Count laws (child probe, SURFACE_V3=1; the flags are
-  // module-load captured, and the singleFork worker env is set by other
-  // suites):
-  //   C1: tile (39,62) black px >= 1000 — FAILS under the old law (the
-  //       row-62 air fell through to bgImageAt = the hills'
-  //       background_cave_04_alt — non-black; verified fail-under-old
-  //       this session: port reverted ⇒ the probe measures black62 = 0).
-  //   C2: tile (39,63) black px = 0 — pins the measured sky/cave
-  //       boundary (the capture's Y15+ tiles carry zero black); an
-  //       over-broad fix (the sky leaking below the band) fails this.
-  //   C3: tile (39,61) (the sky-band row above, ty < 62 — the lane this
-  //       dig does NOT touch) keeps its sky: black >= 100,000 px — a
-  //       regression guard on the edit's blast radius.
+  // The noise lane's air branch: the air cell of canvas row 62 (display y
+  // 0..511 = the surface band; capture Y14 = the C151 frame + SKY_ROWS=48)
+  // renders the sky (black + stars, the C110 night law); rows >= 63 keep the
+  // cave backdrop (C109 per-area bg). M-grade anchor: capture census
+  // ref/39_13..39_19 = black 237,697 / 21,669 / 0 / 0 / 0 / 0 px. Count laws
+  // (child probe, SURFACE_V3=1; the flags are captured at module load, and
+  // the singleFork worker env is set by other suites):
+  //   C1: tile (39,62) black px >= 1000 (falling through to bgImageAt =
+  //       the hills' background_cave_04_alt gives 0).
+  //   C2: tile (39,63) black px = 0 — the measured sky/cave boundary; the
+  //       sky must not leak below the band.
+  //   C3: tile (39,61) (sky-band row above, ty < 62) keeps its sky: black
+  //       >= 100,000 px — regression guard.
   const probe = `
     process.env.SURFACE_V3 = "1";
     const { findNoitaDataDir, repoRoot } = await import(process.env.PROBE_REPO + "/mapgen/lib/paths.mjs");
@@ -442,15 +420,11 @@ describe.skipIf(!hasNoitaData())("ensureWorld — cached generation (repo gen-ca
 
   test("loads all areas from the disk cache", async () => {
     if (!cacheDir) return; // no cached seed — cold gen out of scope for the battery
-    // The I36 yield law (closed with entry (173)): ensureWorld MUST yield
-    // per area on BOTH branches — the cache-HIT path's old contiguous
-    // span (342 readFileSync in one sync block; 64.2/70.4/70.6 s measured
-    // per battery run on 2026-10-20) starved the single-fork worker's
-    // birpc channel, and every `Timeout calling "onTaskUpdate"` battery
-    // abort landed at that span's end. Count the scheduled ticks: ≥1 per
-    // area proves the load interleaves with the event loop instead of
-    // blocking it for the whole span (other setImmediate users in the
-    // window only add ticks, so the lower bound never false-fails).
+    // I36 yield law: ensureWorld yields per area on both branches — a
+    // contiguous cache-hit span starves the single-fork worker's birpc
+    // channel (`Timeout calling "onTaskUpdate"`). ≥1 scheduled tick per area
+    // proves the load interleaves with the event loop (other setImmediate
+    // users only add ticks, so the lower bound never false-fails).
     let ticks = 0;
     const origSetImmediate = globalThis.setImmediate;
     globalThis.setImmediate = (fn, ...args) => { ticks++; return origSetImmediate(fn, ...args); };
@@ -486,20 +460,20 @@ describe.skipIf(!hasNoitaData())("ensureWorld — cached generation (repo gen-ca
       for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (isWall(worldColorAt(world, x, y))) n++;
       return n;
     };
-    // capture edge at wy 70160 = line − 36: a the_end tongue INSIDE the wall
-    // chunk (old law: the chunk's wall fill = 35/35)
+    // capture edge at wy 70160 = line − 36: a the_end tongue inside the wall
+    // chunk
     expect(win(27 * 512 - 33, 27 * 512 - 27, 70158, 70162)).toBeLessThanOrEqual(12);
-    // capture edge at wy 72080 = line + 34: a wall tongue INSIDE the_end's
-    // chunk (old law: the Work lane's interior, ~20% wall-family)
+    // capture edge at wy 72080 = line + 34: a wall tongue inside the_end's
+    // chunk
     expect(win(27 * 512 + 27, 27 * 512 + 32, 72078, 72082)).toBeGreaterThanOrEqual(22);
-    // control: deep inside the wall chunk = all wall under both laws
+    // control: deep inside the wall chunk = all wall
     expect(win(26 * 512 + 200, 26 * 512 + 206, 70158, 70162)).toBe(35);
   });
 
   test("dig #218 (I53): a main-band solid_wall tongue inside the lake_deep chunk renders as rock", async () => {
     if (!cacheDir || !world) return;
     // the rock family is red-dominant (rock_hard / rock_hard_border textures);
-    // lake water (39,67,63) is teal — the dig-#216 predicate (R ≥ 35, G ≥ 19)
+    // lake water (39,67,63) is teal — the wall predicate (R ≥ 35, G ≥ 19)
     // would count it, so this pin uses R > G
     const isRock = (c) => !!c && c[0] >= 35 && c[0] > c[1];
     const win = (x0, x1, y0, y1) => {
@@ -508,8 +482,7 @@ describe.skipIf(!hasNoitaData())("ensureWorld — cached generation (repo gen-ca
       return n;
     };
     // the solid_wall | lake_deep line at x 2048 (map row 18): at map y 9624 the
-    // law pushes the wall 33 px into the lake chunk (old law: the lake's own
-    // wang fill = 0/45 rock)
+    // law pushes the wall 33 px into the lake chunk
     expect(win(2062, 2076, 34199, 34201)).toBeGreaterThanOrEqual(40);
     // controls: the lake interior stays lake, the wall interior stays wall
     expect(win(2300, 2314, 34199, 34201)).toBe(0);
@@ -527,20 +500,15 @@ describe.skipIf(!hasNoitaData())("ensureWorld — cached generation (repo gen-ca
   });
 });
 
-// default-lane attach contract (user report 2026-10-15, "no more sky
-// background"): worldColorAt's sky band (ty < 62) falls through to
-// `world.skyAt?.() ?? null`, and C110's sky law (VERIFIED §12 p2c) is
-// written unconditionally — so skyAt/bgImageAt must attach WITHOUT the
-// SURFACE_* flags. Under the pre-fix law both were undefined in the
-// default lane (every sky/void/bin-less px = null → the tile renderer's
-// opaque black; seed 78633191 tiles z0(34,14)/z1(17,28..29) measured
-// 100% black / 512×512 px). DIG #192 PRODUCT FLIP (2026-10-23): the flip
-// is INVERTED — the band is ON by default (the C165/C166 byte-backed
-// port ships); the OUT = SURFACE_V3=0/2=0 (the instrument baselines).
-// The probe runs as a child process with SURFACE_* stripped: noise-
-// terrain.mjs captures the flags at module load and the singleFork
-// worker's env is set by other suites (surface-compositor.test.mjs:13
-// sets SURFACE_V3).
+// Default-lane attach contract: worldColorAt's sky band (ty < 62) falls
+// through to `world.skyAt?.() ?? null`, and C110's sky law (VERIFIED §12 p2c)
+// is unconditional — so skyAt/bgImageAt attach without the SURFACE_* flags
+// (otherwise every sky/void/bin-less px = null → opaque black tiles). The
+// noise band (C165/C166) is on by default; SURFACE_V3=0/V2=0 opts out (the
+// instrument baselines). The probe runs as a child process with SURFACE_*
+// stripped: noise-terrain.mjs captures the flags at module load and the
+// singleFork worker's env is set by other suites
+// (surface-compositor.test.mjs:13 sets SURFACE_V3).
 describe("default lane (no SURFACE_* flags) — attach noise-terrain contract", () => {
   const probe = `
     const { attachNoiseTerrain } = await import(process.env.PROBE_REPO + "/mapgen/lib/noise-terrain.mjs");
@@ -573,7 +541,7 @@ describe("default lane (no SURFACE_* flags) — attach noise-terrain contract", 
     expect(s.solid).toBe("function");
     expect(s.mask).toBe("function");
     expect(s.mat).toBe("function");
-    // explicit opt-out = the old detached lane (the instrument baselines):
+    // explicit opt-out = the detached lane (the instrument baselines):
     const env0 = { ...process.env, PROBE_REPO: repoRoot, SURFACE_V2: "0", SURFACE_V3: "0" };
     const r0 = spawnSync(process.execPath, ["--input-type=module", "-e", probe], {
       env: env0, encoding: "utf8", cwd: repoRoot,
@@ -586,12 +554,8 @@ describe("default lane (no SURFACE_* flags) — attach noise-terrain contract", 
 });
 
 describe.skipIf(!hasNoitaData())("default lane sky color (data-gated)", () => {
-  // NIGHT law (2026-10-19, I32 amended): the sky band = BLACK air (null)
-  // + hash-placed stars at EVERY altitude. Fail-under-old-law pins: the
-  // old parallax-row law returned the gold horizon (254,206,108) at
-  // t=0.9766 and the blue rows (100,168,198 family) at t=0.094 (both
-  // non-null ⇒ the toBeNull asserts fail), and its t<0.75 star gate
-  // excluded the horizon scan band entirely (pale star count = 0).
+  // Night law (I32): the sky band = black air (null) + hash-placed stars at
+  // every altitude, including the horizon band.
   test("skyAt = the NIGHT law: null at the horizon and high sky; stars present below t=0.75", () => {
     const env = { ...process.env, PROBE_REPO: repoRoot, PROBE_DATA: dataDir };
     delete env.SURFACE_V2;
@@ -621,15 +585,11 @@ describe.skipIf(!hasNoitaData())("default lane sky color (data-gated)", () => {
 });
 
 describe.skipIf(!hasNoitaData())("winter-band rows law (dig #211) — the surface band's sky-row rows classify, never the flat noiseColor", () => {
-  // dig #211 (the classify-or-air law at the sky-band rows; bty 6..13 =
-  // display rows 54..61 = the mask's winter/mountain noise band): the OLD
-  // law painted EVERY mask-solid sky-row cell the flat unclassified
-  // (106,90,68) — measured (METER-CLASS: E1, the lane attribution, repro
-  // mapgen/experiments/2026-11-03-dig211-lane-attribution.mjs): the winter
-  // tile (17,61) = 75.7% solid with 73.2% flat vs the capture's 40.7%.
-  // The fix (world-gen.mjs, the ty < 62 arm) = the classify (the ty>=62
-  // arm's law) + the miss = air. Fail-under-old: the flat family's share
-  // at (17,61) was 73.2% and must now be ~0.
+  // Classify-or-air law at the sky-band rows (bty 6..13 = display rows
+  // 54..61 = the mask's winter/mountain noise band): the ty < 62 arm of
+  // world-gen.mjs classifies like the ty >= 62 arm and a miss = air, so the
+  // flat unclassified (106,90,68) share at (17,61) is ~0 (METER-CLASS: E1;
+  // repro mapgen/experiments/2026-11-03-dig211-lane-attribution.mjs).
   test("tile (17,61) carries no flat noiseColor px (old law: 73.2%)", async () => {
     const world = await sharedWorld();
       let flat = 0, n = 0;
@@ -657,12 +617,9 @@ describe.skipIf(!hasNoitaData())("winter-band rows law (dig #211) — the surfac
       expect(liq.backgroundImageHeight).toBe(0);
       expect(liq.limitBackgroundImage).toBe(false);
     });
-    // The count law (E1, entry (212)): the capture's bty-14 tiles carry 0
-    // sky px below world y 240 in every limit-on biome. Tile 15 = the
-    // empty.xml chasm under the bridge (all air): the old all-sky law
-    // rendered 130,066 black px there below y 240; the capture has 0 and
-    // 98,619 above y 225.
-    // in-process on the shared world (it was a child probe: a second world build)
+    // Count law (E1): the capture's bty-14 tiles carry 0 sky px below world
+    // y 240 in every limit-on biome. Tile 15 = the empty.xml chasm under the
+    // bridge (all air): the capture has 0 there and 98,619 above y 225.
     let s = null;
     const stats = () => (s ??= (async () => {
     const world = await sharedWorld();
@@ -683,11 +640,9 @@ describe.skipIf(!hasNoitaData())("winter-band rows law (dig #211) — the surfac
 
 describe.skipIf(!hasNoitaData())("cell colour law in the noise band (dig #213, C185) — data-gated", () => {
   // The noise band paints the material TEXTURE at the world pixel, never the
-  // raw wang_color. Tile (38,62) (the tree-west cell, I51's anchor): the old
-  // law painted (53,57,35) 43.6% + (82,79,45) 41.5% there; the capture's
-  // 38_14 families are rock.png (39,40,45)/(62,69,85) + earth.png
-  // (70,65,40)/(95,87,49).
-  // in-process on the shared world (it was a child probe: a second world build)
+  // raw wang_color. Tile (38,62) (the tree-west cell, I51's anchor): the
+  // capture's 38_14 families are rock.png (39,40,45)/(62,69,85) + earth.png
+  // (70,65,40)/(95,87,49); the raw wang pair is (53,57,35)/(82,79,45).
   let s = null;
   const stats = () => (s ??= (async () => {
     const world = await sharedWorld();
@@ -711,11 +666,9 @@ describe.skipIf(!hasNoitaData())("cell colour law in the noise band (dig #213, C
   }, 240000);
 });
 
-// THE SKY-BAND FIX (2026-11-08, biome rows 0..13 = canvas 48..61: the band
-// between the Work's heaven end and the surface — clouds, the static sky
-// rooms, the floating island, the mountain tree). Count laws on the capture
-// seed; every pin FAILS under the old law (measured on HEAD 2026-11-08,
-// old values in the titles).
+// Sky band (biome rows 0..13 = canvas 48..61: between the Work's heaven end
+// and the surface — clouds, the static sky rooms, the floating island, the
+// mountain tree). Count laws on the capture seed.
 describe.skipIf(!hasNoitaData())("sky band (biome rows 0..13) — the cloud / static-room / roadblock / art-colour laws", () => {
   const share = async (tx, ty) => {
     const world = await sharedWorld();
@@ -767,8 +720,8 @@ describe.skipIf(!hasNoitaData())("image-spawned scenes (the spliced tree's spawn
   }, 240000);
 });
 
-// dig #227: the template background plane (init LoadBackgroundSprite art)
-// shows over the SKY band too — the old law returned the sky (null) there.
+// The template background plane (init LoadBackgroundSprite art) shows over
+// the sky band too.
 describe("worldColorAt — the template bg plane in the sky band (dig #227, no data)", () => {
   test("a sky-band px with no fg art reads the bg plane before the sky", () => {
     const world = {
@@ -783,9 +736,8 @@ describe("worldColorAt — the template bg plane in the sky band (dig #227, no d
   });
 });
 
-// dig #230: the backdrop is sampled at the DISPLAY px (the capture's phase
-// (0,0), 4/4 pyramid tiles exact) — the bin-air read used the per-area
-// sample point (+5..13 px) and so drew the backdrop shifted.
+// The backdrop is sampled at the display px (the capture's phase (0,0)), not
+// at the per-area bin sample point (+5..13 px).
 describe("worldColorAt — the bin-air backdrop phase (dig #230, no data)", () => {
   test("a bin-air cell shows backdrop px (wx mod w, wy mod h), not the anchor-shifted one", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "bgph-"));
@@ -805,9 +757,8 @@ describe("worldColorAt — the bin-air backdrop phase (dig #230, no data)", () =
   });
 });
 
-// dig #231 (C185 per pixel in the bin lane): an explicit solid material cell
-// = its texture at the DISPLAY px, varying inside the 10-px cell (the old
-// law: one colorized colour for the whole cell).
+// C185 per pixel in the bin lane: an explicit solid material cell = its
+// texture at the display px, varying inside the 10-px cell.
 describe.skipIf(!hasNoitaData())("worldColorAt — per-pixel C185 for solid bin cells (dig #231)", () => {
   test("a wood_static cell shows wood's texture px by px", async () => {
     const { materialColorAt, materialColorByName } = await import("../../mapgen/lib/colorize.mjs");
@@ -829,14 +780,14 @@ describe.skipIf(!hasNoitaData())("worldColorAt — per-pixel C185 for solid bin 
       expect(c).toEqual(materialColorAt(dataDir, "wood_static", wx - 35 * CHUNK, wy - 62 * CHUNK));
       seen.add(c.join());
     }
-    expect(seen.size).toBeGreaterThan(1); // varies inside one cell (old law: one colour [77,77,77])
+    expect(seen.size).toBeGreaterThan(1); // varies inside one cell
   });
 });
 
-// dig #233 (the P-empty arm in the main band, the Work lane's law C186): a
-// grey placeholder bin cell = field (its luminance); ≤ 0.5 ⇒ air (the
-// backdrop), else the cell's own biome classify at v = 0x908e70(x, y, field),
-// per pixel, coloured by C185. (dig #232's family pairing replaced.)
+// The P-empty arm in the main band (the Work lane's law, C186): a grey
+// placeholder bin cell = field (its luminance); ≤ 0.5 ⇒ air (the backdrop),
+// else the cell's own biome classify at v = 0x908e70(x, y, field), per pixel,
+// coloured by C185.
 describe.skipIf(!hasNoitaData())("worldColorAt — the placeholder cell = the P-empty classify (dig #233)", () => {
   const mk = (grey) => {
     const world = {
@@ -875,9 +826,8 @@ describe.skipIf(!hasNoitaData())("worldColorAt — the placeholder cell = the P-
   });
 });
 
-// I62 (2026-11-09, the user's "predictable-spawn rooms filled with dense rock"):
-// (a) an air-keyed scene px WRITES AIR (TPL_AIR) — the noise rock below no
-// longer shows (friendroom / teleroom = wang 000042 over a noise chunk);
+// I62: (a) an air-keyed scene px writes air (TPL_AIR) over the noise rock
+// (friendroom / teleroom = wang 000042 over a noise chunk);
 // (b) a template-less BIOME_WANG_TILE room chunk has no terrain of its own
 // (A24): its scene's black (a C143 miss) shows air (dragoncave);
 // (c) the image-spawned scenes paint in the main band (the watercave's
@@ -943,10 +893,8 @@ describe.skipIf(!hasNoitaData())("I62 — the per-biome rooms are not filled wit
   }, 240000);
 });
 
-// I63 (2026-11-09): the lava lake's rock = lavalake2.png's white placeholder
-// cells run the P-empty arm (lavalake's classify ⇒ rock_hard /
-// rock_hard_border); the old driver fill matched nothing there and the chunk
-// rendered as backdrop (41_16 solid agreement 0.24 → 0.98).
+// I63: the lava lake's rock = lavalake2.png's white placeholder cells run the
+// P-empty arm (lavalake's classify ⇒ rock_hard / rock_hard_border).
 describe.skipIf(!hasNoitaData())("I63 — the lava lake's placeholder rock is filled", () => {
   test("41_16: lavalake2.png's white cells render solid (old law: ≈0 %)", async () => {
     const world = await sharedWorld();
@@ -966,10 +914,9 @@ describe.skipIf(!hasNoitaData())("I63 — the lava lake's placeholder rock is fi
   }, 240000);
 });
 
-// I64 (2026-11-09): the world-edge cursed rock (solid_wall_tower, columns 0 /
-// 69) = rock_static_cursed's C185 texture, its edge with the solid_wall
-// column = the biome-edge law (biomeAtPixel). Old: a hand pink speckle + a
-// straight 32-px strip inside the wall chunk.
+// I64: the world-edge cursed rock (solid_wall_tower, columns 0 / 69) =
+// rock_static_cursed's C185 texture; its edge with the solid_wall column =
+// the biome-edge law (biomeAtPixel).
 describe.skipIf(!hasNoitaData())("I64 — the cursed rock's texture and displaced edge", () => {
   test("rows of 0_20 | 1_20: every px whose biomeAtPixel is the tower = rock_static_cursed's texture, the wall side is not", async () => {
     const world = await sharedWorld();
@@ -991,12 +938,10 @@ describe.skipIf(!hasNoitaData())("I64 — the cursed rock's texture and displace
   }, 240000);
 });
 
-// I66 (2026-11-10): the 2-px chunk-edge seams. (a) the noise accessors
-// rejected mask cell 51 (px 510..511, the 51.2-cell remainder the mask DOES
-// compute) ⇒ a 2-px air/null line on every noise chunk's right/bottom edge;
-// (b) an area of n chunks has trunc(n·51.2) bin cells, so its last ≤ 9 px
-// read past the bin; with a non-bin neighbour every lane returned null
-// (A25 stand-in: the area's own last cell).
+// I66: no 2-px chunk-edge seams. (a) the noise accessors serve mask cell 51
+// (px 510..511, the 51.2-cell remainder the mask computes); (b) an area of n
+// chunks has trunc(n·51.2) bin cells, so its last ≤ 9 px read past the bin
+// and fall back to the area's own last cell (A25 stand-in).
 describe("I66 — no 2-px seams at chunk edges", () => {
   test("noiseSolidAt / noiseMatAt serve cell 51 (px 510..511)", async () => {
     const { noiseSolidAt } = await import("../../mapgen/lib/noise-terrain.mjs");
@@ -1028,6 +973,6 @@ describe("I66 — no 2-px seams at chunk edges", () => {
       }
     }
     expect(checked).toBeGreaterThan(3000);
-    expect(seams).toBe(0); // before the fix: 5,507 of these px were null
+    expect(seams).toBe(0);
   }, 240000);
 });

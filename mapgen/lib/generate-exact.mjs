@@ -1,6 +1,6 @@
 // generateAreaExact — the full game-faithful area generator (Node-only):
 // driver chain (VERIFIED.md §5) + fill + hasPath rejection loop.
-// Returns the ACCEPTED attempt exactly as the game's out_map stands after
+// Returns the accepted attempt exactly as the game's out_map stands after
 // hasPath (blockOutRooms whites + coalmine hax applied — finalize input).
 // Browser code must not import this (fs access for the overlay).
 

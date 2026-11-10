@@ -1,4 +1,4 @@
-// A tile worker (perf D, 2026-11-08): owns its own lazy world per seed and
+// A tile worker: owns its own lazy world per seed and
 // renders direct-law tiles (tile-render.mjs) on request. Started by
 // tile-pool.mjs; protocol (parent ⇄ worker):
 //   → { type: "render", id, seed, z, x, y, captureOn }

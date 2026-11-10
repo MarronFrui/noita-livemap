@@ -3,9 +3,8 @@
 //   - 'seq': sequential stream exactly like noita_random.wasm (GetRNG + attempts)
 //   - 'pos': per-vertex position-seeded game RNG (SetRandomSeed(worldSeed, x, y))
 //
-// Purpose: test whether the game colors wang vertices by world position
-// (required for camera-order chunk generation) instead of one sequential
-// stream. See ABOUT_MATH.md §7 experiment 1/2.
+// The 'pos' source tests position-seeded vertex coloring against one
+// sequential stream (ABOUT_MATH.md §7).
 
 const U32 = 0x100000000;
 
@@ -76,9 +75,9 @@ function setRandomSeedHelper2(a, b, ws) {
   v3 = usub(usub(v3, v2), v1) ^ (v1 >>> 5);
   v2 = usub(usub(v2, v1), v3) ^ (v3 >>> 3);
   v1 = usub(usub(v1, v2), v3) ^ u32(v2 << 10);
-  // >>> 0 is critical: JS ^ returns a signed i32 — without it, g goes negative
-  // when the high bit is set and every comparison/division downstream takes
-  // the wrong path (found via the Lua RNG oracle crosscheck, 2026-09-03)
+  // >>> 0 is required: JS ^ returns a signed i32, so without it g goes
+  // negative when the high bit is set and downstream comparisons/divisions
+  // take the wrong path
   return u32(usub(usub(v3, v2), v1) ^ (v1 >>> 0x0f));
 }
 
@@ -170,9 +169,9 @@ export function buildTileset(png) {
   };
 
   // template walk (corner branch of stbhw__process_template)
-  // NOTE: each constraint combo appears `vary` times (color-duplicating
-  // variations with distinct pixel art) — the variants loop is part of the
-  // slot enumeration (found via the wang_gen.exe template diff, 2026-09-03)
+  // each constraint combo appears `vary` times (color-duplicating variations
+  // with distinct pixel art); the variants loop is part of the slot
+  // enumeration
   let ypos = 2;
   for (let k = 0; k < numColor[2]; k++)
     for (let j = 0; j < numColor[1]; j++)

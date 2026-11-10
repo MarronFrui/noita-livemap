@@ -1,20 +1,14 @@
-// tests/mapgen/surface-wiring.test.mjs — dig #97 (Phase 4 step 3): the
-// SURFACE_V3 lane's classify wiring (CONSTANTS C76); RE-DERIVED dig #101
-// (entry (101), C80): the gate value is no longer the a=1.0 single-call
-// proxy (the dig-#100 flood root cause); RE-DERIVED dig #121 (entry
-// (121), I25 index half): for <BitmapCaves> biomes the gate value is the
-// caves grid read DIRECTLY at cell coords — the game's sampler reads it
-// via getter 0x9499f0 on &owner+0xb4, idx = W·y + x (stride [0x9c] =
-// grid[0]), writer 0x8EE750 same law — NOT surfaceField (the kind-0
-// combine never touches the caves grid; its u-law grad chain died with
-// the P==NULL law, dig #146). Non-caves biomes take the kind-0 combine at
-// WORLD px (C80: wx = x − 17920, wy = canvas py − 31744) with field0 ≡
-// 1.0 — no gradAt argument exists any more (dig #146). evaluator2
-// takes the classifier's own lane coords (the evaluator2 ≡ classify
-// floor-fix identity). Chain pinned by C76/C80 + dig #121:
-//   caves:    field = gradAt(wx, wy)          (world frame, cell law —
-//                                              the wrapper mod-wraps the
-//                                              tile, dig #121)
+// tests/mapgen/surface-wiring.test.mjs — the SURFACE_V3 lane's classify
+// wiring (C76, C80, I25). For <BitmapCaves> biomes the gate value is the
+// caves grid read directly at cell coords — the game's sampler reads it via
+// getter 0x9499f0 on &owner+0xb4, idx = W·y + x (stride [0x9c] = grid[0]),
+// writer 0x8EE750 same law — not surfaceField (the kind-0 combine never
+// touches the caves grid). Non-caves biomes take the kind-0 combine at WORLD
+// px (C80: wx = x − 17920, wy = canvas py − 31744) with field0 ≡ 1.0.
+// evaluator2 takes the classifier's own lane coords (the evaluator2 ≡
+// classify floor-fix identity). Chain (C76/C80):
+//   caves:    field = gradAt(wx, wy)          (world frame, cell law; the
+//                                              wrapper mod-wraps the tile)
 //   kind-0:   field = surfaceField(uid, wx, wy, seed)  (C80; field0 ≡ 1.0)
 //   gate:  field > 0.5 (@0x90dbc3 comiss 0x11dfa94 → jbe) ∧ table ≠ null
 //   v = evaluator2(x, y, field)                        (@0x90dd24)
@@ -23,31 +17,25 @@
 // This file pins BEHAVIOR:
 //  1. round-trip — mask 1 ⇒ the field gate passed ∧ classify hits, using
 //     the exact lane math (x = tx·512 + cx·10 + 5; y = … − 24576 — the
-//     C76 evaluate/classify frame, unchanged this dig: I21 flip pending)
-//     AND the exact field build (C80 world coords + the caves-field gradAt
-//     the lane selects for <BitmapCaves> hills — mirror of
-//     noise-terrain.mjs's selection, WITHOUT any env conjunct).
-//     RE-DERIVED dig #196 (entry (196), C170): gradAtMirror recomputes the
-//     wang-offset SHAPED read byte law (G = (17920, 7168) + the warp args +
-//     the smoothstep ±1 snap); the flat pre-#193 read that lived here was
-//     stale — the SURFACE_V2 skip conjunct had hidden it until this dig's
-//     file edits shifted the worker scheduling (the dig-#145 env-leak class;
-//     verified by a direct solo run: 3/3 green against the C170 port).
+//     C76 evaluate/classify frame; I21 flip pending) AND the exact field
+//     build (C80 world coords + the caves-field gradAt the lane selects for
+//     <BitmapCaves> hills, without any env conjunct). gradAtMirror
+//     recomputes the wang-offset shaped read (C170: G = (17920, 7168) +
+//     the warp args + the smoothstep ±1 snap).
 //  2. full equivalence — per-cell mask ≡ (field > 0.5 ∧ classify hit) on
-//     BOTH a sky row (canvas ty 48 — the dig-#100 flood zone) and the
-//     true surface row (canvas ty 60 = biome row 12, PREDICTABLE_ZONES
+//     BOTH a sky row (canvas ty 48) and the
+//     true surface row (canvas ty 60 = biome row 12, mapcap/README.md zones
 //     spawn-surface j=12), with non-triviality counts on each side of the
-//     gate (cells rejected at field ≤ 0.5 — the flood fix; cells solid).
+//     gate (cells rejected at field ≤ 0.5; cells solid).
 //  3. frame probes — constructed soil-exclusive v = 0.505 at REAL lane
 //     coords straddling soil's limit_y (shallow 405 ≤ 424.229 ⇒ soil
 //     catches; deep 505 ⇒ gated), plus the two eliminated frames (raw
 //     canvas +24576 ⇒ ≫ 424.229 rejects; world @OFFSET_Y=14 ⇒ y − 7168
 //     = −6763 < −1024 rejects) — C76's elimination argument executed
-//     against the real classifier + fixture. NOTE (I21): the world-frame
+//     against the real classifier + fixture. I21: the world-frame
 //     rejection holds only because this probe cell sits at canvas ty 48
 //     (sky); at the true surface rows (ty 60..62) the C80 world frame
-//     lands inside soil's [−1024, 424.229] — the assertions stand, the
-//     old "(world frame eliminated)" reading does not.
+//     lands inside soil's [−1024, 424.229], so it is not eliminated.
 //
 // Data-gated: needs the extracted biome map + hills.xml (no extracted
 // data → skipped, like the rest of the battery).
@@ -72,11 +60,11 @@ const WORLD_Y0 = (48 + 14) * 512; // 31744 — C80 world y origin (biome row 14)
 const MIN_X = 159.0; // biomeCfg constants (noise-terrain.mjs:101)
 const MAX_X = 223.0;
 
-const SKY_ROW = 48; // canvas ty — biome row 0 (sky per PREDICTABLE_ZONES j=1..13)
+const SKY_ROW = 48; // canvas ty — biome row 0 (sky per mapcap/README.md §Predetermined zones, j=1..13)
 const SURF_ROW = 62; // canvas ty — biome row 14 = the C80 world-row origin (the
-// mines-band caves-field chunk, the C48 bty14 tiles). Dig #131: the caves
-// field reads the WORLD frame — the pre-#131 "surface top" row 12 is SKY
-// under the law (air), so the first field-reading chunk = row 14.
+// mines-band caves-field chunk, the C48 bty14 tiles). The caves field reads
+// the WORLD frame — row 12 is sky (air), so the first field-reading chunk
+// is row 14.
 
 // Lazy memos — describe bodies still run under vitest's skipIf, so no
 // data work may happen at collection time (mirror of the
@@ -102,21 +90,18 @@ function table() {
 // uid mirror — a verbatim duplicate of noise-terrain.mjs's uidFrom
 // (C43/C37 attr→slot map). Duplication is deliberate: any drift between
 // the lane and this mirror changes `field` bit-wise and breaks the
-// round-trip/equivalence assertions below. NOTE (dig #121): the hills
-// probe's cell() no longer consumes it — the caves lane bypasses
-// surfaceField entirely (direct cell read); kept as the kind-0 mirror
-// for a future non-caves probe (MIN_X/MAX_X ride along with it).
-// dig #142: uidFrom now spreads bandBlockOf (the r-eval band slots,
-// C118) — mirrored below field-for-field (f32 slots f32-rounded). The
-// driver itself is NOT mirrored here: it attaches in the lane
-// (makeBandDriver(config, seed)); a future kind-0 probe must attach one
-// or surfaceField throws (the dig-#142 guard).
+// round-trip/equivalence assertions below. The hills probe's cell() does
+// not consume it (the caves lane bypasses surfaceField); kept as the kind-0
+// mirror for a future non-caves probe (MIN_X/MAX_X ride along with it).
+// uidFrom spreads bandBlockOf (the r-eval band slots, C118), mirrored
+// field-for-field (f32 slots f32-rounded). The band driver is not mirrored:
+// the lane attaches it (makeBandDriver(config, seed)); a kind-0 probe must
+// attach one or surfaceField throws.
 function uidMirror(def) {
   const n = (v, d) => { const p = parseFloat(v); return Number.isFinite(p) ? p : d; };
   const f = Math.fround;
   return {
-    // bandBlockOf(def) (noise-terrain.mjs, dig #142; gradSlopeDelta ctor
-    // default 1.0 since dig #145):
+    // bandBlockOf(def) (noise-terrain.mjs; gradSlopeDelta ctor default 1.0):
     gradStartY: f(n(def.mGradientStartY, -512)),      // f32 [+0x270]
     gradEndY: f(n(def.mGradientEndY, 512)),           // f32 [+0x274]
     gradSlopeStartX: n(def.mGradientSlopeStartX, 0),  // f64 [+0x278]
@@ -125,7 +110,7 @@ function uidMirror(def) {
     gradNoiseScale: n(def.mGradientNoiseScale, 0),    // f64 [+0x290]
     gradLowNoise: f(n(def.mGradientLowNoise, -100)),  // f32 [+0x298]
     gradHighNoise: f(n(def.mGradientHighNoise, 100)), // f32 [+0x29C]
-    // dig #145 attr law (X104): mInsideNoiseType → [+0x224] kind (ctor
+    // attr law (X104): mInsideNoiseType → [+0x224] kind (ctor
     // default 5), noise_type → [+0x220] enum, fbm ctor default 1
     noiseKind: def.mInsideNoiseType !== undefined ? (NOISE_NAME_KIND[def.mInsideNoiseType] ?? 0) : 5,
     gradient: 0,
@@ -136,7 +121,7 @@ function uidMirror(def) {
     squared: n(def.mInsidePerlinSquared, 0) === 1,
     clamped: n(def.mInsidePerlinClamped, 0) === 1,
     scaled: n(def.mInsidePerlinScaled, 0) === 1,
-    scaleMin: n(def.mInsidePerlinScaleMin, 0),   // ctor defaults (dig #145)
+    scaleMin: n(def.mInsidePerlinScaleMin, 0),   // ctor defaults
     scaleMax: n(def.mInsidePerlinScaleMax, 0),
     gradWCoef: n(def.mMultiplierPerlin, 1.0),
     perlinCoef: n(def.mMultiplierGradient, 1.0),
@@ -147,21 +132,18 @@ function uidMirror(def) {
 }
 
 // gradAt mirror — the lane's selection for hills (<BitmapCaves> ⇒ the
-// caves-field grid; noise-terrain.mjs dig-#101 selection, dig #121 VALUE
-// source; **dig #131 read-window law**: world-frame coords in, bounds-
-// check wy < 0 ⇒ 0 (the sky band reads nothing), mod-repeat below).
+// caves-field grid). Read-window law: world-frame coords in, sky gate ⇒ 0
+// (the sky band reads nothing), mod-repeat below.
 // The grid is (seed, name)-deterministic (C49) and memoized
 // like the lane's cache.
 function gradAtMirror(def) {
   if (!_caves) _caves = buildCavesField(dataDir, def, CAPTURE_SEED);
   const { w: fw, h: fh, field } = _caves;
-  // dig #196 (C170) re-derivation: the lane's caves field law = the
-  // wang-offset SHAPED read (digs #193/#194 warp + the dig-#196 G add).
-  // The mirror recomputes the byte law INDEPENDENTLY (the addsd G pair
-  // @0x908CD6/CC9, the warp args, the smoothstep ±1 snap @0x90dd37) so
-  // this round-trip cross-checks the port's cavesShapedCellAt against
-  // the lane's mask; the flat pre-#193 read that lived here was stale
-  // (hidden while the SURFACE_V2 env leak kept this suite skipped).
+  // C170: the lane's caves field law = the wang-offset shaped read (warp +
+  // G add). The mirror recomputes the byte law independently (the addsd G
+  // pair @0x908CD6/CC9, the warp args, the smoothstep ±1 snap @0x90dd37) so
+  // this round-trip cross-checks the port's cavesShapedCellAt against the
+  // lane's mask.
   return (wx, wy) => {
     if (wy < -fh) return 0; // the RAW-frame sky gate (the add is post-gate)
     const ax = wx + 17920, ay = wy + 7168; // the wang offset (C170)
@@ -179,11 +161,10 @@ function gradAtMirror(def) {
   };
 }
 
-// Exact mirror of the lane's default-branch math (noise-terrain.mjs,
-// dig #121): same expression order ⇒ bit-identical field/v inputs.
-// hills carries <BitmapCaves> ⇒ the lane's gate value = the DIRECT cell
-// read (the dig #121 branch) — gradAtMirror is the cell-law wrapper;
-// surfaceField is not consulted for caves biomes any more.
+// Exact mirror of the lane's default-branch math (noise-terrain.mjs): same
+// expression order ⇒ bit-identical field/v inputs. hills carries
+// <BitmapCaves> ⇒ the gate value = the direct cell read (gradAtMirror);
+// surfaceField is not consulted for caves biomes.
 function cell(def, tx, ty, cx, cy) {
   const x = tx * 512 + cx * 10 + 5;
   const y = ty * 512 + cy * 10 + 5 - SKY_PX;
@@ -250,8 +231,8 @@ describe.skipIf(!hasNoitaData() || process.env.SURFACE_V2 === "1")(
         }
       }
       expect(solids).toBeGreaterThan(0);
-      // the dig-#100 flood fix: the field gate now rejects cells
-      // (≤ 0.5 ⇒ skip) — with the a=1.0 proxy this count was 0 in sky
+      // the field gate rejects cells (≤ 0.5 ⇒ skip); an a=1.0 proxy field
+      // would make this count 0 in sky (flooding)
       expect(airByGate).toBeGreaterThan(0);
       // classify still rejects some gate-passing cells (band/limit arms
       // are reachable through the real field's v range)
@@ -275,8 +256,8 @@ describe.skipIf(!hasNoitaData() || process.env.SURFACE_V2 === "1")(
       // eliminated frame A — raw canvas px: surface ≈ 24576 ≫ 424.229
       expect(classify(t, shallow.x, shallow.y + 24576, soilV)).toBeNull();
       // eliminated frame B — world px @OFFSET_Y=14: sky cell wy = −6763 < −1024
-      // (I21: the ASSERTION holds; its "(world eliminated)" reading flips —
-      // at the surface rows ty 60..62 the same frame lands in [−1024, 512])
+      // (I21: only at this sky cell — at the surface rows ty 60..62 the same
+      // frame lands in [−1024, 512])
       expect(classify(t, shallow.x, shallow.y - 7168, soilV)).toBeNull();
       // sanity: a catch-all v (sand band, limit_y = 0) accepts anywhere
       expect(classify(t, shallow.x, shallow.y + 24576, 0.9)).not.toBeNull();

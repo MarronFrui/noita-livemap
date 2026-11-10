@@ -87,7 +87,7 @@ describe("world-gen.mjs", () => {
     expect(typeof worldGen.worldColorAt).toBe("function");
     expect(typeof worldGen.ensureWorld).toBe("function");
     expect(typeof worldGen.areaKey).toBe("function");
-    expect(worldGen.L3_ANCHOR).toEqual({ x: 11, y: 12 }); // C78 (dig #99)
+    expect(worldGen.L3_ANCHOR).toEqual({ x: 11, y: 12 }); // C78
   });
   test("areaKey format is '<name>_<x1>_<y1>'", () => {
     expect(worldGen.areaKey({ name: "coalmine" }, { x1: 29, y1: 14 })).toBe("coalmine_29_14");
@@ -120,8 +120,8 @@ describe("surface-level.mjs", () => {
     expect(surfaceLevel.buildMaterialsTable.length).toBe(3);
     expect(surfaceLevel.classify.length).toBe(4);
     expect(surfaceLevel.rarePolka.length).toBe(6);
-    expect(surfaceLevel.pointInPolygon.length).toBe(3); // (poly, tx, ty) — dig #147
-    expect(surfaceLevel.modSigned512Float.length).toBe(1); // dig #147/#148
+    expect(surfaceLevel.pointInPolygon.length).toBe(3); // (poly, tx, ty)
+    expect(surfaceLevel.modSigned512Float.length).toBe(1);
   });
 });
 
@@ -143,7 +143,7 @@ describe("images.mjs", () => {
 
 describe("biomes.mjs", () => {
   test("exports match the documented surface", () => {
-    expect(Object.keys(biomes).sort()).toEqual(["biomeAt", "biomeAtPixel", "biomeChunkDef", "loadBiomeConfig"]); // dig #216: + the GetBiomeAt port (C187)
+    expect(Object.keys(biomes).sort()).toEqual(["biomeAt", "biomeAtPixel", "biomeChunkDef", "loadBiomeConfig"]); // biomeAtPixel = the GetBiomeAt port (C187)
   });
 });
 
@@ -161,7 +161,7 @@ describe("template-render.mjs", () => {
     expect(Object.keys(templateRender).sort()).toEqual([
       "SPLICE_PNGS", "TEMPLATE_SHADES", "TPL_AIR", "blitBackdrop", "blitFixedArt", "blitScene", "blitSplicedScenes",
       "loadPixelSceneTable", "parseInitPixelScenes", "renderTemplateChunk", "renderTemplateWorld", "runInitScenes",
-    ]); // dig #219: + runInitScenes (init() runs as Lua); I54: + blitScene (the wang spawn-scene lane blits through it); I55: + SPLICE_PNGS + loadPixelSceneTable (the image-spawn lane scans them); dig #226: + blitFixedArt (its air-skip pin)
+    ]); // blitScene: the wang spawn-scene lane (I54); SPLICE_PNGS + loadPixelSceneTable: the image-spawn lane (I55); dig #226: + blitFixedArt (its air-skip pin)
   });
 });
 
@@ -172,7 +172,7 @@ describe("plz.mjs", () => {
       "decodePlz", "decodePlz1", "decodePlz2", "parsePlzHeader", "plzLevel",
     ]);
     expect(plz.PLZ_HEADER_BYTES).toBe(24);
-    expect(plz.PLZ_RAW_THRESHOLD).toBe(0x80); // loader gate 0x90E644 (dig #168)
+    expect(plz.PLZ_RAW_THRESHOLD).toBe(0x80); // loader gate 0x90E644
   });
 });
 

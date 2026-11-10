@@ -1,20 +1,15 @@
 // Builds biome layout metadata from the extracted game data:
-//  - biome map PNG (chunk -> biome color)
+//  - biome map PNG (70×48 RGB, chunk -> biome color)
 //  - _biomes_all.xml (color -> biome definition file)
 //  - biome definition XMLs (name, wang template, random materials)
 //  - connected-component areas per biome color (generation happens per area)
-//
-// mapgen/biomes.mjs — parses _biomes_all.xml + biome XMLs + biome_map.png
-// (70×48, RGB); connected-component areas per color. This is OUR wrapper;
-// vendor/ stays read-only. @prov noitool traces (annotated inline): the
-// randomMaterials int-encoding note and the isCoalMine/shouldBlockOutRooms
-// name-list flags below are noitool-derived approximations pending
-// binary pinning (see the 2026-09-19 standing rule in CONSTANTS.md).
+// @prov noitool: the randomMaterials int encoding (annotated inline) is an
+// approximation pending binary pinning (CONSTANTS.md rule).
 
 import fs from "node:fs";
 import path from "node:path";
 import { readPng, rgbToRgbaInt, argbHexToRgbaInt } from "./images.mjs";
-import { simplex2DDeriv } from "./noise-proto.mjs"; // dig #216: 0x8fc020 (the biome-edge displacement)
+import { simplex2DDeriv } from "./noise-proto.mjs"; // 0x8fc020 (the biome-edge displacement)
 
 function parseAttr(tag, name) {
   const m = tag.match(new RegExp(`${name}\\s*=\\s*"([^"]*)"`));
@@ -45,24 +40,20 @@ function parseBiomeDefinition(dataDir, filename) {
   const topo = xml.match(/<Topology\b([^>]*)>/);
   const attrs = topo ? topo[1] : xml.match(/<Biome\b([^>]*)>/)?.[1] ?? "";
   const templateFile = parseAttr(attrs, "wang_template_file");
-  // dig #132 (I32 p2b, the per-area background law): the Topology's
-  // background_image = the air backdrop art (the game composites it behind
-  // the band's terrain; e.g. hills = weather_gfx/background_cave_04_alt,
-  // coalmine = weather_gfx/background_coalmine; the_sky = "" ⇒ the
-  // biome_color pale-blue fill). Parsed on the ROOT Biome tag: some defs
-  // carry it outside <Topology> (the_sky.xml's is on the root with
-  // <Topology> present but background empty — both scans cover it).
+  // background_image = the air backdrop art composited behind the terrain
+  // (I32; e.g. coalmine = weather_gfx/background_coalmine; "" ⇒ the
+  // biome_color fill). Some defs carry it on the root <Biome> tag instead of
+  // <Topology>, so both are scanned.
   const backgroundImage =
     parseAttr(attrs, "background_image") ??
     parseAttr(xml.match(/<Biome\b[^>]*>/)?.[1] ?? "", "background_image") ??
     "";
-  // dig #212 (C184): the backdrop CLIP pair. The attr arm binds
-  // background_image_height -> f32 [cfg+0xa0] (@0x49cf4e..0x49cf65) and
-  // limit_background_image -> u8 [cfg+0xa4] (@0x49cf81..0x49cf98); the
-  // config ctor's defaults = 0x43610000 = 225.0f (@0x495ecf) and 1
-  // (@0x495ed9). Consumer = the per-chunk backdrop builder 0x72c180
-  // (game_world.cpp): with the limit on, the backdrop starts at
-  // max(chunk top, height) and is skipped when height > chunk bottom.
+  // C184, the backdrop clip pair: background_image_height -> f32 [cfg+0xa0]
+  // (@0x49cf4e..0x49cf65), limit_background_image -> u8 [cfg+0xa4]
+  // (@0x49cf81..0x49cf98); ctor defaults 0x43610000 = 225.0f (@0x495ecf) and
+  // 1 (@0x495ed9). Consumer = the per-chunk backdrop builder 0x72c180: with
+  // the limit on, the backdrop starts at max(chunk top, height) and is
+  // skipped when height > chunk bottom.
   const rootAttrs = xml.match(/<Biome\b([^>]*)>/)?.[1] ?? "";
   const bgHeightAttr = parseAttr(attrs, "background_image_height") ?? parseAttr(rootAttrs, "background_image_height");
   const bgLimitAttr = parseAttr(attrs, "limit_background_image") ?? parseAttr(rootAttrs, "limit_background_image");
@@ -74,19 +65,17 @@ function parseBiomeDefinition(dataDir, filename) {
   // cannot run. Rendered by the static-tile lane in world-gen.mjs.
   const staticTile = (parseAttr(attrs, "static_tile") ?? "") === "1";
   // the static tile's background mask (attr @0x49bb39 → [cfg+0x1fc]; its
-  // consumer is unread): E1-measured 2026-11-08 on barren / darkness /
-  // potion_mimics — an fg-AIR cell under a BLACK mask px renders the sky
-  // (capture black 99.4 / 99.0 / 98.7 %), under a WHITE px the biome's
-  // background_image (capture black 1.1 %). world-gen.mjs staticBgMasked.
+  // consumer is unread). Measured (E1, barren/darkness/potion_mimics): an
+  // fg-air cell under a black mask px renders the sky, under a white px the
+  // biome's background_image. world-gen.mjs staticBgMasked.
   const staticTileBgMask = parseAttr(attrs, "static_tile_bg_mask") || null;
   // the Topology's generator TYPE (word-anchored: parseAttr would match the
-  // "type" inside noise_type). roadblock.xml is the ONE shipped biome typed
-  // BIOME_WANG_TILE without a wang_template_file — E1 (2026-11-08): its
-  // chunk (33,11) is 100.0% sky in the capture, so it generates NO terrain
-  // (noise-terrain.mjs noiseChunkMask skips it).
+  // "type" inside noise_type). roadblock.xml is the only biome typed
+  // BIOME_WANG_TILE without a wang_template_file; its chunk (33,11) is all
+  // sky in the capture (E1), so it generates no terrain (noise-terrain.mjs
+  // noiseChunkMask skips it).
   const topologyType = (attrs.match(/(?:^|\s)type\s*=\s*"([^"]*)"/) ?? [])[1] ?? null;
-  // dig #216 (C187, the biome-edge law): the attr arm binds
-  // noise_biome_edges / big_noise_biome_edges / fat_biome_edges -> u8
+  // C187, the biome-edge flags: noise_biome_edges / big_noise_biome_edges / fat_biome_edges -> u8
   // [cfg+0xc4/0xc5/0xc6] (@0x49d03e / 0x49d06f / 0x49d0a0); the config ctor
   // writes dword 0x101 to +0xc4 (@0x495efc) ⇒ defaults 1 / 1 / 0.
   const flagAttr = (n, dflt) => {
@@ -105,11 +94,8 @@ function parseBiomeDefinition(dataDir, filename) {
     const from = parseAttr(rc[1], "input_color");
     const to = parseAttr(rc[1], "output_colors");
     if (!from || !to) continue;
-    // C++ compares 24-bit RGB ints (see noita-tools hexRGBAtoIntRGB:
-    // parseInt(hex.slice(0,6),16)), not RGBA ints. @prov noitool (the
-    // int encoding claim; validated against noitool's C++ — the in-binary
-    // 24-bit compare form is NOT yet independently pinned; treat as
-    // approximation until pinned — see CONSTANTS.md rule).
+    // Compared as 24-bit RGB ints, not RGBA. @prov noitool (hexRGBAtoIntRGB);
+    // the in-binary compare form is not pinned — approximation.
     const toRgb24 = (hex) => {
       const v = argbHexToRgbaInt(hex);
       return (v >>> 8); // drop alpha byte: r<<16|g<<8|b
@@ -148,11 +134,8 @@ function parseBiomeDefinition(dataDir, filename) {
     luaScript: parseAttr(attrs, "lua_script"), // the per-chunk 0xffffeedd init lane
     randomMaterials: flatRandomMaterials,
 
-  // Per-biome procedural-terrain noise params (shape side, P1 surface level).
-  // Read directly from the biome XMLs' <Topology> block (2026-09-20 dig #8 —
-  // the params the binary's noise-terrain family consumes). @data-verified:
-  // extracted config = the engine's own input; the BLEND structure
-  // (gradient ramp + noise) is a recorded TODO, not yet wired to the port.
+  // Per-biome procedural-terrain noise params, read verbatim from <Topology>
+  // (the engine's own input to the noise-terrain family).
   noiseType: parseAttr(attrs, "noise_type"),
   mGradientAddNoise: parseAttr(attrs, "mGradientAddNoise"),
   mGradientEndY: parseAttr(attrs, "mGradientEndY"),
@@ -162,10 +145,8 @@ function parseBiomeDefinition(dataDir, filename) {
   mGradientMaxY: parseAttr(attrs, "mGradientMaxY"),
   mGradientMinY: parseAttr(attrs, "mGradientMinY"),
   mGradientNoiseScale: parseAttr(attrs, "mGradientNoiseScale"),
-  // dig #142: the two slope keys (C118: → [+0x278]/[+0x280], the band
-  // params mode-3 linear span; defaults 0 / 0.01 per C116). Present only
-  // in the lake family (lake/lake_blood/lake_deep/lake_statue carry
-  // -12000 / -0.37); every other biome falls to the ctor defaults.
+  // slope keys (C118: → [+0x278]/[+0x280], the mode-3 linear span; ctor
+  // defaults 0 / 0.01 per C116). Only the lake family sets them.
   mGradientSlopeDelta: parseAttr(attrs, "mGradientSlopeDelta"),
   mGradientSlopeStartX: parseAttr(attrs, "mGradientSlopeStartX"),
   mGradientSinMultipleMax: parseAttr(attrs, "mGradientSinMultipleMax"),
@@ -179,32 +160,24 @@ function parseBiomeDefinition(dataDir, filename) {
   mInsidePerlinScaleY: parseAttr(attrs, "mInsidePerlinScaleY"),
   mInsidePerlinScaled: parseAttr(attrs, "mInsidePerlinScaled"),
   mInsidePerlinSquared: parseAttr(attrs, "mInsidePerlinSquared"),
-  // dig #155 (the lake pipe fix, C130): complete the mInside* slot family —
-  //   mInsideNoiseType → [+0x224], mInsideNoiseFBM → [+0x228] (live: 6 files
-  //   = mountain_top/mountain_floating_island + the pyramid family, both
-  //   attrs "SimplexNoise1234"/"1", sweep-verified this dig),
-  //   mInsideAddValue → [+0x260] (live: 4 files = exactly the lake family,
-  //   all "5.0" — the uidFrom (151)-era "no live attr" census was swept on
-  //   the wrong slot family), mInsideOffsetBySeed → [+0x24d] (0 live files;
-  //   ctor clears 0x24c+24d per C126 — parse completes the map, no arm).
+  // the mInside* slots (C130): mInsideNoiseType → [+0x224], mInsideNoiseFBM
+  // → [+0x228] (mountain_top/mountain_floating_island + pyramid family),
+  // mInsideAddValue → [+0x260] (lake family, "5.0"), mInsideOffsetBySeed →
+  // [+0x24d] (no shipped file sets it; ctor clears it per C126).
   mInsideAddValue: parseAttr(attrs, "mInsideAddValue"),
   mInsideNoiseFBM: parseAttr(attrs, "mInsideNoiseFBM"),
   mInsideNoiseType: parseAttr(attrs, "mInsideNoiseType"),
   mInsideOffsetBySeed: parseAttr(attrs, "mInsideOffsetBySeed"),
   mMultiplierGradient: parseAttr(attrs, "mMultiplierGradient"),
-  mMultiplierPerlin: parseAttr(attrs, "mMultiplierPerlin"), // winter.xml only in the current set (CE (35) slot value for +0x268)
-    // dig #24 (2026-09-21): the C39 IMAGE-LANE source = the `bitmap_noise_file`
-    // attr (the SetSize+Load wrapper's loader chain true 0x8fa930 → the
-    // LoadImage ‑plz/PNG path). Carried verbatim for the noise lane's
-    // gradAt (the lake family only in the current set; topology_*.png =
-    // 512×256 = the CE's grid shape).
+  mMultiplierPerlin: parseAttr(attrs, "mMultiplierPerlin"), // winter.xml only (slot +0x268)
+    // C39 image-lane source (loader chain true 0x8fa930 → LoadImage);
+    // consumed by the noise lane's gradAt (lake family; topology_*.png =
+    // 512×256).
     bitmapNoiseFile: parseAttr(attrs, "bitmap_noise_file"),
-    // dig #30 (2026-09-21): the BitmapCaves block (the band-stack builder's
-    // data side; fn C1 sizes the grid from size_x/size_y per the (38) byte
-    // read, and fnB consumes the structure knobs — the C50 consumer read
-    // (blob-strength (min,max) pair [+0x74]/[+0x78] → Random interp → the
-    // 0x4ee130 blob-setter)). Extracted verbatim for the SURFACE_V3 lane.
-    // The 10 CaveStructure children (image_file, aabb, count, strength).
+    // the BitmapCaves block (the band-stack builder's data side: fn C1 sizes
+    // the grid from size_x/size_y; fnB consumes the structure knobs, C50 —
+    // blob-strength pair [+0x74]/[+0x78] → the 0x4ee130 blob-setter), plus
+    // its CaveStructure children. Extracted verbatim.
     bitmapCaves: (() => {
       const m = xml.match(/<BitmapCaves\b([\s\S]*?)<\/BitmapCaves>/);
       if (!m) return null;
@@ -260,15 +233,10 @@ function parseBiomeDefinition(dataDir, filename) {
       };
     })(),
     materialBands,
-    // Binary-exact flag derivation (2026-09-19 dig #2, ABOUT_MATH 2026-09-19
-    // (8); CONSTANTS.md C19/C20 — replaces the @prov noitool NAME-LIST flags):
-    // the driver gates blockOutRooms by std::string/template-path equality
-    // against "data/wang_tiles/{coalmine,excavationsite}.png" (only these 3
-    // template-path literals exist in the whole binary), and hasPath's
-    // coalmine arms (mark walk + stairs band) gate on the coalmine.png path
-    // via the same compare. The biome NAME is never consulted in-binary —
-    // e.g. every tower_* sub-biome maps to one of the two paths regardless
-    // of its name.
+    // C19/C20: the driver gates blockOutRooms by template-path equality
+    // against "data/wang_tiles/{coalmine,excavationsite}.png", and hasPath's
+    // coalmine arms gate on the coalmine.png path the same way. The biome
+    // name is never consulted (tower_* sub-biomes map by path).
     isCoalMine: false, // set below from templateFile == coalmine.png (C20)
     shouldBlockOutRooms: false, // set below from templateFile ∈ {coalmine.png, excavationsite.png} (C19)
   };
@@ -355,24 +323,18 @@ export function loadBiomeConfig(dataDir) {
   for (const entry of entries) {
     if (biomes.has(entry.color)) continue;
     const def = parseBiomeDefinition(dataDir, entry.filename);
-    // 2026-09-19 dig: flags key off the wang TEMPLATE PATH (the binary's own
-    // selection rule; CONSTANTS.md C19/C20), not the biome name. Currently
-    // resolves the same 4 biomes as before for the rendered set — PLUS the
-    // ones the name lists missed: tower_* (name "tower" — out of the name
-    // namespace) and _EMPTY_ (color ffFF8080, also coalmine.png; no biome-map
-    // px today).
+    // flags key off the wang template path (C19/C20), not the biome name
     def.isCoalMine = def.templateFile === "data/wang_tiles/coalmine.png";
     def.shouldBlockOutRooms =
       def.templateFile === "data/wang_tiles/coalmine.png" ||
       def.templateFile === "data/wang_tiles/excavationsite.png";
     // template biomes (no wang atlas) are drawn by the template renderer
     def.template = !def.templateFile;
-    // dig #215 (C186, the Work y-wrap law): wang areas live IN-MAP. The game
-    // builds ONE wang image P over the 70x48 biome map only (Init 0x905fb0:
-    // grid ctor 0x8f95c0(P, floor(70*512/10), floor(48*512/10)) @0x90738f)
-    // and every read wraps (getter 0x9fe4e0), so the rows above/below the map
-    // re-read the main band (the-work.mjs) — the old vmap-extended areas
-    // (the_end 53 rows down, the_sky up) were the Work's speckle fill (I3/I6).
+    // C186: wang areas live in-map. The game builds one wang image P over the
+    // 70x48 biome map only (Init 0x905fb0: grid ctor 0x8f95c0(P,
+    // floor(70*512/10), floor(48*512/10)) @0x90738f) and every read wraps
+    // (getter 0x9fe4e0), so rows above/below the map re-read the main band
+    // (the-work.mjs).
     def.areas = computeAreas(map, entry.color);
     if (def.areas.length > 0) {
       biomes.set(entry.color, def);
@@ -402,7 +364,7 @@ export function biomeAt(config, tx, ty) {
   return { color, biome, area };
 }
 
-// --- dig #216 (C187): GetBiomeAt 0x909da0 — THE BIOME-EDGE LAW -------------
+// --- C187: GetBiomeAt 0x909da0 — the biome-edge law ------------------------
 // The per-cell biome lookup (the field driver 0x908f40 calls it first, at
 // every cell). Frame: X = x + [this+0x38], Y = y + [this+0x40] with
 // [+0x38] = W·0.5·512 and [+0x40] = biome_offset_y·512 (Init @0x906c19..

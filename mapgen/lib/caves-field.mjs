@@ -1,99 +1,42 @@
 // mapgen/lib/caves-field.mjs — the BitmapCaves-built cave field (SURFACE_V3).
 //
-// Binary-derived per ABOUT_MATH 2026-09-21 (38)–(49), CONSTANTS.md C44/C46/
-// C48/C50 — the byte-defensible core of the surface band's shape model.
+// Byte-derived per CONSTANTS.md C44/C46/C48/C50 (ABOUT_MATH §6 (38)–(49)).
 //
-// Byte-status ledger (no-guessing mandate):
-//   BYTE-EXACT:
-//     - the base bake (fn C1 @slab 0x4f29c2: all-1.0 f32 — matches the C48
-//       oracle's all-1.0 background)
-//     - the ctor chain (FUN_008f9470 = C27: diddled-ws poro Random, ONE
-//       warm Next draw) and the ×5·w toucher ([P+0x94] = (w·0.5)/0.1, C48)
-//     - the (43)(a) blob-circle falloff (carveCircle = the legacy model,
-//       entry (122); stampLerpTemplate lost its only caller dig #123 — the
-//       record lane is draws-only)
-//     - the smoothstep LERP stamp blend (true 0x8EE930, dig #58) =
-//       the ONLY lowering-capable writer: `v_out = (v_src − v_dst)·t + v_dst`.
-//     - the C50 knob consumer: v = A + d·(B − A) (the strength pair interp)
-//       feeding the 0x4ee130 setter's v_arg in a decl-loop blob-count phase.
-//     - the scatter read (true 0x8EEAD0 = slab 0x4ee2d0 + 0x400800, dig
-//       #81 re-pin): roll + bounds + the `< 0.5`
-//       empty-cell gate + the 0x8FAFC0 recursion (dig #56).
-//     - the fnB HEAD draw order (dig #65, re-scoped by C81): the pre-loop is
-//       warm draw → cave_count → surface_caves_count (both the POSITIVE
-//       fraction form); the count gates 0x21/0x0a/0x14/0x32 (dig #66) are
-//       the WALK-side gates — Δy 33/101, childCounter 10/101 + 20/101,
-//       growth 50/101 ×2 (C81 ④).
-//     - the byte-closed fnA/fnB walk (C81 caller side + C82 walk body):
-//       fnB's path alternation (case A chained ±0.01w / 0.05..0.25h, case B
-//       trunc(lerp(0.07h,0.33h)) + trunc(lerp(5,w−5)), the switch path's
-//       X-law + Y₀ = trunc(6u) + the lane-select 3 − trunc(−3u) cursor
-//       factor), the two-stage budget (LERP(0.15S,0.96S) vs the flag=1
-//       LERP(0.45S,0.96S), ÷Δy), and fnA's prologue/loop draw order (6
-//       prologue draws → envelope → the UNCONDITIONAL roll draw → the D2
-//       arm → the `push $1` stamp → Δy → the two bias draws → the x-law →
-//       the >50 re-jitter → the child gate + the IN-WALK recursion). The
-//       old ≤50-step x-wanderer lane (1.0 + 2.5·d)·0.2 (dig #68/#69) and
-//       the rollAcc/L1 chain are RETRACTED: neither is in fnA/fnB (entry
-//       (102) ⑥⑦), and the box exit is PLAIN (no `& (gridW−1)` wrap).
-//       PORT STATUS (2026-09-26, dig #103): APPLIED — the Q3a patch per
-//       entry (102) ⑦ is in; the bodies below run the byte-closed walk
-//       (the old x-wanderer lane, rollAcc/L1 chain, the `& (gridW−1)`
-//       wrap, and the outer `childs` loop are gone).
-//     - the CaveStructure record phase = a PRNG-DRAW CONSUMER, nothing more
-//       (dig #123, entry (123)): count = count_min + trunc(u·(count_max −
-//       count_min + 1)) — the UP-from-min rollPos twin (dig #61's "negative
-//       NextU scale counts DOWN from max" misread the −2⁻³¹ const trick);
-//       per stamp: the ctor-seed + [the 0x668400 resolver iff image_file
-//       has `$[lo-hi]`] + X + Y + strength draws, all values discarded — the
-//       per-stamp template (ctor 0x8F9470) ships empty and the engines
-//       no-op (fn870's `[temp+4] ≤ 0` dims gate @0x8ef888b, fn950's
-//       `[temp+0x5c] = 0` stencil skip @0x8ef977 — I28 CLOSED)
-//   READ SETTLED dig #119 (2026-10-10, entry (119) + C98 + §8 row 39) and
-//     PORTED dig #120 (2026-10-10, entry (120) + C99 + §8 row 40): the
-//     blob phases, L2/L3, and the blend now run the byte laws:
-//       loop B = mountain_count top-band VERTICAL RUNS (K = 0.1h @0x8f0780;
-//         per stamp base = ⌊K·u⌋, X = rollPos(5,w−5), R = rollF(mountain_
-//         size [+0x5c]/[+0x60]), Y_end = base+⌊11u⌋+15 [the −2⁻³¹+sub
-//         idiom 0x11e0578/0x11dff38]; the 20% coin → Y_end := base and
-//         v := 1.5+0.25u [direct-call draw]; rows base..Yend → blend with
-//         the UNCONDITIONAL R += 0.5(1+u) and the 50% decay coin
-//         v *= 0.97+0.03u) — NO min(20) cap;
-//       loop C = blob_caves_count stamps, y = rollPos(25,h−5) FIRST, x =
-//         rollPos(5,w−5), v = rollF(blob_caves_strength [+0x6c]/[+0x70]),
-//         R = rollF(blob_caves_radius [+0x74]/[+0x78]);
-//       L2 = exactly 2 passes (arm A rollF(3.5,35); arm B flips [−0x104]
-//         then rollF(25,75)), y₀ = 0, count = 120+⌊81u⌋, chain = 3u+1,
-//         scale = 0.1u+0.1 (0x11df974), vel = sign·(1.25+2.25u); per
-//         point 7 draws incl. the spawn coin;
-//       L3 = the do_beginning_down (config[+0x31]) gate + the module MSVC
-//         C-rand setup (lo/hi/x₀ from r₁r₂r₃, vel from r₄) then the same
-//         per-point laws with chain clamp [lo,hi] and vel clamp ±1.0;
-//       blend = t = (R²−d²)/R², w = t², and the R ≤ 1 single-cell
-//         min-guard arm (write iff cell > v).
-//     C50 OVERTURNED (§8 row 40): [+0x74]/[+0x78] = blob_caves_RADIUS
-//     (C52's slot map) — the old C50 strengthA/B interp, the min(20) cap,
-//     and the uniform y∈[0,h−1] stamps are gone.
-//     SETTLED dig #120 (C99), CLOSED dig #122/I26 (entry (122) + C101):
-//     the 0x8EE750 setter's branch is on VALUE > 1.0 and both arms are
-//     LOWER-only (single-cell target = scale when value ≤ 1; circle
-//     target = 1 + t·(scale−1), t = (value²−d²)/value²). The flag=1 eave
-//     (re-read byte-exact, C101): the CIRCLE arm only, on the stamp
-//     CENTER y < 25, q = y/25 (NO −1 — C99's "(y−1)/25" was a miscite),
-//     target := 1 + q⁸·(target−1). L2/L3 use setterStamp flag=0; the
-//     WALK uses setterStamp flag=1 (value = the radius envelope, scale =
-//     clamp01(slot″) — the walk CARVES); the record lane writes NOTHING
-//     (dig #123: the engines no-op on the ctor-empty template — the lane
-//     only consumes draws) — carveCircle/stampLerpTemplate retired to the
-//     legacy model.
-//   STILL FLAGGED: the y-drift span (queue #2, entry (74), deferred
-//     pending the fnA window read); walkChain's per-roll draw budget (the
-//     model's); the spawn-lane selector/scatter draws — the port's spawn
-//     keys are unparsed (null) so the byte's `cmpl $0` gates skip them
-//     (FLAGGED stream divergence, ~0.15 draws/point on coin-hits,
-//     contained because L3 is the last phase).
-//     The composition follows the byte-cited phase ORDER; the
-//     per-roll draw counts inside walkChain are the model's.
+// Byte-exact:
+//   - base bake: fn C1 @slab 0x4f29c2, all-1.0 f32 (matches the C48 oracle).
+//   - the ×5·w toucher: [P+0x94] = (w·0.5)/0.1 (C48).
+//   - the 0x8EE930 stamp blend (stampBlendLerp) and the 0x8EE750 setter
+//     (setterStamp); see their comments.
+//   - the scatter read (true 0x8EEAD0 = slab 0x4ee2d0 + 0x400800): roll +
+//     bounds + the `< 0.5` empty-cell gate + the 0x8FAFC0 recursion.
+//   - fnB head draw order: cave_count → surface_caves_count (positive
+//     fraction form); the count gates 0x21/0x0a/0x14/0x32 are walk-side —
+//     Δy 33/101, childCounter 10/101 + 20/101, growth 50/101 ×2 (C81 ④).
+//   - the fnA/fnB walk (C81 caller side + C82 body): fnB's path alternation
+//     (case A chained ±0.01w / 0.05..0.25h; case B trunc(lerp(0.07h,0.33h))
+//     + trunc(lerp(5,w−5)); the switch path's X-law + Y₀ = trunc(6u) + the
+//     lane-select 3 − trunc(−3u) cursor factor), the two-stage budget
+//     (LERP(0.15S,0.96S) vs flag=1 LERP(0.45S,0.96S), ÷Δy), and fnA's
+//     prologue/loop draw order (see walkChain). The box exit is plain (no
+//     `& (gridW−1)` wrap).
+//   - the CaveStructure record phase (see caveRecordStamp).
+//   - blob phases, L2/L3 and the blend (C98, C99): loop B = mountain_count
+//     top-band vertical runs; loop C = blob_caves_count stamps (y first);
+//     L2 = exactly 2 chain passes; L3 = the do_beginning_down chain with the
+//     MSVC C-rand setup; blend t = (R²−d²)/R², w = t². [+0x74]/[+0x78] =
+//     blob_caves_radius (C52 slot map; §8 row 40).
+//   - setter: branch on value > 1.0, both arms lower-only; flag=1 adds the
+//     circle-arm eave on stamp center y < 25, q = y/25 (C101). L2/L3 pass
+//     flag=0; the walk passes flag=1 (value = radius envelope, scale =
+//     clamp01(slot″)).
+// FLAGGED:
+//   - the y-drift span (queue #2, entry (74)), pending the fnA window read.
+//   - walkChain's per-roll draw counts are the model's; the phase ORDER is
+//     byte-cited.
+//   - spawn-lane selector/scatter draws: the port's spawn keys are unparsed
+//     (null) so the byte's `cmpl $0` gates skip them (stream divergence,
+//     ~0.15 draws/point on coin-hits; contained because L3 is the last
+//     phase).
 import path from "node:path";
 import { readPng } from "./images.mjs";
 import { findNoitaDataDir } from "./paths.mjs";
@@ -107,96 +50,61 @@ export function toucherValue(w) {
   return (w * 0.5) / 0.1;
 }
 
-// ── the CaveStructure RECORD phase — a PRNG-DRAW CONSUMER, nothing more
-// (dig #61 byte-cited; engine identity entry (122), I26; the DRAW LAW + the
-// no-write proof dig #123, I28 CLOSED) ───────────────────────────────────────
-// Per the record window (fnB @0x8f11b3..0x8f1746):
+// ── CaveStructure record phase (fnB @0x8f11b3..0x8f1746; I26, I28) ─────────
 //   count roll @0x8f120c..0x8f1280: count = [rec+0x1c] + trunc(u·([rec+0x20]
-//     − [rec+0x1c] + 1)) — UP from min (dig #61's "negative NextU scale,
-//     counts DOWN from max" misread the −2⁻³¹ const trick; the roll is the
-//     rollPos twin), ≤ 0 → `jle 0x8f16f1` skips the record (zero draws).
-//   per stamp (the loop counts DOWN: `decl [−0x120]; jne 0x8f1295`):
-//     1. ctor-seed draw @0x8f12c5..0x8f130a (the state is stored back
-//        @0x8f130a; the ctor arg = trunc(u·(2³¹−1))). The ctor 0x8F9470
-//        draws twice from a STACK-LOCAL Random seeded by that arg (`lea
-//        0x8(%esp)` → 0x10098c0 ×2 @0x8f958d/0x8f9596, feeding [+0x94] =
-//        u·200000 − 100000) — it never touches the stream, so the stamp
-//        costs EXACTLY this one stream draw.
-//     2. the image resolver @0x8f144e → 0x668400: 1 draw iff the record's
-//        image_file carries a well-formed `$[lo-hi]` group (`find('$')`
-//        @0x668494 → npos ⇒ assign + return, 0 draws; else find `$[`/`]`,
-//        split the inner on "-" → count ≥ 2 (`cmp $2; jae 0x6685dc`) ⇒ the
-//        draw @0x6685ff, value = lo + trunc(u·(hi−lo+1)); a malformed group
-//        logs "Error in parsing, no end in sight" @0x6685bf, 0 draws; the
-//        recursion @0x66873f re-runs on the SUBSTITUTED string (group
-//        removed) ⇒ exactly 1 draw per well-formed group. XML census (all
-//        102 CaveStructure records, on disk 2026-10-11): 94 plain, 7
-//        `$[0-999]`, 1 `$[1-4]` ⇒ 1 resolver draw for those 8, 0 for the
-//        rest).
-//     3. the Y roll @0x8f14b6 (state store @0x8f1518): [rec+0x28] (aabb_min_y)
-//        + trunc(u·([rec+0x30] (aabb_max_y) − [rec+0x28] + 1)).
-//     4. the X roll @0x8f157f (state store @0x8f15d9): [rec+0x24] (aabb_min_x)
-//        + trunc(u·([rec+0x2c] (aabb_max_x) − [rec+0x24] + 1)).
-//     5. the strength roll @0x8f164d (state store @0x8f16a3): f32
-//        [rec+0x34] + u·([rec+0x38] − [rec+0x34]).
-//   dig #141 (slot-map): the aabb slot-ORDER per the record-class XML
-//   dispatcher 0x4ABD60's own-mount rows = {+0x24 aabb_min_x, +0x28
-//   aabb_min_y, +0x2c aabb_max_x, +0x30 aabb_max_y} ⇒ [−0x108] (from
-//   [rec+0x28]/[rec+0x30]) = the Y-anchor roll (NOT X = the digs #102-#135
-//   era-labeled-X-slot is WRONG) and [−0x154] (from [rec+0x24]/[rec+0x2c])
-//   = the Y/anchor's-X-slot (= the fnB's fn950 call site: the [−0x108] push
-//   @0x8f16c0 arrives as the fn950's [ebp+0xc] and the [−0x154] push
-//   @0x8f16c7 as the fn950's [ebp+8] = xs): the fn950's (xs, ys, v) = the
-//   fnB's ([−0x154] X-anchor, [−0x108] Y-anchor, strength) — swapped vs
-//   the dig-#102-era "X @8f14b6/Y @8f157f" label pairing, now matching the
-//   record-XML aabb field order. The sign law stands (a tiny negative
-//   trunc-mult-span): both rolls' output = min + trunc(u·(max − min + 1)).
-//   then fn950 (ecx = the temp, edx = the field, stack: X-then-Y (the
-//   [−0x154]/[−0x108] values as xs/ys) then strength — the
-//   values are DISCARDED) + the temp dtor (0x64cad0); record stride 0x3c,
-//   back-edge `jb 0x8f11b3`.
-// The no-write proof (I28 CLOSED): the ctor zero-inits every dim/container
-// slot (`movl $0x0` @0x8f9481..0x8f94c8 ⇒ [temp+0] = [temp+4] =
-// [temp+0x5c] = 0) and nothing in the window fills them (the temp's only
-// addresses = the 3 `lea −0xfc` sites ctor/fn950/dtor; the −0x48 handle is
-// assigned then released, never read) ⇒ fn870 exits at its dims gate
-// (`cmp [temp+4],0; jle 0x8ef940` @0x8ef888b) and fn950's byte stencil
-// skips (`cmpl $0,0x5c(%ebx); je 0x8efa2d` @0x8ef977 = the epilogue). The
-// lane's only observable effect = the draws above; the port mirrors the
-// draw budget and discards the values (entry (123)).
-//
-// SCOPE CORRECTION (dig #135, C112, §8 row 46): the no-op above holds
-// ONLY for the ctor-empty (plain) templates. The whole-binary census:
-// fn950 has exactly one caller (fnB's record window @0x8F16C8), fn870
-// exactly one (fn950 @0x8EF96F). For FILLED (image_file / `$[lo-hi]`
-// grouped) templates the two-lane stamp WRITES: fn870 =
-// dst' = dst + α·(v − dst) over the record template's own W×H at
-// (xs,ys) with dst-clip; fn950's +0x5c-gated byte stencil copies the
-// non-zero bytes. The y=0 bump in the C48 oracle = this stamp family.
-// The port here remains the PLAIN-class mirror (draws only); the
-// grouped-class write port + the X/Y anchors = dig #136.
+//     − [rec+0x1c] + 1)) — up from min (the rollPos form; the −2⁻³¹ const is
+//     a trunc idiom, not a negative scale); ≤ 0 → `jle 0x8f16f1` skips the
+//     record (zero draws).
+//   per stamp (loop counts down: `decl [−0x120]; jne 0x8f1295`):
+//     1. ctor-seed draw @0x8f12c5..0x8f130a (ctor arg = trunc(u·(2³¹−1))).
+//        The ctor 0x8F9470 draws twice from a stack-local Random seeded by
+//        that arg (`lea 0x8(%esp)` → 0x10098c0 ×2 @0x8f958d/0x8f9596,
+//        feeding [+0x94] = u·200000 − 100000); the stream sees one draw.
+//     2. image resolver @0x8f144e → 0x668400: 1 draw iff image_file carries
+//        a well-formed `$[lo-hi]` group (`find('$')` @0x668494 → npos ⇒ 0
+//        draws; else split the inner on "-", count ≥ 2 (`cmp $2; jae
+//        0x6685dc`) ⇒ draw @0x6685ff, value = lo + trunc(u·(hi−lo+1)); a
+//        malformed group logs "Error in parsing, no end in sight" @0x6685bf,
+//        0 draws; the recursion @0x66873f re-runs on the substituted string
+//        ⇒ 1 draw per well-formed group). XML census (102 CaveStructure
+//        records): 94 plain, 7 `$[0-999]`, 1 `$[1-4]`.
+//     3. roll @0x8f14b6 (store @0x8f1518): [rec+0x28] + trunc(u·([rec+0x30]
+//        − [rec+0x28] + 1)).
+//     4. roll @0x8f157f (store @0x8f15d9): [rec+0x24] + trunc(u·([rec+0x2c]
+//        − [rec+0x24] + 1)).
+//     5. strength roll @0x8f164d (store @0x8f16a3): f32 [rec+0x34] +
+//        u·([rec+0x38] − [rec+0x34]).
+//   Slot map (record XML dispatcher 0x4ABD60): +0x24 aabb_min_x, +0x28
+//   aabb_min_y, +0x2c aabb_max_x, +0x30 aabb_max_y ⇒ roll 3 ([−0x108]) is the
+//   Y anchor, roll 4 ([−0x154]) the X anchor. fn950 receives [−0x154] (push
+//   @0x8f16c7) as xs = [ebp+8] and [−0x108] (push @0x8f16c0) as ys =
+//   [ebp+0xc]: fn950(xs, ys, strength). Then the temp dtor (0x64cad0);
+//   record stride 0x3c, back-edge `jb 0x8f11b3`.
+// Plain (ctor-empty) templates no-op (I28): the ctor zero-inits [temp+0],
+// [temp+4], [temp+0x5c] (`movl $0x0` @0x8f9481..0x8f94c8) and nothing fills
+// them, so fn870 exits at its dims gate (`cmp [temp+4],0; jle 0x8ef940`
+// @0x8ef888b) and fn950's stencil skips (`cmpl $0,0x5c(%ebx); je 0x8efa2d`
+// @0x8ef977). Filled (image_file) templates write (C112, §8 row 46): fn950
+// (sole caller fnB @0x8F16C8) and fn870 (sole caller fn950 @0x8EF96F) —
+// fn870 = dst' = dst + α·(v − dst) over the template's W×H at (xs,ys) with
+// dst-clip; fn950's +0x5c-gated stencil copies non-zero bytes. The y=0 bump
+// in the C48 oracle is this stamp family.
 export function caveRecordStamp({ countMin, countMax, imageFile, aabbMinX, aabbMaxX, aabbMinY, aabbMaxY, strengthMin, strengthMax }, prng, bytes, gridW, gridH, field = null, paintField = false, overlays = null) {
   const lo = countMin ?? 0;
   const hi = countMax ?? 0;
   const resolverCount = resolverDraws(imageFile); // pure — hoisted out of the loop
   const count = lo + Math.trunc((hi - lo + 1) * prng.next()); // up from min
-  // dig #164: the RECORD LANE now writes the byte plane (the dig-#162 law:
-  // the records' image_file → the template → the fn950 stencil → [P+0x58]).
-  // The template lookup happens per stamp — the resolver's $[lo-hi] group
-  // rolls its index (1 draw per well-formed group @0x66873f) and the
-  // substitution replaces the group in the path before the load.
-  // D-STAND-INS (flagged in ISSUES §A, this dig): (d1) the position rolls —
-  // X then Y, the integer roll-in-range form lo + trunc(N·u) over the aabb
-  // (N = max−min+1); (d2) the byte VALUE = 1 (the paint flag — the sampler's
-  // gate reads != 0; the record's strength draw travels for stream parity
-  // only). The exact fn950 roll shapes + byte decode = the next read if the
-  // census disagrees.
+  // Per stamp the resolver substitutes its rolled index into image_file,
+  // the template loads, and fn950's stencil writes its nonzero bytes to the
+  // byte plane [P+0x58].
+  // D-STAND-INS (ISSUES §A): (d1) the position rolls — X then Y, lo +
+  // trunc(N·u) over the aabb (N = max−min+1); (d2) the byte value = 1 (the
+  // paint flag; the sampler's gate reads != 0).
   if (bytes && imageFile) {
     for (let s = 0; s < count; s++) {
       prng.next(); // the ctor-seed draw (the seed arg feeds a local Random)
-      // the resolver rolls + the PATH SUBSTITUTION: each well-formed group
-      // consumes 1 draw and is replaced by its rolled index (≤ 1 group per
-      // shipped image_file — the census this dig)
+      // resolver: each well-formed group consumes 1 draw and is replaced by
+      // its rolled index (≤ 1 group per shipped image_file)
       let stampPath = imageFile;
       for (let g = 0; g < resolverCount; g++) {
         const u = prng.next();
@@ -205,38 +113,24 @@ export function caveRecordStamp({ countMin, countMax, imageFile, aabbMinX, aabbM
           return String(Number(a) + Math.trunc((Number(b) - Number(a) + 1) * u));
         });
       }
-      // the position rolls (X then Y, in-range integer forms; x = the aabb
-      // min + trunc(N·u); the record aabb Y range is 0..20 — the TOP-BAND
-      // placement is the binary's own data, not a port clamp)
+      // position rolls (d1); the record aabb Y range is 0..20, so the
+      // top-band placement comes from the data, not a clamp
       const X = (aabbMinX ?? 5) + Math.trunc(((aabbMaxX ?? 507) - (aabbMinX ?? 5) + 1) * prng.next());
       const Y = (aabbMinY ?? 0) + Math.trunc(((aabbMaxY ?? 20) - (aabbMinY ?? 0) + 1) * prng.next());
-      // dig #202: the strength roll CONSUMED — the drawn strength (the
-      // Random(min,max) closed form, the C50 read) = THE BLEND'S TARGET
-      // (dig #203's fn870 law: dst' = dst + src_val·(strength − dst) —
-      // the lerp toward the strength weighted by the stamp's decoded
-      // pixel; the old v = lum × strength form RETRACTED).
-      // The roll order is UNCHANGED (one draw here, as before — the stream
-      // parity holds: the paint consumes no draws).
-      const su = prng.next(); // the strength roll (the value lane; byte value = 1, d2)
+      // strength roll = the fn870 blend target (see below); the paint
+      // consumes no draws
+      const su = prng.next(); // the strength roll
       const strength = (strengthMin ?? 0) + ((strengthMax ?? 0) - (strengthMin ?? 0)) * su;
-      // the stencil copy (fn950's law: the template's NONZERO bytes → the
-      // plane at (x0,y0); the record's gate = the template non-empty)
+      // fn950 stencil: the template's nonzero bytes → the plane at (X,Y)
       const stamp = recordTemplate(stampPath);
       if (stamp) {
-        // dig #202: the OVERLAY record (the C175 hard lane): the stamp's
-        // rect = materialized FROM THE STAMP'S OWN IMAGE by its own wg —
-        // the per-pixel value = α·lum·strength (the >0.5 gate decides the
-        // solidity directly; the low-strength pit family = the carve). The
-        // overlay list rides the build result; the mask readers check it
-        // FIRST (the raw field frame). The draws = unchanged.
+        // overlay record (C175): the stamp's rect, valued from its own image;
+        // mask readers check overlays first (raw field frame). No draws.
         if (overlays) {
           const values = new Float32Array(stamp.w * stamp.h);
           for (let i = 0; i < values.length; i++) {
-            // dig #203: the overlay = the WG lane = the stamp's DECODED
-            // image (the C32 chain) — the value = THE ALPHA (the coverage
-            // mask: the opaque = solid, the transparent = air; the lum =
-            // the color = the material lane). NO strength term (the
-            // strength = the P-lane blend's target, fn870).
+            // value = the decoded alpha (coverage: opaque = solid,
+            // transparent = air); lum is the material lane
             values[i] = stamp.alpha[i];
           }
           overlays.push({ x: X, y: Y, w: stamp.w, h: stamp.h, values });
@@ -249,24 +143,16 @@ export function caveRecordStamp({ countMin, countMax, imageFile, aabbMinX, aabbM
             if (v !== 0) {
               const gx = X + px;
               if (gx < 0 || gx >= gridW) continue;
-              bytes[gy * gridW + gx] = v; // NONZERO = the paint flag
-              // dig #203: the fn870 BLEND — the BYTE LAW (0x8EF870 full):
-              // dst' = dst + src_val·(strength − dst) — the lerp toward the
-              // DRAWN STRENGTH weighted by the stamp's decoded pixel value
-              // (the 0x949ad0 read on the src embed's data). The α = 0
-              // pixels are no-ops naturally; the low-strength stamps (the
-              // pit family, ≤ 0.65) pull the blended cells below the 0.5
-              // gate = the carve. The src_val stand-in = α·lum (the C32
-              // decode's exact form = the follow-up read, flagged A17 d2).
-              // GATED: paintField = the SURFACE_STAMPS=1 lane (the byte
-              // stencil above = the landed dig-#164 behavior, untouched).
+              bytes[gy * gridW + gx] = v; // nonzero = the paint flag
+              // fn870 blend (0x8EF870): dst' = dst + src_val·(strength − dst),
+              // src_val = the stamp's decoded pixel (0x949ad0 read). Low-
+              // strength stamps (pit family, ≤ 0.65) pull cells below the 0.5
+              // gate = the carve. src_val = alpha is a stand-in (C32 decode
+              // open, flagged A17 d2). Gated on paintField (SURFACE_STAMPS=1).
               if (paintField && field) {
                 const idx = gy * gridW + gx;
-                // dig #203: the srcVal = THE ALPHA (the coverage) — the
-                // measured blends REACH the target exactly on the opaque
-                // pixels (the pit's body = the flat strength-colored
-                // region); the lum = the color = the MATERIAL lane, not
-                // the field's.
+                // srcVal = alpha: measured blends reach the target exactly
+                // on opaque pixels
                 const srcVal = stamp.alpha[py * stamp.w + px];
                 if (srcVal > 0) {
                   field[idx] += srcVal * (strength - field[idx]);
@@ -278,8 +164,7 @@ export function caveRecordStamp({ countMin, countMax, imageFile, aabbMinX, aabbM
       }
     }
   } else {
-    // the no-template/no-bytes path: the byte-identical draws-only consumer
-    // (the I28 law, retained for the stream determinism)
+    // no template/bytes: the draws-only consumer (I28), same stream budget
     for (let s = 0; s < count; s++) {
       prng.next();
       for (let g = 0; g < resolverCount; g++) prng.next();
@@ -291,20 +176,10 @@ export function caveRecordStamp({ countMin, countMax, imageFile, aabbMinX, aabbM
   return count;
 }
 
-// dig #164: the $[lo-hi] resolver's SUBSTITUTION lives inline in
-// caveRecordStamp (1 draw per well-formed group, the group vanishes after
-// the roll — the same draw budget resolverDraws counts).
-
-// dig #164: the record-TEMPLATE cache — the resolved image_file → the
-// 1-byte stencil template. The template's nonzero bytes ARE the fn950
-// stencil's source (C136: the stencil gate "[temp+0x5c] ≠ 0, the template's
-// nonzero bytes → [P+0x58]"). BYTE-VALUE LAW = D-STAND-IN (flagged, ISSUES
-// §A): the first-order decode = nonzero-rgb → the byte 1 (the paint flag;
-// the sampler's gate reads != 0 — the VALUE's magnitude only reaches the
-// material lane downstream); threshold = the pixel's rgb != 0. The darker
-// first-order (lum-scaled bytes) RETRACTED — any nonzero writes the flag;
-// the true channel decode = the fn950's template-fill read if the census
-// disagrees.
+// Record-template cache: resolved image_file → stencil template (fn950's
+// source, C136: gate [temp+0x5c] ≠ 0, nonzero bytes → [P+0x58]).
+// D-STAND-IN (ISSUES §A): byte value = 1 for any nonzero rgb (the paint
+// flag; the sampler gate reads != 0). The true channel decode is open.
 const __templates = new Map();
 function recordTemplate(resolvedFile) {
   if (!resolvedFile) return null;
@@ -313,13 +188,9 @@ function recordTemplate(resolvedFile) {
   try {
     const png = readPng(path.join(findNoitaDataDir(), resolvedFile.replace(/^data\//, "")));
     const px = new Uint8Array(png.width * png.height);
-    // dig #202 (C175's decode law): the stamp's VALUE channels — alpha =
-    // a/255 (the fn870 blend's α), lum = max(r,g,b)/255 (the grayscale
-    // value maps: the stamp's solid core = the BRIGHT-and-opaque pixels,
-    // measured cave_500 = (255,255,255,255)×80; the fringe = the low-alpha
-    // near-black = ≈0 = air under the blend). The v operand of the fn870
-    // blend = lum × strength (the strength role = D-STAND-IN, flagged
-    // ISSUES §A — the fn870 operand read = the follow-up).
+    // channels (C175): alpha = a/255 (fn870's α), lum = max(r,g,b)/255. The
+    // solid core = bright opaque pixels (cave_500: (255,255,255,255)×80); the
+    // fringe = low-alpha near-black ≈ air under the blend.
     const alpha = new Float32Array(png.width * png.height);
     const lum = new Float32Array(png.width * png.height);
     for (let i = 0; i < px.length; i++) {
@@ -334,11 +205,9 @@ function recordTemplate(resolvedFile) {
   return tpl;
 }
 
-// The 0x668400 resolver's DRAW BUDGET (the byte law above): 1 per
-// well-formed `$[lo-hi]` group, 0 otherwise (no '$' / malformed group). The
-// port never loads images, so only the draw count matters — the rolled
-// index is discarded, and the binary's substitution removes the group
-// before the recursion (each group costs at most one draw).
+// The 0x668400 resolver's draw budget: 1 per well-formed `$[lo-hi]` group,
+// 0 otherwise. The substitution removes the group before recursing, so each
+// group costs at most one draw.
 function resolverDraws(imageFile) {
   const s = imageFile ?? "";
   let draws = 0;
@@ -351,14 +220,10 @@ function resolverDraws(imageFile) {
     from = close + 1; // the substituted string has this group removed
   }
 }
-// LEGACY MODEL (entry (122)): the (43)(a) circle + the per-cell ((py−1)/25)⁸
-// eave + the min/max combiner. No production caller remains — the walk lane
-// moved to setterStamp (flag=1, the true center-y eave) and the record lane
-// is a draws-only consumer since entry (123); kept for the exported API
-// surface + the (43)(a) model reference. The TRUE laws (I26): the setter's
-// eave fires on the stamp CENTER y with q = y/25 (NO −1), circle arm only;
-// the record lane writes NOTHING (I28: both engines no-op on the ctor-empty
-// template).
+// LEGACY MODEL (no production caller; kept for the exported API): the
+// (43)(a) circle with a per-cell ((py−1)/25)⁸ eave and a min/max combiner.
+// The byte setter (setterStamp, I26) applies the eave on the stamp center y
+// with q = y/25, circle arm only.
 export function carveCircle(grid, gridW, gridH, cx, cy, radius, vArg, flag, dir = "min") {
   const r0 = Math.trunc(radius + 0.5);
   for (let dy = -r0; dy <= r0; dy++) {
@@ -383,16 +248,10 @@ export function carveCircle(grid, gridW, gridH, cx, cy, radius, vArg, flag, dir 
   }
 }
 
-// LEGACY MODEL (entry (122); its only caller removed entry (123)) —
-// FUN_008EF870: per cell over the template's region, `field.cell += (vArg −
-// field.cell)·weight` — a TWO-SIDED lerp (write always; no lower-only guard,
-// no eave, no value > 1 branch) with the template's grid0 cell as the
-// weight. The (43)(a) linear t + the circle box + the R ≥ 1 clamp were the
-// port's stand-in for the template's weight pattern. Dig #123 (I28 CLOSED)
-// proved the record window never fills the template ⇒ both engines no-op ⇒
-// the lane draws only; kept as the engine-model reference for I27's
-// published sibling objects (the 0x8ee39a.. factory lane), which may carry
-// a filled template.
+// LEGACY MODEL (no caller): FUN_008EF870 as a two-sided lerp `cell += (vArg −
+// cell)·weight`, with a circle-falloff stand-in for the template weight.
+// Kept as the engine-model reference for I27's sibling objects (the
+// 0x8ee39a.. factory lane), which may carry a filled template.
 function stampLerpTemplate(grid, gridW, gridH, cx, cy, radius, value) {
   const r0 = Math.trunc(radius + 0.5);
   const y0 = Math.max(0, cy - r0), y1 = Math.min(gridH - 1, cy + r0);
@@ -411,17 +270,14 @@ function stampLerpTemplate(grid, gridW, gridH, cx, cy, radius, value) {
   }
 }
 
-// ── the 0x8EE930 stamp blend (dig #58 read; the t² law re-pinned dig #120,
-// entry (120)) ───────────────────────────────────────────────────────────────
-// The byte arms on `comiss 1.0,R; jb circle` @0x8ee934:
-//   R ≤ 1 → SINGLE CELL: bounds (out → ret), getter, `comiss v,cell; jbe
-//     ret` → write iff cell > v (a MIN-guard), write v.
-//   R > 1 → circle: r0 = trunc(R+0.5), box ±r0, d² > R² → skip, t =
-//     (R²−d²)/R², w = t² @0x8eea33, cell += (v − cell)·w (TWO-SIDED, no
-//     guard), bounds px/py per cell (no wrap).
-// v_arg is the loop-B/C rollF value, so a stamp whose source value is low
-// DRAGS the cell down inside its falloff span while a strength stamp
-// (> 1.0) raises it — no max-bleed guard on the circle arm (byte read
+// ── the 0x8EE930 stamp blend (entry (120)) ─────────────────────────────────
+// Byte arms on `comiss 1.0,R; jb circle` @0x8ee934:
+//   R ≤ 1 → single cell: bounds, getter, `comiss v,cell; jbe ret` → write
+//     v iff cell > v (min-guard).
+//   R > 1 → circle: r0 = trunc(R+0.5), box ±r0, skip d² > R², t =
+//     (R²−d²)/R², w = t² @0x8eea33, cell += (v − cell)·w (two-sided, no
+//     guard), per-cell bounds (no wrap).
+// Low v drags cells down and v > 1 raises them (no guard on the circle arm,
 // @0x8ee9a0..0x8eeab0).
 export function stampBlendLerp(grid, gridW, gridH, cx, cy, radius, vArg) {
   if (radius <= 1) {
@@ -449,25 +305,20 @@ export function stampBlendLerp(grid, gridW, gridH, cx, cy, radius, vArg) {
   }
 }
 
-// The byte-closed fnA walk (C82: the 6 prologue draws + the per-iteration
-// draw order; C81's caller supplies cursor/budget/d0sq/dy/growth/childCounter
-// — the entry (102) frozen design). Per iteration: the trunc pair → the
-// PLAIN box exit (no `& (gridW−1)` wrap) → the cursor gate → the loop-top
-// carve EXIT gate (v_prev ≥ cursor @0x8ef109, C105(b), dig #127) → the 3-segment
-// lane/radius envelope → the UNCONDITIONAL roll draw → the coin-gated D2
-// arm (one draw) → clamp01 → the `push $1` stamp = setterStamp(value=
-// radius, scale=clamp01, flag=1) — LOWER-only carve (write iff cell >
-// target; the walk's SCALE ≤ 1 so the walk CARVES, entry (122) I26) + the
-// flag=1 center-y eave (q = y/25 on the stamp center, y < 25) → y += Δy →
-// the spawn gate (spawn_percent is not parsed ⇒ 0 ⇒
-// the byte-identical skip, no draw) → the two bias draws → the d-split
-// x-law draw (clamp(lerp(min,max,u) + bias, −1, 1)) → substeps > 50's
-// growth-gate draw (fire ⇒ substeps := 0 + the LINEAR 2u−1 re-jitter that
-// CLOBBERS the pushed square) → the child gate (cc ≤ 0 ⇒ NO draw; else the
-// 2% gate draw, cc−− BEFORE the budget draw, the childBudget draw
-// (u·50−50) + (budget−steps), the IN-WALK recursion with the CURRENT
-// trunc pair, the same cursor, d0sq = −parent's, and the SHARED cc) →
-// steps++ → continue iff steps ≤ budget.
+// The fnA walk (C82); the caller (C81) supplies cursor/budget/d0sq/dy/
+// growth/childCounter. Per iteration: trunc pair → plain box exit → cursor
+// gate → loop-top carve exit (v_prev ≥ cursor @0x8ef109, C105(b)) → the
+// 3-segment lane/radius envelope → the unconditional roll draw → the
+// coin-gated D2 arm (one draw) → clamp01 → the `push $1` stamp =
+// setterStamp(value=radius, scale=clamp01, flag=1), a lower-only carve with
+// the center-y eave (I26) → y += Δy → spawn gate (spawn_percent unparsed ⇒
+// 0 ⇒ byte-identical skip, no draw) → two bias draws → the d-split x-law
+// draw (clamp(lerp(min,max,u) + bias, −1, 1)) → substeps > 50: growth-gate
+// draw (fire ⇒ substeps := 0 + the linear 2u−1 re-jitter that clobbers the
+// pushed square) → child gate (cc ≤ 0 ⇒ no draw; else the 2% gate draw,
+// cc−− before the budget draw, childBudget = (u·50−50) + (budget−steps),
+// in-walk recursion with the current trunc pair, same cursor, d0sq =
+// −parent's, shared cc) → steps++ → continue iff steps ≤ budget.
 export function walkChain(grid, gridW, gridH, prng, x0, y0, cursor, budget, walk) {
   // C82's 6 prologue draws (the gates between them draw nothing):
   const flagD2 = Math.trunc(prng.next() * 101) < 50 ? 1 : 0; // the D2 coin
@@ -479,24 +330,21 @@ export function walkChain(grid, gridW, gridH, prng, x0, y0, cursor, budget, walk
   if (budget < 0) return; // the pre-loop budget gate (0 > budget ⇒ epilogue)
   let x = x0, y = y0;
   let steps = 0, substeps = 0;
-  let d0 = walk.d0sq; // [ebp+0x1c]: the re-jitter CLOBBERS this copy
+  let d0 = walk.d0sq; // [ebp+0x1c]: the re-jitter clobbers this copy
   const { dy, growth } = walk;
-  const cc = walk.cc; // SHARED with the in-walk recursion (decl per spawn)
+  const cc = walk.cc; // shared with the in-walk recursion (decl per spawn)
   let vPrev = 0; // xmm3 across iterations; iteration 1 = 0 (the gate never fires there)
   for (;;) {
     const tx = Math.trunc(x), ty = Math.trunc(y);
     if (tx < 0 || ty < 0 || tx >= gridW || ty >= gridH) return; // the plain box exit
     if (cursor <= 0) return; // the cursor gate
-    // carve EXIT gate @0x8ef109 (C105(b), dig #126; I30): `movss
-    // 0x10(%ebp),%xmm7; comiss %xmm7,%xmm3; jae exit` — AT&T comiss
-    // src,dst ⇒ Intel dst,src, jae = dst ≥ src ⇒ exit iff the PREVIOUS
-    // point's clamped value ≥ the cursor: carve continues while v <
-    // cursor (reaches cave_strength ⇒ stop). First iteration v_prev = 0.
+    // carve exit gate @0x8ef109 (C105(b), I30): `movss 0x10(%ebp),%xmm7;
+    // comiss %xmm7,%xmm3; jae exit` ⇒ exit iff the previous point's clamped
+    // value ≥ cursor. First iteration v_prev = 0.
     if (vPrev >= cursor) return;
     const t = steps / budget;
-    // the 3-segment lane (t<0.2 | 0.2..0.6 | >0.6); band-1's base = the
-    // carried v_prev, not 0 (lerp(v_prev, cursor, t/0.2)
-    // @0x8ef12b..0x8ef13d, dig #126; I30)
+    // 3-segment lane (t<0.2 | 0.2..0.6 | >0.6); band 1 lerps from the
+    // carried v_prev (@0x8ef12b..0x8ef13d, I30)
     let lane;
     if (t < 0.2) lane = vPrev + (cursor - vPrev) * (t / 0.2);
     else if (t <= 0.6) lane = cursor + (0.7 - cursor) * ((t - 0.2) / 0.4);
@@ -507,7 +355,7 @@ export function walkChain(grid, gridW, gridH, prng, x0, y0, cursor, budget, walk
     if (t < 0.3) radius = rA + (rB - rA) * (t / 0.3);
     else if (t <= 0.6) radius = rB + (rC - rB) * ((t - 0.3) / 0.3);
     else radius = rC + (rD - rC) * ((t - 0.6) / 0.6);
-    slot += prng.next() * 0.35 - 0.25; // the UNCONDITIONAL roll draw
+    slot += prng.next() * 0.35 - 0.25; // the unconditional roll draw
     if (flagD2 !== 0) slot = (prng.next() * 0.32 + 0.35) * slot; // the D2 arm
     const v = clamp01(slot);
     vPrev = v; // carried to the next loop top (the exit gate) + band-1 base
@@ -531,16 +379,14 @@ export function walkChain(grid, gridW, gridH, prng, x0, y0, cursor, budget, walk
         substeps = 0;
         d0 = 2 * prng.next() - 1; // the re-jitter @0x8ef6c0 (2.0/1.0 sub idiom)
       }
-      // port correction (the 0x8ef65a..0x8ef6de block): the counter itself
-      // resets on the 50th substep — the re-jitter fires ONLY on the growth
-      // branch, not unconditionally. Byte law: at eax >50: the counter := 0
-      // @0x8ef6cb unconditionally, and the jitter draw @0x8ef6c0 runs
-      // whenever x-disp >= xmm1 ([ebp+0x24] = the growth arg)
+      // block 0x8ef65a..0x8ef6de: counter reset @0x8ef6cb, re-jitter draw
+      // @0x8ef6c0 ([ebp+0x24] = the growth arg); the re-jitter fires only on
+      // the growth branch
     }
     if (cc.n > 0) {
       const u = prng.next(); // the 2% child gate draw
       if (u * 100 < 2) {
-        cc.n--; // decl BEFORE the budget draw
+        cc.n--; // decl before the budget draw
         const childBudget = (prng.next() * 50 - 50) + (budget - steps);
         walkChain(grid, gridW, gridH, prng, tx, ty, cursor, childBudget,
           { d0sq: -d0, dy, growth, cc });
@@ -552,14 +398,12 @@ export function walkChain(grid, gridW, gridH, prng, x0, y0, cursor, budget, walk
 }
 const clamp01 = (v) => v < 0 ? 0 : v > 1 ? 1 : v;
 
-// The scatter engine (true 0x8EEAD0, dig #56 byte-read end-to-end; the VA
-// re-pinned from the exe in dig #81 — the old 0x8EF2D0 was a +0x800 typo):
-// 1. TWO poro draws through the Random(min,max) closed form → a point rolled
-//    INSIDE the record's own span (the −0.5/0.5 lanes @0x11e058c/0x11dfa94).
-// 2. BOUNDS: rejected when x/y < 0 OR x ≥ w OR y ≥ h (@0x4ee42a..0x4ee43e).
-// 3. THE GATE (@0x4ee456): fires ONLY when cell < 0.5 (the empty-cell
-//    predicate) — then the recursive tail = true 0x8FAFC0 (the B-CHANNEL
-//    recorder, dig #27; the value arg travels WITH the branch).
+// The scatter engine (true 0x8EEAD0):
+// 1. two poro draws through the Random(min,max) closed form → a point inside
+//    the record's span (−0.5/0.5 lanes @0x11e058c/0x11dfa94).
+// 2. bounds: reject x/y < 0 or x ≥ w or y ≥ h (@0x4ee42a..0x4ee43e).
+// 3. gate (@0x4ee456): fires only when cell < 0.5, then the recursive tail =
+//    true 0x8FAFC0 (the B-channel recorder; the value arg travels with it).
 export function scatterEmptyGate({ field, bytes, w, h }, span, prng) {
   const dx = prng.next(), dy = prng.next();
   const x = Math.trunc(dx * span.w), y = Math.trunc(dy * span.h);
@@ -576,14 +420,12 @@ function isSolidCell(v) {
   return v > 0.5;
 }
 
-// dig #204: THE MINSTD ENGINE — the game's fnB draw chain (C177/the dig-#203
-// laws): the Schrage MINSTD step (16807/127773/2836 — the 0x834e0b5f/2^48
-// signed-division magic), the state = a f64 seeded `f64(uint32(seed))` +
-// the sign-table correction (0x11E0BA0's two entries, the ctor 0x8F9470's
-// head), persisted on P+0 across all the fnB phases. next() = the state
-// step → the u = state × 1/2³¹ (0x11DF988) — the state is always positive
-// after the step (the ≤0 ⇒ +0x7FFFFFFF correction), so every roll's u ∈
-// (0,1) and the port's up-form rolls match the game's byte forms exactly.
+// The fnB draw engine (C177): Schrage MINSTD (16807/127773/2836; the
+// 0x834e0b5f/2^48 signed-division magic). State = f64 seeded
+// f64(uint32(seed)) + the sign-table correction (0x11E0BA0, ctor 0x8F9470
+// head), persisted on P+0 across all fnB phases. next() steps the state and
+// returns state × 1/2³¹ (0x11DF988); the ≤0 ⇒ +0x7FFFFFFF correction keeps
+// the state positive, so u ∈ (0,1).
 export function makeMinstd(seed) {
   let state = seed | 0; // the signed-32 wrap = the ctor's cvttsd2si trunc
   return {
@@ -604,80 +446,39 @@ export function makeMinstd(seed) {
 
 /**
  * buildCavesField(dataDir, def, seed) — the [uid+0x1d4] BitmapCaves grid.
- * Returns { w, h, field, p94, verify, meta }, null when no BitmapCaves.
+ * Returns the field, its byte plane and meta; null when no BitmapCaves.
  *
- * Stage composition — the fnB byte-cited PHASE ORDER (C81 caller side +
- * C82 walk body; the dig #55/#56/#57/#61 block reads; draw budget = the
- * standing FLAG for the composed phases):
- *   HEAD (C81): draw #1 = cave_count = rollPos(config[+0x28],[+0x2c]) via
- *     the POSITIVE fraction form `min + trunc(draw·(max−min+1))`; draw #2
- *     = surface_caves_count = rollPos(config[+0x34],[+0x38]) (the switch
- *     budget). The blob phase-1 count rolls AFTER the walk loop.
- *   1. the byte-closed walk (C81 caller + C82 body): cave_count walks —
- *      the per-walk cursor (the C52 cave_strength lerp), the path
- *      alternation (case A chained / case B + the surface switch), the
- *      two-arm budget, and walkChain's `push $1` stamps = setterStamp
- *      (flag=1: lower-only carve + the center-y q⁸ eave, I26); the
- *      IN-WALK recursion replaces the old outer `childs` loop
- *   2. the blob phases (the dig #120 byte port, entry (120)): loop B =
- *      mountain_count top-band runs — K = 0.1h, per stamp base = ⌊K·u⌋,
- *      X = rollPos(5,w−5), R = rollF(mountain_size), Y_end = base+⌊11u⌋+15,
- *      the 20% coin → Y_end := base + v := 1.5+0.25u, then rows base..Y_end
- *      → blend with R += 0.5(1+u) per row and the 50% decay coin
- *      v *= 0.97+0.03u; loop C = blob_caves_count stamps (y =
- *      rollPos(25,h−5) FIRST, x, v = rollF(blob_caves_strength [+0x6c]/
- *      [+0x70]), R = rollF(blob_caves_radius [+0x74]/[+0x78])) — NO radius
- *      cap (C50 overturned, §8 row 40)
- *   3. the CaveStructure RECORD ARENA walk (dig #61/#81: the 60-byte
- *      records, stride 0x3c; count pair [+0x1c]/[+0x20]; the NEGATIVE
- *      NextU scale roll; the strength pair [+0x34]/[+0x38]; the engine =
- *      0x8EF950 → 0x8EF870 — the two-sided template lerp + the stencil
- *      byte copy, entry (122) I26)
- *   4. layer-2 chains (exactly 2 passes, entry (119)/(120)): s₀ = ±1 (a
- *      50% coin) → [−0x104]; arm A x₀ = center+s·rollF(3.5,35); arm B
- *      flips [−0x104] first, then x₀ = center+s·rollF(25,75); y₀ = 0;
- *      count = 120+⌊81u⌋; chain = 3u+1, scale = 0.1u+0.1, vel = s·(1.25+
- *      2.25u). Per point (7 draws): s2 = 0.25u+0.75; value = chain·(0.35u+
- *      0.65) → setterStamp(trunc x, trunc y, value, scale·s2); y += 0.1u+
- *      0.95; scale *= 0.01u+0.99; chain = clamp(chain·(0.5+u), 0.75, 4);
- *      vel = clamp(vel+0.5u−0.25, ±2.5); x += vel; the spawn coin (the
- *      null-key gates skip the selector/scatter)
- *   5. layer-3 chain (gated on do_beginning_down = config[+0x31], je when
- *      0): the module MSVC C-rand LCG (state·0x343fd+0x269ec3 int32,
- *      (state>>16)&0x7fff ÷ 32767; the port-local state seeded 0x132a388)
- *      → r₁ → lo = 1+r₁, r₂ → hi = 2(1+r₂), r₃ → x₀ = center+s·(3.5+2r₃);
- *      Lehmer: count = 120+⌊81u⌋, chain = lerp(lo,hi,u), scale = 0.1u+0.1;
- *      r₄ → vel = s·(0.15+0.2r₄). Per point = L2's laws with the chain
- *      clamp [lo,hi] and vel step 0.3u−0.15 clamp ±1.0
- *   6. the IN-WALK child recursion lives INSIDE walkChain (C82: the 2%
- *      gate, the shared childCounter) — the old outer fnB `childs` self-call
- *      loop is a RETRACTED false structure (C81)
- * AIR/carve: the carve writers = stampBlendLerp (two-sided, t²) and
- * setterStamp (LOWER-only — the L2/L3 floor AND the walk's flag=1 stamps,
- * I26); the record lane writes nothing (dig #123, I28). carveCircle +
- * stampLerpTemplate (the legacy models) have no production caller left
- * (carveCircle kept for the API surface). The
- * old standalone L2/L3 scatter calls are gone: every scatter site lives
- * inside a chain's spawn lane (C46's call-site census).
+ * Phase order = fnB's (C81 caller side + C82 walk body):
+ *   head: cave_count = rollPos(config[+0x28],[+0x2c]), then
+ *     surface_caves_count = rollPos(config[+0x34],[+0x38]) (switch budget).
+ *     The blob count rolls come after the walk loop.
+ *   1. walk: cave_count walks (per-walk cursor from cave_strength (C52), path
+ *      alternation, two-arm budget); walkChain stamps via setterStamp flag=1
+ *      and runs the child recursion itself.
+ *   2. blobs: loop B = mountain_count top-band runs, loop C =
+ *      blob_caves_count stamps (no radius cap; §8 row 40).
+ *   3. CaveStructure records (stride 0x3c; count pair [+0x1c]/[+0x20];
+ *      strength pair [+0x34]/[+0x38]; engine 0x8EF950 → 0x8EF870).
+ *   4. layer-2 chains (2 passes).
+ *   5. layer-3 chain (gated on do_beginning_down = config[+0x31]).
+ * Writers: stampBlendLerp (two-sided, t²) for the blobs; setterStamp
+ * (lower-only) for the walk and L2/L3; the record lane writes the byte plane
+ * (and the field when paintStamps). Every scatter site lives inside a
+ * chain's spawn lane (C46 call-site census).
  */
 export function buildCavesField(dataDir, def, seed, paintStamps = false) {
   const bc = def.bitmapCaves;
   if (!bc || !bc.sizeX || !bc.sizeY) return null;
   const w = bc.sizeX, h = bc.sizeY;
 
-  // fn C1's ctor chain — dig #204 SWAP: the game's draw engine = the
-  // MINSTD-Schrage chain seeded f64(uint32(seed)) at the P's ctor
-  // (0x8F9470's head law), persisted on P+0 across all the fnB phases
-  // (the blobs AND the record stamps — the 0x8F07D3 site). The old
-  // NollaPrng + warm-draw model = RETRACTED (the C27 poro read = the
-  // pre-MINSTD-discovery model). The state's seed = the world seed's
-  // signed-32 wrap; no warm draw (the ctor sets the state, draws nothing).
+  // ctor chain: the MINSTD engine seeded with the world seed's signed-32
+  // wrap at the P's ctor (0x8F9470 head), persisted on P+0 across all fnB
+  // phases (blobs and record stamps, the 0x8F07D3 site). The ctor draws
+  // nothing.
   const base = makeMinstd(seed);
 
-  // ── the STREAM-TRACE instrument (C104: dig #125) ─────────────────────────
-  // Every phase consumes the ONE stream; the trace buckets its draws per
-  // phase boundary so /verify can assert phase totals against the byte
-  // budgets. `traced` wraps the prng and counts into `trace[phase]`.
+  // ── stream trace (C104): counts each phase's draws so /verify can check
+  // phase totals against the byte budgets ────────────────────────────────
   const trace = {
     walk: 0, loopB: 0, loopC: 0, records: 0, l2: 0, l3: 0,
     budgetCheck: "byte-law", // set to "MODEL" per-lane where a leg is D-level
@@ -693,11 +494,9 @@ export function buildCavesField(dataDir, def, seed, paintStamps = false) {
   const setPhase = (p) => { if (trace[p] != null) phase = p; };
 
   const field = new Float32Array(w * h).fill(1.0); // fn C1's bake
-  const bytes = new Uint8Array(w * h); // the [P+0x58] byte plane — the 0x8FAFC0 scatter B-recorder only (the record lane no longer writes it, dig #123)
+  const bytes = new Uint8Array(w * h); // the [P+0x58] byte plane (0x8FAFC0 scatter recorder + the record stencil)
 
-  // The byte-declared roll form (dig #65; the record lane's count roll
-  // re-pinned as the SAME form dig #123 — the old rollNeg "twin" misread
-  // the −2⁻³¹ const trick): `min + trunc(draw·(max−min+1))`.
+  // the byte roll form `min + trunc(draw·(max−min+1))` (also the record count roll)
   const rollPos = (min, max) => min + Math.trunc((max - min + 1) * prng.next());
   const rollF = (min, max) => min + (max - min) * prng.next();
   const clamped = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
@@ -709,18 +508,16 @@ export function buildCavesField(dataDir, def, seed, paintStamps = false) {
   const sMin = bc.blobCavesStrengthMin ?? 1.5;
   const sMax = bc.blobCavesStrengthMax ?? 3;
 
-  // ── (1) the byte-closed walk (C81 caller side + C82 walk body; entry
-  // (102) stage 7): cave_count walks, each = the per-walk cursor draw (lerp
-  // of the C52 cave_strength pair) → path alternation (case A chained
-  // ±0.01w / 0.05..0.25h with flag:=0; case B Y = trunc(lerp(0.07h,0.33h)),
-  // X = trunc(5 + u(w−10)), and while switchCnt < surface_count the switch
-  // path's jitter X-law + stride + clamp, Y₀ = trunc(6u), the lane-select
-  // cursor factor, switchCnt++, flag:=1) → the budget section (scale0 draw
-  // [consumed, unused], S = h−Y, the LERP(0.15S,0.96S) budget [flag=1
-  // overwrites LERP(0.45S,0.96S)], d0, Δy, the 33/101 Δy gate, growth,
-  // cc = rollPos(cave_childs) + the 10/101 bonus [+ flag=1:
-  // rollPos(surface_cave_childs) + the 20/101 bonus], ÷Δy, the two 50/101
-  // growth gates) → walkChain (RAISES only: the `push $1` stamp).
+  // ── (1) the walk (C81 caller + C82 body): per walk a cursor draw (lerp of
+  // the C52 cave_strength pair) → path alternation (case A chained ±0.01w /
+  // 0.05..0.25h, flag := 0; case B Y = trunc(lerp(0.07h,0.33h)), X =
+  // trunc(5 + u(w−10)), and while switchCnt < surface_count the switch path:
+  // jitter X-law + stride + clamp, Y₀ = trunc(6u), lane-select cursor factor,
+  // switchCnt++, flag := 1) → budget section (scale0 draw unused, S = h−Y,
+  // budget LERP(0.15S,0.96S) [flag=1: LERP(0.45S,0.96S)], d0, Δy + the 33/101
+  // gate, growth, cc = rollPos(cave_childs) + 10/101 bonus [flag=1: +
+  // rollPos(surface_cave_childs) + 20/101 bonus], ÷Δy, two 50/101 growth
+  // gates) → walkChain.
   const lerp = (a, b, u) => a + (b - a) * u;
   let X = 0, Y = 0; // Y is overwritten by case B before its first use
   let flag = 0, switchCnt = 0;
@@ -733,7 +530,7 @@ export function buildCavesField(dataDir, def, seed, paintStamps = false) {
       X += Math.trunc(lerp(-0.01 * w, 0.01 * w, prng.next()));
       Y += Math.trunc(lerp(0.05 * h, 0.25 * h, prng.next()));
     } else {
-      // case B: both draws land BEFORE the switch check
+      // case B: both draws land before the switch check
       Y = Math.trunc(lerp(0.07 * h, 0.33 * h, prng.next()));
       X = Math.trunc(5 + prng.next() * (w - 10));
       if (switchCnt < surfaceCount) {
@@ -784,22 +581,18 @@ export function buildCavesField(dataDir, def, seed, paintStamps = false) {
     });
   }
 
-  // ── (2) the blob phases — the dig #120 byte port (entry (120); loop B
-  // @0x8f072a..0x8f0d92 / loop C @0x8f0d92..0x8f117b, both re-read this
-  // dig). The count rolls land AFTER the walk loop (@8f072a; the C81
-  // pre-loop list carries only cave_count + surface_caves_count); phase 1's
-  // roll → stamps, then blobCount → phase 2 (the dig #49 phase order,
-  // unchanged). The count-pair→phase map is byte-shown (dig #81: loop B =
-  // mountain_count @4eff36/4eff39, loop C = blob_caves_count @4f05a0/
-  // 4f05a9).
+  // ── (2) blob phases (loop B @0x8f072a..0x8f0d92, loop C
+  // @0x8f0d92..0x8f117b). The count rolls land after the walk loop
+  // (@8f072a). Count-pair map: loop B = mountain_count @4eff36/4eff39,
+  // loop C = blob_caves_count @4f05a0/4f05a9.
   //
-  // loop B = the MOUNTAIN lane, top-band VERTICAL RUNS per stamp:
+  // loop B = the mountain lane, top-band vertical runs per stamp:
   //   u₁: base = ⌊f32(K·u₁)⌋ (K = 0.1h, f32 @0x8f0780, const 0x11df974)
   //   u₂: X = 5 + ⌊(w−9)·u₂⌋  (the −2⁻³¹+sub idiom ≡ rollPos(5,w−5))
-  //   u₃: R = rollF(mountain_size [+0x5c]/[+0x60]) — NO cap → [−0x124]
+  //   u₃: R = rollF(mountain_size [+0x5c]/[+0x60]), no cap → [−0x124]
   //   u₄: Y_end = base + ⌊11·u₄⌋ + 15 (11.0 f64 0x11dff38 + the sub idiom)
   //   v := 1.5 (0x11dfd2c); u₅: the 20% coin ⌊101·u₅⌋ < 20 →
-  //       Y_end := base AND u₆ (the direct-call draw `call 0x10098c0`
+  //       Y_end := base and u₆ (the direct-call draw `call 0x10098c0`
   //       @0x8f0b08) → v := 1.5+0.25·u₆
   //   guard base > Y_end → skip rows (dead: Y_end ≥ base always)
   //   rows row = base..Y_end inclusive (the row-y lives in the pos pair):
@@ -807,17 +600,16 @@ export function buildCavesField(dataDir, def, seed, paintStamps = false) {
   //     → u: the 50% coin ⌊101·u⌋ < 50 → u: v *= 0.97+0.03·u
   //
   // loop C = the blob_caves lane; per stamp exactly 4 draws:
-  //   y = rollPos(25, h−5) FIRST, x = rollPos(5, w−5),
+  //   y = rollPos(25, h−5) first, x = rollPos(5, w−5),
   //   v = rollF(blob_caves_strength [+0x6c]/[+0x70]),
-  //   R = rollF(blob_caves_radius [+0x74]/[+0x78]) — NO cap (C50
-  //   overturned: +0x74/+0x78 = RADIUS per C52, §8 row 40),
+  //   R = rollF(blob_caves_radius [+0x74]/[+0x78]), no cap (C52),
   //   blend @0x8f115f.
   //
-  // (The in-byte f32 forms are computed in f64 here — the standing
-  // f32-trap deviation class, documented in the header.)
+  // In-byte f32 forms are computed in f64 here (the standing f32-trap
+  // deviation class).
   const mtMin = bc.mountainSizeMin ?? 1;
   const mtMax = bc.mountainSizeMax ?? 10;
-  setPhase("loopB"); // loop B's first tail draw already counted? — no: the boundary sits here (the pre-loop fnB draws stayed in the walk bucket)
+  setPhase("loopB"); // the pre-loop fnB draws stay in the walk bucket
   const blobPhase1 = (() => {
     const n = rollPos(bc.mountainCountMin ?? 0, bc.mountainCountMax ?? 0);
     if (n <= 0) return 0;
@@ -845,22 +637,18 @@ export function buildCavesField(dataDir, def, seed, paintStamps = false) {
   const blobPhase2 = (() => {
     if (blobCount <= 0) return 0;
     for (let b = 0; b < blobCount; b++) {
-      const y = rollPos(25, h - 5); // the dig #120 y-FIRST order
+      const y = rollPos(25, h - 5); // y first
       const x = rollPos(5, w - 5);
       const v = rollF(sMin, sMax); // blob_caves_strength
-      const R = rollF(rMin, rMax); // blob_caves_radius — the cap RETRACTED
+      const R = rollF(rMin, rMax); // blob_caves_radius, no cap
       stampBlendLerp(field, w, h, x, y, R, v);
     }
     return blobCount;
   })();
 
-  // ── (3) the CaveStructure RECORD walk — the BYTE-PLANE WRITER (dig #164,
-  // the dig-#162 law landed): per record the count roll (up from min; ≤ 0
-  // skips) + per stamp the ctor-seed / resolver / X / Y / strength draws AND
-  // the image-template stencil: the template's nonzero bytes → `bytes`
-  // ([P+0x58]) at (X, Y). dig #202: with paintStamps (SURFACE_STAMPS=1) the
-  // SAME walk also paints the fn870 α-blend into `field` (the stamps'
-  // decoded values — C175's law; the draws byte-identical either way).
+  // ── (3) CaveStructure records: count roll + per-stamp draws, the template
+  // stencil into `bytes` ([P+0x58]) and, with paintStamps (SURFACE_STAMPS=1),
+  // the fn870 blend into `field` (C175). Draws are identical either way.
   setPhase("records");
   const overlays = paintStamps ? [] : null;
   for (const rec of bc.structures ?? []) {
@@ -868,18 +656,17 @@ export function buildCavesField(dataDir, def, seed, paintStamps = false) {
   }
 
   setPhase("l2");
-  // ── (4) layer-2 chains — the dig #120 byte port (entry (119)/(120); L2
-  // @0x8f1a22..0x8f2595). Head (draw-ordered): s₀ := +1 → [−0x104], then a
-  // 50% coin ⌊101·u⌋ < 50 → s₀ := −1.0 (0x11e05a8); y₀ := 0 → [−0x140].
-  // Exactly 2 passes (the [−0x10c] pass counter, `cmp $2; jl` @0x8f2595).
-  // Per pass:
-  //   center = f32(w)·0.5 (recomputed in-byte per pass; no draw)
+  // ── (4) layer-2 chains (L2 @0x8f1a22..0x8f2595). Head (draw-ordered):
+  // s₀ := +1 → [−0x104], then a 50% coin ⌊101·u⌋ < 50 → s₀ := −1.0
+  // (0x11e05a8); y₀ := 0 → [−0x140]. Exactly 2 passes (the [−0x10c] pass
+  // counter, `cmp $2; jl` @0x8f2595). Per pass:
+  //   center = f32(w)·0.5 (recomputed per pass; no draw)
   //   pass 0 (arm A): roll = 3.5 + 31.5·u → x₀ = center + s·roll
-  //   pass 1 (arm B): [−0x104] := −s FIRST (xorps), then roll = 25 + 50·u
+  //   pass 1 (arm B): [−0x104] := −s first (xorps), then roll = 25 + 50·u
   //       → x₀ = center + s·roll with the flipped sign
   //   count = 120 + ⌊81·u⌋ → [120,200] (the ≤0 guard is dead)
   //   chain = 3·u+1 → [−0x128]; scale = 0.1·u+0.1 → [−0x108] (const
-  //       0x11df974 @0x8f1e6d); vel = s·(1.25 + 2.25·u) — drawn AFTER the
+  //       0x11df974 @0x8f1e6d); vel = s·(1.25 + 2.25·u) — drawn after the
   //       cmpl but unconditionally (jle not taken, count ≥ 120)
   //   per point (7 draws): u_a: s2 = 0.25·u+0.75 → [−0x100];
   //     u_b: value = chain·(0.35·u+0.65) (0x11dfa20/0x11dfb14) →
@@ -890,11 +677,11 @@ export function buildCavesField(dataDir, def, seed, paintStamps = false) {
   //     u_e: chain = clamp(chain·(0.5+u), 0.75, 4.0) (0x11dfb2c/0x11e005c);
   //     u_f: vel = clamp(vel + (0.5·u − 0.25), −2.5, 2.5) (0x11dff10/
   //       0x11e0618); count--; x += vel;
-  //     u_g: the spawn coin ⌊101·u⌋ < 5 → the byte's spawn-item/
-  //       small-enemy lookup ptrs gate the selector draw (`cmpl $0` →
-  //       skip); the port's spawn keys are unparsed (null) ⇒ skip ⇒ NO
-  //       selector/scatter draws (FLAGGED stream divergence, ~0.15
-  //       draws/point on coin-hits — contained, L3 is the last phase).
+  //     u_g: the spawn coin ⌊101·u⌋ < 5 → the spawn-item/small-enemy lookup
+  //       ptrs gate the selector draw (`cmpl $0` → skip); the port's spawn
+  //       keys are unparsed (null) ⇒ no selector/scatter draws (FLAGGED
+  //       stream divergence, ~0.15 draws/point on coin-hits — contained, L3
+  //       is the last phase).
   let l2Calls = 0;
   let armSign = 1; // the [−0x104] slot
   if (Math.trunc(101 * prng.next()) < 50) armSign = -1;
@@ -905,7 +692,7 @@ export function buildCavesField(dataDir, def, seed, paintStamps = false) {
     if (pass === 0) {
       x0 = center + armSign * rollF(3.5, 35);
     } else {
-      armSign = -armSign; // arm B flips [−0x104] BEFORE the roll
+      armSign = -armSign; // arm B flips [−0x104] before the roll
       x0 = center + armSign * rollF(25, 75);
     }
     const count = 120 + Math.trunc(81 * prng.next());
@@ -928,10 +715,10 @@ export function buildCavesField(dataDir, def, seed, paintStamps = false) {
   }
 
   setPhase("l3");
-  // ── (5) layer-3 chain — the dig #120 byte port (L3 @0x8f259b..0x8f2f17).
+  // ── (5) layer-3 chain (L3 @0x8f259b..0x8f2f17).
   // Gate: config[+0x31] = do_beginning_down, `cmpb $0,0x31(%eax); je
-  // 0x8f2fa5` — hills.xml declares 1 (on-disk 2026-10-10). The setup runs
-  // a SEPARATE MSVC C-rand LCG with a persistent global (0x132a388):
+  // 0x8f2fa5` — hills.xml declares 1. The setup runs a separate MSVC C-rand
+  // LCG with a persistent global (0x132a388):
   //   state' = state·0x343fd + 0x269ec3 (int32); r = (state' >> 16) & 0x7fff
   //   ÷ 32767.0 (0x11e04bc) — 3 draws @0x8f25ab..0x8f2626, state stored
   //   back once after r₃:
@@ -989,26 +776,21 @@ export function buildCavesField(dataDir, def, seed, paintStamps = false) {
   };
 }
 
-// The 0x8EE750 setter (the dig #120 read, entry (120) — C96; the flag=1
-// eave + the center-y law re-read byte-exact entry (122) — C101):
-// Branch on VALUE > 1.0 (comiss 0x11dfbf0 @0x8ee766):
-//   value ≤ 1 → SINGLE CELL: bounds → getter → write iff cell > scale
-//     (a MIN-guard, `comiss scale,cell; jbe ret`), write scale. NO eave
-//     (the single-cell arm has no eave code, @0x8ee776..0x8ee7d5).
-//   value > 1 → CIRCLE: r0 = trunc(value+0.5), box ±r0, d² > value² →
-//     skip, t = (value²−d²)/value², target = 1 + t·(scale − 1); then the
-//     flag ≠ 0 arm (`cmpb $0x0,0x8(%ebp)` @0x8ee839, `je` @0x8ee85c — the
-//     SSE in between leaves EFLAGS alone): if the POINT y ([edi+4] = the
-//     stamp CENTER y — the cell coords are only formed at @0x8ee892) < 25
-//     → target := 1 + (y/25)⁸·(target − 1) (q = y/25.0, f32 0x11e01e0 — NO
-//     −1 in q; C99's "(y−1)/25" = a miscite, overturned entry (122)); then
-//     bounds px/py (no wrap), write iff cell > target (LOWER-only), write
-//     the (possibly eaved) target.
-// So both arms are lower-only; the flag gates ONLY the center-y top-band
-// eave. Callers: the L2/L3 chains pass flag=0 (scale = the chain's scale·s2
-// ∈ (0,~0.2): the chains only carve toward their floor — the single-cell
-// arm writes cells down to ~0.075); the WALK passes flag=1 (value = the
-// radius envelope, scale = clamp01(slot″) ∈ [0,1] — I26).
+// The 0x8EE750 setter (C96, C101). Branch on value > 1.0 (comiss 0x11dfbf0
+// @0x8ee766):
+//   value ≤ 1 → single cell: bounds → getter → write scale iff cell > scale
+//     (`comiss scale,cell; jbe ret`); no eave (@0x8ee776..0x8ee7d5).
+//   value > 1 → circle: r0 = trunc(value+0.5), box ±r0, skip d² > value²,
+//     t = (value²−d²)/value², target = 1 + t·(scale − 1); if flag ≠ 0
+//     (`cmpb $0x0,0x8(%ebp)` @0x8ee839, `je` @0x8ee85c; the SSE between
+//     leaves EFLAGS alone) and the stamp center y ([edi+4]; cell coords form
+//     only at @0x8ee892) < 25 → target := 1 + (y/25)⁸·(target − 1) (q =
+//     y/25.0, f32 0x11e01e0); then bounds (no wrap), write target iff
+//     cell > target.
+// Both arms are lower-only; the flag only gates the top-band eave. L2/L3
+// pass flag=0 (scale = scale·s2 ∈ (0,~0.2); the single-cell arm writes down
+// to ~0.075); the walk passes flag=1 (value = radius envelope, scale =
+// clamp01(slot″), I26).
 function setterStamp(grid, gridW, gridH, x, y, value, scale, flag = 0) {
   if (value <= 1) {
     if (x < 0 || y < 0 || x >= gridW || y >= gridH) return;
@@ -1044,16 +826,14 @@ export function fieldSolidAt(cf, x, y) {
   return cf.field[y * cf.w + x] > 0.5;
 }
 
-// dig #192 (C165/X205) — the BAND-ANCHORED FINITE cell-read, the pure unit
-// behind noiseChunkMask's caves gradAt. The game's bytes: the field's row 0
-// ↦ worldY = [world-grid+4] + field_row (X205 W6 — worldY = [-0x88] + the saved
-// field-row y), rows run [0, min([+0x8c], BATCH-CAP=16-batches)) — i.e. the
-// field = the image = a FINITE mask anchored one full field-height (fh) above
-// the C80 datum; the getter NEVER tiles and NEVER reads negative indices
-// (C164, X204 W2). Calls:
-//   wy < -fh         ⇒ 0 (above the band top = the sky)
-//   wy ∈ [-fh, ·)    ⇒ the cell (field[slabRow*fw + col]; col = ((wx % fw)+fw)%fw)
-//   row >= fh        ⇒ the wrap (the deeper slabs reuse the same field)
+// Band-anchored finite cell read (C165, X205), the unit behind
+// noiseChunkMask's caves gradAt. Field row 0 ↦ worldY = [world-grid+4] +
+// field_row (X205 W6); rows run [0, min([+0x8c], 16 batches)). The field is
+// a finite mask anchored one field-height (fh) above the C80 datum; the
+// getter never reads negative indices (C164, X204 W2):
+//   wy < -fh       ⇒ 0 (sky above the band top)
+//   wy ∈ [-fh, ·)  ⇒ field[row*fw + col], col = ((wx % fw)+fw)%fw
+//   row >= fh      ⇒ wraps (deeper slabs reuse the same field)
 export function cavesCellAt(field, w, h, wx, wy) {
   if (wy < -h) return 0; // above the terrain slab's top = the sky
   const col = ((wx % w) + w) % w;
@@ -1061,114 +841,58 @@ export function cavesCellAt(field, w, h, wx, wy) {
 }
 
 // ============================================================================
-// dig #193 — THE SHAPE: the warp-displaced, smooth-snapped field read.
+// The warp-displaced, smooth-snapped field read (C170, X208).
 //
-// The bytes (0x90d905..0x90e02b + 0x908cb0..0x908e6e; all consts read from
-// .rdata this session; METER-CLASS: n/a — bytes-only):
-//   per cell the world's sample point is NOT (x, y):
-//     x' = (wx + G2 + 0.5)·0.1   [the 10px-cell unit; 0x11dfdd8 = 0.5d,
-//                                 0x11dfd08 = 0.1d — CVTDQ2PD" world px]
-//     y' = (wy + G1 + 0.5)·0.1   [0x13289a8 = G1 (the wy-global), 0x1327670
-//                                 = G2 (the wx-global) — RUNTIME doubles,
-//                                 live values PINNED dig #196: 7168.0 / 17920.0]
-//     n1 = simplex2d((wx+G2)·0.13715, (wy+G1)·0.13717)   [x-first ORDER; the
-//     0x11dfd38 = 0.13717d — the two-scale pair]
-//     n1 = 0.45·n1 + 0.1          [0x11dfa5c = 0.45f, 0x11df974 = 0.1f]
-//     n2 = latticeGrad2d( (wy+G1)/9, (wx+G2)/9 )         [SWAPPED y-first arg
-//          order; 0x11dfd20 = 1/9d EXACT — the noise-proto-documented swap]
-//     w  = (1 − n1)·0.33 + 0.111  [0x11dfa10 = 0.33f; 0x11df97c = 0.111f ≈ 1/9f]
-//     out = (int-part + the noise-blends) — the warp returns the PAIR (dx, dy)
-//   then the PICK (0x90dc7d..0x90dcc6): sx = s(frac0), sy = s(frac1) with
-//     s(f) = (3 − 2f)·f²  [the SMOOTHSTEP — 0x11dfbf0 = 1.0f, 0x11dfe68 = 2.0f,
-//     0x11dff70 = 3.0f, 0x11dfa94 = 0.5f] and
-//     px0 = floor(out0) + [sx ≥ 0.5], py0 = floor(out1) + [sy ≥ 0.5]
-//   (the comiss/inc pair at 0x90dcbf/0x90dcc5) — a ≤±1-cell SNAP, not a
-//   bilinear blend (the earlier "4-corner bilinear" claim = CORRECTED).
-//   Then the U16-GATE (0x9fe4e0 = a word-read at [+0x20]) and the SECOND
-//   warp 0x908e70 ((y·0.07, x·0.035) → noise 0x8fc900 → ·15.5 → ±0.5) +
-//   the classify (0x8f5030 = our classify!).
-//
-// dig #196 CLOSED the two reads here (X208, fresh objdump):
-//   G1/G2 = the WANG OFFSET doubles — f64[0x13289a8] / f64[0x1327670] are
-//   written ONCE (ProceduralTerrain::Init, this = [ebp−0x248]: [+0x38]→G2
-//   @0x90713a, [+0x40]→G1 @0x907147, logged "Wang offset: " 0x1174b1c) and
-//   the warp ADDS them to its inputs at its head (@0x908CC9 adjY = inY+G1,
-//   @0x908CD6 adjX = inX+G2) ⇒ live G2 = 17920.0, G1 = 7168.0 (the values
-//   below); 0x8fc900's body = the quintic value noise ≡ our latticeVal2d.
-//   The remaining A15 gap = the [world-grid+0x90] material lookup arm.
-// dig #194 CORRECTION (fresh re-objdump this session): the dig-#193 port
-// above mis-wired the warp in three concrete ways vs these bytes —
-//   (a) the simplex/lattice NOISE args ride the RAW (wx+G2)/(wy+G1) frame,
-//       NOT xU/yU (the 100×-frequency + 0.5-offset error);
-//   (b) the displacement slots are CROSSED: the byte's out.x carries
-//       nx·m (the 0x8fc900 term), out.y carries wgt·L (the lattice term) —
-//       the port had the lattice in x and wgt·nx in y;
-//   (c) flip = 1.0f is byte-pinned at the caves call site (@0x90dc11
-//       `movss 0x11dfbf0` before `call 0x908cb0` @0x90dc19) and gates the
-//       displacement body (@908d35) — not an unread. The body below runs
-//       the corrected law.
-// The warp's out pair — DERIVED FRESH this dig (re-objdump 0x908cb0..0x908e70;
-// the dig-#193 dump re-verified faithful; the regs:
-//   xmm0-in = x, xmm3-in = y, xmm1-in = the displacement flip (a f32 scale),
-//   xmm2 out slot = [ebx+0] x / [ebx+4] y.
-//   slots -0x18 = (wx+G2) raw / -0x20 = (wy+G1) raw — pre-+0.5/×0.1!
-//   nx   = -0xc  = 0.45·simplex2d(0.13715·(wx+G2), 0.13717·(wy+G1)) + 0.1
-//                 [the NOISE-ARG FRAME = RAW world px — the dig-#193 port's
-//                 xU/yU feed = WRONG (a 100× lower frequency + the 0.5
-//                 offset); G2/G1 zeroed-flagged]
-//   L    = 0x8fc740's return = latticeGrad2d((wy+G1)/9, (wx+G2)/9)
-//                 [arg0 = the Y-SIDE — the documented swap ✓, raw px]
-//   m    = 0x8fc900((wx+G2)/9, (wy+G1)/9) [NORMAL order; the body READ dig
-//                 #196 = the quintic VALUE noise ≡ our latticeVal2d: floor/
-//                 fracs, hXY = perm[perm[ix]+jy] at 0x114d700 (&0xff wraps,
-//                 the port's PERM_LATTICE byte-identical), /255.0, inline
-//                 quintic (6f−15)·f+10 cubed, (v−0.5)·2 — X208 [4]]
-//   wgt  = (1−nx)·0.33 + 0.111 ✓
-//   out.x = xU + flip·nx·m        [@908df5/df5-chain + 908e5a (floor(xU) + f0
-//                 + m·nx·flip = xU + m·nx·flip)]; the dig-#193 port put the
-//                 LATTICE here — SWAPPED (a mis-wire the entry (191)-era
-//                 paraphrase carried; corrected dig #194)
-//   out.y = yU + flip·wgt·L       [@908dde+df5+dfa+e0e-and-b4/e5a — wait:
-//                 @908dfa xmm5 = wgt·flip·L, @908e0e xmm5 += f1 (the frac!),
-//                 and 908e62 writes [ebx+4] = floor(yU) + f1 + wgt·flip·L
-//                 = yU + wgt·flip·L ✓]
-//   flip: byte-pinned=1.0f AT THE CAVES CALL SITE (@0x90dc11
-//                 `movss 0x11dfbf0` right before `call 0x908cb0` @0x90dc19)
-//                 AND it GATES the whole displacement body (@908d35:
-//                 flip ≤ 0 ⇒ return undisplaced) — so the caves pipe ALWAYS
-//                 displaces. Other callers (the kind-2 torque warp lane) may
-//                 pass other flips — beyond this law's scope.
-// dig #196 (X208) — both reads CLOSED; the law below is byte-complete for
-//   the displacement pipe. G = the wang offset (the live values, pinned):
-//   G2 = 17920.0 = f64[+0x38] (the biome-map image width w ·256 — C119's
-//   Phase-G law; cross-check: 17920 = the C80 world-x datum = biome px 35·512),
-//   G1 = 7168.0 = f64[+0x40] (the C119 constant 14·512 — both Init branches
-//   agree). Still OPEN (A15 gap 3): the [world-grid+0x90] material-lookup arm.
+// Bytes: 0x90d905..0x90e02b (caller) + 0x908cb0..0x908e6e (warp). Per cell,
+// with G1/G2 the wang offset and raw world px:
+//   xU = (wx + G2 + 0.5)·0.1, yU = (wy + G1 + 0.5)·0.1   [10px-cell unit;
+//        0x11dfdd8 = 0.5d, 0x11dfd08 = 0.1d]
+//   nx = 0.45·simplex2d(0.13715·(wx+G2), 0.13717·(wy+G1)) + 0.1
+//        [x-first; 0x11dfd38 = 0.13717d; 0x11dfa5c = 0.45f, 0x11df974 = 0.1f]
+//   L  = latticeGrad2d((wy+G1)/9, (wx+G2)/9)   [0x8fc740; y-first arg swap;
+//        0x11dfd20 = 1/9d]
+//   m  = latticeVal2d((wx+G2)/9, (wy+G1)/9)    [0x8fc900 = quintic value
+//        noise: hXY = perm[perm[ix]+jy] at 0x114d700 (&0xff wraps, =
+//        PERM_LATTICE), /255.0, quintic fade, (v−0.5)·2 — X208 [4]]
+//   wgt = (1 − nx)·0.33 + 0.111   [0x11dfa10 = 0.33f, 0x11df97c = 0.111f]
+//   out.x = xU + flip·nx·m    ([ebx+0], written @0x908e5a)
+//   out.y = yU + flip·wgt·L   ([ebx+4], written @0x908e62)
+//   flip = 1.0f at the caves call site (`movss 0x11dfbf0` @0x90dc11 before
+//   `call 0x908cb0` @0x90dc19); flip ≤ 0 returns undisplaced (@0x908d35).
+//   Other callers (the kind-2 torque warp lane) may pass other flips.
+// Pick (0x90dc7d..0x90dcc6): s(f) = (3 − 2f)·f² (smoothstep; 0x11dfbf0 =
+//   1.0f, 0x11dfe68 = 2.0f, 0x11dff70 = 3.0f, 0x11dfa94 = 0.5f), px0 =
+//   floor(out0) + [s(frac0) ≥ 0.5], py0 likewise (comiss/inc @0x90dcbf/
+//   0x90dcc5) — a ≤±1-cell snap, not a bilinear blend.
+// Downstream (not in this function): the U16 gate (0x9fe4e0, word read at
+//   [+0x20]), the second warp 0x908e70 ((y·0.07, x·0.035) → 0x8fc900 →
+//   ·15.5 → ±0.5) and classify 0x8f5030.
+// G1/G2 = f64[0x13289a8] / f64[0x1327670], written once in
+//   ProceduralTerrain::Init (this = [ebp−0x248]: [+0x38]→G2 @0x90713a,
+//   [+0x40]→G1 @0x907147, logged "Wang offset: " 0x1174b1c); the warp adds
+//   them at its head (@0x908CC9 adjY = inY+G1, @0x908CD6 adjX = inX+G2).
+// OPEN (A15 gap 3): the [world-grid+0x90] material-lookup arm.
 export function cavesShapedCellAt(field, w, h, wx, wy) {
-  // The WANG OFFSET — byte-pinned live values (C170, X208, dig #196):
-  //   G2 = 17920.0 = f64[0x1327670] = ProceduralTerrain[+0x38] = w·256 with
-  //        w = the biome-map image width (70) — C119; cross-check: 17920 =
-  //        the C80 world-x datum (biome px 35·512), so the add re-anchors
-  //        world px → the BIOME frame (the warp's @0x908CD6/CC9 addsd pair).
-  //   G1 = 7168.0 = f64[0x13289a8] = ProceduralTerrain[+0x40] = 14·512 (C119's
-  //        constant; both Init branches agree) = the world-y origin's offset
-  //        from the biome frame's row 0 (canvas 24576 → 31744).
+  // The wang offset (C170, X208):
+  //   G2 = 17920.0 = ProceduralTerrain[+0x38] = w·256, w = biome-map image
+  //        width (70) — C119; = the C80 world-x datum (biome px 35·512), so
+  //        the add re-anchors world px to the biome frame.
+  //   G1 = 7168.0 = ProceduralTerrain[+0x40] = 14·512 (C119; both Init
+  //        branches agree) = the world-y origin's offset from biome row 0
+  //        (canvas 24576 → 31744).
   const G1 = 7168, G2 = 17920;
-  // the 10px-cell frame (the ×0.1 unit) — the RAW-px noise frame below
+  // the 10px-cell frame (×0.1); the noise below runs on raw px
   const xU = (wx + G2 + 0.5) * 0.1;
   const yU = (wy + G1 + 0.5) * 0.1;
-  // the simplex, x-first, at RAW world px (dig #194: the frame corrected —
-  // 0.13715 per px, NOT per 10px-cell)
+  // simplex, x-first, raw world px (0.13715 per px)
   const nx = 0.45 * simplex2d((wx + G2) * 0.13715, (wy + G1) * 0.13717) + 0.1;
   // the lattice, swapped y-first (arg0 = y), /9, raw px
   const L = latticeGrad2d((wy + G1) / 9, (wx + G2) / 9);
-  // the m-noise (0x8fc900) — body verified dig #196: = latticeVal2d (X208 [4])
+  // the m-noise (0x8fc900 = latticeVal2d, X208 [4])
   const m = latticeVal2d((wx + G2) / 9, (wy + G1) / 9);
   // the blend weight
   const wgt = (1 - nx) * 0.33 + 0.111;
-  // the displacement pair (flip = 1.0 byte-pinned):
-  //   the x-slot carries nx·m, the y-slot carries wgt·L (the dig-#193
-  //   port had the lattice in x and wgt·nx in y — corrected)
+  // displacement pair (flip = 1.0): x-slot nx·m, y-slot wgt·L
   const out0 = xU + nx * m;
   const out1 = yU + wgt * L;
   // the smoothstep's ±1 snap

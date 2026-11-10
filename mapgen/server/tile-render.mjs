@@ -1,18 +1,16 @@
-// The tile law (moved verbatim from genmap-server.mjs, 2026-11-08, so the
-// server, its tile workers and the probes share ONE implementation).
+// The tile law, shared by the server, its tile workers and the probes.
 // colorAt(canvasX, canvasY) -> [r, g, b] | null; returns RGBA 512×512.
 
 import { PNG } from "pngjs";
 
-// Tile rendering. Zoom semantics dig (52) — the moiré fix:
+// Zoom semantics:
 // z=0: 1:1 per world px (the canonical paint).
-// z>0: a tile's scale-block covers `scale` world px per axis. The global
-// point-sample `(y*512+j)*scale` aliases badly across lanes (art px, wang
-// cells and the old noise speckle) — it made the zoomed-out map "pop"
-// solid/air inconsistently with zoom level (the dense-rock-at-out-zoom
-// report). The honest downsample: per output pixel, enumerate the distinct
-// 10-world-px wang cells inside the block (steps of 10, cell centers),
-// count solid vs air, and emit the majority's color (air = transparent).
+// z>0: a tile's scale-block covers `scale` world px per axis. A global
+// point-sample `(y*512+j)*scale` aliases across lanes (art px, wang cells),
+// making solid/air flip with zoom level. Instead, per output pixel,
+// enumerate the distinct 10-world-px wang cells inside the block (steps of
+// 10, cell centers), count solid vs air, and emit the majority's color
+// (air = black).
 export function renderTileRGBA(colorAt, z, x, y) {
   const data = new Uint8Array(512 * 512 * 4);
   let p = 0;

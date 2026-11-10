@@ -1,10 +1,9 @@
-// cave-stamps.mjs contracts — dig #202/#203: the CaveStructure stamp-field
-// lane (the fn870 blend dst' = dst + srcVal·(strength − dst) — the lerp
-// toward the DRAWN STRENGTH weighted by the stamp's decoded pixel, the
-// 0x8EF870 byte law) + the C175 hard overlay. The draws are BYTE-IDENTICAL
-// with the paint on/off (the stream parity = the port's load-bearing
-// invariant). The srcVal's scale = the α·lum stand-in (the C32 decode =
-// the A17 d2 read). The data-dependent tests auto-skip without the data.
+// cave-stamps.mjs contracts — the CaveStructure stamp-field lane (the fn870
+// blend dst' = dst + srcVal·(strength − dst): the lerp toward the drawn
+// strength weighted by the stamp's decoded pixel, 0x8EF870) + the C175 hard
+// overlay. The draws are identical with the paint on/off (stream parity is
+// the port's load-bearing invariant). The srcVal scale is the α·lum
+// stand-in (A17: the C32 decode). Data-dependent tests auto-skip.
 
 import { describe, test, expect } from "vitest";
 
@@ -69,12 +68,10 @@ describe("caveRecordStamp — the fn870 field paint (dig #202/#203)", () => {
     };
     caveRecordStamp(rec, s.stub, bytes, W, H, field, true);
     expect(s.draws).toBe(1 + 4); // the count roll + ctor/X/Y/strength
-    // the fn870 law (dig #203): dst' = dst + srcVal·(strength − dst) with
-    // the strength = 0.3 (the drawn min) and the srcVal = THE ALPHA (the
-    // coverage — the measured blends REACH the target exactly on the
-    // opaque body: the pit = the flat strength-colored region; the white =
-    // the tRNS-transparent surround, α = 0 ⇒ skipped) — the deepest blend
-    // = 0.3 exactly
+    // the fn870 law: dst' = dst + srcVal·(strength − dst) with strength =
+    // 0.3 (the drawn min) and srcVal = the alpha (coverage: blends reach the
+    // target exactly on the opaque body; the white tRNS-transparent
+    // surround has α = 0 ⇒ skipped) — the deepest blend = 0.3 exactly
     let sawBlend = false;
     for (let i = 0; i < field.length; i++) {
       if (field[i] !== 1.0) {
@@ -127,7 +124,7 @@ describe("caveRecordStamp — the fn870 field paint (dig #202/#203)", () => {
   });
 });
 
-// ── the MINSTD engine (dig #204: the game's fnB draw chain) ──────────────────
+// ── the MINSTD engine (the game's fnB draw chain) ─────────────────────────────
 describe("makeMinstd — the Schrage MINSTD engine (dig #204)", () => {
   test("the classic MINSTD vector: seed 1 → 16807 → 282475249", () => {
     const m = makeMinstd(1);
@@ -178,11 +175,8 @@ describe.skipIf(!hasNoitaData)("cave-stamps — the data-gated laws (dig #202)",
     }
     expect(diff).toBeGreaterThan(0);
     expect(diff).toBeLessThan(base.field.length); // the stamps = local edits
-    // the blend is SYMMETRIC in effect direction (the fn870 lerp toward the
-    // drawn strength): the stamps' strength > the base's local value ⇒ the
-    // pull UP; the strength < ⇒ the pull DOWN — both directions occur (the
-    // dig-#202 measured signature: the net = a slight carve on the hills
-    // seed, 117230 vs 118051 solids)
+    // the fn870 lerp pulls toward the drawn strength: up where strength >
+    // the base's local value, down where it is lower — both occur
     let up = 0, down = 0;
     for (let i = 0; i < base.field.length; i++) {
       if (stamped.field[i] > base.field[i]) up++;

@@ -1,4 +1,4 @@
-// scripts/precommit-gates.mjs — MANDATORY commit gates (charter enforcement).
+// scripts/precommit-gates.mjs — mandatory commit gates (charter enforcement).
 //
 // Wired via `.githooks/pre-commit` + `.githooks/commit-msg` (core.hooksPath).
 // Runs git-natively at commit time — no session, prompt, or agent can skip
@@ -42,10 +42,10 @@ function runCommitMsg(msgFile, staged) {
 
   const n = Number(m[1]);
   // Compare against the HEAD (committed) version, not the working tree —
-  // the dig's own entry (N) + next-free (N+1) ARE part of the staged diff.
-  // Entry-numbering counts EVERY dated entry header (line-anchored `- **YYYY-MM-DD (N) —`):
-  // docs-only entries occupy slots too (the (128) retrospective), so dig #N = the
-  // entry axis, not "the last dig's number".
+  // the dig's own entry (N) + next-free (N+1) are part of the staged diff.
+  // Entry numbering counts every dated entry header (line-anchored
+  // `- **YYYY-MM-DD (N) —`): docs-only entries occupy slots too, so dig #N =
+  // the entry axis, not "the last dig's number".
   const headDoc = (() => {
     try { return execSync(`git show HEAD:mapgen/ABOUT_MATH.md`, { encoding: "utf8", maxBuffer: 268435456 }); }
     catch { return ""; }
@@ -67,15 +67,14 @@ function runCommitMsg(msgFile, staged) {
     if (!addedAbout.includes(need)) {
       fail(`ABOUT_MATH must gain the dated entry "(${n}) — dig #${n}" and refresh 'Next free: entry **(${n + 1})**'`);
     }
-    // the anti-loop guard, made mechanical: every dig entry names its NEW
-    // evidence (charter). Grandfathered for digs ≤124 (the charter landed
-    // after them).
+    // the anti-loop guard: every dig entry names its new evidence (charter).
+    // Digs ≤124 are grandfathered.
     if (n >= 125 && !addedAbout.includes("**NEW EVIDENCE:**")) {
       fail(`the dig entry must declare '**NEW EVIDENCE:**' (the anti-loop guard, made schema)`);
     }
   }
-  // the loader guard: the context loader must ride the dig (refreshed BEFORE
-  // the commit — /dig step 8), mechanically checked since it is gitignored.
+  // the loader guard: the context loader must be refreshed before the dig
+  // commit (/dig step 8); checked here since it is gitignored.
   const loader = path.join(process.cwd(), "SESSION_CONTEXT.md");
   if (fs.existsSync(loader)) {
     const lt = fs.readFileSync(loader, "utf8");
@@ -93,7 +92,7 @@ function runCommitMsg(msgFile, staged) {
 }
 
 // ---- the gate journal (bypass telemetry) ------------------------------------
-// Written by BOTH gated modes at gate-pass time. The post-commit hook
+// Written by both gated modes at gate-pass time. The post-commit hook
 // (`runPostCommit`, same script) writes the `commit <hash>` line per executed
 // commit — /verify + /status cross-reference the two line kinds: a commit
 // whose timestamp has no matching commit-msg gate entry = a --no-verify (or
@@ -105,9 +104,8 @@ function journal(mode) {
   } catch {} // journal failure must not block a gated commit
 }
 
-// dig #156 (I36): every battery attempt gets a structured journal line — the
-// I36 row's own unmeasured-state complaint (the truncated runs' exit codes
-// were piped away) is closed by recording exit code + parsed totals PER RUN.
+// I36: every battery attempt gets a structured journal line recording its
+// exit code + parsed totals.
 function journalBattery({ exitCode, summary, files, retries }) {
   const line = [
     Math.floor(Date.now() / 1000),
@@ -138,16 +136,13 @@ function runPostCommit() {
 function runPreCommit(staged) {
   // 1. Full test battery when any mapgen/tests code is staged. The suite
   //    includes the data-dependent oracle bars; a hard-skip also fails (2).
-  //    **dig #156 (I36's registered fix): the battery is CAPTURED and its
-  //    vitest summary totals are parsed and pinned against
-  //    scripts/precommit-baseline.json — the I36 truncation class (two of
-  //    three 2026-10-16 runs aborted mid-run at 9/22 files / 205 tests with
-  //    the exit code piped away) is now REFUSED regardless of the exit code,
-  //    with ONE retry whose trigger = the `Timeout calling "onTaskUpdate"`
-  //    watchdog stall class (I36 form (b)). The decision core lives in
-  //    scripts/precommit-gates-lib.mjs and is unit-tested
-  //    (tests/precommit-gates.test.mjs). The baseline pins BOTH the total
-  //    and the skip count (charter: counts RUN, not skip).**
+  //    I36: the battery output is captured and its vitest summary totals
+  //    are pinned against scripts/precommit-baseline.json, so a truncated
+  //    run is refused regardless of the exit code, with one retry on the
+  //    `Timeout calling "onTaskUpdate"` watchdog stall. The decision core
+  //    lives in scripts/precommit-gates-lib.mjs (tests/precommit-gates.test.mjs).
+  //    The baseline pins both the total and the skip count (charter: counts
+  //    run, not skip).
   const codeChanged = staged.some(
     (f) => /^mapgen\/(lib|server|pipeline|experiments)\/.*\.(mjs|js)$/.test(f) || /^tests\/.*\.mjs$/.test(f)
   );
@@ -170,8 +165,7 @@ function runPreCommit(staged) {
         output = `${e.stdout ?? ""}${e.stderr ?? ""}`;
         exitCode = e.status ?? 1;
       }
-      // visibility: the operator sees the vitest tail (the captured variant
-      // replaced the stdio:inherit so the summary is parseable AND shown)
+      // show the vitest tail (output is captured so the summary is parseable)
       const tail = output.split("\n").filter(Boolean).slice(-40);
       console.log(tail.join("\n"));
       const summary = parseVitestSummary(output);
@@ -192,8 +186,8 @@ function runPreCommit(staged) {
     }
   } else ok("no mapgen/tests code staged — test battery not required");
 
-  // 2/3. Per-staged-doc citation hygiene on ADDED lines only (grandfathers
-  //      historical text; new rot is the regression).
+  // 2/3. Per-staged-doc citation hygiene on added lines only (existing text
+  //      is grandfathered).
   const docs = staged.filter((f) => f.endsWith(".md"));
   for (const f of docs) {
     if (!fs.existsSync(f)) continue;
@@ -214,7 +208,7 @@ function runPreCommit(staged) {
   }
 
   // 4. The document-set law (charter 'Document laws'): the .md set is
-  //    CLOSED — a newly added .md outside the allowlist is refused. A
+  //    closed — a newly added .md outside the allowlist is refused. A
   //    fact's home is the registry that already owns its kind.
   const addedFiles = sh("git diff --cached --name-status --diff-filter=A")
     .split("\n").filter((l) => l.startsWith("A\t")).map((l) => l.slice(2));
@@ -231,13 +225,11 @@ function runPreCommit(staged) {
     ok("document-set law: no new .md outside the closed set");
   }
 
-  // 5. The measurement-regime gate (charter 'Measurement law', entry (128)).
-  //    Per-entry tagging is the law (charter); the machine-checkable floor
-  //    is commit-level: text newly ADDED to the append-only evidence log
-  //    that cites an A/B scalar (IoU/fG/rms/meanAbs/C79/C97 family) must
-  //    carry 'METER-CLASS:' in the same added text — an untagged meter
-  //    reading is exactly the (121)–(127) misread class the regime exists
-  //    to stop.
+  // 5. The measurement-regime gate (charter 'Measurement law'). Per-entry
+  //    tagging is the law; the machine-checkable floor is commit-level:
+  //    text newly added to the evidence log that cites an A/B scalar
+  //    (IoU/fG/rms/meanAbs/C79/C97 family) must carry 'METER-CLASS:' in
+  //    the same added text.
   if (staged.includes("mapgen/ABOUT_MATH.md")) {
     const addedAbout = sh("git diff --cached -U0 -- mapgen/ABOUT_MATH.md")
       .split("\n").filter((l) => l.startsWith("+")).map((l) => l.slice(1)).join(" ");

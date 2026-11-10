@@ -1,22 +1,21 @@
 // plz codec — the game's pixel-scene container (spliced scenes, N.plz pieces).
 //
-// BYTE extraction, full windows prologue->ret, THIS session (dig #168,
-// noita_dev.exe WSL, exe md5 8b611494212a69492dd0a4527d9c92e0; VA->file
+// Bytes (noita_dev.exe md5 8b611494212a69492dd0a4527d9c92e0; VA->file
 // .text: file = VA - 0x400E00 + 0x400):
 //
 //   loader pipeline   0x90E220..0x90E676 + dispatch call 0x90E73C..0x90E754
 //     header = 6 x u32 LE (24 B): [ver][w][h][bpp][compLen][rawLen]
 //     field loads = raw 32-bit moves (w @0x90E223->slot, h @0x90E2E5,
 //       bpp @0x90E3B3, compLen @0x90E47E->[ebp-0x6C], rawLen @0x90E54F->
-//       edi/[ebp-0x4C]): NO sign-extension, NO abs
-//     asserts: w,h <= 0x10000 (0x90E61D/0x90E62A, `ja` = UNSIGNED) => the
+//       edi/[ebp-0x4C]): no sign-extension, no abs
+//     asserts: w,h <= 0x10000 (0x90E61D/0x90E62A, `ja` = unsigned) => the
 //       5 shipped negative-dim plz (gourd_room/6-8, lavalake2/23-24: w =
 //       -511, h = -511/-343; rawLen = |w|*|h|*4) are XML-referenced but
 //       REFUSED here (0x90E7BA = error-log + abandon, no decode); our
 //       decoder ignores w/h and decodes them (length-exact only)
 //     bpp-1 <= 3 (0x90E637); file = 24 + compLen exactly (no trailer, 97/97)
-//     THE RAW GATE @0x90E644: cmp edi(rawLen),0x80 ; jge 0x90E73C
-//       rawLen < 128  -> NO decode: verbatim copy of compLen bytes
+//     raw gate @0x90E644: cmp edi(rawLen),0x80 ; jge 0x90E73C
+//       rawLen < 128  -> no decode: verbatim copy of compLen bytes
 //                        (malloc @0x90E654, byte loop 0x90E668..0x90E671)
 //       rawLen >= 128 -> dispatcher
 //   dispatcher        0x423220..0x423243
@@ -27,8 +26,8 @@
 //     ctrl0 = payload[0] & 0x1f, ip = 1
 //     literal (ctrl < 0x20):  len = ctrl + 1 (0x422B03); copy; done at ip_end
 //     match   (ctrl >= 0x20): len = (ctrl >> 5) - 1, +3 written
-//       len == 6 -> ONE extension byte: len = b + 6  (0x4229D3, no 0xff loop)
-//       dist = ((ctrl & 0x1f) << 8) + low + 1        (NO extended-dist path)
+//       len == 6 -> one extension byte: len = b + 6  (0x4229D3, no 0xff loop)
+//       dist = ((ctrl & 0x1f) << 8) + low + 1        (no extended-dist path)
 //       src == op (dist 1) -> RLE fill (0x422A18)
 //     returns written count; bounds fail -> 0 (0x422B44)
 //   level-2           0x423010..0x42321B
@@ -37,8 +36,8 @@
 //       offHi == 0x1f00: dist = BE16(ip) + 0x1fff + 1 (0x42308B..0x4230AA)
 //     returns written count; bounds fail -> 0 (0x423214)
 //
-// Validation (dig #168, data/biome_impl/spliced, 97 shipped .plz):
-//   census + decode-exact + content pins in tests/mapgen/plz-codec.test.mjs.
+// Validation (data/biome_impl/spliced, 97 shipped .plz): census +
+// decode-exact + content pins in tests/mapgen/plz-codec.test.mjs.
 
 export const PLZ_HEADER_BYTES = 24;
 // loader gate @0x90E644: rawLen < 0x80 -> verbatim, no dispatch
@@ -113,7 +112,7 @@ export function decodePlz1(payload, rawLen) {
       let len = (ctrl >> 5) - 1;
       const offHi = (ctrl & 0x1f) << 8;
       if (len === 6) {
-        // ONE extension byte (0x4229D3): len = b + 6 — no 0xff chain
+        // one extension byte (0x4229D3): len = b + 6 — no 0xff chain
         len = payload[st.ip++] + 6;
       }
       const low = payload[st.ip++];

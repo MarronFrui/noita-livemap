@@ -1,20 +1,13 @@
-// tests/mapgen/lake-band.test.mjs — dig #170 count law (METER-CLASS E1):
-// the lake-band gap at tile 40_14 rows 160-287 (display rows 31904-32031)
-// closes under the two C145 fixes — the template lane reads at the DISPLAY
-// frame (the L3 anchor belongs to the generator lanes) and the splice
-// lane's pure-grey placeholder fills with the hosting biome's
-// MaterialComponent band shades (blitSplicedScenes' grey branch).
-//
-// COUNT-TEST NOTE (charter: a replacement test must FAIL under the old
-// law's arithmetic): the pre-#170 law (generator-local template read +
-// grey = keep-content skip) measures fG = 0.6608 and gen-water ∩
-// capture-water = 38292 in this window (M: both laws measured side by side
-// by mapgen/experiments/2026-10-19-dig170-lake-band-counts.mjs, which also
-// reproduces the NEW pins below). The pins (≥ 0.95 / ≥ 42000) fail that
-// arithmetic. The capture is solid (lum ≥ 24) at fR = 0.9998 here, so the
-// residual ~4.5% gen-air = the art's black "below shows" cells whose base
-// lane (the sampler at the band) remains open (ISSUES I39 a1/a2/a3) — not
-// this dig's lane.
+// tests/mapgen/lake-band.test.mjs — count law (METER-CLASS E1): the lake
+// band at tile 40_14 rows 160-287 (display rows 31904-32031) is filled under
+// C145 — the template lane reads at the DISPLAY frame (the L3 anchor belongs
+// to the generator lanes) and the splice lane's pure-grey placeholder fills
+// with the hosting biome's MaterialComponent band shades.
+// A generator-local template read + grey = keep-content measures fG 0.6608
+// and water overlap 38292 here, so the pins (≥ 0.95 / ≥ 42000) reject it
+// (reproduce: mapgen/experiments/2026-10-19-dig170-lake-band-counts.mjs).
+// The capture is solid at fR = 0.9998; the residual ~4.5% gen-air = the
+// art's black "below shows" cells whose base lane is open (ISSUES I39).
 //
 // Auto-skips without extracted game data + the capture tile; RUNS in this
 // repo's gates (data present there).
@@ -73,11 +66,11 @@ describe.skipIf(!hasNoitaData() || !hasCapture)("lake band (tile 40_14, rows 160
   test("band solidity: the template lane's water + the grey fill land at the capture's rows (fG ≥ 0.95; old law 0.6608)", async () => {
     const m = await measure();
     expect(m.fR).toBeGreaterThanOrEqual(0.999); // capture solidity sanity (measured 0.9998)
-    expect(m.fG).toBeGreaterThanOrEqual(0.95); // NEW 0.9550; OLD (gen-local + no fill) 0.6608
+    expect(m.fG).toBeGreaterThanOrEqual(0.95); // measured 0.9550
   });
 
   test("identity alignment: gen-water ∩ capture-water ≥ 42000 in the band (old law 38292)", async () => {
     const m = await measure();
-    expect(m.wInt).toBeGreaterThanOrEqual(42000); // NEW 42467; OLD 38292
+    expect(m.wInt).toBeGreaterThanOrEqual(42000); // measured 42467
   });
 });

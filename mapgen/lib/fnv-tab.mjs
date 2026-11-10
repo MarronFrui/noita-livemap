@@ -1,8 +1,6 @@
-// mapgen/lib/fnv-tab.mjs — GENERATED 2026-09-21 (do not hand-edit).
+// mapgen/lib/fnv-tab.mjs — generated (do not hand-edit).
 // The FNV-lattice corner-value table = the 256 f64s at the exe .data
-// VA 0x12eb950 (file = VA−0x401A00 → data_raw.bin off 0x950; the
-// 256-entry read this session; the C41 "12 pairs" note was the first
-// 12 entries only). CONSTANTS.md::<C45>.
+// VA 0x12eb950 (file = VA−0x401A00 → data_raw.bin off 0x950). C45.
 export const FNV_TAB = new Float64Array([
   -0.714286, 0.301587, 0.333333, -1.0,
   0.396825, -0.0793651, -0.968254, -0.047619,

@@ -1,25 +1,12 @@
-// Exact port of the hasPath rejection rule. Authority: our Ghidra asm
-// verification of noita_dev.exe + game-side oracle validation (8/8
-// accept/reject; VERIFIED.md §5). The historical origin was the vendored
-// noitool reconstruction, which is now OBSOLETE — never port noitool code
-// unchecked (its shipped coalmine-hax constants are a silent no-op); this
-// file's behavior is pinned by the oracle, not by noitool.
-//
-// 2026-09-18 REWRITE (F2 dig): three binary-verified corrections applied —
-// (1) the room-marker table is now the 11-entry literal list from FUN_00901580
-//     (0x9015c4-0x90160f); noitool missed 0x00ac64 and 0x70d7a0.
-// (2) the coalmine overlay constants match the overlay data (0x006400 /
-//     0x000064 — noitool's 0x004000/0x0040 made the hax a silent no-op here
-//     too; both mutations are now ACTIVE).
-// (3) undoCoalMineHax uses the corrected constants as well.
-// In-binary semantics still TODO (documented): the fill walk ordering of
-// FUN_0090450 (fillMainPath detail).
-// 2026-09-19 F2 dig: blockOutRooms rewritten to the binary's exact
-// ray-walk room-growth semantics (FUN_00901510 ray counts + FUN_009013f0
-// record fill, read this session; proof anchor CONSTANTS.md::C13
-// byte-pinned this session at slab 0x50124d). The old ShadeOfGrey-run-on
-// heuristic is GONE: rays stop at the first non-black cell, room rect ends
-// are EXCLUSIVE (record = {startX,startY,endX,endY}, strict-< fill).
+// Port of the hasPath rejection rule. Authority: Ghidra reads of
+// noita_dev.exe + game-side oracle validation (8/8 accept/reject;
+// VERIFIED.md §5). The vendored noitool reconstruction is obsolete and is
+// not a reference.
+// Room growth = the binary's ray walk (FUN_00901510 ray counts +
+// FUN_009013f0 record fill; C13, slab 0x50124d): rays stop at the first
+// non-black cell, rect ends are exclusive ({startX,startY,endX,endY},
+// strict-< fill). Unread: the fill walk ordering of FUN_0090450
+// (fillMainPath detail).
 // Semantics (map = RGB, 3 bytes/px, w*h ATLAS px — 1 px = 10 world px):
 //   hasPath(map):
 //     shouldBlockOutRooms -> blockOutRooms(BLACK -> WHITE)   [mutates map]
@@ -39,8 +26,8 @@
 //     REUSED across the scan (visited/heap persist — union-of-frontiers).
 //   traversable: BLACK, COFFEE(0xc0ffee), FROZEN_VAULT_MINT(0xcff7c8), HELL_GREEN(0x8aff80)
 //
-// Verdicts -> ABOUT_MATH §6 / VERIFIED.md. Oracle: accepted attempts
-// {excav 91: A=0, excav 92: A=3, excav 93: A=1} from the chain-vs-spawn run.
+// Oracle: accepted attempts {excav 91: A=0, excav 92: A=3, excav 93: A=1}
+// from the chain-vs-spawn run.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -57,10 +44,8 @@ const NO_PARENT = 0xffffffff;
 const BIOME_PATH_FIND_WORLD_POS_MIN_X = 159;
 const BIOME_PATH_FIND_WORLD_POS_MAX_X = 223;
 
-// Binary-verified room-marker table (noita_dev.exe FUN_00901580, literal
-// compares at 0x9015c4-0x90160f, RGBA LE). 11 entries — noitool's shipped
-// 9-color list was incomplete (it missed 0x00ac64 and the 0x70d7a0 shade).
-// Sorted for the linear lookup.
+// Room-marker table (FUN_00901580, 11 literal compares at
+// 0x9015c4-0x90160f, RGBA LE), sorted.
 const blockedColors = [
   0x00ac64, 0x00ac6e, 0x70d79e, 0x70d79f, 0x70d7a0, 0x70d7a1,
   0x7868ff, 0xc35700, 0xff0080, 0xff00ff, 0xff0aff,
@@ -223,10 +208,8 @@ function doCoalMineHax(map, width, height) {
     for (let x = 0; x < width; x++) {
       const op = 3 * (256 * y + x);
       const pix = (ov.bytes[op] << 16) | (ov.bytes[op + 1] << 8) | ov.bytes[op + 2];
-      // 2026-09-18 binary dig: the overlay data's real values are 0x006400 /
-      // 0x000064 (VERIFIED §8/ledger F2). noitool's own code compared against
-      // 0x004000/0x0040 — a silent no-op — and this port used to copy those
-      // constants. The values below match the actual overlay data.
+      // overlay values 0x006400 / 0x000064 (VERIFIED §8; noitool's
+      // 0x004000/0x0040 never match the data)
       if (pix === 0x006400) { /* main rock portion */
         setPixel(map, width, x, y, COLOR_WHITE);
       } else if (pix === 0x000064) { /* blue - looks like air */
@@ -241,8 +224,6 @@ function doCoalMineHax(map, width, height) {
 }
 
 // undoCoalMineHax (finalize step): reset the overlay-forced tiles.
-// 2026-09-18: constants corrected to the overlay data's real values
-// (0x006400/0x000064; noitool's 0x004000/0x0040 were a silent no-op).
 function undoCoalMineHax(map, width, height) {
   const ov = coalmineOverlay();
   for (let y = 0; y < height; y++) {
@@ -259,22 +240,18 @@ function undoCoalMineHax(map, width, height) {
 // finalize-lite for the renderer: the parts of the game's finalize() we can
 // already apply deterministically (undoCoalMineHax + fillBlockedRooms(BLACK)).
 // ClearPath / fillC0ffee / fillRandomMaterials remain TODO. @prov noitool:
-// everything in this block below the 2026-09-18 REWRITE corrections is
-// structurally noitool-derived and only pinned via oracle — tag carries the
-// no-guessing debt until F2 replaces them from the binary.
+// the finalize structure is noitool-derived and only oracle-pinned (debt
+// until read from the binary).
 export function finalizeLite(map, width, height, { isCoalMine, blockList }) {
   if (isCoalMine) undoCoalMineHax(map, width, height);
   for (const b of blockList) {
-    // 0x901450-family black blit (slab 0x500c50, read 2026-09-19): per
-    // 16-byte record, EXCLUSIVE ends, per-cell bounds check. blockList
+    // 0x901450-family black blit (slab 0x500c50): per 16-byte record, EXCLUSIVE ends, per-cell bounds check. blockList
     // records (from blockOutRooms / hasPath) carry ends in that convention.
     blitRect(map, width, height, b, COLOR_BLACK);
   }
 }
 
-// --- 2026-09-19 binary-exact room growth (FUN_00901510 / FUN_009013f0 /
-// FUN_00901580, bytes verified this session; semantics: ABOUT_MATH 2026-09-19
-// entry). ---
+// --- room growth (FUN_00901510 / FUN_009013f0 / FUN_00901580) ---
 
 // FUN_00901510 (slab 0x500d10, called twice from the marker walker at slab
 // 0x500e29/0x500e40): step from (x,y) by (dx,dy), counting while the cell's
@@ -310,9 +287,7 @@ function blitRect(map, width, height, rect, color) {
 // (x+1, y+1): (1,0) right, then (0,1) down; rect =
 // {x+1, y+1, x+1+rightLen, y+1+downLen}; fill it targetColor (binary pushes
 // 0xFFFFFFFF = white at the single call site slab 0x500e51); push the record
-// (-- 16-byte record in-binary; degenerate zero-area records included).
-// NO ShadeOfGrey anywhere in-binary — the old grey-run-on heuristic is an
-// eliminated approximation; rays stop at the first non-black cell.
+// (16-byte record in-binary; degenerate zero-area records included).
 function blockOutRooms(map, width, height, targetColor, blockList) {
   const posMax = width * height;
   for (let pos = 0; pos < posMax; pos++) {

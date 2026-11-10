@@ -1,4 +1,4 @@
-// Wang template ENCODER — mirror of buildTileset's canonical walk (corner mode).
+// Wang template encoder — mirror of buildTileset's canonical walk (corner mode).
 // Writes a valid stb_hbwang corner-type template PNG with a unique marker RGB
 // painted over each tile's whole content (for in-game spawn readout), plus the
 // matching Lua registration file for the lab mod. Self-validates by parsing
@@ -27,7 +27,7 @@ export function makeLabTemplate({ numColor = [2, 1, 2, 1], s = 4, varyX = 1, var
   };
 
   // header: last 9 RGB bytes of row 0: byte(w*3-1-i) = hdr[i] ^ (i*55)
-  // NOTE: 3 bytes share each pixel — collect per-pixel, paint once each.
+  // 3 bytes share each pixel — collect per-pixel, paint once each.
   const hdr = [nc0, nc1, nc2, nc3, varyX, varyY, s, 0xc0, 0];
   const hdrPx = new Map(); // px -> [r,g,b]
   for (let i = 0; i < 9; i++) {
@@ -94,7 +94,7 @@ export function writeLabPng(outPath, opts) {
 }
 
 export function labLua(tiles) {
-  // THIN shim: biome spawn callbacks run in a sandbox WITHOUT io and WITHOUT
+  // Thin shim: biome spawn callbacks run in a sandbox without io and without
   // sight of mod globals — the only shared channel is the game's global store
   // (GlobalsSetValue/Get). Rows are keyed "wanglab_r_<n>"; init.lua (mod
   // context, owns io) drains them into the per-seed CSV.

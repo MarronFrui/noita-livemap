@@ -1,31 +1,13 @@
-// tests/mapgen/splice-fill.test.mjs — dig #172 count laws for the splice
-// lane's grey-placeholder fill (METER-CLASS: E1 — pixel counts and shares
-// 0..1 over the art-grey mask of tile 40_14; reproduction:
-// SURFACE_V3=1 node mapgen/experiments/2026-10-19-dig172-fill-mix-profile.mjs
-// writes mapgen/out/dig172-fill-mix.json with the same bands/shares).
+// tests/mapgen/splice-fill.test.mjs — count laws for the splice lane's
+// grey-placeholder fill (METER-CLASS: E1 — pixel shares 0..1 over the
+// art-grey mask of tile 40_14).
 //
-// The law under test: the fill = the game's per-cell driver (X148/X149 —
-// walk 0x7930d3, driver 0x908F40 kind-0 arm): v = surfaceField(x+0.5,
-// y+0.5), classify(the hosting biome's MaterialComponent table, x, y, v),
-// NULL → the cell keeps its content. It replaced the seeded-fBm band choice
-// (ISSUES A5, splice half) and the sand/rock shade routing.
-//
-//   L0 — the 0-path: below every window (v = 0 above the surface) the lane
-//        returns null → the walk's "cell not painted" arm.
-//   L1 — the N-path: rows 128-191 (the art-grey band just below the
-//        terrain top) paint the soil SHADES family at ≥ 0.90 of the grey
-//        cells, nearly all cells painted (≥ 0.99 coverage).
-//   L2 — the stratification flip: soil share (128-191) − soil share
-//        (448-511) ≥ 0.90 AND the bottom band's sand SHADES family ≥ 0.90
-//        (the fill shade routing: sand_static → the dark sand family,
-//        rock_static → the rock family).
-//
-// FAIL-UNDER-OLD (the fBm law's arithmetic, measured by this dig's E1 run
-// pre-fix): the fill was a row-invariant slab — soil ≈ 1 px of 104002 in
-// rows 160-400 (share ≈ 0.00001 ≪ 0.90 ⇒ L1 fails) with the SAME shares in
-// the bottom band (delta ≈ 0 ≪ 0.90 ⇒ L2 flip fails) and sand_static
-// routed to the LIGHT template shade (190,170,120), never SHADES.sand
-// (95,87,49) ⇒ L2's sand share ≈ 0 ⇒ fails.
+//   L0 — the per-cell driver lane (X148/X149: walk 0x7930d3, driver
+//        0x908F40 kind-0 arm): below every MaterialComponent window
+//        (v = 0 above the surface) it returns null → "cell not painted".
+//   L1/L2 — the placeholder is the P-empty arm (I63): field = the grey's
+//        luminance; ≤ 0.5 ⇒ keep; else classify at 0x908e70's v. Pinned as
+//        exact-colour agreement with the capture on the grey cells.
 //
 // Data-dependent: skips without the game data (the art PNG + biome XMLs).
 import fs from "node:fs";
@@ -51,7 +33,7 @@ describe.skipIf(!hasData)("splice fill lane (dig #172)", () => {
         const { blitSplicedScenes } = await import("../../mapgen/lib/template-render.mjs");
         const { surfaceFillLane, surfaceFillAt } = await import("../../mapgen/lib/noise-terrain.mjs");
 
-        // the art-grey mask (entry (170) law: alpha≥10, r===g===b, non-black)
+        // the art-grey mask: alpha≥10, r===g===b, non-black
         const artImg = readPng(DATA_DIR + "/biome_impl/spliced/mountain_lake.png");
         const grey = new Uint8Array(CHUNK * CHUNK);
         for (let j = 0; j < CHUNK; j++) {
@@ -118,13 +100,9 @@ describe.skipIf(!hasData)("splice fill lane (dig #172)", () => {
     expect(surfaceFillAt(lane, ANCHOR.wx + 100, -5000)).toBeNull();
   });
 
-  // I63 (2026-11-09): the splice placeholder = the P-empty arm (field = the
-  // grey's luminance; ≤ 0.5 ⇒ keep; else classify at 0x908e70's v). The old
-  // L1/L2 (the driver fill's soil-top / sand-foot families) are replaced by
-  // capture-agreement pins on the same anchor (exact colour on the art-grey
-  // cells, tile 40_14): rows 192-447 old 0.138 → 0.161, rows 448-511 old
-  // 0.038 → 0.345. Known residual: the 716-px soil top band (128-191) the
-  // old law matched better (0.462 vs 0.117) — ISSUES I63.
+  // Capture agreement (exact colour on the art-grey cells, tile 40_14):
+  // rows 192-447 measure 0.161, rows 448-511 measure 0.345. Known residual:
+  // the soil top band (128-191) — ISSUES I63.
   const capExact = async ([y0, y1]) => {
     const { readPng } = await import("../../mapgen/lib/images.mjs");
     const path = await import("node:path");

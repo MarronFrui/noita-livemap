@@ -1,7 +1,7 @@
 // Deliberately re-bless mapgen/out/golden.json — the regression baseline for
-// our wang-js port. Baselines pin behavior; they are NOT game references.
+// our wang-js port. Baselines pin behavior; they are not game references.
 //
-// Run this ONLY when you intend to change golden-covered output, then commit
+// Run this only when you intend to change golden-covered output, then commit
 // the reasoning to ABOUT_MATH.md §6. Without --force it refuses to overwrite.
 //
 // Usage:

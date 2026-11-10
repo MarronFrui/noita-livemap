@@ -1,14 +1,10 @@
 // mapgen/lib/surface-level.mjs — biome <Materials> MaterialComponent build +
 // the biome-materials CLASSIFIER, ported from noita_dev.exe
-// (md5 8b611494212a69492dd0a4527d9c92e0). dig #96 (Phase 4 step 2):
-// module-as-library + tests; dig #97 (Phase 4 step 3) wires these into
-// noise-terrain.mjs's SURFACE_V3 default branch (attach-gated @:235;
-// chain + classify-frame cites CONSTANTS C76).
+// (md5 8b611494212a69492dd0a4527d9c92e0). Used by noise-terrain.mjs's
+// SURFACE_V3 branch (chain + classify frame: CONSTANTS C76).
 //
-// Every address/byte/constant below was read/verified THIS session from
-// /tmp/opencode/fulltext86.asm or PE reads of the exe (.rdata file = VA −
-// 0x400E00, .data file = VA − 0x401A00); XML facts from data/biome/*.xml
-// greps + reads this session. Slot map + ctor defaults: CONSTANTS.md C74.
+// PE file offsets: .rdata file = VA − 0x400E00, .data file = VA − 0x401A00.
+// Slot map + ctor defaults: CONSTANTS.md C74.
 //
 //   classifier  0x8f5030..0x8f574e (ret $8) — call site 0x90dd7e passes the
 //               table in ecx (= [config+0x2a4] = mBiomeMaterials), v as f32
@@ -24,7 +20,7 @@
 //               K9200 mul directly from rdata @8f92be
 //   XML parse   ctor 0x7daeb0 + 3 deserializer passes → C74 slot map
 //
-// Gate semantics (all byte-confirmed this session):
+// Gate semantics:
 //   band gate     [bandMin, bandMax] CLOSED        reject → RETURN null (0x8f574c)
 //   limit_y gate  [limit_min_y, limit_max_y] CLOSED on (float)y  reject → skip
 //   main gate     [material_min, material_max) HALF-OPEN on v′    reject → skip
@@ -36,7 +32,7 @@
 //   = 132 B, count = (end−begin)/132 recomputed per iter, magic 0x3e0f83e1);
 //   accept returns comp.celldata (= [comp+0x04]); miss returns null (0x8f574e).
 //
-// Tagged deviations / OPENs (sources in the throws and below):
+// Deviations / OPENs:
 //   - band SEED source unread (accumulation bytes pinned) → band is a param.
 //   - membership diag 0x442610 predicate unread → non-null records taken as
 //     "found" (P1-consistent, tagged OPEN — the mismatch behavior is unread).
@@ -48,17 +44,17 @@
 //     are UNREAD (OPEN) → port throws instead of guessing.
 //   - lookup 0x741890 / record RESOLVE (material_name → +0x04) unread →
 //     celldata comes from the caller (parallel array).
-//   - jitter 0x9119d0 / fbm 0x9fad90 bodies unread → honest throws (both
-//     arms P1-dead per this session's censuses). polygon 0x10096a0 IS read
-//     (dig #147, X106; the caller frame + mod-512 law = dig #148, X107).
-//   - simplex2DDeriv reused from noise-proto.mjs:422 — INHERITS its FLAGGED
-//     runtime skew BSS 0x132ab68/0x132ac70 (UNPINNED).
+//   - jitter 0x9119d0 / fbm 0x9fad90 bodies unread → throws (both arms
+//     unused in P1 data). polygon 0x10096a0 is read (X106; caller frame +
+//     mod-512 law X107).
+//   - simplex2DDeriv from noise-proto.mjs inherits its FLAGGED runtime skew
+//     BSS 0x132ab68/0x132ac70 (unpinned).
 
 import { simplex2DDeriv } from "./noise-proto.mjs";
 
 // ---------------------------------------------------------------------------
-// Assert format (0x1150f60) + file string (0x1173240), PE-read this session.
-// Assert CODES are line numbers in the file below; expr strings PE-verified:
+// Assert format (0x1150f60) + file string (0x1173240).
+// Assert codes are line numbers in the file below; expr strings:
 // mInitialized 0x118c9f4 (line 0xfe=254), component 0x1151e28 (0x107=263),
 // mCellFactory 0x11732c0 (0x108=264), false&&… 0x1173304 (0x10f=271),
 // polygon.size>=3 0x1173340 (0x118=280).
@@ -67,7 +63,7 @@ function assertLine(expr, line) {
   return `Assert failed: (${expr}) in ${FILE} at line ${line}`;
 }
 
-// Cell-fold constants (all f32, PE-verified this session):
+// Cell-fold constants (all f32):
 //   Q     0x11df8f4 = 0.014084506779909134
 //   26    0x11e01f8   161  0x11e031c   71  0x11e02b8
 const FOLD_Q = 0.014084506779909134;
@@ -116,7 +112,7 @@ function hash92f0(x, y) {
 // ---------------------------------------------------------------------------
 // componentFromXml — ctor 0x7daeb0 defaults + the C74 attr→slot map applied
 // to one `<MaterialComponent …>` block (attr regex: every data/biome block is
-// double-quoted `name="value"`, 23-attr census this session).
+// double-quoted `name="value"`; 23 distinct attrs in data/biome).
 const F32_ATTRS = new Set([
   "material_min", "material_max", "add_perlin_scale_x", "add_perlin_scale_y",
   "limit_min_y", "limit_max_y", "rare_scale_x", "rare_scale_y",
@@ -129,20 +125,19 @@ const BOOL_ATTRS = new Set([
   "rare_use_fbm_perlin", "rare_use_polka", "rare_offset_by_seed",
   "rare_polka_is_boxed", "is_polygon",
 ]);
-// Registered attr names whose parse we do not implement: absent from the
-// 23-attr data/biome census this session (celldata comes from the parse
-// context — `mov %ecx,0x4(%eax)` @0x8f3650/0x8f3a04; polygon = child list).
+// Registered attr names whose parse is not implemented: absent from
+// data/biome (celldata comes from the parse context — `mov %ecx,0x4(%eax)`
+// @0x8f3650/0x8f3a04; polygon = child list).
 const UNREAD_ATTRS = new Set(["celldata", "polygon"]);
-// `_enabled` is registered?? No — absent from all three deserializer passes
-// (C74) → the game has no slot for it; census this session: 1096 × "1",
-// 0 × "0" across data/biome/*.xml → ignored (never disables in P1).
+// `_enabled` is absent from all three deserializer passes (C74) → no slot.
+// data/biome/*.xml has 1096 × "1", 0 × "0" → ignored.
 const IGNORED_ATTRS = new Set(["_enabled"]);
 
 function parseF32(name, v) {
   const n = Number(v); // Number("") = 0, Number("abc") = NaN → both rejected below
   if (v.trim() === "" || !Number.isFinite(Math.fround(n))) {
-    // fail-loud on empty/NaN/Inf AND on f32 overflow (the game's strtof
-    // ERANGE/±inf behavior is unread; P1 data has neither — census this session).
+    // fail-loud on empty/NaN/Inf and on f32 overflow (the game's strtof
+    // ERANGE/±inf behavior is unread; P1 data has neither).
     throw new Error(`surface-level: componentFromXml: attribute ${name}="${v}" is not a finite f32`);
   }
   return Math.fround(n); // slots are f32 (movss/comiss in the classifier)
@@ -150,8 +145,7 @@ function parseF32(name, v) {
 function parseBool(name, v) {
   if (v === "1") return true;
   if (v === "0") return false;
-  // Only "0"/"1" occur for every bool attr (23-attr census this session);
-  // the game's parse of anything else is unread → fail-loud.
+  // Only "0"/"1" occur in data; the game's parse of anything else is unread.
   throw new Error(`surface-level: componentFromXml: bool attr ${name}="${v}" (only "0"/"1" occur in data; other values unread)`);
 }
 
@@ -189,11 +183,10 @@ export function componentFromXml(xml) {
     is_polygon: false, // +0x74
     polygon: [], // +0x78 vector (init fn 0x92baa0 = empty)
   };
-  // (dig #147 — polygon vertex list, loaded from the XML child element)
-  // The attr-tagged "polygon" key in UNREAD_ATTRS stays unread (it is an
-  // attr mis-census by design — the bytes live in the nested child).
-  // Cargo-shape (<polygon><Vec2 x="" y=""/></polygon>) mirrors the game's
-  // init fn 0x92baa0 loader (a stride-8 vertex list into +0x78..+0x7c).
+  // Polygon vertex list from the XML child element
+  // (<polygon><Vec2 x="" y=""/></polygon>), mirroring init fn 0x92baa0
+  // (stride-8 vertex list into +0x78..+0x7c). A "polygon" attribute stays
+  // rejected via UNREAD_ATTRS.
   {
     const mPoly = /<polygon[^>]*>([\s\S]*?)<\/polygon>/i.exec(xml);
     if (mPoly) {
@@ -245,9 +238,9 @@ export function componentFromXml(xml) {
 // parse-time celldata assign idiom, mInitialized := 1 (@0x8f9054) and a
 // truthy mCellFactory (table+0x30 — the classifier asserts both).
 //
-// band = {min, max}: the game's SEED for table[+0]/[+4] is UNREAD (OPEN) —
+// band = {min, max}: the game's seed for table[+0]/[+4] is unread (OPEN) —
 // accumulation bytes are pinned, the initial value is not — so the seed is a
-// caller param per the dig-#96 plan (band-as-param fallback).
+// caller param.
 // celldata = array parallel to components (record RESOLVE / lookup 0x741890
 // unread per C74 → caller supplies; missing entries leave +0x04 null, which
 // the classifier then rejects via the 0x10f/skip path).
@@ -319,8 +312,8 @@ export function classify(table, x, y, v) {
     // celldata diag @0x8f52e9: null record + name≠"" → game logs 0x11732d0
     // then asserts 0x10f (line 271); null + empty name defers to the second
     // null check at 0x8f5572 (below, after limit/polygon — byte order kept).
-    // Non-null record → membership diag 0x442610 whose predicate is UNREAD
-    // (OPEN); P1-consistent → taken as found here (tagged in the header).
+    // Non-null record → membership diag 0x442610 whose predicate is unread
+    // (OPEN); taken as found (see header).
     if (comp.celldata == null && comp.material_name.length !== 0) {
       throw new Error(
         `surface-level: Error! couldn't find material: ${comp.material_name}\n` + // log @0x11732d0 (game prints; port folds)
@@ -339,11 +332,8 @@ export function classify(table, x, y, v) {
 
     // polygon arm @0x8f5418 (flag +0x74; vector begin/end +0x78/+0x7c, count
     // = (end−begin)>>3 @0x8f5422..0x8f5428) — count<3 → assert 0x118 (line
-    // 280), else point query 0x10096a0 (signed-mod-512 + 1/512 scale).
-    // Body UNREAD → throw.
-    // --- polygon arm @0x8f5418 → 0x10096a0 (BYTE-READ dig #147; PROVEN
-    // byte-perfect even-odd per the unsigned+bias algo below at line
-    // 0x10096a9: test-point ≈ mod512×(1/512) of both x and y).
+    // 280), else even-odd point query 0x10096a0 on test point
+    // mod512(x, y)·(1/512).
     if (comp.is_polygon) {
       if (comp.polygon.length < 3) {
         throw new Error(assertLine("polygon.size() >= 3", 280));
@@ -379,7 +369,7 @@ export function classify(table, x, y, v) {
     const py = Math.fround(Math.fround(Math.fround(y) * comp.rare_scale_y) + comp.rare_offset_y);
 
     // jitter head @0x8f55d8 (flag +0x50 `cmpb`, je 0x8f5678 = skip; call
-    // 0x9119d0) — body UNREAD.
+    // 0x9119d0) — body unread.
     if (comp.rare_offset_by_seed) {
       throw new Error(
         "surface-level: jitter arm not ported (rare_offset_by_seed=1): rng 0x9119d0 unread. " +
@@ -476,13 +466,11 @@ export function rarePolka(px, py, low, high, boxed, prob) {
   return Math.fround(Math.fround(t * t) * t); // two mulss → cvtps2pd widen (exact in JS)
 }
 
-// dig #147 -- helpers for the polygon arm (point-in-polygon, byte-level)
+// Helpers for the polygon arm.
 function modSigned512Int(n) {
-  // The byte idiom (caller window X107, 0x8f54f4..0x8f550c, dig #148):
-  //   and 0x800001ff; jns skip; dec; OR 0xfffffe00; inc; jns skip; add 0x200
-  // = floor-mod 512, result always in [0, 511]. Dig #147 shipped `and`
-  // where the byte has `or` — every negative input collapsed to
-  // ±0x80000000-ish garbage (−1 → −2147483135) instead of 511.
+  // Byte idiom (X107, 0x8f54f4..0x8f550c):
+  //   and 0x800001ff; jns skip; dec; or 0xfffffe00; inc; jns skip; add 0x200
+  // = floor-mod 512, result always in [0, 511].
   let a = n | 0;
   a = a & 0x800001ff;
   if (a < 0) {
@@ -509,7 +497,7 @@ function pointInPolygon(poly, tx, ty) {
     const prevGe = (prevY >= testY);
     const curGe  = (curY  >= testY);
     if (prevGe !== curGe) {
-      // even-odd cross X at +X direction. FLAGGED DEVIATION (dig #148):
+      // even-odd crossing in +X. FLAGGED DEVIATION:
       // the bytes compute x_int = curr.x − (prev.x−curr.x)·(curr.y−ty)
       // /(prev.y−curr.y) (X106 @0x1009751..76); this port uses the
       // algebraically equal prev.x + (cur.x−prev.x)·(ty−prev.y)/(cur.y−prev.y)

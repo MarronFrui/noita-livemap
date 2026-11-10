@@ -1,29 +1,24 @@
 // Template-biome rendering (non-wang biomes): LoadPixelScene port for PNG
 // scenes + per-biome terrain fills. Authority: the game's own data (biome
 // XML Topology/Materials, scripts/biomes/*.lua compositions) + capture
-// calibration. Deferred (logged ABOUT_MATH 2026-09-09): poro noise-terrain
-// port (exact shapes for hills/winter/desert/lake/mountains — banded fills
-// below are first-order approximations on world-seeded fBm). The plz
-// container codec = reproduced dig #168 (mapgen/lib/plz.mjs, VERIFIED §10);
-// the paint-classification law for splice scenes = capture-verified (the
-// air/miss skips in blitSplicedScenes, ISSUES I9 amended). All 11 scene
-// families blit via their root PNGs; the open items (ISSUES I40): the
-// *_visual.png / _visual.plz visual layers are NOT applied and
-// blitFixedArt paints raw colors (unmeasured vs capture). dig #170 landed
-// the two lake-band defects (C145): the template lane reads at the
-// DISPLAY frame (the anchor belongs to the generator lanes) and the
-// splice lane's grey placeholders get the hosting biome's band fill
-// (blitSplicedScenes' grey branch).
+// calibration. The banded fills below are approximations on world-seeded
+// fBm (stand-in). The plz codec lives in mapgen/lib/plz.mjs (VERIFIED §10);
+// the splice-scene paint classification (air/miss skips in
+// blitSplicedScenes) is capture-verified (I9). Open (I40): the
+// *_visual.png / _visual.plz layers are not applied and blitFixedArt paints
+// raw colors (unmeasured vs capture). The template lane reads at the
+// DISPLAY frame (the anchor belongs to the generator lanes) and splice grey
+// placeholders get the hosting biome's band fill (C145).
 
 import { readPng, rgbToRgbaInt } from "./images.mjs";
 import { SHADES, MATERIAL_SHADE, pick, loadMaterials, materialColorAt, materialRenderClass, materialTexSize } from "./colorize.mjs";
 import { seededPrng } from "./wang-js.mjs";
-import { biomeAt, biomeAtPixel, biomeChunkDef } from "./biomes.mjs"; // the OWNERSHIP GATE source (dig 52); I64: the edge law
-import { ensureSurfaceTable } from "./noise-terrain.mjs"; // I63: the classify table of the P-empty arm
+import { biomeAt, biomeAtPixel, biomeChunkDef } from "./biomes.mjs"; // ownership gate source; I64: the edge law
+import { ensureSurfaceTable } from "./noise-terrain.mjs"; // I63: classify table of the P-empty arm
 import { workCellAt } from "./the-work.mjs";
 import path from "node:path";
-import { LazyChunkStore } from "./chunk-store.mjs"; // the lazy per-chunk planes (A, 2026-11-08)
-import { WangLuaHost, loadWangScriptsCsv } from "./wang-scenes.mjs"; // dig #219: init() runs as the real biome Lua
+import { LazyChunkStore } from "./chunk-store.mjs"; // lazy per-chunk planes
+import { WangLuaHost, loadWangScriptsCsv } from "./wang-scenes.mjs"; // init() runs as the real biome Lua
 
 // the replay clip: [lo, hi) loop bounds of an image placed at `o` (size n)
 // against the target chunk's world-px span — full range on eager Maps
@@ -57,36 +52,28 @@ const materialShadeFor = (dataDir, name) => {
   return SHADES.fallbackSolid;
 };
 
-// dig #172 (I39(d) fix): the splice fill's shade families — the capture's
-// EXACT colors at the mountain_lake art-grey cells (E1 census,
-// mapgen/out/dig172-fill-mix.json): soil #464128 = (70,65,40) = the soil
-// family; sand_static renders the DARK sand family (95,87,49) (NOT the
-// light template sand_static zone shade — that family belongs to the
-// desert-surface art, TEMPLATE_SHADES keeps it); rock_static = the rock
-// family (39,40,45). All three are exact single-color matches on the
-// capture at ≥8.8k px each. Other names keep materialShadeFor.
+// The splice fill's shade families — the capture's colors at the
+// mountain_lake art-grey cells (I39(d)): soil (70,65,40) = the soil family;
+// sand_static = the dark sand family (95,87,49), not the light template
+// sand_static shade (that belongs to desert-surface art); rock_static = the
+// rock family (39,40,45). Other names keep materialShadeFor.
 const FILL_SHADES = { sand_static: SHADES.sand, rock_static: SHADES.rock };
 const fillShadeFor = (dataDir, name) => FILL_SHADES[name] ?? materialShadeFor(dataDir, name);
 
-// one art px of material `name` at world (x, y): the capture-calibrated family
-// when the material has one, else the game's own cell colour law (C185 —
-// texture at the world px / Graphics colour / wang_color, alpha composited),
-// else the generic fallback. (2026-11-08, the sky-band fix: wood_tree — the
-// mountain tree — had no family and painted flat grey (90,90,95).)
-// the pre-#229 family-first law — kept for the DRIVER FILL (fillPx): at the
-// mountain_lake anchor the capture-calibrated families stand in for the
-// fill's unresolved material assignment (its 'soil' cells show sand_static's
-// texture in the capture; C146 / I42), so C185 there would trade a known
-// stand-in for a wrong colour.
+// One art px of material `name` at world (x, y), family-first: the
+// capture-calibrated family when the material has one, else the game's cell
+// colour law (C185 — texture at the world px / Graphics colour / wang_color,
+// alpha composited), else the generic fallback. Used by the driver fill
+// (fillPx): at the mountain_lake anchor the families stand in for the fill's
+// unresolved material assignment (stand-in, C146 / I42).
 const familyPx = (dataDir, name, x, y, salt) => {
   const fam = MATERIAL_SHADE.get(name);
   if (fam && SHADES[fam]) return pick(SHADES[fam], x, y, salt);
   if (TEMPLATE_SHADES[name]) return pick(TEMPLATE_SHADES[name], x, y, salt);
   return materialColorAt(dataDir, name, x, y) ?? pick(SHADES.fallbackSolid, x, y, salt);
 };
-// dig #229 (C195 in the template lane): a SOLID scene-art material px = C185
-// (its texture at the world px); gases / flowing liquids keep the families
-// (A23).
+// C195: a solid scene-art material px = C185 (its texture at the world px);
+// gases / flowing liquids keep the families (A23).
 const materialPx = (dataDir, name, x, y, salt) => {
   if (materialRenderClass(dataDir, name) === "solid") {
     const c = materialColorAt(dataDir, name, x, y);
@@ -122,9 +109,9 @@ const TRIGGER_HINT = new Set([
 // only over non-air material cells; air/transparent show what's below
 // (backdrop / wang terrain / black). White/grey placeholder px get the
 // biome's own MaterialComponent band fill (the game's "shades of grey get
-// filled with the materials defined in the biome's <Materials>" rule) —
-// the exact band/vein noise semantics remain an open read (C32 resolver
-// family); here it is the shared seeded-approximation fill.
+// filled with the materials defined in the biome's <Materials>" rule); the
+// band/vein noise semantics are an open read (C32), so this is the shared
+// seeded approximation fill (stand-in).
 export function blitScene(buffers, dataDir, def, matFile, visFile, wx, wy, biomeName, seed = 0, gate = null) {
   const mat = art(dataDir, matFile);
   if (!mat) return 0;
@@ -151,12 +138,9 @@ export function blitScene(buffers, dataDir, def, matFile, visFile, wx, wy, biome
       let shade = null;
       if (r === 0 && g === 0 && b === 0) continue; // scene air: below shows
       if (r === g && g === b) {
-        // grey/white placeholder family -> the biome's MaterialComponent
-        // fill. dig #172 wired the game's driver law (classify(surfaceField)
-        // — noise-terrain surfaceFillLane) into the SPLICE lane; this
-        // per-chunk lane still runs the seeded-fBm approximation (A5,
-        // narrowed to here: threading `config` through blitScene's 10 call
-        // sites is the queued follow-up, ISSUES I43).
+        // grey/white placeholder -> the biome's MaterialComponent fill.
+        // The splice lane uses the driver law (classify(surfaceField));
+        // this lane runs the seeded-fBm approximation (A5, FLAGGED; I43).
         if (!bands.length) continue;
         const active = bands.filter(
           (b2) => !b2.limitMinY || !b2.limitMaxY || (wy + j >= b2.limitMinY && wy + j <= b2.limitMaxY)
@@ -168,10 +152,8 @@ export function blitScene(buffers, dataDir, def, matFile, visFile, wx, wy, biome
       } else {
         const mname = materials.get(hex);
         if (!mname) { if (TRIGGER_HINT.has(hex)) continue; continue; }
-        // dig #225 (C143's 'air' arm, as in the splice lane): an air-keyed
-        // cell (wang 000042) is EMPTY — the backdrop / the lanes below show;
-        // it was painted as air's own colour (the dark-blue air at the HM
-        // top pools, the temple rooms)
+        // C143's 'air' arm: an air-keyed cell (wang 000042) writes air —
+        // the backdrop shows, not air's own colour
         if (mname === "air") { n += clearWorldPx(buffers, wx + i, wy + j); continue; }
         shade = materialPx(dataDir, mname, wx + i, wy + j, 0x51ce3f);
       }
@@ -188,14 +170,11 @@ export function blitScene(buffers, dataDir, def, matFile, visFile, wx, wy, biome
   return n;
 }
 
-// I49 (dig #210 obs-1 fix): the LoadPixelScene background layer lives on a
-// SEPARATE bg plane — the nested Map under `buffers.get("bg")` — never the
-// fg art buffers worldColorAt's fg-template lane consults. The old law
-// blitted background_file px into the fg buffer, so the right_stub_
-// background's airDark preempted the noise/terrain lanes at the scene's
-// cells (the tree-west "water": capture (38,62) = airDark 1.6% / soil
-// 55.3% / rock 27.0%, our render = the bg colors CONSTANT across seeds).
-// Exported for the I49 write-path pin (tests/mapgen/world-gen.test.mjs).
+// I49: the LoadPixelScene background layer lives on a separate bg plane —
+// the nested Map under `buffers.get("bg")` — never the fg art buffers
+// worldColorAt's fg-template lane consults, so backdrop px cannot preempt
+// the noise/terrain lanes. Exported for the I49 write-path pin
+// (tests/mapgen/world-gen.test.mjs).
 export function blitBackdrop(buffers, dataDir, file, wx, wy, gate = null) {
   const img = art(dataDir, file);
   if (!img) return 0;
@@ -219,14 +198,10 @@ export function blitBackdrop(buffers, dataDir, file, wx, wy, gate = null) {
   return n;
 }
 
-// dig #228 (C143: an `air` hit WRITES air): reset a written cell to unset
-// (9) so an earlier scene's paint there is gone; no buffer = nothing to clear
-// I62 (C196 amended): an `air` hit WRITES AIR (C143: "an air hit ⇒ the cell
-// is air") — a distinct buffer state, not "unset". Unset lets the lanes below
-// paint (the noise terrain, the bins); the old clear-to-unset made every
-// air-keyed room (friendroom, teleroom, …: wang 000042 over a noise chunk)
-// show the noise rock — the user's "rooms filled with dense rock".
-// Consumers: AIR = the backdrop arm (world-gen tplAir).
+// I62 / C143: an `air` hit writes AIR — a distinct buffer state, not
+// "unset" (unset lets the lanes below paint, which would fill air-keyed
+// rooms such as friendroom/teleroom with noise rock). Consumer: the
+// backdrop arm (world-gen tplAir).
 export const TPL_AIR = [9, 9, 10];
 function clearWorldPx(buffers, wx, wy) {
   setWorldPx(buffers, wx, wy, TPL_AIR);
@@ -256,8 +231,7 @@ function setWorldPx(buffers, wx, wy, [r, g, b]) {
 // origin (x, y = the chunk's top-left world px). We parse only that
 // function body; offset expressions limited to linear x/y + int chains
 // (dynamic offset expressions = unhandled, counted, never guessed).
-// Source: data/scripts/biomes/** (mountain/pyramid quotes byte-read;
-// callsite census measured 2026-09-21: 256 across biomes/**).
+// Source: data/scripts/biomes/** (256 callsites across biomes/**).
 
 import fs from "node:fs";
 
@@ -348,7 +322,7 @@ export function parseInitPixelScenes(src) {
     if (depth <= 0) { endIdx = i; break; }
   }
   const scenes = [];
-  const backdrops = []; // dig #134: the LoadBackgroundSprite pieces
+  const backdrops = []; // the LoadBackgroundSprite pieces
   let dynamic = 0;
   for (let i = head; i <= endIdx; i++) {
     const raw = lines[i];
@@ -359,10 +333,8 @@ export function parseInitPixelScenes(src) {
     if (!isScene && !isBackdrop) continue;
     const args = splitArgsLine(code);
     if (isBackdrop) {
-      // dig #134 (the LoadBackgroundSprite lane): the per-chunk bg art
-      // pieces (the pyramid family's left_background.png etc. — the
-      // "clean background" layers the user saw in-game); same
-      // chunk-local frame.
+      // LoadBackgroundSprite: per-chunk bg art pieces (e.g. the pyramid
+      // family's left_background.png); same chunk-local frame.
       const bgp = unquote(args[0]);
       if (!bgp) { dynamic++; continue; }
       const bdx = evalXY(args[1]); const bdy = evalXY(args[2]);
@@ -396,20 +368,15 @@ function getPixelScenes(dataDir, def) {
   return parsed;
 }
 
-// dig #219 (the user's "the level-4 hourglass room appears on both sides"):
-// the per-chunk init(x, y, w, h) RUNS as the real biome Lua (the wang-scenes
+// The per-chunk init(x, y, w, h) runs as the real biome Lua (the wang-scenes
 // host: fengari + the byte-exact SetRandomSeed / Random / ProceduralRandom*
-// ports), so its branches decide — snowcastle_cavern's side_cavern_left XOR
-// _right on `ProceduralRandom(0,0) > 0.5`, lavalake_pit's cracked XOR intact
-// piece on y, solid_wall_hidden_cavern's ONE seeded location of four,
-// snowcave's 8 seeded statue hands. The old law = parseInitPixelScenes, a
-// static text parse that took every LoadPixelScene line in the body
-// regardless of its branch (both caverns, both lava pieces, every cavern
-// location) and dropped every dynamic offset (the statue hands).
-// RaytracePlatforms (the rainforest hint statues) = the byte-exact tracer
-// (C194, wang-scenes.mjs) with NO terrain probe: nothing blocks, so it
-// returns the engine's miss output (A22 — the init lane runs before the
-// terrain exists).
+// ports), so its branches decide — e.g. snowcastle_cavern's left XOR right
+// cavern on `ProceduralRandom(0,0) > 0.5`, solid_wall_hidden_cavern's one
+// seeded location of four, snowcave's seeded statue hands.
+// parseInitPixelScenes (static parse) only serves as the init-hook probe.
+// RaytracePlatforms = the byte-exact tracer (C194, wang-scenes.mjs) with no
+// terrain probe: nothing blocks, so it returns the engine's miss output
+// (A22 — the init lane runs before the terrain exists).
 const initHosts = new Map(); // `${dataDir}|${seed}|${luaScript}` -> WangLuaHost
 const initRuns = new Map();  // `${dataDir}|${seed}|${file}|${x},${y}` -> { scenes, backdrops }
 export function runInitScenes(dataDir, def, seed, x, y) {
@@ -440,8 +407,7 @@ function blitInitScenes(buffers, dataDir, def, x, y, seed) {
   const run = runInitScenes(dataDir, def, seed, x, y);
   if (process.env.TEMPLATE_DEBUG) console.log('[blitInitScenes]', def.name, def.filename, 'scenes:', run?.scenes.length ?? 'no-lua', 'backdrops:', run?.backdrops.length ?? 0);
   if (!run || (run.scenes.length === 0 && run.backdrops.length === 0)) return false;
-  // the bg pieces first (the LoadBackgroundSprite layers, dig #134), then
-  // the scenes over them
+  // the bg pieces first (LoadBackgroundSprite), then the scenes over them
   for (const bd of run.backdrops) blitBackdrop(buffers, dataDir, bd.bg, bd.x, bd.y);
   for (const sc of run.scenes) {
     if (sc.bg) blitBackdrop(buffers, dataDir, sc.bg, sc.x, sc.y);
@@ -457,8 +423,8 @@ function blitInitScenes(buffers, dataDir, def, x, y, seed) {
 // origins live in biome_impl/spliced/_*.bat). The splice source PNG IS the
 // full visual art at a FIXED seed-independent world position — no seed
 // machinery involved. Render = plain blit at (x,y). Sources: each
-// `biome_impl/spliced/_*.bat` (verified on disk 2026-09-17) + the
-// boss_ arena 24-scene grid positions in biome_impl/spliced/boss_arena.xml.
+// `biome_impl/spliced/_*.bat` + the boss_arena 24-scene grid positions in
+// biome_impl/spliced/boss_arena.xml.
 export const SPLICE_PNGS = [
   { file: "boss_arena.png", x: 1536, y: 12288 },
   { file: "tree.png", x: -2048, y: -1324 },
@@ -475,28 +441,11 @@ export const SPLICE_PNGS = [
 
 export function blitSplicedScenes(buffers, dataDir, config, seed = 0) {
   const materials = loadMaterials(dataDir);
-  // SUPERSEDED I63 (2026-11-09): the grey fill below is now the P-empty arm
-  // (see the placeholder branch); the dig #172 note is kept for its history.
-  // dig #172 (I39(d) fix; A5's splice half retired, blitScene keeps the
-  // approximation): the grey-placeholder fill = the game's per-cell DRIVER
-  // LAW, byte-pinned this session — the 512-chunk scene walk calls the
-  // driver at (originX+col, originY+row) for every art-MISS cell (walk site
-  // 0x7930d3, the record-plane gate; driver NULL = no paint → the base lane
-  // shows), and the driver's kind-0 arm (mountain_lake: empty wang_template
-  // + null P ⇒ the only reachable arm) = v = surfaceField(x+0.5, y+0.5)
-  // then classify(mBiomeMaterials, trunc x, trunc y, v) — first non-rare
-  // window match, rare comps through the polka arm, y-gate included
-  // (the lane: noise-terrain surfaceFillLane/surfaceFillAt; X148/X149
-  // dig172-{driver,sceneblit}-*.asm). The frame is the raw chunk frame
-  // (δ=0, byte: the origin = chunkY<<9 @0x794195; the port's A/B band
-  // matrix reads the game's numbers verbatim on world px, so the field
-  // identity pins the gate frame too — I39(a3): the capture's deep-band
-  // soil at rows>424, beyond the soil gate's 424.229, does NOT come from
-  // this lane; its writer stays OPEN, ISSUES I42). The seeded-fBm band
-  // choice + the manual band/gate filter are gone (M-grade anchor facts:
-  // entry (170)'s census + this dig's E1 profile: the capture on art-grey
-  // cells is solid terrain 104002/104002 with a soil→rock stratification;
-  // art-BLACK stays "below shows").
+  // The scene walk calls the per-cell driver at (originX+col, originY+row)
+  // for every art-miss cell (walk site 0x7930d3; driver NULL = no paint →
+  // the base lane shows). Frame = the raw chunk frame (origin = chunkY<<9
+  // @0x794195; X148/X149). The capture's deep-band soil below the soil gate
+  // (424.229) does not come from this lane; its writer is open (I42).
   for (const sc of SPLICE_PNGS) {
     const img = art(dataDir, "data/biome_impl/spliced/" + sc.file);
     if (!img) continue;
@@ -517,18 +466,11 @@ export function blitSplicedScenes(buffers, dataDir, config, seed = 0) {
         const gx = sc.x + i, gy = sc.y + j;
         let color;
         if (r === g && g === b) {
-          // grey placeholder -> the hosting biome's driver fill (dig #172,
-          // the law above). No lane (unread core / no config) or no
-          // classify match (the walk's NULL arm): the cell KEEPS its
-          // content — the base lane shows through.
-          // I63 (2026-11-09): the placeholder = the P-empty arm (the Work
-          // lane's and the bins' law, C186/C199): field = the grey's
-          // luminance, ≤ 0.5 ⇒ keep, else the hosting biome's classify at
-          // v = 0x908e70(x, y, field). The dig #172 driver lane (kind-0
-          // surfaceField) left lavalake2.png's white cells unfilled (no
-          // classify match) where the capture is solid rock_hard: lava lake
-          // chunks 0.24–0.65 → 0.96–0.999 solid agreement; all 18 splice
-          // tiles that change improve, the mountain_lake anchor included.
+          // grey placeholder = the P-empty arm (I63; the Work lane's and
+          // the bins' law, C186/C199): field = the grey's luminance,
+          // ≤ 0.5 ⇒ keep, else the hosting biome's classify at
+          // v = 0x908e70(x, y, field). No config or no classify match:
+          // the cell keeps its content — the base lane shows through.
           const def = config ? biomeAt(config, Math.floor(gx / 512) + 35, Math.floor(gy / 512) + 14)?.biome : null;
           if (!def) continue;
           const cell = workCellAt(r, g, b, materials, ensureSurfaceTable(dataDir, def), gx, gy);
@@ -538,17 +480,13 @@ export function blitSplicedScenes(buffers, dataDir, config, seed = 0) {
           const hex = `${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
           const mname = materials.get(hex);
           if (mname === "air" || !mname) {
-            // Paint-classification law (dig #168, capture truth table over
+            // Paint classification (I9, capture-verified over
             // mountain_lake/lake_statue/watercave): cell value = the
             // wang_color->material lookup. 'air' hit -> open scene sky;
-            // MISS (raw art detail: whites/grays/glyphs) -> the cell KEEPS
-            // its content — the floor/sky fill shows through (404/404
-            // mountain_lake samples show fill, never the art's own color;
-            // I9's "unmatched palette colors drawn raw" clause corrected).
-            // Pure black = a miss too (materials.xml has no 000000 key),
-            // skipped above by the explicit black check. dig #170 splits
-            // the MISS family: pure grey = the band fill (above), all
-            // other raw colors keep this skip.
+            // miss (raw art detail) -> the cell keeps its content — the
+            // fill shows through, never the art's own color. Pure black is
+            // a miss too (no 000000 key), skipped above; pure grey = the
+            // band fill (above).
             continue;
           }
           color = materialPx(dataDir, mname, gx, gy, 0x51ce3f);
@@ -606,12 +544,10 @@ function blitFixedScenes(buffers, dataDir) {
   return artPainted;
 }
 
-// FLAGGED D (dig #168, ISSUES I40): fixed-absolute scenes still paint
-// non-material art px with the ART's RAW RGB below. The splice lane's
-// capture truth table (404/404 raw samples show FILL, never the art color)
-// says the raw paint is likely wrong here too — but _pixel_scenes entries
-// are UNMEASURED against the capture, so the behavior is kept (registered,
-// not silently changed) until a capture window pins its classification.
+// FLAGGED D (I40): fixed-absolute scenes paint non-material art px with the
+// art's raw RGB. The splice lane shows fill there, so this is likely wrong
+// too, but _pixel_scenes entries are unmeasured against the capture; kept
+// until a capture window pins the classification.
 export function blitFixedArt(buffers, dataDir, matFile, visFile, sx, sy) {
   const img = art(dataDir, matFile);
   if (!img) return 0;
@@ -631,7 +567,7 @@ export function blitFixedArt(buffers, dataDir, matFile, visFile, sx, sy) {
       if (r === 0 && g === 0 && b === 0) continue; // scene air: below shows
       const hex = `${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
       const mname = materials.get(hex);
-      if (mname === "air") { n += clearWorldPx(buffers, sx + i, sy + j); continue; } // dig #226/#228 (C143's air arm, C196): the cell becomes air — an earlier scene's paint is cleared, the lanes below / the backdrop show
+      if (mname === "air") { n += clearWorldPx(buffers, sx + i, sy + j); continue; } // C143's air arm (C196): the cell becomes air
       let color;
       if (mname) {
         color = materialPx(dataDir, mname, sx + i, sy + j, 0x51ce3f);
@@ -650,10 +586,10 @@ export function blitFixedArt(buffers, dataDir, matFile, visFile, sx, sy) {
 
 // Returns Map("cx,cy" -> Uint8Array 512*512*3, 9=unset) for a seed.
 // x,y passed to the biome scripts' init() = chunk world origin (top-left).
-// LAZY by default (2026-11-08): the walk below only RECORDS the paint ops
-// (chunk-store.mjs); a chunk materializes on its first read. `eager: true`
-// (or MAPGEN_EAGER_TEMPLATES=1) = the old whole-world Map (the equivalence
-// reference, tests/mapgen/chunk-store.test.mjs).
+// Lazy by default: the walk only records the paint ops (chunk-store.mjs);
+// a chunk materializes on its first read. `eager: true` (or
+// MAPGEN_EAGER_TEMPLATES=1) = a whole-world Map (the equivalence reference,
+// tests/mapgen/chunk-store.test.mjs).
 export function renderTemplateWorld(dataDir, config, seed, { eager = process.env.MAPGEN_EAGER_TEMPLATES === "1" } = {}) {
   const buffers = eager ? new Map() : new LazyChunkStore();
   for (const [colorInt, def] of config.biomes) {
@@ -662,15 +598,11 @@ export function renderTemplateWorld(dataDir, config, seed, { eager = process.env
     for (const area of def.areas) {
       for (let ty = area.y1; ty <= area.y2; ty++) {
         for (let tx = area.x1; tx <= area.x2; tx++) {
-          // OWNERSHIP GATE (the cross-biome overpaint fix, dig 52): areas are
-          // bounding boxes of connected biome-map components and a concave
-          // component's rect reaches far into OTHER biomes' chunks (the
-          // solid_wall edge-matrix bbox = {41,0}..{68,47} covers the east
-          // surface's hills chunks; its DEEP_ROCK fill painted "solid rock in
-          // the sky" over the whole west/east surface + pyramid surroundings —
-          // histogram-pinned 6:3:2:1 DEEP_ROCK in foreign chunks). Paint ONLY
-          // chunks whose own biome is THIS def; per-biomeApprox-rect chunk
-          // ownership stays in the biome map (biomeAt).
+          // Ownership gate: areas are bounding boxes of connected biome-map
+          // components, and a concave component's rect reaches into other
+          // biomes' chunks (e.g. the solid_wall bbox {41,0}..{68,47} covers
+          // the east surface). Paint only chunks whose own biome (biomeAt)
+          // is this def.
           const at = biomeAt(config, tx, ty);
           if (!at || at.biome !== def) continue;
           const wx = (tx - 35) * 512, wy = (ty - 14) * 512;
@@ -687,26 +619,14 @@ export function renderTemplateWorld(dataDir, config, seed, { eager = process.env
   renderWorldExtension(buffers, dataDir, config, seed);
   blitSplicedScenes(buffers, dataDir, config, seed);
   blitFixedScenes(buffers, dataDir);
-  // dig #134 (I32 p2c, the ART-CRUST for the WANG biomes): the generic
-  // LoadPixelScene lane extended to the templateFile biomes (the pyramid
-  // family: the game's per-chunk init() pieces — left/right/entrance/
-  // hallway — at the chunk-local (x,y) origins, the census X63's chunk-
-  // origin placement form). Blit at each OWNED chunk origin (the
-  // ownership gate = the biome map's px, the dig-52 law); the blit lands
-  // OVER the wang bins at render (the template buffer = checked before
-  // the bins in worldColorAt).
+  // The per-chunk init() art pass (I32), for every def whose lua_script
+  // registers an init() — including wang biomes and mosaics such as the
+  // pyramid (pyramid_left/right/entrance/hallway, which carry no
+  // templateFile). Blit at each owned chunk origin (X63); the template
+  // buffer is checked before the wang bins in worldColorAt, so the art
+  // lands over them. The Lua decides per chunk what loads; the temple arms
+  // are excluded in blitInitScenes.
   for (const [, def] of config.biomes) {
-    // dig #134 fix-2 (MOSAIC law): the art-pass key = the def's own
-    // lua_script (the init() LoadPixelScene holder), NOT templateFile —
-    // the pyramid = a MOSAIC of per-chunk biomes (pyramid_left/right/
-    // entrance/hallway at the biome rows 12..14 = canvas ty 60..62; each
-    // = a SIN_CAPPED_SIMPLEX def with luaScript + LoadPixelScene init()
-    // + LoadBackgroundSprite). Probed this session: these defs carry
-    // templateFile = undefined (def.template = true) — the first gate
-    // skipped exactly them. The luaScene parser handles their
-    // chunk-local (x, y) forms.
-    // dig #219: every def whose script registers an init() (the Lua decides
-    // per chunk what loads; the temple arms are excluded in blitInitScenes)
     const parsed = getPixelScenes(dataDir, def);
     if (!parsed || parsed.noInitHook) continue;
     for (const area of def.areas ?? []) {
@@ -728,7 +648,7 @@ export function renderTemplateWorld(dataDir, config, seed, { eager = process.env
 // 48 sky rows, 48 deep rows, 1 east column. Wang biomes are covered by their
 // (extended) area art; the procedural ones are approximated here from the
 // hosted-ref stitch (solid_wall bg + edge strips, lava columns; everything
-// else void). Source: ref tiles i1/i60/i10/i0 at j30/j110, 2026-09-08.
+// else void; approximation). Source: ref tiles i1/i60/i10/i0 at j30/j110.
 
 const isWallFile = (f) => /(^|\/)solid_wall\.xml$/.test(f);
 const isTowerFile = (f) => /(^|\/)solid_wall_tower\.xml$/.test(f);
@@ -770,18 +690,15 @@ function renderWorldExtension(buffers, dataDir, config, seed) {
   }
 }
 
-// I64 (2026-11-09): the world-edge CURSED ROCK. solid_wall_tower (map
-// columns 0 and 69) holds ONE material, rock_static_cursed (window
-// [−100, 3.95], solid_wall_tower.xml), coloured by C185 (rock_cursed.png at
-// the world px); its boundary with the solid_wall columns is the biome-edge
-// law (GetBiomeAt 0x909da0 = biomeAtPixel, C187: the 30·sin/cos + 11·simplex
-// displacement inside 41 px). The old paint = a hand pink speckle (STRIP) over
-// the whole tower chunk + a STRAIGHT 32-px strip in the wall chunk.
-// Per px: the pixel's biome is the tower ⇒ cursed rock; solid_wall ⇒ `base`
-// (the wall's own fill, unchanged); any other biome ⇒ left unset (its lanes).
-// the cursed texture over one period (C185 wraps at the texture size,
-// rock_cursed.png = 96×96) — materialPx per px cost ~55 s over the eager
-// world render
+// I64: the world-edge cursed rock. solid_wall_tower (map columns 0 and 69)
+// holds one material, rock_static_cursed (window [−100, 3.95],
+// solid_wall_tower.xml), coloured by C185 (rock_cursed.png at the world px);
+// its boundary with the solid_wall columns is the biome-edge law (GetBiomeAt
+// 0x909da0 = biomeAtPixel, C187: 30·sin/cos + 11·simplex displacement inside
+// 41 px). Per px: tower ⇒ cursed rock; solid_wall ⇒ `base` (the wall's own
+// fill); any other biome ⇒ left unset (its lanes).
+// The cursed texture is cached over one period (C185 wraps at the texture
+// size, 96×96): materialPx per px is too slow for a whole-world render.
 const _cursedTile = new Map();
 function cursedTile(dataDir) {
   let t = _cursedTile.get(dataDir);
@@ -935,20 +852,17 @@ export function renderTemplateChunk(buffers, dataDir, file, def, x, y, seed, con
   } else if (isTowerFile(file) && config) {
     towerEdgeFill(buffers, dataDir, config, x, y, seed, DEEP_ROCK); // I64: rock_static_cursed (C185) + the edge law
   } else if (isTowerFile(file)) {
-    fillChunk(buffers, x, y, seed, STRIP); // no config (direct callers): the old speckle
+    fillChunk(buffers, x, y, seed, STRIP); // no config (direct callers): speckle stand-in
   } else if (blitInitScenes(buffers, dataDir, def, x, y, seed)) {
     // generic per-chunk init() LoadPixelScene lane (mountain/pyramid
-    // pieces, floating island, halls, bosses — the game's own art,
-    // data-side; dynamic-offset callsites are still skipped, see §12).
+    // pieces, floating island, halls, bosses — the game's own art).
   }
 }
 
 // The lava biome = ONE MaterialComponent `lava` over [−100, 100], limit_y 0
 // (data/biome/lava.xml) ⇒ every cell is lava at EVERY row; its colour = the
 // C185 cell colour law (`lava` has no <Graphics> ⇒ wang_color ffff6000 =
-// (255,96,0) flat). Measured (E1, seed 78633191, the capture's rows 42–46):
-// all 54 lava.xml chunks = 1.0000 (255,96,0) — the old `y+512 <= 14600`
-// sea cutoff painted them as a dark-rock matrix (lava share ≈ 0.006).
+// (255,96,0) flat); capture-confirmed on all lava.xml chunks.
 // lava_90percent rides the same fill: its rock_hard_border polygon band
 // (~2.3% of the chunk, A8) stays unpainted.
 function renderLavaFill(buffers, dataDir, x, y) {

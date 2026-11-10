@@ -1,9 +1,8 @@
 // Display-color pass for the genmap renderer. Transforms the accepted wang
 // out_map (raw atlas art colors) into capture-calibrated display colors.
 //
-// Authority: capture-calibrated tables measured this session on the frozen91
-// coalmine band (alignment 78.4%, ABOUT_MATH §6 2026-09-08 late-night entry)
-// + game data (materials.xml wang_colors, biome XML RandomMaterials,
+// Sources: capture-calibrated tables from the frozen91 coalmine band + game
+// data (materials.xml wang_colors, biome XML RandomMaterials,
 // scripts/biomes/*.lua registers). The grey→material noise semantics are an
 // approximation (coherent world-seeded fill); exact band/vein math is open.
 
@@ -46,7 +45,7 @@ export function loadMaterials(dataDir) {
   return byRgb;
 }
 
-// dig #213 (C185, the cell COLOUR law — cellfactory.cpp): a cell's rendered
+// C185, the cell colour law (cellfactory.cpp): a cell's rendered
 // colour = its material's <Graphics texture_file> sampled at the cell's
 // WORLD pixel, wrapped by positive modulo: 0x7409B0(celldata; ecx = world
 // x, edx = world y) → 0x740580: tex[pmod(x, W), pmod(y, H)] (ARGB from
@@ -55,8 +54,7 @@ export function loadMaterials(dataDir) {
 // parsed wang_color ([cd+0x40]) when absent. The jitter arm ([cd+0x6c] =
 // randomize_colors) has 0 shipped uses. Alpha < 255 composites over black
 // (the capture's flat water (35,61,56) = Graphics A0376259 over black).
-// Measured phase: the capture 38_14's rock/earth px match
-// tex[pmod(wx,W), pmod(wy,H)] at offset (0,0): 98.3% / 98.8% (entry (213)).
+// Texture phase is offset (0,0) (measured on capture tile 38_14).
 // Scope: own <Graphics> only — no CellDataChild inheritance (none of the
 // 46 biome-classify materials needs it; the inheritance law is unread).
 let _materialGfx = null; // name -> { tex: rel|null, color: [r,g,b,a] }
@@ -143,9 +141,8 @@ export function materialColorAt(dataDir, name, worldX, worldY) {
   return [Math.round(r * k), Math.round(g * k), Math.round(b * k)];
 }
 
-// dig #130 (the surface-lane compositor): material NAME → its materials.xml
-// wang_color RGB (the same element pair extract uses above). One call builds
-// the byName map lazily on first use.
+// Material name → its materials.xml wang_color RGB (same element pairing as
+// loadMaterials). The map is built lazily on first use.
 let _materialsByName = null;
 export function materialColorByName(dataDir, name) {
   if (!_materialsByName) {
@@ -191,27 +188,24 @@ export const SHADES = {
   gold: [S([146, 116, 60], 5), S([120, 94, 48], 2)],
   radioactive: [S([96, 157, 64], 5), S([84, 140, 56], 2)],
   fallbackSolid: [S([90, 90, 95], 5), S([80, 80, 85], 2)],
-  // the clouds biome's cloud cells (capture census 2026-11-08, every capture
-  // chunk of the clouds areas 4..14×1..5: (48,48,52) = 21.31% flat, the only
-  // cloud-hued colour; (21,21,23) 0.52% = unattributed). The C185 alpha law
-  // would give (87,87,95) from wang_color 7fAFAFBF — the gas cells' map
-  // colour is NOT the alpha-composited wang_color (the gas render law unread).
+  // clouds biome cloud cells: capture shows flat (48,48,52) (chunks
+  // 4..14×1..5). The C185 alpha law would give (87,87,95) from wang_color
+  // 7fAFAFBF — gas map colour is not the alpha-composited wang_color (gas
+  // render law unread).
   cloud: [S([48, 48, 52], 1)],
-  // the_sky's cloud_lighter cells (capture census 2026-11-08, the 15 the_sky
-  // chunks 27..41×0: (48,48,63) = 6.95%) — the same 70/255 gas factor as
-  // cloud: (175,175,229)·70/255 = (48,48,62.9)
+  // the_sky cloud_lighter cells: capture (48,48,63) (chunks 27..41×0) — the
+  // same 70/255 gas factor as cloud: (175,175,229)·70/255 = (48,48,62.9)
   cloudLighter: [S([48, 48, 63], 1)],
 };
 
-// dig #224 (C185 in the bin lane, I51(c)): a SOLID material cell's colour =
-// C185 (its texture at the cell's world px) whenever the world origin is
-// known. The families below remain (a) as the fallback without an origin and
-// (b) for the GAS and FLOWING-LIQUID materials, whose map colour is NOT C185:
-// the capture's cloud = (48,48,52) vs C185 (87,87,95); the coalmine wang
-// water = (39,67,63)/(42,70,67)/(45,73,71) vs C185's flat (35,61,56) (which
-// only the pixel-scene art water shows) — their render laws are unread (A23).
-// (a gas / flowing liquid with NO calibrated family keeps C185 — the pre-#224
-// law for family-less materials; lava's (255,96,0) is capture-confirmed, I5)
+// C185 in the bin lane (I51(c)): a solid material cell's colour = C185 (its
+// texture at the cell's world px) when the world origin is known. The shade
+// families remain (a) as the fallback without an origin and (b) for gas and
+// flowing-liquid materials, whose map colour is not C185 (capture cloud
+// (48,48,52) vs C185 (87,87,95); coalmine wang water (39,67,63)… vs C185's
+// flat (35,61,56), seen only in pixel-scene water) — render laws unread,
+// stand-in (A23). A gas/flowing liquid with no calibrated family keeps C185
+// (lava's (255,96,0) is capture-confirmed, I5).
 const c185Applies = (dataDir, name) => materialRenderClass(dataDir, name) === "solid" || !MATERIAL_SHADE.has(name);
 // material name -> display shade family (capture-calibrated where marked ✅)
 export const MATERIAL_SHADE = new Map([
@@ -267,7 +261,7 @@ export function loadBiomeExtras(dataDir, biomeName) {
   const out = { randomColors: [], mainMaterial: null, spawnColors: new Set() };
   try {
     // data/biome/<name>.xml, or a full "data/…" path (the static tiles live in
-    // data/biome_impl/static_tile/ — their materials were never read before)
+    // data/biome_impl/static_tile/)
     const rel = biomeName.startsWith("data/") ? `${biomeName.replace(/^data\//, "")}.xml` : path.join("biome", `${biomeName}.xml`);
     const xml = fs.readFileSync(path.join(dataDir, rel), "utf-8");
     // the biome's spawn colours = the engine table (scripts/wang_scripts.csv)
@@ -369,7 +363,7 @@ function flood(map, w, h, x0, y0, from, to) {
   }
 }
 
-// per-biome display overrides (hosted-ref stitch calibration, 2026-09-08):
+// per-biome display overrides (hosted-ref stitch calibration):
 // the_end = "the Work" deep hell — dark red-brown rock, pure black air;
 // the_sky = heaven band — pure black air (speckles come from its atlas art).
 const HELL_ROCK = [
@@ -389,7 +383,7 @@ export function applyRandomFloods(map, w, h, opts) {
   const extras = loadBiomeExtras(dataDir, biomeFile ?? biomeName);
   // 1. random-block floods: c0ffee (engine) + biome-XML RandomColors.
   //    Per contiguous region one 50/50 draw -> air-dark or white (-> fill).
-  //    (exact game RNG semantics still open — approximate by choice, not stream)
+  //    (approximation: game RNG semantics open — matches by choice, not stream)
   const rngSalt = seed | 0;
   let regionIdx = 0;
   const scanFloods = (fromHex) => {
@@ -450,9 +444,8 @@ export function colorizeArea(map, w, h, opts) {
     extras.materials?.length === 1 && !extras.materials[0].rare
       ? extras.materials[0].name
       : null;
-  // ... and its y-gated generalization (2026-11-08, the sky-band fix): when
-  // the area's world origin is known, the placeholder takes the biome's ONE
-  // non-rare component whose limit_y gate admits the cell's world y (the
+  // y-gated generalization: when the area's world origin is known, the
+  // placeholder takes the biome's one non-rare component whose limit_y gate admits the cell's world y (the
   // classify's own gate) — the clouds' cloud_lighter is gated to
   // [-1024, 424.229], so the cloud rows (world y < -4096) are cloud-only.
   const worldY0 = opts.worldY0, worldX0 = opts.worldX0;
@@ -506,10 +499,9 @@ export function colorizeArea(map, w, h, opts) {
     const hex = ((r << 16) | (g << 8) | b).toString(16).padStart(6, "0");
     if (hex === "00ff33") return pick(SHADES.moss, x, y, noiseSalt ^ 7); // engine scene marker
     const mat = materials.get(hex);
-    // dig #226 (C143's 'air' arm in the bin lane): an air-keyed cell (wang
-    // 000042) is EMPTY — it takes the bin-air shade, so worldColorAt's bin-air
-    // backdrop law shows the biome's background_image there (it was painted
-    // air's own colour (0,0,66): the pyramid's dark-blue rooms)
+    // C143's 'air' arm: an air-keyed cell (wang 000042) is empty — it takes
+    // the bin-air shade so worldColorAt shows the biome's background_image
+    // there, not air's own colour (0,0,66).
     if (mat === "air") return pick(ov?.air ?? SHADES.airDark, x, y, noiseSalt ^ 1);
     if (mat) {
       const c = c185Applies(dataDir, mat) ? c185(mat, x, y) : null; // the game's own cell colour law

@@ -10,19 +10,19 @@ import { loadBiomeConfig, biomeAt, biomeAtPixel, biomeChunkDef } from "./biomes.
 import { buildTileset } from "./wang-js.mjs";
 import { generateAreaExact } from "./generate-exact.mjs";
 import { colorizeArea, applyRandomFloods, loadMaterials, SHADES } from "./colorize.mjs";
-import { workWrapY, workCellAt } from "./the-work.mjs"; // dig #215 (C186): the Work y-wrap law
+import { workWrapY, workCellAt } from "./the-work.mjs"; // C186: the Work y-wrap law
 import { renderTemplateWorld, blitScene, blitBackdrop, SPLICE_PNGS, loadPixelSceneTable } from "./template-render.mjs";
 import { LazyChunkStore } from "./chunk-store.mjs";
 import { WangLuaHost, areaSceneCalls, loadWangScriptsCsv, sceneImageSpawnCalls, spawnCallOrigin } from "./wang-scenes.mjs"; // the wang spawn-scene lane
 import { readPng } from "./images.mjs";
-import { materialColorAt, materialRenderClass } from "./colorize.mjs"; // dig #213 (C185): the cell colour law
-import { ensureBiomeBackdrop, ensureSurfaceTable, noisePixelFor } from "./noise-terrain.mjs"; // dig #134 bin-air backdrop; dig #215 Work classify
+import { materialColorAt, materialRenderClass } from "./colorize.mjs"; // C185: the cell colour law
+import { ensureBiomeBackdrop, ensureSurfaceTable, noisePixelFor } from "./noise-terrain.mjs";
 
-// dig #134: the bin-air backdrop memo (per def.filename) — the wang
-// bands' AIR cells composite the area biome's declared bg art.
+// Bin-air backdrop memo (per def.filename): the wang bands' AIR cells
+// composite the area biome's declared bg art.
 const binBackdrops = new Map();
-// the static tile's bg mask (biomes.mjs staticTileBgMask; the E1 law there):
-// true ⇒ the area cell (ax, ay) shows NO backdrop (the sky / what lies below)
+// Static tile bg mask (biomes.mjs staticTileBgMask): true ⇒ the area cell
+// (ax, ay) shows no backdrop.
 const staticMasks = new Map(); // rel -> { w, h, px } | null
 function staticBgMasked(def, dataDir, ax, ay) {
   const rel = def?.staticTileBgMask;
@@ -36,7 +36,7 @@ function staticBgMasked(def, dataDir, ax, ay) {
     staticMasks.set(rel, m);
   }
   if (!m) return false;
-  if (ax < 0 || ay < 0 || ax >= m.w || ay >= m.h) return true; // the area's spill past the mask = outside the room
+  if (ax < 0 || ay < 0 || ax >= m.w || ay >= m.h) return true; // spill past the mask = outside the room
   return m.px[4 * (ay * m.w + ax)] < 128;
 }
 function biomeBackdrop(def, dataDir) {
@@ -47,7 +47,7 @@ function biomeBackdrop(def, dataDir) {
   binBackdrops.set(key, bd);
   return bd;
 }
-import { attachNoiseTerrain } from "./noise-terrain.mjs"; // F3 (2026-09-20)
+import { attachNoiseTerrain } from "./noise-terrain.mjs";
 
 export const CHUNK = 512;
 export const WORLD_CHUNKS_W = 71;
@@ -94,28 +94,21 @@ export function loadWangWorld(dataDir) {
     return { config, areas, grid, errors: new Map() };
 }
 
-// L3 anchor (CONSTANTS C78, dig #99): gen↔capture registration fitted on
-// seed 78633191 (ABOUT_MATH (99)). score(dx,dy) compared ref(x,y) with
-// gen(x+dx,y+dy); the CONSTANT verdict peak (11,12) ⇒ display (wx,wy) reads
-// GENERATOR-lane content at (wx+11, wy+12). Bounds are checked on the
-// DISPLAY coordinate first; content past the canvas edge is background
-// (right 11 px / bottom 12 px strips → null). Sampling-only: the gen-cache
-// .bin format is untouched.
-// dig #170 (C145): the anchor registers the GENERATOR lanes (area bins,
-// noise) only — NOT the template lane. The template buffer is a
-// DISPLAY-frame buffer (setWorldPx keys it by the game→display CHUNK map
-// (+35/+62, chunk-aligned) and writes game-frame locals, so the display
-// chunk = the write chunk and the display local = the write local); the
-// template reads below sample (wx, wy), not (gx, gy). Reading the template
-// at generator-local had shifted every scene (−11,−12) (M-grade: the
-// water-mask cross-correlation of spliced/mountain_lake.png vs capture
-// 40_14 peaks at IDENTITY — 56450/56467 = 99.97% of the capture's flat
-// [35,61,56] water covered by art water at offset (0,0); no neighbor
-// offset beats (0,0) in the ±16 sweep — instrument:
+// L3 anchor (C78): gen↔capture registration fitted on seed 78633191; the
+// peak (11,12) ⇒ display (wx,wy) reads GENERATOR-lane content at
+// (wx+11, wy+12). Bounds are checked on the display coordinate first;
+// content past the canvas edge (right 11 px / bottom 12 px) → null.
+// Sampling-only: the gen-cache .bin format is untouched.
+// C145: the anchor applies to the generator lanes (area bins, noise) only,
+// not the template lane. The template buffer is display-frame (setWorldPx
+// keys it by the chunk-aligned game→display map +35/+62 and writes
+// game-frame locals), so template reads sample (wx, wy), not (gx, gy).
+// M: water-mask cross-correlation of spliced/mountain_lake.png vs capture
+// 40_14 peaks at offset (0,0) (99.97% coverage; ±16 sweep —
 // mapgen/experiments/2026-10-19-dig170-lake-band-counts.mjs).
 export const L3_ANCHOR = { x: 11, y: 12 };
-// dig #222 (C192, I60): the WANG BIN lane's registration is per AREA, not the
-// C78 constant: the game's P read rounds (0x8fae40) and an area's cells start
+// C192 (I60): the wang bin lane's registration is per area, not the C78
+// constant: the game's P read rounds (0x8fae40) and an area's cells start
 // at (x1·512)/10 truncating (Init 0x907673), so out_map cell i sits at canvas
 // 10·(trunc(x1·51.2) + i) − 5 while the generator draws it at x1·512 + 10·i
 // ⇒ the display reads the generator at +5 + 10·frac(x1·51.2) (5..13 px; same
@@ -142,15 +135,12 @@ export function binSampleAt(world, wx, wy, tx, ty, gx, gy) {
   }
   return own ? { ...own, hit: false } : { idx: -1, x: gx, y: gy, hit: false };
 }
-// FLAGGED D (ISSUES §A A25, the bin edge strip): an area spanning n chunks
-// = n·512 px has only trunc(n·51.2) cells (C192), so up to 9 px at its far
-// x / y edge read past its last cell. When no neighbour area covers them (a
-// bin MISS: the neighbour is a noise / template chunk), every lane used to
-// return null there (2-px null lines through the terrain, e.g. 23_15..22 x
-// 499..500). The game reads the next P cell (t = trunc(n_end·51.2), outside
-// the area: its content is unread); the stand-in = the area's own last cell.
-// E1 over the capture's 51,981 such px: solid agreement 0.27 (null) →
-// 0.765 own last cell (0.735 for the neighbour's px).
+// FLAGGED D (A25, the bin edge strip): an area spanning n chunks = n·512 px
+// has only trunc(n·51.2) cells (C192), so up to 9 px at its far x / y edge
+// read past its last cell. When no neighbour area covers them (a bin miss),
+// the game reads the next P cell (outside the area; its content is unread);
+// the stand-in = the area's own last cell (E1 solid agreement 0.765 over
+// 51,981 capture px).
 function binLocal(a, m, bx, by, hit) {
   let lx = bx - a.area.x1 * CHUNK, ly = by - (a.area.y1 + SKY_ROWS) * CHUNK;
   if (!hit) {
@@ -160,15 +150,14 @@ function binLocal(a, m, bx, by, hit) {
   return { lx, ly };
 }
 const BIN_CANDIDATES = [[0, 0], [-1, 0], [0, -1], [-1, -1], [1, 0], [0, 1], [1, 1], [1, -1], [-1, 1]];
-// dig #233: a grey PLACEHOLDER cell = the game's P-empty arm (the same law
-// as the Work lane, the-work.mjs header, C186): field = the grey's
-// luminance; field ≤ 0.5 ⇒ AIR; else the cell's OWN biome classify at
-// v = 0x908e70(x, y, field), per PIXEL (game world px), coloured by C185.
-// (Replaces dig #232's family pairing, which kept colorize's hashed choice.)
+// A grey placeholder cell = the game's P-empty arm (same law as the Work
+// lane, C186): field = the grey's luminance; field ≤ 0.5 ⇒ AIR; else the
+// cell's own biome classify at v = 0x908e70(x, y, field), per pixel (game
+// world px), coloured by C185.
 export const AIR_CELL = Object.freeze({ air: true });
-// I62 (C196 amended): the template buffers' three px states — (9,9,9) unset
-// (the lanes below paint), (9,9,10) = TPL_AIR (a scene wrote AIR: the lanes
-// below are blocked, the backdrop shows), else the art colour.
+// I62 (C196): template buffer px states — (9,9,9) unset (lanes below
+// paint), (9,9,10) = TPL_AIR (a scene wrote AIR: lanes below are blocked,
+// the backdrop shows), else the art colour.
 const tplUnset = (b, o) => b[o] === 9 && b[o + 1] === 9 && b[o + 2] === 9;
 const tplAir = (b, o) => b[o] === 9 && b[o + 1] === 9 && b[o + 2] === 10;
 function placeholderPx(world, a, ax, ay, wx, wy, rr, gg, bb) {
@@ -199,9 +188,8 @@ function solidCellPx(world, a, ax, ay, wx, wy) {
   return name ? materialColorAt(world.dataDir, name, wx - DISPLAY_X0, wy - DISPLAY_Y0) : null;
 }
 export const binAnchor = (a) => ({ x: 5 + ((a.area.x1 * 512) % 10), y: 5 + ((a.area.y1 * 512) % 10) });
-// dig #213 (C185): the display frame's world origin (the capture frame, C145):
-// world px = display px − (35·512, 62·512) — the cell colour law samples the
-// material texture at the WORLD pixel.
+// Display frame world origin (C145): world px = display px − (35·512, 62·512);
+// the cell colour law (C185) samples the material texture at the world pixel.
 export const DISPLAY_X0 = 35 * CHUNK, DISPLAY_Y0 = (SKY_ROWS + 14) * CHUNK;
 
 export function worldColorAt(world, wx, wy) {
@@ -209,15 +197,13 @@ export function worldColorAt(world, wx, wy) {
   let gx = wx + L3_ANCHOR.x, gy = wy + L3_ANCHOR.y;
   if (gx >= WORLD_W || gy >= WORLD_H) return null;
   let tx = Math.floor(gx / CHUNK), ty = Math.floor(gy / CHUNK);
-  // the bin-lane sample point (C192): the wang area whose map holds the
-  // display px under ITS anchor (the true area boundary sits up to ±6 px from
-  // the C78 chunk boundary, so the neighbours are candidates too)
+  // Bin-lane sample point (C192): the wang area whose map holds the display
+  // px under its anchor (the true area boundary sits up to ±6 px from the C78
+  // chunk boundary, so neighbours are candidates too).
   const { idx: binIdx, x: bx, y: by, hit: binHit } = binSampleAt(world, wx, wy, tx, ty, gx, gy);
-  // the px's chunk = the chunk its per-area sample falls in (a hit: the
-  // area's own chunk; a miss from a wang chunk: the neighbour). When it is not
-  // the C78 chunk, the px lies in the ≤ 6 px strip between the two
-  // boundaries: the other lanes (which keep the C78 frame) read in that
-  // chunk, clamped to its edge, and the branch choice follows it.
+  // The px's chunk = the chunk its per-area sample falls in. When that is not
+  // the C78 chunk, the px lies in the ≤ 6 px strip between the boundaries:
+  // the other lanes (C78 frame) read in that chunk, clamped to its edge.
   if (binIdx >= 0) {
     const sx = Math.floor(bx / CHUNK), sy = Math.floor(by / CHUNK);
     if (sx < tx) gx = tx * CHUNK - 1; else if (sx > tx) gx = (tx + 1) * CHUNK;
@@ -225,51 +211,37 @@ export function worldColorAt(world, wx, wy) {
     if (gx < 0 || gy < 0 || gx >= WORLD_W || gy >= WORLD_H) return null;
     tx = Math.floor(gx / CHUNK); ty = Math.floor(gy / CHUNK);
   }
-  // dig #215 (C186, the Work y-wrap law): the rows above/below the 48-row
-  // biome map whose (vmap-clamped) chunk biome is a wang biome — the_sky /
-  // the_end on cols 27..41 — re-read the main band's wang content at
-  // y mod 24570 px, re-classified by the chunk biome (the-work.mjs).
+  // C186 (Work y-wrap): rows above/below the 48-row biome map whose
+  // vmap-clamped chunk biome is a wang biome (the_sky / the_end on cols
+  // 27..41) re-read the main band's wang content at y mod 24570 px,
+  // re-classified by the chunk biome (the-work.mjs).
   if (ty < SKY_ROWS || ty >= SKY_ROWS + 48) {
     const w = workColorAt(world, tx, ty, gx, gy, wx, wy);
     if (w !== undefined) return w;
   }
-  // the wang spawn-scene lane (wang-scenes.mjs): LoadPixelScene writes its
-  // material cells OVER whatever the wang fill left there (the blocked-out
-  // rooms are bare black until their art loads) — first among the band lanes.
+  // Wang spawn-scene lane (wang-scenes.mjs): LoadPixelScene writes over the
+  // wang fill (blocked-out rooms are black until their art loads), so it is
+  // first among the band lanes.
   const scene = wangSceneAt(world, bx, by);
   if (scene) return scene;
-  // dig #218 (I53, C187 in the main band): within 41 px of a chunk edge the
-  // pixel's biome (GetBiomeAt 0x909da0) may be the neighbour's; when that
-  // biome is a noise biome, the field driver 0x908f40 runs ITS kind-0 arm here.
+  // I53, C187: within 41 px of a chunk edge the pixel's biome (GetBiomeAt
+  // 0x909da0) may be the neighbour's; when that is a noise biome, the field
+  // driver 0x908f40 runs its kind-0 arm here.
   if (ty >= 62 && ty < SKY_ROWS + 48) {
     const e = edgePixelAt(world, gx, gy, wx, wy);
     if (e !== undefined) return e;
   }
-  // dig #133 (I32 p2c, the SKY/Hell layer law): the SKY BAND = chunk rows
-  // 0..61 (the vmap sky clamp + the biome map's rows 0..13 = the_sky/hills
-  // sky region, all the way up to the Heaven end). ONE backdrop (BLACK
-  // air + stars at every altitude — the NIGHT law 2026-10-19; the old
-  // parallax gradient = the user's "brown chunk" gold band) with the
-  // template lane's ART pieces over
-  // it (the mountain/hills LoadPixelScene pieces, the moon, the spliced
-  // scenes). The area-bin lane NEVER paints here (the_sky's bin = the
-  // void black; the extension's airDark = superseded by the sky). The
-  // hills def's declared cave-bg belongs to the underground pockets, not
-  // the sky (the user's in-game observation; the biome map rows 1..12 =
-  // hills = the sky region per the byte map).
+  // I32: the sky band = chunk rows 0..61 (vmap sky clamp + biome map rows
+  // 0..13, the_sky/hills sky region). One backdrop (black air + stars at
+  // every altitude) with the template lane's art pieces over it (mountain/
+  // hills pixel scenes, the moon, spliced scenes). The hills def's cave-bg
+  // belongs to underground pockets, not the sky.
   if (ty < 62) {
-    // dig #134 fix-3 (the boss-room law, the user's "3 squares" report):
-    // the WANG BIOMES inside the sky-band rows = terrain, not sky. The
-    // biome map rows 12..13 carry the pyramid's mosaic (the pyramid/
-    // left/right/entrance/hallway + the boss room), and their chunks' wang
-    // bins = the real corridor/wall fill (the "art and corridors mix")
-    // — the #133 sky-first decision erased them (the 3 squares missing).
-    // Order now: 1) the wang bin fill (the terrain; the bin's airDark
-    // cells composite the area def's bg via the #134 bin-air law);
-    // 2) the template buffer's art pieces over it; 3) the VOID defs (the
-    // _sky/barren/darkness family = the "renders black" set) + the bin-less
-    // chunks = the sky backdrop (black + stars, the NIGHT law 2026-10-19). The hills def's
-    // cave-bg = still NOT in the sky (only the VOID bgs route here).
+    // Wang biomes inside the sky-band rows are terrain, not sky (biome map
+    // rows 12..13 carry the pyramid mosaic + boss room). Order:
+    // 1) the wang bin fill (airDark cells composite the area def's bg);
+    // 2) the template art over it; 3) void defs (the_sky/barren/darkness
+    // family) and bin-less chunks = the sky backdrop.
     let binPx = null, voidChunk = false;
     {
       const idxB = binIdx;
@@ -287,28 +259,23 @@ export function worldColorAt(world, wx, wy) {
               (r === 16 && g === 16 && b === 18) || (r === 21 && g === 23 && b === 30);
             voidChunk = /(?:^|\/)(the_sky|barren|darkness|potion_mimics|boss_sky|sky_light_injector)\.xml$/.test(a.def?.filename ?? "");
             if (voidChunk) {
-              // the void-sky bin's own pixels (the colorized black) NEVER
-              // paint — the = the sky backdrop handles the whole chunk (the
-              // first fix's order bug: the black passed the non-airDark
-              // "terrain" branch and returned as ground)
+              // a void-sky bin's own (black) pixels never paint; the sky
+              // backdrop handles the whole chunk
             } else if (!airDark) {
-              return [r, g, b]; // the wang terrain (the boss room walls, the mines fill)
+              return [r, g, b]; // wang terrain
             } else {
-              // the bin air = a loaded scene's background_file when one
-              // covers the cell, else the area def's declared bg (the C111 law)
+              // bin air = a loaded scene's background_file when one covers
+              // the cell, else the area def's declared bg (C111)
               const sbg = wangSceneBgAt(world, bx, by);
               if (sbg) return sbg;
-              // C184 (the backdrop clip law, byte-read 0x72c180): a limit-on
-              // biome's background_image draws only at world y >= its height
-              // (default 225); above it the air IS the sky. Every sky-band
-              // cell sits at world y < 0, so a limit-on biome's bin air here
-              // = the sky (measured: the clouds' air = capture (0,0,0) 77.4%,
-              // the old law painted background_cave_02 over it).
+              // C184 (backdrop clip, 0x72c180): a limit-on biome's
+              // background_image draws only at world y >= its height
+              // (default 225); above it the air is the sky.
               const clipped = (a.def.limitBackgroundImage !== false && wy - 62 * CHUNK < (a.def.backgroundImageHeight ?? 225))
-                || staticBgMasked(a.def, world.dataDir, ax, ay); // a static tile's black mask px = no backdrop
+                || staticBgMasked(a.def, world.dataDir, ax, ay); // static tile mask px = no backdrop
               const bd = clipped ? null : biomeBackdrop(a.def, world.dataDir);
               if (bd) {
-                const bx = ((wx % bd.w) + bd.w) % bd.w, by = ((wy % bd.h) + bd.h) % bd.h; // dig #230: the backdrop's phase = the DISPLAY px (capture: phase (0,0), 4/4 tiles exact)
+                const bx = ((wx % bd.w) + bd.w) % bd.w, by = ((wy % bd.h) + bd.h) % bd.h; // backdrop phase = the display px (capture: phase (0,0))
                 const q = 4 * (by * bd.w + bx);
                 binPx = [bd.pixels[q], bd.pixels[q + 1], bd.pixels[q + 2]];
               }
@@ -317,8 +284,8 @@ export function worldColorAt(world, wx, wy) {
         }
       }
     }
-    // dig #170 (C145): template lane = DISPLAY frame (see the anchor
-    // comment); the bin lane above and skyAt below keep the generator frame.
+    // C145: template lane = display frame; the bin lane above and skyAt
+    // below keep the generator frame.
     const ttx = Math.floor(wx / CHUNK), tty = Math.floor(wy / CHUNK);
     const tbuf = world.templates?.get(`${ttx},${tty}`);
     let skyAir = false; // I62: a scene's written AIR blocks the noise terrain
@@ -328,53 +295,36 @@ export function worldColorAt(world, wx, wy) {
       if (!skyAir && !tplUnset(tbuf, o)) return [tbuf[o], tbuf[o + 1], tbuf[o + 2]];
     }
     if (!voidChunk && binPx) return binPx;
-    // dig #192 (C165/X205): the noise-biome terrain serves the sky band's
-    // rows too — the boss-room law's pattern (dig #134 fix-3's order rule:
-    // the sky-band biomes' TERRAIN = terrain, not sky). The world's real
-    // silhouette lives here: the capture's hills carry solid INSIDE bty13
-    // (fR 0.03–0.22 per tile) while the old law rendered the noise lane only
-    // at ty ≥ 62 — the user's flat floor ("should sit one chunk higher").
-    // Solid cells = the caves-mask terrain (the mask lane, the #192 law);
-    // mask-air cells and null lanes fall through to the sky (the NIGHT law
-    // covers the rest). Precedence AFTER the template/bin art = the same
-    // order as the ty≥62 arm.
+    // C165 (X205): noise-biome terrain serves the sky-band rows too (the
+    // capture's hills carry solid inside bty13). Solid cells = caves-mask
+    // terrain; mask-air cells and null lanes fall through to the sky.
+    // Precedence after the template/bin art, as in the ty ≥ 62 arm.
     {
       const nzSky = skyAir ? null : world.noiseSolidAt?.(gx, gy);
       if (nzSky != null) {
-      // dig #211 (the winter-band rows law): bty 6..13 = the surface band's
-      // SKY-row rows (display 54..61) = the winter/mountain's own noise band,
-      // and its solid cells must run the SAME classify-or-air cell-law the
-      // ty >= 62 arm runs (the dig-#208 law — the paint iff the classify
-      // matches; the miss = air → the sky art below). The old law painted
-      // EVERY mask-solid sky-row cell with the flat unclassified noiseColor
-      // (materialRgb=null) = the 0x6a5a44 over-fill class (measured: the
-      // winter tile 17 row 61 = ours 75.7% solid, 73.2% flat, vs the
-      // capture's 40.7% — repro `mapgen/experiments/2026-11-03-dig211-
-      // lane-attribution.mjs`).
+      // bty 6..13 (display rows 54..61) = the winter/mountain noise band;
+      // its solid cells run the same classify-or-air law as the ty >= 62
+      // arm: paint iff the classify matches, a miss = air → sky art below.
       if (nzSky) {
         const matSky = world.noiseMatAt?.(gx, gy);
         if (matSky && matSky.idx !== 255 && matSky.names && matSky.names[matSky.idx] && world.dataDir) {
           return noiseColor(world, tx, ty, nzSky, materialColorAt(world.dataDir, matSky.names[matSky.idx], wx - DISPLAY_X0, wy - DISPLAY_Y0));
         }
-        // the classify's miss (idx 255 / unresolvable) = AIR, the dig-#208
-        // law at the sky-band rows: falls through to the sky art below —
-        // the old code returned the flat noiseColor here (the over-fill).
+        // classify miss (idx 255 / unresolvable) = AIR: fall through
       }
     }
     }
-    // the image-spawned scenes (the tree's pillars): fg art, then their
-    // background_file art over the sky (DISPLAY frame, like the templates)
+    // image-spawned scenes (the tree's pillars): fg art, then their
+    // background_file art over the sky (display frame, like the templates)
     {
       const fg = sceneBufAt(world.imageSpawns, wx, wy);
       if (fg) return fg;
       const bgp = sceneBufAt(world.imageSpawns?.get("bg"), wx, wy);
       if (bgp) return bgp;
     }
-    // dig #227: the template lane's background plane (the init()
-    // LoadBackgroundSprite / background_file art) over the sky too — an
-    // explicit backdrop sprite is art, not the biome's clipped
-    // background_image (C184): the pyramid hallway's init loads
-    // background_pyramid.png twice, and the capture shows it there
+    // the template lane's background plane (init() LoadBackgroundSprite /
+    // background_file art) over the sky too: an explicit backdrop sprite is
+    // art, not the biome's clipped background_image (C184)
     {
       const tbg = world.templates?.get("bg")?.get(`${ttx},${tty}`);
       if (tbg) {
@@ -394,25 +344,21 @@ export function worldColorAt(world, wx, wy) {
       if (lx >= 0 && ly >= 0 && lx < m.w * 10 && ly < m.h * 10) {
         const ax = Math.floor(lx / 10), ay = Math.floor(ly / 10);
         const p = 3 * (ay * m.w + ax);
-        // dig #134 (the bin-air backdrop law; C109/C110 extended to the
-        // bin lane): the wang bands' AIR cells (the colorize airDark
-        // family) = the area biome's Topology background_image (the
-        // pyramid band's bg, the mines' air = the coalmine bg, the HM
-        // walls = the temple def's own). The per-biome law = byte-backed
-        // (each def declares its bg); the sky band never reaches here
-        // (the ty<62 sky-first branch).
+        // Bin-air backdrop (C109/C110 applied to the bin lane): the wang
+        // bands' AIR cells (colorize airDark family) show the area biome's
+        // Topology background_image (each def declares its bg).
         const r = m.rgb[p], g = m.rgb[p + 1], b = m.rgb[p + 2];
         const airDark = (r === 13 && g === 14 && b === 18) || (r === 12 && g === 13 && b === 17)
           || (r === 16 && g === 16 && b === 18) || (r === 21 && g === 23 && b === 30);
-        // dig #231/#233: the per-pixel cell law (explicit solids = C185; grey
-        // placeholders = the P-empty classify, which may also yield AIR)
+        // per-pixel cell law (explicit solids = C185; grey placeholders =
+        // the P-empty classify, which may also yield AIR)
         const pxc = airDark ? null : solidCellPx(world, a, ax, ay, wx, wy);
         if (airDark || pxc === AIR_CELL) {
           const sbg = wangSceneBgAt(world, bx, by); // a loaded scene's background_file
           if (sbg) return sbg;
-          const bd = staticBgMasked(a.def, world.dataDir, ax, ay) ? null : biomeBackdrop(a.def, world.dataDir); // the static tile mask
+          const bd = staticBgMasked(a.def, world.dataDir, ax, ay) ? null : biomeBackdrop(a.def, world.dataDir); // static tile mask
           if (bd) {
-            const bx = ((wx % bd.w) + bd.w) % bd.w, by = ((wy % bd.h) + bd.h) % bd.h; // dig #230: the backdrop's phase = the DISPLAY px (capture: phase (0,0), 4/4 tiles exact)
+            const bx = ((wx % bd.w) + bd.w) % bd.w, by = ((wy % bd.h) + bd.h) % bd.h; // backdrop phase = the display px
             const q = 4 * (by * bd.w + bx);
             return [bd.pixels[q], bd.pixels[q + 1], bd.pixels[q + 2]];
           }
@@ -423,16 +369,13 @@ export function worldColorAt(world, wx, wy) {
       }
     }
   }
-  // template-biome overlay (temple scenes, procedural fills); 9 = unset
-  // dig #170 (C145): template lane = DISPLAY frame (anchor comment).
+  // template-biome overlay (temple scenes, procedural fills); display frame (C145)
   const ttx = Math.floor(wx / CHUNK), tty = Math.floor(wy / CHUNK);
   const buf = world.templates?.get(`${ttx},${tty}`);
   let sceneAir = false; // I62: a scene wrote AIR here — the terrain lanes are blocked
-  // I62: the scenes spawned FROM scene images (buildImageSpawns: the
-  // watercave's random_layout trigger 0xffb539 inside spliced watercave.png,
-  // the tree's pillars) — loaded after their host image, so they paint over
-  // it. This store was read in the sky band only: the underground watercave
-  // layout (31_15) never rendered.
+  // I62: scenes spawned from scene images (buildImageSpawns: the watercave's
+  // random_layout trigger 0xffb539 inside spliced watercave.png, the tree's
+  // pillars) load after their host image, so they paint over it.
   const isb = world.imageSpawns?.get(`${ttx},${tty}`);
   if (isb) {
     const o = 3 * ((wy - tty * CHUNK) * CHUNK + (wx - ttx * CHUNK));
@@ -446,11 +389,11 @@ export function worldColorAt(world, wx, wy) {
       return [buf[o], buf[o + 1], buf[o + 2]];
     }
   }
-  // F3 noise-terrain (2026-09-20, ABOUT_MATH (15)/(16)): procedural biomes
-  // get the binary evaluator chain per wang cell (shape-first priority:
-  // the >0.5 gate value decides solidity, material naming is config-side).
-  // I62: scene AIR = the scene's own background_file px first (the bin lane's
-  // wangSceneBgAt law), else a noise AIR cell (the air arm: C184, the backdrop)
+  // Noise terrain: procedural biomes get the binary evaluator chain per wang
+  // cell (the >0.5 gate value decides solidity; material naming is
+  // config-side).
+  // I62: scene AIR = the scene's own background_file px first, else a noise
+  // AIR cell (the air arm: C184, the backdrop)
   if (sceneAir) {
     for (const sb of [world.imageSpawns?.get("bg")?.get(`${ttx},${tty}`), world.templates?.get("bg")?.get(`${ttx},${tty}`)]) {
       if (!sb) continue;
@@ -460,28 +403,22 @@ export function worldColorAt(world, wx, wy) {
   }
   const nz = sceneAir || roomChunkAir(world, tx, ty) ? 0 : world.noiseSolidAt?.(gx, gy);
   if (nz != null) {
-    // dig #130 (the surface-lane compositor): the art band's ground = the
-    // biome <Materials> classify per cell (C76 frame) → the material's
-    // materials.xml wang_color; unclassified solids keep the band shade.
+    // ground = the biome <Materials> classify per cell (C76 frame) → the
+    // material's colour; unclassified solids keep the band shade.
     const mat = world.noiseMatAt?.(gx, gy);
     let rgb = null;
     if (mat && mat.idx !== 255 && mat.names && mat.names[mat.idx] && world.dataDir) {
       rgb = materialColorAt(world.dataDir, mat.names[mat.idx], wx - DISPLAY_X0, wy - DISPLAY_Y0);
     }
     if (nz) return noiseColor(world, tx, ty, nz, rgb);
-    // dig #212 (C184, the backdrop CLIP law; replaces dig #177's "every
-    // row-62 air cell = sky"): the game's per-chunk backdrop builder
-    // 0x72c180 starts the biome backdrop at max(chunk top, height) when
-    // the biome's limit is on (defaults: height 225.0f, limit 1), so a
-    // row-62 air cell renders the SKY above the height and the BACKDROP
-    // below it; a limit-off biome (coalmine/liquidcave/pyramid…) renders
-    // the backdrop at every height. The limit_y edge sprite occupies
-    // [height − edge.h, height) composited over the sky. E1 anchor (entry
-    // (212)): over all 55 capture tiles of bty 14, 0 sky px below wy 240
-    // in limit-on biomes, 0 sky px anywhere in limit-off ones. Frame: the
-    // world y = the DISPLAY y − (SKY_ROWS+14)·512 (the capture frame,
-    // C145); the chunk's def comes from the generator tx/ty like the
-    // rest of this lane (the ≤12 px anchor strip is a known approximation).
+    // C184 (backdrop clip): the per-chunk backdrop builder 0x72c180 starts
+    // the biome backdrop at max(chunk top, height) when the biome's limit
+    // is on (defaults: height 225.0f, limit 1), so a row-62 air cell shows
+    // the sky above the height and the backdrop below; a limit-off biome
+    // shows the backdrop at every height. The limit_y edge sprite occupies
+    // [height − edge.h, height), composited over the sky. World y = display
+    // y − (SKY_ROWS+14)·512 (C145); the chunk's def comes from the
+    // generator tx/ty (approximation in the ≤12 px anchor strip).
     if (ty === 62) {
       const bd = world.noiseAt?.(tx, ty)?.backdrop ?? null;
       const yW = wy - DISPLAY_Y0;
@@ -504,31 +441,24 @@ export function worldColorAt(world, wx, wy) {
         return sky;
       }
     }
-    // dig #132 (I32 p2b, the per-area background law): an AIR cell in a
-    // procedural chunk composites the chunk's biome Topology
-    // `background_image` (the game's per-area backdrop; hills =
-    // weather_gfx/background_cave_04_alt, coalmine =
-    // weather_gfx/background_coalmine); a def with NO bg art (the_sky =
-    // "") fills its `biome_color` (the pale blue the byte map carries).
-    // The backdrop tiles in the CHUNK frame (per 512×512 cell region —
-    // the game's own per-area parallax is a later lane; tagged).
-    // I62: a loaded scene's background_file (orbroom_background.png, the
-    // racing track's) is drawn over the biome backdrop in its air cells
+    // I32: an AIR cell in a procedural chunk composites the chunk biome's
+    // Topology `background_image`; a def with no bg art fills its
+    // `biome_color`. Approximation: the backdrop tiles in the chunk frame;
+    // the game's per-area parallax is not modelled.
+    // I62: a loaded scene's background_file is drawn over the biome
+    // backdrop in its air cells.
     for (const sb of [world.imageSpawns?.get("bg")?.get(`${ttx},${tty}`), world.templates?.get("bg")?.get(`${ttx},${tty}`)]) {
       if (!sb) continue;
       const o = 3 * ((wy - tty * CHUNK) * CHUNK + (wx - ttx * CHUNK));
       if (!tplUnset(sb, o) && !tplAir(sb, o)) return [sb[o], sb[o + 1], sb[o + 2]];
     }
-    const bgr = world.bgImageAt?.(tx, ty, wx, wy); // dig #230: sampled at the display px (the backdrop's phase)
+    const bgr = world.bgImageAt?.(tx, ty, wx, wy); // sampled at the display px (the backdrop's phase)
     if (bgr) return bgr;
   }
-  // I49 (dig #210 obs-1 fix): pixel-scene background art (the LoadPixelScene
-  // background layer — right_stub/pyramid/temple backdrops, blitBackdrop's
-  // bg plane) = the AIR-ONLY LAST fallback: consulted only when no bin,
-  // fg-template, noise or bgImage lane owns the cell, never in the sky band
-  // (ty < 62 returns above), never preempts a material lane. The old law
-  // kept these px in the fg buffer, where the fg lane returned them pre-
-  // noise (the tree-west "water").
+  // I49: pixel-scene background art (LoadPixelScene background layer,
+  // blitBackdrop's bg plane) = the air-only last fallback, consulted only
+  // when no bin, fg-template, noise or bgImage lane owns the cell; never
+  // preempts a material lane.
   const bgBuf = world.templates?.get("bg")?.get(`${ttx},${tty}`);
   if (bgBuf) {
     const o = 3 * ((wy - tty * CHUNK) * CHUNK + (wx - ttx * CHUNK));
@@ -539,24 +469,20 @@ export function worldColorAt(world, wx, wy) {
   return null;
 }
 
-// I62 / A24 (approximation, E1-measured; extends A21 below the surface): a
-// template-less BIOME_WANG_TILE chunk — the per-biome ROOMS (dragoncave,
-// secret_lab, mystery_teleport, the orb rooms, …) — generates NO terrain of
-// its own: its init()/spliced scene is the room, and the scene's black (C143:
-// a miss = keep the content) shows AIR, not the noise lane's rock. E1 over all
-// 75 such chunks (seed 78633191, solid/air agreement vs capture): sum +1.23,
-// dragoncave 0.75 → 0.99; the only losses = the lavalake chunks (−0.02..−0.03,
-// I63). The engine mechanism for an empty-template wang biome is unread.
+// FLAGGED D (A24, I62; approximation): a template-less BIOME_WANG_TILE chunk
+// — the per-biome rooms (dragoncave, secret_lab, mystery_teleport, the orb
+// rooms, …) — generates no terrain of its own: its init()/spliced scene is
+// the room, and the scene's black (C143) shows AIR, not the noise lane's
+// rock. Known loss: the lavalake chunks (I63). The engine mechanism for an
+// empty-template wang biome is unread.
 function roomChunkAir(world, tx, ty) {
   if (!world.config?.map) return false; // injected worlds: no biome map
   const d = biomeChunkDef(world.config, tx, ty - SKY_ROWS);
   return !!d && !d.templateFile && d.topologyType === "BIOME_WANG_TILE";
 }
-// Noise-terrain display color (shape-first, user mandate 2026-09-20):
-// solid cells get their classified material's wang_color (dig #130) when
-// available, else one baseline shade per band (the pre-#130 shape-first
-// palette); air cells return null so the renderer's own background rules
-// apply.
+// Noise-terrain display colour: solid cells get their classified material's
+// colour when available, else one baseline shade per band; air cells return
+// null so the background rules apply.
 function noiseColor(world, tx, ty, solid, materialRgb = null) {
   if (!solid) return null;
   void tx; void ty; void world;
@@ -605,7 +531,7 @@ function buildStaticTileArea(a, dataDir) {
   return { w: a.w, h: a.h, attempt: 0, rgb };
 }
 
-// --- the Work lane (dig #215, C186; bytes in the-work.mjs) ----------------
+// --- the Work lane (C186; bytes in the-work.mjs) --------------------------
 const WORK_BAND_TOP = SKY_ROWS * CHUNK; // canvas px of biome-map row 0 = P row 0
 // the chunk biome of a Work row = the vmap clamp of biome row 0 / 47; only
 // WANG chunk biomes take the P re-read (non-wang biomes keep their lanes).
@@ -678,9 +604,9 @@ function storeRawAreaMap(world, a, m) {
 // from its trigger cell as in the game, and the bin lane reads the generator
 // frame (gx, gy) too, so the art lands exactly in its room. Buffers keyed
 // like setWorldPx (game chunk + (35, 62) = the generator-canvas chunk).
-// Async: ONE event-loop tick per area (the I36 law, entry (173) — a raw-map
-// regeneration is ~1 s per area, and one contiguous sync span over all of
-// them starves the vitest worker's RPC / the gen server's requests).
+// Async: one event-loop tick per area (I36): a raw-map regeneration is ~1 s
+// per area, and one contiguous sync span over all of them starves the vitest
+// worker's RPC and the gen server's requests.
 export async function buildWangScenes(world) {
   // recorded ops, per-chunk materialization (chunk-store.mjs); MAPGEN_EAGER_TEMPLATES=1 = the eager Map reference
   const scenes = process.env.MAPGEN_EAGER_TEMPLATES === "1" ? new Map() : new LazyChunkStore();
@@ -698,10 +624,10 @@ export async function buildWangScenes(world) {
       hosts.set(a.def.luaScript, host);
     }
     const r = areaSceneCalls(host, a, raw);
-    // LoadPixelScene(…, skip_biome_checks = false): the scene writes only
-    // the cells inside its OWN biome (a room at
-    // an area's bottom edge must not paint into the Holy Mountain below).
-    // The biome at a pixel = GetBiomeAt with the C187 edge displacement.
+    // LoadPixelScene(…, skip_biome_checks = false): the scene writes only the
+    // cells inside its own biome (a room at an area's bottom edge must not
+    // paint into the Holy Mountain below). The biome at a pixel = GetBiomeAt
+    // with the C187 edge displacement.
     const gate = (X, Y) => biomeAtPixel(world.config, X + 35 * CHUNK, Y + 14 * CHUNK) === a.def;
     for (const sc of r.scenes) {
       if (sc.mat) blitScene(scenes, world.dataDir, a.def, sc.mat, sc.vis || null, sc.x, sc.y, a.def.name, world.seed, gate);
@@ -751,14 +677,14 @@ function sceneBufAt(bufs, gx, gy) {
   const buf = bufs.get(`${cx},${cy}`);
   if (!buf) return null;
   const o = 3 * ((gy - cy * CHUNK) * CHUNK + (gx - cx * CHUNK));
-  if (tplUnset(buf, o) || tplAir(buf, o)) return null; // I62: AIR in the wang-scene planes keeps the old "below shows" (unmeasured there)
+  if (tplUnset(buf, o) || tplAir(buf, o)) return null; // I62: AIR in the wang-scene planes lets the lanes below show (unmeasured)
   return [buf[o], buf[o + 1], buf[o + 2]];
 }
 // the scene's material/visual px (fg) and its background_file px (bg)
 export const wangSceneAt = (world, gx, gy) => sceneBufAt(world.wangScenes, gx, gy);
 export const wangSceneBgAt = (world, gx, gy) => sceneBufAt(world.wangScenes?.get("bg"), gx, gy);
 
-// dig #218 (I53): the main band's displaced-edge pixel. undefined = the pixel
+// I53: the main band's displaced-edge pixel. undefined = the pixel
 // keeps its chunk's lanes (undisplaced, or displaced into a wang/template
 // biome — the global P outside a wang area is unread, ISSUES I53 residual);
 // else the pixel biome's noise verdict: the classified material's colour, or
@@ -770,10 +696,9 @@ function edgePixelAt(world, gx, gy, wx, wy) {
   const Y = wy - SKY_ROWS * CHUNK;
   const ccx = Math.floor(wx / CHUNK), ccy = Math.floor(wy / CHUNK);
   const lx = wx - ccx * CHUNK, ly = wy - ccy * CHUNK;
-  // the law reads the DISPLAY frame (dig #216's E1 match); the lanes below
-  // read the GENERATOR frame (gx = wx + L3_ANCHOR) — compare against the
-  // chunk the lanes would actually serve, so the 11/12-px anchor strip
-  // takes the pixel biome's verdict too
+  // the edge law reads the display frame; the lanes below read the generator
+  // frame (gx = wx + L3_ANCHOR) — compare against the chunk the lanes would
+  // serve, so the 11/12-px anchor strip takes the pixel biome's verdict too
   const gcx = Math.floor(gx / CHUNK), gcy = Math.floor(gy / CHUNK);
   const near = (v) => v <= 41 + L3_ANCHOR.x || v >= 471 - L3_ANCHOR.x;
   if (!near(lx) && !near(ly)) return undefined; // interior: no probe fires
@@ -802,7 +727,7 @@ function edgePixelAt(world, gx, gy, wx, wy) {
   return [bd.pixels[q], bd.pixels[q + 1], bd.pixels[q + 2]];
 }
 
-// dig #216: the fill of the adjacent chunk whose biome = def, read at the same
+// The fill of the adjacent chunk whose biome = def, read at the same
 // in-chunk offset (the wall lanes are per-chunk fills; the tongue continues it).
 function neighbourFillAt(world, def, wx, wy) {
   const ttx = Math.floor(wx / CHUNK), tty = Math.floor(wy / CHUNK);
@@ -819,17 +744,15 @@ function neighbourFillAt(world, def, wx, wy) {
 // undefined = not a Work column (the caller's lanes run); else the colour/null.
 function workColorAt(world, tx, ty, gx, gy, wx, wy) {
   if (!world.config || !world.dataDir) return undefined; // injected worlds: no Work lane
-  // dig #216 (C187, the biome-edge law): the PIXEL's biome = GetBiomeAt
-  // 0x909da0 (biomeAtPixel) at biome-map px (wx, wy − 48·512) — within 41 px
-  // of a chunk edge the boundary is displaced by 30·sin/cos(·0.005) +
-  // 11·simplex (the Hell side walls' sine). E1-matched to the capture
-  // (median |edge − prediction| 0–1 px vs 20–21 px for the straight line).
+  // C187 (biome edge): the pixel's biome = GetBiomeAt 0x909da0
+  // (biomeAtPixel) at biome-map px (wx, wy − 48·512); within 41 px of a
+  // chunk edge the boundary is displaced by 30·sin/cos(·0.005) + 11·simplex.
   const pix = biomeAtPixel(world.config, wx, wy - SKY_ROWS * CHUNK);
   const def = pix?.templateFile ? pix : null;
   if (!def) {
     // a wang chunk's pixel taken by its non-wang neighbour (the solid_wall
-    // tongue): the neighbour chunk's own fill (its lane, unchanged here).
-    // (the display chunk's biome — the edge law is display-frame, E1-matched)
+    // tongue): the neighbour chunk's own fill. The display chunk's biome is
+    // tested (the edge law is display-frame).
     if (!pix || !biomeChunkDef(world.config, Math.floor(wx / CHUNK), Math.floor(wy / CHUNK) - SKY_ROWS)?.templateFile) return undefined;
     return neighbourFillAt(world, pix, wx, wy);
   }
@@ -855,7 +778,7 @@ function workColorAt(world, tx, ty, gx, gy, wx, wy) {
   }
   // P air: the template lane's art (the moon altars, spliced scenes) first
   const ttx = Math.floor(wx / CHUNK), tty = Math.floor(wy / CHUNK);
-  // dig #216: only the pixel biome's OWN chunk art — a the_end tongue inside a
+  // only the pixel biome's own chunk art: a the_end tongue inside a
   // solid_wall chunk must not read that chunk's wall fill.
   const tbuf = biomeChunkDef(world.config, ttx, tty - SKY_ROWS) === def ? world.templates?.get(`${ttx},${tty}`) : null;
   if (tbuf) {
@@ -878,27 +801,21 @@ function workColorAt(world, tx, ty, gx, gy, wx, wy) {
 // + onProgress(done, total, key); await world.ready for completion.
 export function ensureWorld(seed, dataDir, { cacheDir = null, onProgress = () => {} } = {}) {
   const world = loadWangWorld(dataDir);
-  world.dataDir = dataDir; // dig #130: the noise band's material colors resolve from here
-  world.seed = seed; world.cacheDir = cacheDir; // dig #215: the Work lane's raw-bin cache
+  world.dataDir = dataDir; // the noise band's material colours resolve from here
+  world.seed = seed; world.cacheDir = cacheDir; // the Work lane's raw-bin cache
   world.maps = new Map();
   world.templates = renderTemplateWorld(dataDir, world.config, seed); // template biomes (sync, cached art)
   world.imageSpawns = buildImageSpawns(world); // spawn triggers inside the spliced/fixed scene images (the tree's pillars)
-  attachNoiseTerrain(world, dataDir, seed); // F3 noise terrain (2026-09-20) — the seed reaches the caves-field lane (dig #30)
+  attachNoiseTerrain(world, dataDir, seed); // noise terrain; the seed reaches the caves-field lane
   world.ready = Promise.all(
     world.areas.map(
       (a) =>
         new Promise((resolve) => {
-          // Yield BEFORE the per-area work on BOTH branches (I36's recurrence
-          // closed with entry (173)): the cache-HIT path used to read all 342
-          // .bin files in ONE contiguous sync span — 64.2/70.4/70.6 s measured
-          // per battery run on 2026-10-20 — so the single-fork worker's event
-          // loop (and its pending birpc acks/timers) only resumed at the
-          // span's END, where an expired `Timeout calling "onTaskUpdate"`
-          // timer beats the already-queued ack and aborts the run. One tick
-          // per area (one file read or one generation between ticks) keeps
-          // the channel live; `world.ready`, the progress contract and the
-          // per-area work are unchanged, and the gen server also stays
-          // responsive during startup loads.
+          // Yield before the per-area work on both branches (I36): reading
+          // every cached .bin in one sync span blocks the vitest worker's
+          // event loop long enough for its birpc timers to expire and abort
+          // the run. One tick per area keeps the channel live and the gen
+          // server responsive during startup loads.
           setImmediate(() => {
             const cacheFile = cacheDir ? path.join(cacheDir, String(seed), `${a.key}.bin`) : null;
             const cached = cacheFile ? readCache(cacheFile) : null;
@@ -944,8 +861,8 @@ export function ensureWorld(seed, dataDir, { cacheDir = null, onProgress = () =>
                   biomeFile: a.def.filename.replace(/^data\/biome\//, "").replace(/\.xml$/, ""),
                   seed,
                   // the area's first cell origin in the game frame (C192:
-                  // 10·trunc(c·51.2) − 5 − G) — the y-gated placeholder law
-                  // and the C185 colour of every material cell (dig #224)
+                  // 10·trunc(c·51.2) − 5 − G) — for the y-gated placeholder
+                  // law and the C185 colour of every material cell
                   worldX0: spawnCallOrigin(a.area.x1, a.area.y1).x,
                   worldY0: spawnCallOrigin(a.area.x1, a.area.y1).y,
                 });

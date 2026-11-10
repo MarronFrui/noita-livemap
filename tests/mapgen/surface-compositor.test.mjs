@@ -1,9 +1,7 @@
-// tests/mapgen/surface-compositor.test.mjs — the art-first surface-band
-// compositor count tests (the E1-class pins):
-//   #130 — the per-cell material classify (matNames + matIdx + wang_color);
-//   #131 — the read-window law (sky band all-air; the mines chunk stable);
-//   #132 — the per-area background law (the def carries its Topology
-//          backgroundImage; the loader tiles it as the chunk backdrop).
+// tests/mapgen/surface-compositor.test.mjs — surface-band compositor count
+// tests (E1-class pins): the per-cell material classify (matNames + matIdx +
+// wang_color); the read-window law (sky band all-air); the per-area
+// background law (the def's Topology backgroundImage tiled as backdrop).
 // Data-dependent: skips without the game data. The lane flags are
 // module-load consts — set the env BEFORE the dynamic imports.
 import fs from "node:fs";
@@ -11,26 +9,19 @@ import path from "node:path";
 import { describe, expect, test, afterAll } from "vitest";
 import { releaseWorld } from "../helpers/world.mjs";
 
-// dig #145 (measured leak): composed-content.test.mjs sets SURFACE_V2=1 at
-// module load; when both files land in the same vitest worker the leak
-// re-routes hills (41,62) from THIS suite's V3-only caves lane (2409 solids,
-// byte-identical pre/post dig #145) to the V2 lane (2436) — the pin fails
-// for infrastructure, not law. Clear the leak: this suite pins the V3-ONLY
-// lane (the dig-#131 read-window law).
+// composed-content.test.mjs sets SURFACE_V2=1 at module load; sharing a
+// vitest worker would re-route (41,62) to the V2 lane. This suite pins the
+// V3-only lane, so clear the leak.
 delete process.env.SURFACE_V2;
 process.env.SURFACE_V3 = "1";
 
 const DATA_DIR = "/mnt/c/Users/xan98/AppData/LocalLow/Nolla_Games_Noita/data";
 const hasData = fs.existsSync(DATA_DIR + "/scripts");
 
-// ONE world per file (dig #168): ensureWorld()'s CALL is one contiguous SYNC
-// span — renderTemplateWorld (world-gen.mjs:277) PLUS the eager readFileSync
-// cache load (readCache per area inside the world.ready map, 342 .bin files).
-// Three per-file rebuilds put that span under a pending worker->host RPC reply
-// and tripped vitest single-fork's 60 s birpc window (`Timeout calling
-// "onTaskUpdate"`, the I36 class — battery deaths at the art-crust test, dig
-// #168). Same seed 78633191 + same dataDir ⇒ byte-identical world; sharing
-// removes the two redundant rebuilds. Assertions unchanged.
+// One world per file: ensureWorld() is one long sync span (renderTemplateWorld
+// + the eager cache load of 342 .bin files). Repeated rebuilds trip vitest
+// single-fork's 60 s birpc window (the I36 class). Same seed + dataDir ⇒
+// byte-identical world, so share it.
 let sharedWorld = null;
 async function getWorld() {
   if (!sharedWorld) {
@@ -57,20 +48,17 @@ describe.skipIf(!hasData)("surface-band compositor (digs #130/#131/#132)", () =>
       "coal", "soil", "sand_static", "coal", "copper", "rock_static",
     ]);
     const classified = [...r.matIdx].filter((v) => v !== 255).length;
-    // dig #196 (C170): the wang offset G moved the (41,62) pick onto the
-    // bitmap's bottom rows → this ground chunk is now FULLY solid under the
-    // byte law (the capture's tile 41_14 fR = 0.96017 = 96% solid; our fG
-    // 0.93921 → 0.9965 and IoU 0.90092 → 0.95825 = toward the capture).
-    // The "air exists" side of this law therefore rides a hills chunk whose
-    // byte-law state still carries pockets: (44,62) = 110 air cells.
-    expect([...r.mask].filter((v) => v).length).toBeGreaterThan(2300); // dig #205 re-pin (the V2 frame; the exact count drifts 2555..2559 run-to-run — the classify's module-state class, I50 note)
+    // C170: the wang offset G puts the (41,62) pick on the bitmap's bottom
+    // rows → this ground chunk is (near-)fully solid. The "air exists" side
+    // of this law rides (44,62), a hills chunk that still carries pockets.
+    expect([...r.mask].filter((v) => v).length).toBeGreaterThan(2300); // the exact count drifts run-to-run (module-state class, I50)
     const rAir = noiseChunkMask(cfg, 44, 62, 78633191);
     const airCells = [...rAir.mask].filter((v) => v === 0).length;
     const classifiedAir = [...rAir.matIdx].filter((v) => v !== 255).length;
     // both sides: classified materials exist (≠ flat slab), air exists
     // (≠ the full-solid wall) — flips if the compositor regresses.
     expect(classified).toBeGreaterThan(1000);
-    expect(airCells).toBeGreaterThan(50); // dig #205 re-pin (the V2 frame: 83 air cells)
+    expect(airCells).toBeGreaterThan(50); // V2 frame: 83 air cells
     expect(classifiedAir).toBeGreaterThan(1000);
     expect(classifiedAir + airCells).toBeLessThanOrEqual(52 * 52);
     for (const name of r.matNames) {
@@ -85,23 +73,20 @@ describe.skipIf(!hasData)("surface-band compositor (digs #130/#131/#132)", () =>
     const { loadBiomeConfig } = await import("../../mapgen/lib/biomes.mjs");
     const cfg = loadBiomeConfig(DATA_DIR);
     // ty 49/55/60 = the hills-biome SKY rows (world rows < 0): the getter
-    // bounds-check ⇒ air. FAILS under the old mod-wrap (which painted the
-    // field's mass rows into the sky).
+    // bounds-check ⇒ air. Fails under a mod-wrap read (which would paint
+    // the field's mass rows into the sky).
     for (const ty of [49, 55, 60]) {
       const r = noiseChunkMask(cfg, 41, ty, 78633191);
       expect(r).not.toBeNull();
       expect([...r.mask].filter((v) => v).length).toBe(0);
       expect([...r.matIdx].filter((v) => v !== 255).length).toBe(0);
     }
-    // ty 62 = the mines band's first chunk (world rows ≥ 0): served + the
-    // C170 frame's count. dig #196 re-pin (was 2409 → 2501 → 2519 → **2704**):
+    // ty 62 = the mines band's first chunk (world rows ≥ 0): served. C170:
     // the wang offset G = (17920, 7168) moves the pick by (+1792, +717) cells
-    // mod the 512×256 bitmap — onto the ground row's solid stretch (the
-    // capture's tile 41_14 fR = 0.96017; our IoU 0.90092 → 0.95825 = toward
-    // it). Byte law: C170; E2 direction: entry (196).
+    // mod the 512×256 bitmap, onto the ground row's solid stretch.
     const r62 = noiseChunkMask(cfg, 41, 62, 78633191);
-    expect([...r62.mask].filter((v) => v).length).toBeGreaterThan(2300); // dig #205 re-pin (the drift class, I50)
-    expect([...r62.matIdx].filter((v) => v !== 255).length).toBeGreaterThan(2300); // dig #205 re-pin (the drift class)
+    expect([...r62.mask].filter((v) => v).length).toBeGreaterThan(2300); // drift class, I50
+    expect([...r62.matIdx].filter((v) => v !== 255).length).toBeGreaterThan(2300); // drift class, I50
   });
 
   test("the C153 PRECONDITION (dig #178): the hills caves field NEVER goes negative, so the game's air mark (v < 0) cannot fire here", async () => {
@@ -117,17 +102,11 @@ describe.skipIf(!hasData)("surface-band compositor (digs #130/#131/#132)", () =>
       if (field[i] < 0) countNeg++;
       if (field[i] <= 0.5) countLE05++;
     }
-    // The dig-#178 E1 law: C153's byte truth is that the sampler's air arm
-    // stamps ONLY on v < 0 (the [0, 0.5] cells stay unmarked base fill) —
-    // and on our data the field never reaches v < 0, so that arm is inert.
-    // This is the load-bearing reason the ported gate (`v >= 0 ⇒ solid`)
-    // had to be REVERTED: it marked the whole band solid (row-62 sky
-    // 28,323 → 946 vs the capture's 21,669, §8 row 62).
-    // dig #185 (C158): countNeg === 0 is the PERMANENT law for the caves
-    // field — every setter/blend stamp writes `scale ≥ 0`, so the field
-    // cannot go negative (byte-proven). The earlier "make countNeg > 0"
-    // contract is RETRACTED as impossible: C153's `v < 0` air arm is inert
-    // on this field, and the sampler reads a DIFFERENT field (the gradient).
+    // C153: the sampler's air arm stamps only on v < 0 (the [0, 0.5] cells
+    // stay unmarked base fill). C158: every setter/blend stamp writes
+    // `scale ≥ 0`, so the caves field cannot go negative — that arm is inert
+    // here, and the sampler reads a different field (the gradient). A
+    // `v >= 0 ⇒ solid` gate would mark the whole band solid (§8 row 62).
     expect(countNeg).toBe(0);
     // the [0, 0.5] band carries mass ⇒ the flip was never a no-op
     expect(countLE05).toBeGreaterThan(0);
@@ -136,16 +115,16 @@ describe.skipIf(!hasData)("surface-band compositor (digs #130/#131/#132)", () =>
   test("the NIGHT sky law (2026-10-19, I32 amended): the sky band = black air + stars at every altitude; the mines band unchanged", async () => {
     const { worldColorAt } = await import("../../mapgen/lib/world-gen.mjs");
     const world = await getWorld();
-    // the high sky = plain air (null). The OLD parallax law returned the
-    // blue rows (100,168,198 family) here ⇒ fails under the old law.
+    // the high sky = plain air (null); a parallax-sampling law would return
+    // the blue rows (100,168,198 family) here.
     const high = worldColorAt(world, 35 * 512 + 256, 1 * 512 + 10);
     expect(high).toBeNull();
-    // the horizon row (t = 0.977): plain air. The OLD law sampled the
-    // parallax png's bottom rows = gold (254,206,108) ⇒ non-null ⇒ fails.
+    // the horizon row (t = 0.977): plain air, not the parallax png's gold
+    // bottom rows (254,206,108).
     const horizon = worldColorAt(world, 48 * 512 + 256, 31000);
     expect(horizon).toBeNull();
-    // the warm share over the desert sky window: ~0 now (stars are pale,
-    // art is absent at these rows); the OLD law = gold ≈ 0.98 ⇒ fails.
+    // the warm share over the desert sky window: ~0 (stars are pale, art is
+    // absent at these rows); parallax sampling would give gold ≈ 0.98.
     let n = 0, warm = 0;
     for (let x = 0; x < 512; x += 2) for (let wy = 31000; wy < 31744; wy += 8) {
       const c = worldColorAt(world, 48 * 512 + x, wy);
@@ -154,14 +133,11 @@ describe.skipIf(!hasData)("surface-band compositor (digs #130/#131/#132)", () =>
     }
     expect(n).toBeGreaterThan(0);
     expect(warm / n).toBeLessThan(0.05);
-    // the stars at EVERY altitude (the old t<0.75 gate excluded the
-    // horizon band): pale sprite px exist across the sky band — standing
-    // pin (the pale rule excludes the old gold AND the ice-blue silhouette)
-    // I36 root cause (dig #210): this triple loop = 3.28M sync calls ≈ 65 s
-    // unbroken — long enough that a pending vitest RPC reply (onTaskUpdate)
-    // cannot drain and the 60 s birpc watchdog fires (the stall class the
-    // gate retries). A macrotask yield every 100k calls drains the port;
-    // the sampling, the count and every assertion below are unchanged.
+    // stars at every altitude, horizon band included: pale sprite px exist
+    // across the sky band (the pale rule excludes gold and the ice-blue
+    // silhouette). This loop is 3.28M sync calls (~65 s); a macrotask yield
+    // every 100k calls lets vitest's RPC drain before the 60 s birpc
+    // watchdog fires (I36).
     let stars = 0, checked = 0;
     for (let ty = 5; ty < 55; ty++) for (let y = 0; y < 512; y += 2) for (let x = 0; x < 512; x += 2) {
       const c = worldColorAt(world, 40 * 512 + x, ty * 512 + y);
@@ -169,13 +145,11 @@ describe.skipIf(!hasData)("surface-band compositor (digs #130/#131/#132)", () =>
       if (++checked % 100000 === 0) await new Promise((r) => setTimeout(r, 0));
     }
     expect(stars).toBeGreaterThan(100);
-    // the mines band's first chunk: the terrain's shaped count (dig #196
-    // re-pin to the C170 wang-offset frame; was 2409 → 2501 → 2519 → 2704 —
-    // the byte-law pick move (+1792, +717) mod the bitmap; entry (196))
+    // the mines band's first chunk: the terrain's shaped count (C170 frame)
     const { noiseChunkMask } = await import("../../mapgen/lib/noise-terrain.mjs");
     const cfg2 = (await import("../../mapgen/lib/biomes.mjs")).loadBiomeConfig(DATA_DIR);
     const r62 = noiseChunkMask(cfg2, 41, 62, 78633191);
-    expect([...r62.mask].filter((v) => v).length).toBeGreaterThan(2300); // dig #205 re-pin (the drift class, I50)
+    expect([...r62.mask].filter((v) => v).length).toBeGreaterThan(2300); // drift class, I50
   });
 
 
@@ -203,18 +177,12 @@ describe.skipIf(!hasData)("surface-band compositor (digs #130/#131/#132)", () =>
     const { worldColorAt } = await import("../../mapgen/lib/world-gen.mjs");
     const world = await getWorld();
     // the strongest pin: the template buffer for the pyramid chunk carries
-    // the blitted art (non-9 pixels) — the first cut's `dynamic > 0` gate
-    // skipped the whole blit (the pyramid's init has unresolvable callsites
-    // mixed with the static ones); this pin FAILS under that gate.
-    // ensureWorld ALREADY ran renderTemplateWorld into world.templates
-    // (world-gen.mjs:277 — same fn, same dataDir, same seed 78633191 ⇒
-    // byte-identical output). The explicit SECOND render that used to live
-    // here was a ~49 s sync span immediately after a microtask-only gap —
-    // the recipe that trips vitest single-fork's 60 s worker-RPC timeout
-    // (`Timeout calling "onTaskUpdate"`, the I36 class, measured 48783 ms
-    // cold by mapgen/experiments/2026-10-18-splice-chunk-equiv.mjs, dig
-    // #168). Read the world's copy; both halves of this test now read the
-    // SAME template layer (worldColorAt probes below read world too).
+    // the blitted art (non-9 pixels). A `dynamic > 0` gate would skip the
+    // whole blit (the pyramid's init mixes unresolvable callsites with
+    // static ones); this pin fails under that gate.
+    // ensureWorld already rendered world.templates; re-rendering here is a
+    // ~49 s sync span that trips the 60 s worker-RPC timeout (I36), so read
+    // the world's copy (the worldColorAt probes read the same layer).
     const buf = world.templates.get("51,62");
     expect(buf).toBeDefined();
     let painted = 0;

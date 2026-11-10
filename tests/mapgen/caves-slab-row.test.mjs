@@ -1,12 +1,10 @@
-// dig #192 — the BAND-ANCHORED FINITE caves cell-read (C165/X205;
-// caves-field.mjs cavesCellAt = the pure unit behind noiseChunkMask's caves
-// gradAt). Count tests per the charter: 0-entry (above-band air), 1-entry
-// (the band's row 0), N-entries (the served rows + the deep wrap), the
-// skip-path contract, AND the replacement test that FAILS under the old
-// `wy < 0` air-guard arithmetic (dig #131's law — row 73's invention): for
-// wy ∈ [-fh, 0) the old guard returned 0 where the new law reads the field's
-// rows [0, fh) — the user's flat floor (bty13 gen fG 0.024 vs capture fR
-// 0.03–0.22). Synthetic grids only (no extracted data needed).
+// The band-anchored finite caves cell-read (C165/X205; caves-field.mjs
+// cavesCellAt = the pure unit behind noiseChunkMask's caves gradAt). Count
+// tests: 0-entry (above-band air), 1-entry (the band's row 0), N-entries
+// (the served rows + the deep wrap), the skip-path contract, and a
+// replacement test that fails under a `wy < 0` air-guard (which would return
+// 0 for wy ∈ [-fh, 0) where the law reads the field's rows [0, fh)).
+// Synthetic grids only (no extracted data needed).
 
 import { describe, test, expect } from "vitest";
 import { cavesCellAt, cavesShapedCellAt } from "../../mapgen/lib/caves-field.mjs";
@@ -71,10 +69,9 @@ describe("cavesCellAt — the N-entry law: served rows + the deep wrap", () => {
 });
 
 describe("cavesCellAt — the REPLACEMENT test (must FAIL under the old `wy < 0` guard)", () => {
-  // dig #192's falsifier: the old air-guard returned 0 for EVERY wy < 0 —
-  // killing 51/52 rows of bty13 (fields were never served there). The new law
-  // serves rows [0, h) for wy ∈ [-h, 0) — this test FAILS (got 0 ≠ field[·])
-  // whenever the old `wy < 0` arithmetic runs.
+  // A `wy < 0` air-guard returns 0 for every wy < 0 (51/52 rows of bty13
+  // unserved). The law serves rows [0, h) for wy ∈ [-h, 0), so this test
+  // fails (0 ≠ field[·]) under that guard.
   test("terrain slab rows upstream of the datum (wy ∈ [-fh, 0)) read the field — the old guard returned 0", () => {
     const { field, w, h } = makeField();
     for (let wy = -h; wy < 0; wy++) {
@@ -82,7 +79,6 @@ describe("cavesCellAt — the REPLACEMENT test (must FAIL under the old `wy < 0`
       const row = ((wy % h) + h) % h;
       const got = cavesCellAt(field, w, h, 0, wy);
       const want = field[row * w + col];
-      // the old law would have produced 0 (the air-guard); new = the cell.
       expect(got).toBe(want);
       expect(want).not.toBe(0);
       expect(want).toBeGreaterThan(0);
@@ -108,25 +104,23 @@ describe("cavesCellAt — the skip path", () => {
 });
 
 // ============================================================================
-// dig #193 — cavesShapedCellAt: the warp-displaced sample-point + the
-// smoothstep's ±1 snap (the SHAPE half). Synthetic grids; the laws:
+// cavesShapedCellAt: the warp-displaced sample-point + the smoothstep's ±1
+// snap (the shape half). Synthetic grids; the laws:
 //   1. the read's cell ∈ the 4-neighbour set of floor(out0/out1) — the snap
 //      can displace the pick by AT MOST +1 cell per axis (the 0.5-comiss/inc!)
-//   2. the FALSIFIER (the dig #192 flat law = cavesCellAt): the warp displaces
-//      SOME cell in a 40×40 span — the shaped read ≠ the flat pick there —
-//      so a cavesShapedCellAt that regresses to the raw flat read FAILS here,
-//      and a gradAt wiring regression fails the compositor's re-pinned
-//      count (surface-compositor.test.mjs, 2501).
+//   2. falsifier (the flat read = cavesCellAt): the warp displaces SOME cell
+//      in a 40×40 span, so a cavesShapedCellAt that regresses to the flat
+//      read fails here (a gradAt wiring regression fails the compositor's
+//      count in surface-compositor.test.mjs).
 //   3. DETERMINISM: the shaped read is a pure function of (field,w,h,wx,wy).
 describe("cavesShapedCellAt — the warp + the smooth ±1 snap", () => {
   test("the shaped read's value ∈ the [floor, floor+1] × [floor, floor+1] window of the warped point (the snap's ±1 bound)", () => {
     const { field, w, h } = makeField();
     for (const [wx, wy] of [[0, 0], [37, 220], [-30, 50], [9999, 300]]) {
       // (the sky-cases (wy < -h) are the 0-entry law's describe, NOT this one)
-      // recompute the shaped point's window independently (the dig-#194 law;
-      // the wang offset G = (7168, 17920) per C170 — dig #196 updated this
-      // oracle to the port's CURRENT frame; at G=0 the port's pick lands
-      // (1792, 717) cells away and this window misses):
+      // recompute the shaped point's window independently (wang offset
+      // G = (7168, 17920) per C170; at G=0 the pick lands (1792, 717) cells
+      // away and this window misses):
       const G1 = 7168, G2 = 17920;
       const xU = (wx + G2 + 0.5) * 0.1, yU = (wy + G1 + 0.5) * 0.1;
       const nx = 0.45 * simplex2d((wx + G2) * 0.13715, (wy + G1) * 0.13717) + 0.1;
@@ -160,8 +154,7 @@ describe("cavesShapedCellAt — the warp + the smooth ±1 snap", () => {
   });
 });
 
-// dig #196 — THE WANG OFFSET (A15 gap 1 → CLOSED; C170/X208): the warp
-// 0x908CB0 adds the runtime globals to its f64 inputs AT ITS HEAD —
+// The wang offset (C170/X208): the warp 0x908CB0 adds the runtime globals to its f64 inputs AT ITS HEAD —
 // @0x908CC9 adjY = inY + f64[0x13289a8] (G1), @0x908CD6 adjX = inX +
 // f64[0x1327670] (G2) — before EVERY derivation: the base (adj+0.5)·0.1,
 // the simplex (adj·0.13715 / adj·0.13717), the lattice/m (adj/9). The
@@ -170,9 +163,8 @@ describe("cavesShapedCellAt — the warp + the smooth ±1 snap", () => {
 // 17920.0 (= w·256, w = the biome-map width 70, C119 + the C80 datum
 // cross-check), G1 = 7168.0 (= 14·512, C119's constant in both branches).
 // The oracle below assembles the byte law INDEPENDENTLY from X208's pins.
-// Count tests per the charter: 0-entry (the sky gate rides the RAW wy —
-// pre-add), 1-entry, N-entries — plus the replacement test that must FAIL
-// under the old A15 arithmetic (G = 0,0 = the flagged stand-in).
+// Count tests: 0-entry (the sky gate rides the RAW wy, pre-add), 1-entry,
+// N-entries, plus a replacement test that fails under G = (0,0).
 describe("cavesShapedCellAt — the wang offset G1/G2 (the byte law)", () => {
   const G2 = 17920, G1 = 7168;
   function shapedByBytes(field, w, h, wx, wy, g2 = G2, g1 = G1) {
@@ -187,7 +179,7 @@ describe("cavesShapedCellAt — the wang offset G1/G2 (the byte law)", () => {
       const f = o - Math.floor(o);
       return Math.floor(o) + ((3 - 2 * f) * f * f >= 0.5 ? 1 : 0); // 3.0/2.0/0.5f
     };
-    if (wy < -h) return 0;                            // the RAW-frame sky gate (dig #192)
+    if (wy < -h) return 0;                            // the RAW-frame sky gate
     const px = snap(out0), py = snap(out1);
     return field[(((py % h) + h) % h) * w + (((px % w) + w) % w)];
   }

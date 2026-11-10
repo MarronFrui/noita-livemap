@@ -1,31 +1,25 @@
-// mapgen/lib/noise-terrain.mjs — F3 noise-terrain integration (2026-09-20)
+// mapgen/lib/noise-terrain.mjs — F3 noise-terrain integration
 import fs from "node:fs";
 import path from "node:path";
 //
-// Binary-derived per ABOUT_MATH 2026-09-19 (12)/(13) + 2026-09-20 (15)/(16):
-//   - the noise evaluator = true 0x908e70 (lower clamp at 0.5, single
-//     anisotropic q warping both axes, C30) — via lib/noise-proto.mjs
-//   - the sampler gate (FUN_0090d860, slab 0x50d3c3) = process cells only
-//     when the field value > 0.5 (comiss 0x11dfa94). dig #178 (C153) read
-//     the FULL three-way gate: the game's AIR MARK = v < 0 STRICTLY and the
-//     [0, 0.5] cells are unmarked base fill. NOT PORTED as the mask rule —
-//     **FLAGGED (D, ISSUES A11, owner I47)**: the hills field never goes
-//     negative (countNeg = 0), so the byte law alone collapses the band;
-//     see entry (178) + §8 row 62 at the mask site below.
-//   - per-cell noise input = the cell coords + the per-biome "Wang offset"
-//     doubles (C24 runtime config; the port's BIOME_PATH_FIND_WORLD_POS_*
-//     159/223 = the engine ConfigRegistry defaults, @prov noitool) — the
-//     noise layer's spatial diversity is LOCATION-driven (C27/C28: one
-//     seed draw per generator cell, no per-cell RNG in the noise itself)
+//   - noise evaluator = true 0x908e70 (lower clamp at 0.5, single
+//     anisotropic q warping both axes, C30) — via lib/noise-proto.mjs.
+//   - sampler gate (FUN_0090d860, slab 0x50d3c3): cells processed only when
+//     the field value > 0.5 (comiss 0x11dfa94). Full three-way gate (C153):
+//     AIR MARK = v < 0 strictly, [0, 0.5] = unmarked base fill. Not ported
+//     as the mask rule — FLAGGED (D, ISSUES A11, owner I47): the hills field
+//     never goes negative, so the byte law alone collapses the band (§8 row
+//     62; see the mask site below).
+//   - per-cell noise input = cell coords + the per-biome "Wang offset"
+//     doubles (C24 runtime config; 159/223 = engine ConfigRegistry defaults,
+//     @prov noitool). Spatial diversity is location-driven (C27/C28: one
+//     seed draw per generator cell, no per-cell RNG in the noise).
 //   - the 10-px wang cell is the noise input unit: noiseTransform's
-//     (adj+0.5)·0.1 recovers the CELL index (C26: f64 0.1 @0x11dfd08).
+//     (adj+0.5)·0.1 recovers the cell index (C26: f64 0.1 @0x11dfd08).
 //
-// SHAPE-FIRST approximation (user mandate 2026-09-20): solid where the
-// binary evaluator value passes the sampler's own >0.5 gate. Material IDs
-// are shape-only (config-side naming 0xb78e0/0x603fd0 stays out of scope;
-// I4/I7 render artifacts still apply). The C24 offsets are engine runtime
-// config — the only non-static constants used here, tagged @prov noitool
-// per CONSTANTS.md::C24.
+// Shape-first approximation: solid where the evaluator value passes the
+// sampler's >0.5 gate. Material IDs are shape-only (config-side naming
+// 0xb78e0/0x603fd0 out of scope; I4/I7 render artifacts apply).
 
 import { K2, evaluator2, noiseDispatch, surfaceField } from "./noise-proto.mjs";
 import { biomeAt } from "./biomes.mjs";
@@ -38,16 +32,11 @@ import {
   classify,
 } from "./surface-level.mjs";
 
-// dig #30: the caves-field cache (the binary's std::map @0x132aae8
-// semantics — one cached cave grid per (seed, CaveStructure package);
-// the bytes are (seed, name)-deterministic per the C49 proof).
-// dig #101 CORRECTION: keyed by the biome FILE, not def.name — Noita's
-// biome name attr is empty for hills/hills2/mountain_tree (census this
-// session: all three def.name = "_EMPTY_"), so the old `${def.name}|${seed}`
-// key collided across biomes sharing that slot (measured: hills chunks
-// served another _EMPTY_ biome's grid ⇒ mask ≠ test mirror). A per-biome
-// config identity matches the binary's per-package keying (game memo
-// keyed &config+0xa8 = the per-config address, VERIFIED:600).
+// Caves-field cache (the binary's std::map @0x132aae8: one cave grid per
+// (seed, CaveStructure package); (seed, name)-deterministic per C49).
+// Keyed by the biome FILE, not def.name: hills/hills2/mountain_tree all
+// have def.name = "_EMPTY_" and would collide. A per-config identity
+// matches the game memo keyed on &config+0xa8 (VERIFIED:600).
 const cavesFieldCache = new Map(); // key -> buildCavesField result
 const dataDirRef = { dataDir: null };
 function ensureCavesField(dataDir, def, seed) {
@@ -61,37 +50,24 @@ function ensureCavesField(dataDir, def, seed) {
   return entry;
 }
 
-// dig #97 (C76): the biome <Materials> table feeding the SURFACE_V3
-// classify chain — cached per XML file (classify mutates nothing; the
-// comps are owned by this cache and take their celldata records at build
-// time). No <MaterialComponent> blocks → null = the game's
-// mBiomeMaterials == 0 arm (@0x90dd01 → je @0x90ddb0) → air. The band
-// seed {min:0, max:0} is the documented proxy — the game's seed init is
-// unread (OPEN, C76) and buildMaterialsTable's extend-if-narrower rule
-// makes the real band = the comps' hull ∪ {0,0} = [0, 3.5] for hills.
-// dig #133 (I32 p2c, the SKY/Hell layer law) AS CORRECTED BY THE NIGHT
-// LAW (2026-10-19, I32 amended): ONE sky backdrop for every world row
-// above the datum (canvas py < 31744 = bty 0..13 + the vmap sky above,
-// all the way up to the Heaven end) = BLACK air (null; the capture's
-// opaque black = air under C78's lum<24 mask rule) + the star sprite
-// (star_007.png) at hash-deterministic positions AT EVERY ALTITUDE.
-// The parallax-row gradient (weather_gfx/parallax_background.png, the
-// game's DAYTIME layer: blue (100,168,198) top → warm (254,206,108)
-// horizon) is NOT rendered: the render target = the noitamap/mapcap
-// reference, whose sky is opaque black + stars at every altitude
-// (M-grade: ref/35_10, 35_13, 30_13 = 100% alpha-255, ref sky-band
-// warm 0.001 vs our gradient's 0.892 — census
-// mapgen/out/surface-color-census-2026-10-19-*.json). WHY the capture
-// is night (time-of-day vs the layer-excluded world render) = OPEN,
-// untagged; either way the capture = the product target.
-// The per-biome bg art (cave_04_alt etc.) = the UNDERGROUND bands only
-// (bty ≥ 14); the hills def's cave-bg declaration does NOT paint the sky
-// (the user's in-game observation + the biome-map rows 1..12 = hills with
-// sky visible). Hell = the_end's own background_the_end.png (its
-// declaration; the template-lane air bg for the hell rows = tagged OPEN).
-// NIGHT law (2026-10-19): only the star sprite loads — the parallax
-// gradient png is the game's daytime layer and never renders here (see
-// the sky-law note at the top of this file; the capture = black).
+// The biome <Materials> table feeding the SURFACE_V3 classify chain (C76),
+// cached per XML file (classify mutates nothing; comps take their celldata
+// records at build time). No <MaterialComponent> blocks → null = the
+// game's mBiomeMaterials == 0 arm (@0x90dd01 → je @0x90ddb0) → air. The
+// band seed {min:0, max:0} is a proxy — the game's seed init is unread
+// (OPEN, C76); extend-if-narrower makes the band = comps' hull ∪ {0,0} =
+// [0, 3.5] for hills.
+//
+// Sky (I32): every world row above the datum (canvas py < 31744 = bty
+// 0..13 + the vmap sky up to the Heaven end) = black air (null; C78's
+// lum<24 mask rule) + the star sprite star_007.png at hash-deterministic
+// positions at every altitude. The parallax gradient
+// (weather_gfx/parallax_background.png, the game's daytime layer) is not
+// rendered: the noitamap/mapcap reference sky is opaque black + stars
+// (census mapgen/out/surface-color-census-2026-10-19-*.json). Why the
+// capture is night = OPEN. Per-biome bg art (cave_04_alt etc.) paints only
+// the underground bands (bty ≥ 14), not the sky. Hell = the_end's own
+// background_the_end.png (template-lane air bg for hell rows = OPEN).
 const skyBackdropCache = { done: false, star: null };
 function ensureSkyBackdrop(dataDir) {
   if (skyBackdropCache.done) return skyBackdropCache;
@@ -107,8 +83,8 @@ const skyStarHash = (cx, cy) =>
   (Math.imul(cx, 2654435761) ^ Math.imul(cy, 340573321)) >>> 0;
 
 const surfaceTableCache = new Map(); // def.filename -> table | null
-// dig #132 (I32 p2b): the per-biome AIR backdrop — the Topology
-// background_image loaded once per def; {w,h,pixels} | {fill} | null.
+// Per-biome AIR backdrop (I32): the Topology background_image, loaded once
+// per def; {w,h,pixels} | {fill} | null.
 const backdropCache = new Map(); // def.filename -> backdrop | null
 export function ensureBiomeBackdrop(dataDir, def) {  if (!def?.filename) return null;
   if (backdropCache.has(def.filename)) return backdropCache.get(def.filename);
@@ -121,12 +97,11 @@ export function ensureBiomeBackdrop(dataDir, def) {  if (!def?.filename) return 
     } catch { bd = null; } // unreadable/missing bg art → transparent air (honest)
   }
   if (bd) {
-    // dig #212 (C184): the clip pair + the limit_y edge sprite. 0x72c180
-    // builds "data/weather_gfx/limit_y/" + the backdrop's file name when the
-    // limit cuts into the chunk and places it at (chunk centre x,
-    // trunc(height)) via 0x72e330 (the shipped folder_desc.txt states the
-    // same rule). Its bottom sits on the height: the capture sweep over
-    // ref/15_14 peaks at top = height − 31 = 194 (E1, entry (212)).
+    // Clip pair + limit_y edge sprite (C184). 0x72c180 builds
+    // "data/weather_gfx/limit_y/" + the backdrop's file name when the limit
+    // cuts into the chunk and places it at (chunk centre x, trunc(height))
+    // via 0x72e330 (shipped folder_desc.txt states the same rule). Its
+    // bottom sits on the height (capture ref/15_14: top = height − 31 = 194).
     bd.limit = def.limitBackgroundImage ?? true;
     bd.height = def.backgroundImageHeight ?? 225;
     bd.edge = null;
@@ -146,21 +121,16 @@ export function ensureSurfaceTable(dataDir, def) {
   const dir = dataDir ?? dataDirRef.dataDir;
   if (dir) {
     const xml = fs.readFileSync(path.join(dir, def.filename.replace(/^data\//, "")), "utf-8");
-    // XML comments are NOT components: the game's parser never sees
-    // commented-out elements. dig #147 matched RAW text and built PHANTOM
-    // tables — temple_wall/boss_arena/end_wall ship ALL their polygon comps
-    // inside <!-- --> and wandcave 1 of 4 (census 647 raw → 640 active,
-    // 128 files: experiments/2026-10-16-dig148-xml-comp-census.mjs) — the
-    // phantom polygon comps painted rock_hard_border diamonds the game
-    // never renders (the retracted #147 "temple_wall 398" pin).
-    // Capture the FULL component body, including child <polygon> blocks —
-    // the polygon arm @0x8f5418 reads comp's vertex list (+0x78..+0x7c),
-    // which surface-level.mjs parses from the nested <Vec2/> nodes.
+    // XML comments are not components: the game's parser never sees
+    // commented-out elements (temple_wall/boss_arena/end_wall ship all their
+    // polygon comps inside <!-- -->). Capture the full component body,
+    // including child <polygon> blocks — the polygon arm @0x8f5418 reads
+    // the comp's vertex list (+0x78..+0x7c), parsed by surface-level.mjs
+    // from the nested <Vec2/> nodes.
     const xmlActive = xml.replace(/<!--[\s\S]*?-->/g, "");
     if (/<MaterialComponent\b[^>]*\/>/.test(xmlActive)) {
-      // the full-body matcher below would silently DROP a self-closing
-      // component (fail loud instead; none exists in shipped data as of
-      // dig #148 — swept biome/*.xml + biome_impl/*.xml).
+      // The full-body matcher below would silently drop a self-closing
+      // component; fail loud (none exists in shipped biome/ + biome_impl/).
       throw new Error(`noise-terrain: ensureSurfaceTable: self-closing <MaterialComponent/> in ${def.filename} would be dropped by the full-body matcher`);
     }
     const blocks = xmlActive.match(/<MaterialComponent\b[^>]*>[\s\S]*?<\/MaterialComponent>/g) ?? [];
@@ -177,28 +147,17 @@ export function ensureSurfaceTable(dataDir, def) {
 const CHUNK = 512; // (matches world-gen CHUNK; local to avoid the ESM cycle)
 const CELLS_PER_CHUNK = CHUNK / 10; // 51.2 → subrect 0..51 (C11 grid shape — cell 51 is the 20px remainder)
 
-// dig #31 revert made canonical (VERIFIED.md §12, the no-guessing mandate):
-// the true-0x90a860 lane is OPT-IN again — the ramp `gradAt` placeholder (and
-// DIG #192 PRODUCT FLIP (2026-10-23, the user's product mandate): the noise
-// band is ON by default — the world's generator ships ALL lanes (the template
-// + the wang bins + the art + the procedural terrain with the caves-field
-// composition). The old "must not ship as default" opt-in belonged to the
-// D-grade placeholder era, superseded by the C165/C166 port (the band is now
-// byte-backed + the M-grade measured: overall 0.602->0.675 raw / 0.603->0.748
-// registered). The env still allows the OUT for the instrument baselines and
-// the A/B lanes — dig #205's FRAME FLIP (C178): the surface band's shape =
-// the TOPOLOGY lane (the surfaceField evaluator — the mGradient heightmap /
-// the topology images), NOT the caves field (§8 row 75). The gates flip:
-// the V2 = the product lane (ON by default — the topology surface); the V3 =
-// the caves lane = OPT-IN (SURFACE_V3=1 — the underground's field; the
-// user's working caves stay accessible behind the flag).
-const SURFACE_V2 = process.env.SURFACE_V2 !== "0";  // the topology surface — ON by default (the dig #205 frame flip); SURFACE_V2=0 = the out-lane
-const SURFACE_V3 = process.env.SURFACE_V3 === "1";  // the caves field — OPT-IN (the underground lane; was the default pre-#205)
-// dig #202 (C175): the CaveStructure STAMP-FIELD lane — the fn870 α-blend
-// paints the stamps' decoded values (alpha × lum × strength) into the field
-// at the record-lane positions (the draws = dig #164's, byte-identical).
-// OPT-IN until the instrument verdict (the charter's env-gate rule); the
-// byte-plane stencil = the landed dig-#164 behavior, unaffected.
+// The noise band is on by default (C165/C166 port). The surface band's
+// shape = the topology lane (surfaceField evaluator — mGradient heightmap /
+// topology images), not the caves field (C178, §8 row 75): V2 = the
+// topology surface, on by default (SURFACE_V2=0 = out-lane for instrument
+// baselines); V3 = the caves field, opt-in (SURFACE_V3=1).
+const SURFACE_V2 = process.env.SURFACE_V2 !== "0";  // topology surface — on by default; SURFACE_V2=0 = out-lane
+const SURFACE_V3 = process.env.SURFACE_V3 === "1";  // caves field — opt-in
+// CaveStructure stamp-field lane (C175): the fn870 α-blend paints the
+// stamps' decoded values (alpha × lum × strength) into the field at the
+// record-lane positions. Opt-in until the instrument verdict; the
+// byte-plane stencil is unaffected.
 const SURFACE_STAMPS = process.env.SURFACE_STAMPS === "1";
 
 // Per-biome "Wang offset" (C24/C28): ConfigRegistry defaults, engine-side.
@@ -207,8 +166,8 @@ function biomeCfg(_biome) {
   return { minX: 159.0, maxX: 223.0 };
 }
 
-// ============ THE BAND-RAMP DRIVER FRAME (dig #142, C119/C113) ============
-// The kind-0 r-site (true 0x90B280, dig #142) reads its bands through a
+// ============ Band-ramp driver frame (C119/C113) ============
+// The kind-0 r-site (true 0x90B280) reads its bands through a
 // frame object: baseX/baseY (Phase G's world origin), the 70x48 tile
 // grid dims, bandCount, the Phase-S x-seed slot, and the two accessors
 // (GetAt on the biome matrix / the 0x909C70 cell accessor).
@@ -216,7 +175,7 @@ const f = Math.fround;
 
 // bandBlockOf — the per-biome band block = the slots bandParams
 // (true 0x90B680) reads off the band pointer (C118 key map; f32 slots
-// stored f32-rounded, C116 defaults — dig #142). Also spread into uid
+// stored f32-rounded, C116 defaults). Also spread into uid
 // (uidFrom below) because the two r-eval config arms pass the uid itself
 // as the band.
 export function bandBlockOf(def) {
@@ -226,7 +185,7 @@ export function bandBlockOf(def) {
     gradStartY: f(n(def.mGradientStartY, -512)),      // f32 [+0x270]
     gradEndY: f(n(def.mGradientEndY, 512)),           // f32 [+0x274]
     gradSlopeStartX: n(def.mGradientSlopeStartX, 0),  // f64 [+0x278]
-    gradSlopeDelta: n(def.mGradientSlopeDelta, 1.0),  // f64 [+0x280] (ctor default 1.0 — movsd %xmm1 @0x49615d, [0x11e0b40] f64 1.0; dig #145 — the port's old 0.01 was invented)
+    gradSlopeDelta: n(def.mGradientSlopeDelta, 1.0),  // f64 [+0x280] (ctor default 1.0 — movsd %xmm1 @0x49615d, [0x11e0b40] f64 1.0)
     mode: n(def.mGradientAddNoise, 1) | 0,            // i32 [+0x288] (ctor default 1)
     gradNoiseScale: n(def.mGradientNoiseScale, 0),    // f64 [+0x290] (ctor default 0)
     gradLowNoise: f(n(def.mGradientLowNoise, -100)),  // f32 [+0x298]
@@ -238,8 +197,8 @@ export function bandBlockOf(def) {
 // computed LOCALLY: GetSeed's diddled f64 seed ({0.0, 2^32} by sign bit,
 // [eax*8+0x11E0BA0]) → the 0x452BA0 ctor clamp (>= 2147483647.0 → x0.5)
 // → the ctor's WARM draw → three live draws u1/u2/u3. Every draw is
-// 0x10098C0 = the LEHMER/MINSTD law (NOT wang-js's tile LCG — that is a
-// different RNG class; dig #142): state' = 16807*trunc(state) mod
+// 0x10098C0 = the Lehmer/MINSTD law (not wang-js's tile LCG — a
+// different RNG class): state' = 16807*trunc(state) mod
 // 2147483647 with the <=0 → +=2147483647 fixup, draw = f64(state') x
 // [0x11DF988] = 4.656612875e-10 (truncated decimal, byte-read); state 0
 // = the debug assert (log + crash) → seed 0 is invalid. Returns the
@@ -283,11 +242,10 @@ function buildBandDriver(config, seed) {
   const w = 70, h = 48;                      // C119: driver[+0x50]/[+0x54] = the Phase-G dims
   const { xBase } = phaseSXBase(seed);       // C119: driver[+0x48] = Phase-S u2 (live)
   const bandMemo = new Map();                // biome def -> band block | null (per driver)
-  // FLAGGED (ISSUES §A A4 residual, dig #142): the band-matrix VALUE
-  // producer (Init's fill via 0x9FEE40 + the Table-B consumer) was never
-  // read; this resolves cells through the biome-map image instead —
-  // same image C119 pins (TopLeft world x -17920 / row0 y -7168), but
-  // the exact equivalence to the game's matrix fill is unproven (D).
+  // FLAGGED (D, ISSUES §A A4 residual): the band-matrix value producer
+  // (Init's fill via 0x9FEE40 + the Table-B consumer) is unread; cells
+  // resolve through the biome-map image instead (same image C119 pins:
+  // TopLeft world x -17920 / row0 y -7168); equivalence unproven.
   const bandAtIdx = (idx) => {
     const col = idx % w, row = (idx / w) | 0;   // GetAt decodes W*row+col
     const def = biomeAt(config, col, row)?.biome;
@@ -317,24 +275,20 @@ function buildBandDriver(config, seed) {
   };
 }
 
-// uid-config adapter (C37 offset map) ← the extracted XML attrs (dig #8
-// extraction in biomes.mjs, ABOUT_MATH (22)). MISSING surfaces (the
-// mGradientSinMultiple*/mGradientType/mInsidePerlinFunc pair of the
-// winter-only attrs never appears in the exe) → number("") guards.
-// SLOT BINDING (CE-verified 2026-09-20 (35), CONSTANTS.md C43; term offsets
-// C37): gradWCoef = [+0x268] = XML mMultiplierPerlin (CE: hills 1.0 with
-// the attr ABSENT; winter.xml 0.642857); perlinCoef = [+0x264] =
-// XML mMultiplierGradient (hills 0.871429 ✓).
-// dig #145 (I33 fix): THE TWO NOISE ATTRS ARE DISTINCT SLOTS — the old
-// adapter derived noiseKind FROM noise_type (the C42-era proxy) and
-// sourced addNoise from mGradientAddNoise; both are byte-wrong:
+// uid-config adapter (C37 offset map) ← the XML attrs extracted in
+// biomes.mjs. Attrs absent from the exe (mGradientSinMultiple*/
+// mGradientType/mInsidePerlinFunc, winter-only) → number("") guards.
+// Slot binding (CE-verified, C43): gradWCoef = [+0x268] = XML
+// mMultiplierPerlin (hills 1.0 with the attr absent; winter.xml 0.642857);
+// perlinCoef = [+0x264] = XML mMultiplierGradient (hills 0.871429).
+// The noise attrs are distinct slots (I33):
 //   noise_type      → [+0x220] (sink 0x4909b0 → strcmp enum parser
 //                     0x490650; the enum feeds the r-eval case switch)
 //   mInsideNoiseType → [+0x224] (sink 0x4911a0 → name→kind parser 0x490dc0;
 //                     the noiseDispatch arg; ctor default 5)
-//   mGradientAddNoise → [+0x288] = bandParams' mode (read at :699 of
-//                     noise-proto — DEAD in the r-eval uid switch)
-// Both parsers' name tables are now fully extracted (X104):
+//   mGradientAddNoise → [+0x288] = bandParams' mode (noise-proto; dead in
+//                     the r-eval uid switch)
+// Both parsers' name tables (X104):
 export const NOISE_TYPE_KIND = { // noise_type name → [+0x220] enum (@0x490650; .rdata names 0x117880c/0x1178834/0x1178850/0x1178878)
   IQ2_SIMPLEX1234: 0, IQ_SIMPLEX: 1, SIN_CAPPED_EVERYTHING: 2, SIN_CAPPED_SIMPLEX: 3,
 }; // unknown name → the parser's error arm returns 0 (game logs NOISE_TYPE); absent attr → the ctor default 0 (movl $0 @0x4960d2). Live census: all 36 noise_type attrs = SIN_CAPPED_SIMPLEX ⇒ 3 ⇒ case 3
@@ -346,65 +300,50 @@ function uidFrom(def, cfg) {
   const n = (v, d) => { const p = parseFloat(v); return Number.isFinite(p) ? p : d; };
   return {
     ...bandBlockOf(def),   // the band block (C118 slots; f32-rounded) — the r-eval
-                           // config arms pass THIS as the band (dig #142)
+                           // config arms pass this as the band
     noiseKind: def.mInsideNoiseType !== undefined ? (NOISE_NAME_KIND[def.mInsideNoiseType] ?? 0) : 5, // [+0x224] (X104); never -1 ⇒ the kind-default arm (I33a) rides along
     gradient: 0,           // unused until the field-source read (see C44)
     sx: n(def.mInsidePerlinScaleX, 1), sy: n(def.mInsidePerlinScaleY, 1), // ctor {1,1}
     ox: 0, oy: 0,          // mInsidePerlinOffsetX/Y not present in current XMLs (census)
-    offsetBySeed: def.mInsideOffsetBySeed === "1", // [+0x24d] gate — 0 live files (dig #155 sweep; ctor clears the slot per C126), parse wired for map completion
+    offsetBySeed: def.mInsideOffsetBySeed === "1", // [+0x24d] gate — 0 live files (ctor clears the slot, C126); parsed for completeness
     fbm: n(def.mInsideNoiseFBM, 1) === 1, // [+0x228] ctor default 1 (movb $1 @0x4960e6) — the 6 live files all carry "1"
     squared: n(def.mInsidePerlinSquared, 0) === 1,
     clamped: n(def.mInsidePerlinClamped, 0) === 1,
     scaled: n(def.mInsidePerlinScaled, 0) === 1,
-    scaleMin: n(def.mInsidePerlinScaleMin, 0),   // ctor [+0x244] = 0 (the port's old 0.057143 was invented)
+    scaleMin: n(def.mInsidePerlinScaleMin, 0),   // ctor [+0x244] = 0
     scaleMax: n(def.mInsidePerlinScaleMax, 0),   // ctor [+0x248] = 0
     gradWCoef: n(def.mMultiplierPerlin, 1.0),   // [+0x268] (CE hills=1.0)
-    perlinCoef: n(def.mMultiplierGradient, 1.0), // [+0x264] ctor default 1.0f (dig #145; CE hills=0.871429 attr value)
-    addValue: n(def.mInsideAddValue, 0),         // [+0x260] ctor default 0; LIVE on 4 files = exactly the lake family (all "5.0", dig #155 sweep — the (151)-era "no live attr" line was swept on the wrong slot family)
-    addNoise: NOISE_TYPE_KIND[def.noiseType] ?? 0, // [+0x220] = the noise_type enum (X104) — NOT mGradientAddNoise (that is [+0x288] mode)
+    perlinCoef: n(def.mMultiplierGradient, 1.0), // [+0x264] ctor default 1.0f (CE hills=0.871429 attr value)
+    addValue: n(def.mInsideAddValue, 0),         // [+0x260] ctor default 0; live on the 4 lake-family files (all "5.0")
+    addNoise: NOISE_TYPE_KIND[def.noiseType] ?? 0, // [+0x220] = the noise_type enum (X104), not mGradientAddNoise ([+0x288] mode)
     minX: cfg.minX, maxX: cfg.maxX,         // C24 lane (passed through)
     field0: def.bitmapNoiseFile ? 0 : 1.0,  // I52 fix (A19 stand-in): the lake family's topology body ⇒ the early-zero arm (see surfaceField)
   };
 }
 
-// gradAt: the mGradient y-ramp INSTRUMENT for biomes WITHOUT bitmap_noise_file
-// (NOT byte-backed — the C39 open item "per-biome image path resolution for
-// hills/winter"; registered in CONSTANTS.md C39 / VERIFIED.md §12). Shape model: linear
-// ramp StartY→EndY mapping to LowNoise→HighNoise on world-y. Isolated here
-// so the instrument can swap it once the rasterize read lands.
-// **dig #146 SCOPE — RETIRED FROM THE LANES (C39 demoted):** the kind-0
-// lanes no longer build any gradAt — the byte law is field0 ≡ 1.0 for P == NULL
-// (dig #169/C144 CORRECTION: NOT "every shipped biome" — the lake family
-// (lake/lake_blood/lake_deep/lake_statue) carries bitmap_noise_file →
-// topology_lake.png and the P-wire (the [+0xa8] path → [uid+0x1d4]) = the
-// OPEN read (#170); the no-gradAt stance stays the honest port behavior for
-// the non-attr biomes incl. this anchor) — so neither this ramp nor the
-// topology loader below is load-bearing any more (D-claim retired). Both
-// survive HERE only for the dated probes that still construct them:
-// experiments/2026-10-15-kind-default-probe.mjs (dig #144 pre-port
-// measurement) and 2026-10-15-noodle-throw.mjs (I35's audit instrument).
+// gradAt: the mGradient y-ramp instrument for biomes without
+// bitmap_noise_file (not byte-backed, C39 stand-in): linear ramp
+// StartY→EndY mapping to LowNoise→HighNoise on world-y. Not used by the
+// lanes: the kind-0 byte law is field0 ≡ 1.0 for P == NULL (the lake
+// family carries bitmap_noise_file → topology_lake.png; its P-wire
+// [+0xa8] path → [uid+0x1d4] is OPEN, C144). This ramp and the topology
+// loader below survive only for experiments/2026-10-15-kind-default-probe.mjs
+// and 2026-10-15-noodle-throw.mjs (I35).
 function makeGradAt(def) {
   const y0 = parseFloat(def.mGradientStartY ?? "-1024");
   const y1 = def.mGradientEndY ?? 1024;
   const lo = parseFloat(def.mGradientLowNoise ?? "0");
   const hi = parseFloat(def.mGradientHighNoise ?? "0");
-  // dig #117 (I23② action; C39/C80/C95): the ramp's contract is WORLD-Y PX
-  // (StartY/EndY — C80's capture-validated 0.5-crossing at wy≈+235 px),
-  // while surfaceField now hands gradAt the GAME's grid units
-  // (u = 0.049162514·px + 0.1a, C95). Recover px here so the (A) placeholder
-  // keeps its calibrated behaviour instead of collapsing to C80's
-  // degenerate clamped-flat; the bitmap/topology gradAts stay grid-indexed
-  // (byte law) — only the invented ramp converts. (A) debt, C39.
+  // The ramp's contract is world-y px (StartY/EndY; C80's 0.5-crossing at
+  // wy≈+235 px), while surfaceField hands gradAt grid units
+  // (u = 0.049162514·px + 0.1a, C95), so recover px here. The
+  // bitmap/topology gradAts stay grid-indexed (byte law). (A) debt, C39.
   const gridToPx = 1 / (K2.f64_049162514 * K2.f32_0p1); // ≈ 20.34 px/texel
-  // dig #145 (C45 byte-law range): this instrument stands in for the
-  // game's BitmapNoise FLOAT GRID, whose per-cell values are ±1.0 (lane A)
-  // or the fallback grey (R+2G)/3 ∈ [0,1] (lane B) — the ramp must live in
-  // THAT range. Unclamped, empty.xml's LowNoise/HighNoise (−292.6/+234.1)
-  // fed field0 up to ~102 ⇒ rp ≫ 0.85 ⇒ the case-3 acos arm went out of
-  // domain (NaN ⇒ air) — measured falsifier, dig #145 probe P-1a. The
-  // clamp does not move the 0.5-crossing (raw ramp hits ±1 within wy
-  // 110..118); it caps the extremes the way the grid bake does. (A) debt
-  // C39 unchanged — only the range is now byte-anchored.
+  // Range (C45): the stand-in for the game's BitmapNoise float grid, whose
+  // cells are ±1.0 (lane A) or the fallback grey (R+2G)/3 ∈ [0,1] (lane
+  // B). Unclamped, empty.xml's LowNoise/HighNoise (−292.6/+234.1) push
+  // field0 to ~102 and the case-3 acos arm out of domain (NaN ⇒ air). The
+  // clamp does not move the 0.5-crossing.
   return (gx, gy) => {
     const wy = gy * gridToPx;
     const t = Math.max(0, Math.min(1, (wy - y0) / Math.max(1e-6, y1 - y0)));
@@ -412,14 +351,14 @@ function makeGradAt(def) {
   };
 }
 
-// dig #24: gradAt via the C39 IMAGE-LANE = the `bitmap_noise_file` topology
+// gradAt via the C39 image lane = the `bitmap_noise_file` topology
 // PNG baked to a per-cell float grid (CONSTANTS.md::<C45>): the SetSize+Load
 // wrapper true 0x8fa930 = (this, src{w,h,pixels}, flag) → realloc own float
 // grid w·h ×4 B + memset, then LoadFromImageData true 0x8f9ab0 (per cell:
 // color → A-resolver [+0xb0] → u16 = id+1, float grid [+0x18] = ±1.0;
 // the B-map [+0xb4] fallback-grey lane = (R+2G)/3.0 float). The per-biome
-// A-resolver = config-side, UNRESOLVED → this lane bakes the fallback grey,
-// flagged. The wrap-mod getter true 0x9fe620 (idx mod w/h).
+// A-resolver is config-side and unresolved → this lane bakes the fallback
+// grey (FLAGGED). The wrap-mod getter true 0x9fe620 (idx mod w/h).
 const fieldGridCache = new Map(); // absPath -> {w, h, grid}
 function loadFieldGrid(dataDir, relPath) {
   const key = path.join(dataDir, relPath.replace(/^data\//, ""));
@@ -449,8 +388,7 @@ export function makeGradAtFromTopology(dataDir, def) {
 
 // Solid mask for one 512-chunk in a procedural (non-wang-template) biome.
 // Returns a 52×52 Uint8Array (cell grid; 1 = solid, 0 = air/empty).
-// SURFACE_V3 (dig #30, 2026-09-21): for biomes carrying <BitmapCaves> the
-// field source = lib/caves-field.mjs buildCavesField (the byte-canonical
+// SURFACE_V3: for biomes carrying <BitmapCaves> the field source = lib/caves-field.mjs buildCavesField (the byte-canonical
 // core: the fn C1 all-1.0 base + the C27 diddled-ws ctor chain + the C50
 // knob interp + the (43)(a) falloff; the fn A ≤50-step chain walk) with
 // the XML knobs — replacing the injected gradAt ramp for those biomes.
@@ -461,83 +399,61 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
   const at = biomeAt(config, tx, ty - SKY_ROWS);
   const def = at?.biome;
   if (!def || def.templateFile) return null; // wang/template chunks handled elsewhere
-  // A21 (registered approximation, 2026-11-08): a template-less
-  // BIOME_WANG_TILE room ABOVE the surface (world y < 0 ⇔ canvas ty < 62)
-  // gets no noise terrain. E1 on every captured chunk of such defs: the 4
-  // sky-band ones improve (roadblock 5→100 %, ocarina 89→99, song_room
-  // 86→92, essenceroom_air 90→96 % solid/air agreement) while the
-  // underground ones NEED the solid lane (skipping them all: lavalake
-  // 100→29, lavalake_pit 100→12, watercave 100→5 %). The engine mechanism is
-  // unread (candidate: the topology gradient mGradientStartY = −1024, which
-  // the kind-0 lane drops — dig #146).
+  // A21 (registered approximation): a template-less BIOME_WANG_TILE room
+  // above the surface (world y < 0 ⇔ canvas ty < 62) gets no noise
+  // terrain; captured sky-band rooms are air there while underground ones
+  // need the solid lane. Engine mechanism unread (candidate: the topology
+  // gradient mGradientStartY = −1024, which the kind-0 lane drops).
   if (def.topologyType === "BIOME_WANG_TILE" && ty < 62) return null;
   const mask = new Uint8Array(52 * 52);
-  const matIdx = new Uint8Array(52 * 52); // 255 = air/unclassified; else the comp index (dig #130)
+  const matIdx = new Uint8Array(52 * 52); // 255 = air/unclassified; else the comp index
   const cfg = biomeCfg(def);
   if (!dataDirRef.dataDir) {
     try { dataDirRef.dataDir = findNoitaDataDir(); } catch { dataDirRef.dataDir = null; }
   }
   if (SURFACE_V2) {
-    // dig #9c lane (true 0x90a860): surfaceField with the ramp-prototype
-    // gradAt; noise cores below kind 3 THROW until W3/W4 land — those
-    // biomes yield null (caller falls through), honestly. (dig #145, I33a:
-    // the kind-1 throw path is CLOSED — uidFrom's [+0x224] ctor default 5
-    // never yields -1; only UNREAD cores 0/1/2/4 can still throw.)
+    // true 0x90a860 lane: surfaceField. Unread noise cores 0/1/2/4 throw —
+    // those biomes yield null (caller falls through). uidFrom's [+0x224]
+    // ctor default 5 never yields -1 (I33a).
     const uid = uidFrom(def, cfg);
-    uid.driver = makeBandDriver(config, seed);  // dig #142: the kind-0 r-site frame; dig #145 (I21 flip landed): the lane feeds it WORLD px below
-    // dig #30: the caves-field source when the biome carries <BitmapCaves>
-    // (the hills/desert/pyramid family). Dig #146 closed the kind-0 else-
-    // arm: for the NON-ATTR shipped biomes (incl. the mountain_lake anchor)
-    // the in-binary P (BitmapNoise [uid+0x1d4]) is NULL, so field0 ≡ 1.0
-    // inside surfaceField and NO gradAt is built for kind-0 lanes (the C39
-    // image-lane/ramp instruments are retired from the lanes — see
-    // makeGradAt's header for their surviving scope). Dig #169/C144
-    // correction: the lake family DOES carry bitmap_noise_file (4 defs →
-    // topology_lake.png) and its P-wire = the open read (#170); the port
-    // behavior is unchanged.
+    uid.driver = makeBandDriver(config, seed);  // the kind-0 r-site frame; the lane feeds it world px below (I21)
+    // Caves-field source when the biome carries <BitmapCaves> (hills/
+    // desert/pyramid family). For other shipped biomes the in-binary P
+    // (BitmapNoise [uid+0x1d4]) is NULL, so field0 ≡ 1.0 inside
+    // surfaceField and no gradAt is built (lake family: P-wire OPEN, C144).
     let gradAt = null;
-    // dig #121 (entry (121), I25 index half): when the caves field
-    // attaches, the lane's VALUE = the field read DIRECTLY at cell
-    // coords — the game's sampler reads it via getter 0x9499f0 on
+    // When the caves field attaches, the value = the field read directly at
+    // cell coords (I25): the sampler reads it via getter 0x9499f0 on
     // &owner+0xb4 with idx = W·y + x (stride [0x9c] = grid[0]) and the
-    // >0.5 gate (@0x90dba5..0x90dbd0), NOT through surfaceField (the
-    // kind-0 combine never touches the caves grid — dig #121; its u-law
-    // grad chain died with the P==NULL law, dig #146). The wrapper below is
-    // the byte law (mod-wrap = the tile repeat; canvas vs world px agree
-    // under it — the C80 origins are multiples of 512 and 256).
+    // >0.5 gate (@0x90dba5..0x90dbd0), not through surfaceField (the kind-0
+    // combine never touches the caves grid). Mod-wrap = the tile repeat;
+    // canvas vs world px agree under it (C80 origins are multiples of 512).
     let cavesSrc = false;
-    let byteAt = null; // dig #164: the byte-plane reader (the caves branch assigns)
-    // dig #208: the attach is ROW-GATED to the UNDERGROUND (the map rows
-    // 15+ = ty ≥ SKY_ROWS+15): the caves field's band-origin = the wy 0-line,
-    // and applying it to the surface-band chunks (bty ≤ 14) = the dead lane
-    // §8 row 75 killed (the bty13's OOB-air, the bty14's wrong-lane soil).
+    let byteAt = null; // byte-plane reader (assigned by the caves branch)
+    // The attach is row-gated to the underground (map rows 15+ = ty ≥
+    // SKY_ROWS+15): the caves field's band origin = the wy 0-line; surface-
+    // band chunks (bty ≤ 14) must not use it (§8 row 75).
     if (SURFACE_V3 && def.bitmapCaves && def.bitmapCaves.sizeX) {
       const caves = ensureCavesField(dataDirRef.dataDir, def, seed);
       const { w: fw, h: fh, field, bytes: fbytes } = caves;
-      // dig #164 (the byte-plane gate, C136): the sampler's FIRST gate per
-      // cell = the [P+0x58] byte plane (cmp slot,0 → skip = air,
-      // @0x90D912); only byte-nonzero cells reach the field gate below.
-      // The plane's writer = the record lane's stencil (the dig-#162 law;
-      // the dig-#163 spawn-lane claim RETRACTED — spawn_percent = 0 × 55
-      // biomes = the never-fires item side-lane, the C98 original stands).
-      // dig #131 (the read-window law): the caves grid lives in the WORLD
-      // frame (C80 origin = canvas py 31744 = biome row 14; C49's name-
-      // keyed cache). The sampler's getter (0x9499f0, dig #121)
-      // bounds-checks: the surface band bty 1..13 reads NEGATIVE world
-      // rows ⇒ out of bounds ⇒ nothing read ⇒ AIR (the sky stays sky);
+      // Byte-plane gate (C136): the sampler's first gate per cell = the
+      // [P+0x58] byte plane (cmp slot,0 → skip = air, @0x90D912); only
+      // byte-nonzero cells reach the field gate. The plane's writer = the
+      // record lane's stencil (C98).
+      // Read window: the caves grid lives in the world frame (C80 origin =
+      // canvas py 31744 = biome row 14). The getter 0x9499f0 bounds-checks:
+      // negative world rows (surface band bty 1..13) read nothing ⇒ air;
       // the field repeats (row mod fh) only at/below the band origin.
-      // The old mod-wrap read constant rows 5/125/255 in EVERY chunk
-      // (512 % 256 = 0) — the terrain-fills-the-sky defect.
       const bandY0 = 31744; // (SKY_ROWS+14)·512 = C80 worldY0
       const bandX0 = 17920; // C80 worldX0
       gradAt = (gx, gy) => {
         const row = gy - bandY0;
-        if (row < 0) return 0; // above the band origin: OOB read ⇒ air (dig #131)
+        if (row < 0) return 0; // above the band origin: OOB read ⇒ air
         const col = gx - bandX0;
         return field[(((row % fh) + fh) % fh) * fw + (((col % fw) + fw) % fw)];
       };
-      // dig #164: the byte-plane reader — the same mod-wrap frame as the
-      // field (the plane shares the grid dims + the getter's frame).
+      // Byte-plane reader — same mod-wrap frame as the field (shared grid
+      // dims + getter frame).
       byteAt = (gx, gy) => {
         const row = gy - bandY0;
         if (row < 0) return 0;
@@ -546,24 +462,12 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
       };
       cavesSrc = true;
     }
-    // (dig #146: the kind-0 else-arm that built topology/ramp gradAts is
-    // GONE — surfaceField's field0 ≡ 1.0 makes any gradAt unreachable.)
-    // dig #117 (I23② action): FEED PIXELS — the game's caller frame is
-    // px+0.5 (0x908f7e adds 0.5 then calls @0x908f96, C95). V2's old cell
-    // pre-scale (÷10 via CELLS_PER_CHUNK) STARVED every noise/r-eval
-    // consumer 10× (I23②); every kind-0 consumer (r-eval @0x90b280,
-    // insidePerlin, case arms) reads RAW WORLD px. Same canvas registration
-    // as before (tx·512+cx·10+5 = 10·(tx·51.2+cx+0.5)). (The dig-#117
-    // surfaceField ×0.1 GRID feed died with the u-law — dig #146.)
-    // dig #145 (I33(b) fix, I21's frame flip landed): the FIELD build feeds
-    // WORLD px (C80: wx = canvas − 17920, wy = canvas − 31744) — the binary's
-    // kind-0 lane reads world coords everywhere. The old canvas feed put the
-    // ground band at wy ≈ 31745+, far above the band window (B ≤ ~1258), so
-    // rampGate saturated r ≡ 1.0 with the 0.5-capped field0 ⇒ a CONSTANT
-    // field below the 0.5 gate ⇒ the all-air NOISE→AIR collapse (I33).
-    // The BitmapCaves wrapper above keeps its CANVAS args (it subtracts the
-    // origins itself — dig #131), and classify keeps the parked C76 frame
-    // (canvas x, canvas y − 24576 — I21's classify flip stays parked).
+    // Feed pixels: the game's caller frame is px+0.5 (0x908f7e adds 0.5
+    // then calls @0x908f96, C95); every kind-0 consumer (r-eval @0x90b280,
+    // insidePerlin, case arms) reads raw world px (tx·512+cx·10+5 =
+    // 10·(tx·51.2+cx+0.5)). The field build feeds world px (C80: wx =
+    // canvas − 17920, wy = canvas − 31744). The BitmapCaves wrapper above
+    // takes canvas args (it subtracts the origins itself).
     const worldX0 = 35 * CHUNK; // 17920 — C80 world x origin (biome px 35)
     const worldY0 = (SKY_ROWS + 14) * CHUNK; // 31744 — C80 world y origin (biome row 14)
     for (let cy = 0; cy < 52; cy++) {
@@ -571,62 +475,47 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
         const gx = tx * CHUNK + cx * 10 + 5;
         const gy = ty * CHUNK + cy * 10 + 5;
         let v;
-        // dig #208: the caves-lane = the UNDERGROUND's rows only (the
-        // attach's row-gate, §8 row 75) — the surface-band chunks (the ty
-        // < SKY_ROWS+15) run the noise lane even under SURFACE_V3.
+        // Caves lane = underground rows only (§8 row 75); surface-band
+        // chunks (ty < SKY_ROWS+15) run the noise lane even under SURFACE_V3.
         const useCaves = cavesSrc && ty >= SKY_ROWS + 15;
         try {
-          // dig #164: the byte plane EXISTS in the grid now (the record
-          // lane's stamps write it — caves-field), but the sampler gate is
-          // NOT wired yet: the count test showed the port's plane coverage
-          // (0.0/2.3/2.1% per desert/_EMPTY_/winter) is 20–30× short of the
-          // capture's solid shares (65/47/37%) AND desert — with ZERO
-          // CaveStructure records — still shows 65% capture ⇒ the record
-          // lane is NOT the plane's (sole) writer. The gate wires when the
-          // writer lane is byte-resolved (dig #165). Gate shape (kept for
-          // that wiring): byte===0 ⇒ mask 0, matIdx 255, continue.
-          // dig #121: the caves-lane value = the direct cell read
-          // (gradAt above is the cell-law wrapper); the kind-0 combine
-          // takes world px and no gradAt (field0 ≡ 1.0, dig #146).
+          // The byte-plane gate is not wired: the port's plane coverage
+          // (0.0/2.3/2.1% desert/_EMPTY_/winter) is 20–30× short of the
+          // capture's solid shares (65/47/37%), and desert has zero
+          // CaveStructure records ⇒ the record lane is not the plane's sole
+          // writer. Wire when the writer lane is byte-resolved; gate shape:
+          // byte===0 ⇒ mask 0, matIdx 255, continue.
+          // Caves lane value = the direct cell read; the kind-0 combine
+          // takes world px and no gradAt (field0 ≡ 1.0).
           v = useCaves ? gradAt(gx, gy)
             : surfaceField(uid, gx - worldX0, gy - worldY0, DEF_SEED);
         } catch {
           return null; // unread-core lane
         }
-        // dig #178 (C153; FULL-WINDOW read of the sampler fn 0x90d860 →
-        // ret 0x90de0d + the out-of-line blocks to 0x90e058, X178): the
-        // game's AIR MARK = the STRICTLY-NEGATIVE field cells — the air arm
-        // @0x90e02b does `xorps; comiss %xmm0,%xmm1; jbe skip` then stamps
-        // `movb $1` into the u8 plane at [owner+0x1a0] ONLY when v < 0. The
-        // v ∈ [0, 0.5] cells receive NO stamp (neither that air plane nor
-        // the solid plane at +0x1c0) = the band's base fill; only v > 0.5
-        // opens the claim path (the comiss 0x11dfa94 `jbe` @0x90dbd0 = the
-        // gate's ENTRY threshold, NOT the air mark — C136 amended in-row).
-        // dig #208 (X215): **THE KIND-0 CELL-LAW = THE CLASSIFY-OR-AIR** —
-        // the walk 0x792580's post-classify arm @0x7930D8 (`test eax,eax;
-        // jne 0x7935F4` = the paint path; the fallthrough = NO PAINT = the
-        // untouched zeroed grid = AIR) + the classify's miss-exit 0x8F574C
-        // (`xor eax,eax; ret 0x8`). The dig-#178 `v > 0.5` mask = the
-        // flagged stand-in (A11) — RETIRED on the surfaceField branch: the
-        // cell = SOLID iff the classifier matches (the band gate + the
-        // per-comp windows + the limit_y flag/limits decide). The classify's
-        // y = THE WALK-Y = THE WORLD px (the limits' semantics: the hills'
-        // soil [−1024, 424.229] and the lake's water [225, 512000] = the
-        // world-y bands — the C76-era map-y (−24576) fed the limits garbage
-        // = the soil/snow never painted; the world-y = A18's frame answer).
-        // The x = the canvas px (the shift-invariant rare-pattern seed —
-        // C76 kept). **THE CAVES-LANE KEEPS ITS OWN LAW** — the sampler's
-        // field > 0.5 gate (@0x90DBD0) + the classify = the byte-chain
-        // (0x90DD7E); the classify-or-air is the WALK's kind-0 arm only.
+        // Sampler 0x90d860 (C153, X178): the AIR MARK = strictly negative
+        // cells — the air arm @0x90e02b (`xorps; comiss %xmm0,%xmm1; jbe
+        // skip`) stamps `movb $1` into the u8 plane at [owner+0x1a0] only
+        // when v < 0. v ∈ [0, 0.5] gets no stamp (base fill); only v > 0.5
+        // opens the claim path (comiss 0x11dfa94 `jbe` @0x90dbd0 = the
+        // gate's entry threshold, not the air mark).
+        // Kind-0 cell law = classify-or-air (X215): the walk 0x792580's
+        // post-classify arm @0x7930D8 (`test eax,eax; jne 0x7935F4` = paint;
+        // fallthrough = no paint = air) + the classify miss-exit 0x8F574C
+        // (`xor eax,eax; ret 0x8`). On the surfaceField branch the cell is
+        // solid iff the classifier matches (band gate + per-comp windows +
+        // limit_y flag/limits). Classify y = world px (hills soil [−1024,
+        // 424.229], lake water [225, 512000] are world-y bands; A18); x =
+        // canvas px (shift-invariant rare-pattern seed, C76). The caves lane
+        // keeps its own law: field > 0.5 gate (@0x90DBD0) + classify
+        // (0x90DD7E).
         let mi = 255;
         let solidBit;
         if (useCaves) {
           solidBit = v > 0.5 ? 1 : 0;
           if (solidBit) {
             const table = ensureSurfaceTable(dataDirRef.dataDir, def);
-            // the classify = ONE fn/ONE semantics: the limits = the world-y
-            // (the same law as the walk's arm — the caves' mask keeps its
-            // own >0.5 gate @0x90DBD0, only the material layer classifies)
+            // same classify as the walk's arm (world-y limits); only the
+            // material layer classifies, the mask keeps the >0.5 gate
             const rec = table ? classify(table, gx, gy - worldY0, v) : null;
             if (rec) mi = rec.i;
           }
@@ -641,80 +530,53 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
         matIdx[52 * cy + cx] = mi;
       }
     }
-    // dig #130: matNames = the classify table's component names in order
+    // matNames = the classify table's component names in order
     // (the render maps name → materials.xml wang_color).
     const matTable = ensureSurfaceTable(dataDirRef.dataDir, def);
     const matNames = matTable ? matTable.components.map((c) => c.material_name) : null;
     const backdrop = ensureBiomeBackdrop(dataDirRef.dataDir, def);
     return { mask, def, v2: true, matIdx, matNames, backdrop };
   }
-  // dig #97 (C76) — Phase 4 step 3: the sampler's classify chain wired
-  // into the SURFACE_V3 lane (attach-gated @:235). Chain order mirrors
-  // the bytes: field > 0.5 gate (@0x90dbc3 comiss → jbe @0x90dbd0) →
+  // Sampler classify chain (C76), V3 lane. Chain order mirrors the bytes: field > 0.5 gate (@0x90dbc3 comiss → jbe @0x90dbd0) →
   // mBiomeMaterials-null ⇒ air (@0x90dd01 → je @0x90ddb0 = table null) →
   // evaluator2(x, y, field) (@0x90dd24 — arg order = C76) → floor-fix →
   // classify (@0x90dd7e) → record null ⇒ no window-write ⇒ air
   // (@0x90dd8b). kind/intern/planter arms are byte-observed but their
   // enum semantics are OPEN (C76); any non-null record renders solid.
   // Fail-loud: a component that throws (unknown attr, polygon, null
-  // celldata) propagates to noiseAt's catch → the chunk falls through
-  // honestly (same contract as the V2 lane's unread-core arm).
+  // celldata) propagates to noiseAt's catch → the chunk falls through.
   //
-  // dig #101 (entry (101), C80): THE FIELD IS WIRED. The gate value is
-  // no longer the a=1.0 single-call proxy (the dig-#100 flood root
-  // cause) — it is surfaceField's RETURN (the final combine,
-  // noise-proto.mjs:713; the driver 0x908F40 kind-0 arm feeds exactly
-  // that into the f32 grid the gate reads, VERIFIED:593) computed at
-  // WORLD px (C80: wx = canvas px − 17920, wy = canvas py − 31744).
-  // Value source selection = the V3 model (the V2 lane's :219-231
-  // semantics, WITHOUT its SURFACE_V3 conjunct: this branch only runs
-  // under the V3 candidate — attach gate :340 — or direct env-free test
-  // calls, and the conjunct would desync the test mirror from the
-  // instrument): caves-field grid for <BitmapCaves> biomes; every other
-  // biome is kind-0 and takes surfaceField with field0 ≡ 1.0 — no gradAt
-  // exists for it (dig #146, entry (146)). Field build throws (noiseKind
-  // −1 on winter/mountain_center per VERIFIED §8 row 30; the I20 default
-  // arm no longer throws — ported dig #113) ⇒ return null = whole chunk
-  // falls through honestly (V2 :237-241 mirror). Evaluate/classify keep the C76 lane frame unchanged this
-  // dig (evaluator2≡classify floor-fix identity; frame flip = I21).
-  // **dig #121 correction (entry (121), I25 index half):** the
-  // "surfaceField's RETURN" sentence above = the kind-0 law ONLY. For
-  // BitmapCaves biomes the game's sampler reads the caves field
-  // DIRECTLY (idx = W·y + x via getter 0x9499f0 on &owner+0xb4,
-  // stride [0x9c] = grid[0]; gate value > 0.5 @0x90dba5..0x90dbd0) —
-  // surfaceField's kind-0 path never touches the caves grid (writer
-  // 0x8EE750 uses the same W·y+x, reader/writer closure verified dig
-  // #121). The caves lane's gate value below is therefore the DIRECT
-  // cell read, not the combine.
+  // Gate value (C80): for kind-0 biomes = surfaceField's return (the final
+  // combine; the driver 0x908F40 kind-0 arm feeds it into the f32 grid the
+  // gate reads, VERIFIED:593) at world px (wx = canvas px − 17920, wy =
+  // canvas py − 31744), field0 ≡ 1.0, no gradAt. For BitmapCaves biomes the
+  // sampler reads the caves field directly (idx = W·y + x via getter
+  // 0x9499f0 on &owner+0xb4, stride [0x9c] = grid[0]; gate > 0.5
+  // @0x90dba5..0x90dbd0; writer 0x8EE750 uses the same W·y+x, I25). This
+  // branch has no SURFACE_V3 conjunct so env-free test calls mirror the
+  // instrument. A field-build throw ⇒ null (whole chunk falls through).
+  // Evaluate/classify use the C76 lane frame (frame flip = I21).
   const surfaceTable = ensureSurfaceTable(dataDirRef.dataDir, def);
   const uid = uidFrom(def, cfg);
-  uid.driver = makeBandDriver(config, seed);  // dig #142: the kind-0 r-site frame (world-px coords, C80)
+  uid.driver = makeBandDriver(config, seed);  // the kind-0 r-site frame (world-px coords, C80)
   let gradAt = null;
-  let gradKind = "field0"; // caves = the cell read; field0 = kind-0 (field ≡ 1.0, dig #146) — logged by SURFACE_LOG below
+  let gradKind = "field0"; // caves = the cell read; field0 = kind-0 (field ≡ 1.0) — logged by SURFACE_LOG below
   if (def.bitmapCaves && def.bitmapCaves.sizeX) {
     const caves = ensureCavesField(dataDirRef.dataDir, def, seed);
     const { w: fw, h: fh, field, overlays } = caves;
-    // dig #192 (C165/X205): the band-anchored finite cell-read — the field's
-    // row 0 = ONE FULL FIELD-HEIGHT (fh) above the C80 datum (worldY0 = 31744;
-    // canvas 31488 = worldY0 − fh; both 24576 and 31744 are even 256 multiples,
-    // so the slab grid holds for any `<BitmapCaves>` sizeY). The old
-    // `wy < 0` air-guard clipped 51 of bty13's 52 rows — the user's flat floor
-    // ("should sit one chunk higher"): bty13's lower half now serves the real
-    // caves cells (the mountain/surface-cave phases carve the silhouette at
-    // the field's top rows), and rows above the slab top = air. Rows ≥ fh keep
-    // the mod wrap — the DEEPER slabs reuse the field; the multi-band stacking
-    // (a field per 512×256 slab) is the deferred port, FLAGGED as ISSUES A14.
-    // dig #202 (C175): the STAMP-OVERLAY lane — the CaveStructure stamps'
-    // rects = materialized FROM THE STAMP'S OWN IMAGE by its own wg (the
-    // hard lane; C171's field gate = the LOCAL image read, no warp, no G).
-    // The overlay = the IMAGE frame: the stamp's stored X/Y = the biome
-    // image's cell coords; the world-px mapping = col = wx/10 (the image
-    // col 0 = the wx 0 = the canvas 17920), row = (wy + fh)/10 (the image
-    // row 0 = the wy −fh = the canvas 29184). The overlay lookup runs
-    // FIRST; the shaped base field only outside the stamps. FLAGGED
-    // (ISSUES §A): the shaped base's G-shifted frame vs the overlay's
-    // image frame = the +256-col offset question (the C170 meter vs the
-    // C175 cancel algebra) — the scatter's exact-code read settles it.
+    // Band-anchored finite cell read (C165/X205): the field's row 0 = one
+    // full field height (fh) above the C80 datum (worldY0 = 31744); 24576
+    // and 31744 are 256 multiples, so the slab grid holds for any
+    // `<BitmapCaves>` sizeY. Rows above the slab top = air. Rows ≥ fh keep
+    // the mod wrap (deeper slabs reuse the field); per-slab multi-band
+    // stacking is deferred — FLAGGED, ISSUES A14.
+    // Stamp-overlay lane (C175): CaveStructure stamp rects materialized from
+    // the stamp's own image by its own wg (C171: local image read, no warp,
+    // no G). Image frame: stamp X/Y = biome-image cell coords; col = wx/10
+    // (image col 0 = wx 0 = canvas 17920), row = (wy + fh)/10 (image row 0 =
+    // wy −fh). The overlay lookup runs first; the shaped base field only
+    // outside the stamps. FLAGGED (ISSUES §A): the shaped base's G-shifted
+    // frame vs the overlay's image frame (+256-col offset question).
     const stampAt = overlays && overlays.length
       ? (wx, wy) => {
           const col = Math.floor(wx / 10), row = Math.floor((wy + fh) / 10);
@@ -734,20 +596,14 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
     };
     gradKind = "caves";
   }
-  // (dig #146: the else-arm that built the topology/ramp gradAts is GONE —
-  // kind-0 takes surfaceField with field0 ≡ 1.0 and never consults it.)
   const bandTopPx = SKY_ROWS * CHUNK; // 24576 — classify y frame origin (C76)
   const worldX0 = 35 * CHUNK; // 17920 — C80 world x origin (biome px 35)
   const worldY0 = (SKY_ROWS + 14) * CHUNK; // 31744 — C80 world y origin (biome row 14)
-  // L1 value logger (Task 0 of the post-(101)-FAIL plan, SESSION_CONTEXT
-  // Update 2026-09-24 (1)): SURFACE_LOG=<path> ⇒ every evaluated cell is
-  // appended as one JSONL record — lane x/y (C76), world wx/wy (C80),
-  // gradKind (caves|field0), the lane value (`field` = surfaceField's
-  // return for kind-0, the caves cell read for BitmapCaves), the >0.5
-  // gate, classify's
-  // v + the solid verdict — so each patch's coordinates can be checked
-  // against what actually flowed. The directory must exist; with no env
-  // var nothing is allocated to disk and the lane runs as before.
+  // Value logger: SURFACE_LOG=<path> ⇒ every evaluated cell is appended as
+  // one JSONL record — lane x/y (C76), world wx/wy (C80), gradKind
+  // (caves|field0), the lane value, the >0.5 gate, classify's v + the solid
+  // verdict. The directory must exist; without the env var nothing is
+  // written.
   const logPath = process.env.SURFACE_LOG || null;
   const logBuf = [];
   const flushLog = () => {
@@ -766,14 +622,13 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
       // deviation tagged in C76.
       const x = tx * CHUNK + cx * 10 + 5;
       const y = ty * CHUNK + cy * 10 + 5 - bandTopPx;
-      // field build — WORLD px per C80 (canvas py = y + 24576)
+      // field build — world px per C80 (canvas py = y + 24576)
       const wx = x - worldX0;
       const wy = y + bandTopPx - worldY0;
       let field;
       try {
-        // dig #121: BitmapCaves ⇒ the DIRECT cell read (the sampler's
-        // law, see the correction block above); kind-0 ⇒ the combine
-        // itself, no gradAt (field0 ≡ 1.0, dig #146).
+        // BitmapCaves ⇒ the direct cell read (the sampler's law); kind-0 ⇒
+        // the combine itself, no gradAt (field0 ≡ 1.0).
         field = gradKind === "caves" ? gradAt(wx, wy)
           : surfaceField(uid, wx, wy, DEF_SEED);
       } catch {
@@ -783,28 +638,21 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
       let solid = 0;
       let v = null;
       let mi = 255;
-      // the sampler's own gate: process only when the FIELD > 0.5 —
-      // comiss 0x11dfa94 @0x90dbc3 → jbe @0x90e02b (P/P-table null arm
-      // stays the && below, @0x90dd01). dig #121: "the FIELD" = the
-      // surfaceField return for the kind-0 lanes, the DIRECT cell read
-      // of the caves grid for BitmapCaves biomes (the sampler's own
-      // source — the same getter, the same gate).
+      // The sampler's gate: process only when field > 0.5 — comiss
+      // 0x11dfa94 @0x90dbc3 → jbe @0x90e02b (P/P-table null arm = the &&
+      // below, @0x90dd01).
       if (field > 0.5 && surfaceTable) {
         // evaluator2 @0x90dd24 = (x, y, field): xmm0/xmm1 = the same
         // origin-added counters classify receives after the floor-fix
-        // (identity pinned C76) — NOT the wang-cell+config proxy
+        // (identity pinned C76)
         v = evaluator2(x, y, field);
-        // dig #148: the polygon arm IS ported (X106) — a throw here is a
-        // real defect and propagates to noiseAt's catch (the chunk falls
-        // through honestly, the lane contract). The #147 polygon-message
-        // catch arms are gone with the phantom comps that motivated them.
+        // The polygon arm is ported (X106) — a throw here is a real defect
+        // and propagates to noiseAt's catch (the chunk falls through).
         const rec = classify(surfaceTable, x, y, v);
         if (rec) {
           solid = 1;
-          // dig #130 (the surface-lane compositor): the record index + the
-          // name list ride the chunk so worldColorAt can paint the material's
-          // materials.xml wang_color (the C76-lane values, not the flat
-          // band shade).
+          // The record index + name list ride the chunk so worldColorAt
+          // paints the material's materials.xml wang_color.
           mi = rec.i;
         }
       }
@@ -819,7 +667,7 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
     }
   }
   flushLog();
-  // dig #130: the surface-lane compositor's output — per-cell classify
+  // Surface-lane compositor output — per-cell classify
   // record index (255 = air/unclassified) + the comp-name list; the
   // caves-band chunk paints the material's materials.xml wang_color,
   // unclassified solids keep the flat band shade.
@@ -833,16 +681,16 @@ export function noiseChunkMask(config, tx, ty, seed = 0) {
 // walk feeds it; kept here so the V2 lane has an explicit injection point.
 const DEF_SEED = 0;
 
-// ------------------------------------------------------- fill lane (dig #172) ---
-// The SCENE-BLIT GREY-PLACEHOLDER FILL — the game's per-cell driver law,
-// byte-pinned 2026-10-19 (X148/X149: dig172-driver-908f40-909380.asm,
+// ------------------------------------------------------- fill lane ---
+// Scene-blit grey-placeholder fill — the game's per-cell driver law
+// (X148/X149: dig172-driver-908f40-909380.asm,
 // dig172-sceneblit-792e00-794400.asm):
 //   walk 0x792f98..0x793332 (the asserted 512×512 scene-chunk walk; scene
 //   rect origin = chunkX<<9 / chunkY<<9, setup 0x794187-0x79419b, size
 //   assert cmpl $0x200 @0x793ebc/0x793f93): per cell, the ART-RECORD plane
 //   gate (plane[(row<<9)|col] != 0 → skip, the art-classified cells) then
 //   call the driver @0x7930d3 with x = originX+col, y = originY+row;
-//   driver NULL → the cell is NOT painted (the base lane shows through).
+//   driver NULL → the cell is not painted (the base lane shows through).
 //   driver 0x908F40 (this = [+0x70] of the scene): kind-0 arm (mountain_lake
 //   and every non-ATTR biome: empty wang_template ⇒ no kind-1 image, P =
 //   [config+0x1d4] NULL ⇒ no kind-2 evaluator; other kinds return 0):
@@ -852,12 +700,11 @@ const DEF_SEED = 0;
 //     chosen = classify([config+0x2a4] = mBiomeMaterials, trunc(x),
 //                       trunc(y), v)   (first non-rare window match;
 //                       rare comps fall to the polka arm; NULL = no paint)
-// FRAME (I39(a3) OPEN, D-knob below): the field reads the port's calibrated
-// world px (the C97-verified 0.5 surface line, M-grade); the classify
-// y-gate frame carries the residual game-vs-port frame offset as yOff —
-// capture-fit at the mountain_lake anchor (dig #172 gate-offset scan in
-// experiments/2026-10-19-dig172-fill-mix-profile.mjs), D-flagged in
-// ISSUES §A until a game-lab dump of the caller's chunk-pair frame pins it.
+// Frame (I39(a3) OPEN, D-knob below): the field reads the port's calibrated
+// world px (C97 0.5 surface line, M-grade); the classify y-gate frame
+// carries the residual game-vs-port frame offset as yOff — capture-fit at
+// the mountain_lake anchor (experiments/2026-10-19-dig172-fill-mix-profile.mjs),
+// D-flagged in ISSUES §A until a game-lab dump pins it.
 const fillLaneCache = new Map();
 export function surfaceFillLane(config, def, seed) {
   const key = `${seed}|${def?.filename ?? ""}`;
@@ -869,11 +716,11 @@ export function surfaceFillLane(config, def, seed) {
         try { dataDirRef.dataDir = findNoitaDataDir(); } catch { dataDirRef.dataDir = null; }
       }
       const uid = uidFrom(def, biomeCfg(def));
-      uid.driver = makeBandDriver(config, seed); // the kind-0 r-site frame (dig #142/#145)
+      uid.driver = makeBandDriver(config, seed); // the kind-0 r-site frame
       const table = ensureSurfaceTable(dataDirRef.dataDir, def);
       if (table) lane = { uid, table };
     } catch {
-      lane = null; // unread-core lane → the caller defers (the old law)
+      lane = null; // unread-core lane → the caller defers
     }
     fillLaneCache.set(key, lane);
   }
@@ -889,48 +736,27 @@ export function surfaceFillAt(lane, wx, wy, yOff = 0) {
 }
 
 // Lazily-memoized chunk mask cache attached onto the world object.
-// dig #30: the seed plumbs through (the caves field is (seed, name)-
-// deterministic per the binary's ctor chain — the C49 proof), so the
-// ensureWorld caller passes the run's worldseed here.
+// The caves field is (seed, name)-deterministic (C49), so the ensureWorld
+// caller passes the run's worldseed here.
 export function attachNoiseTerrain(world, dataDir, seed = 0) {
-  // sky/backdrop attach — UNCONDITIONAL (default-lane fix, the user's
-  // 2026-10-15 report "no more sky background"): worldColorAt's sky band
-  // (ty < 62) falls through to `world.skyAt?.() ?? null`, and C110's sky
-  // law (VERIFIED §12 p2c) is written unconditionally — placing these
-  // below the SURFACE_* gate made every default-lane sky / void /
-  // bin-less px null → the tile renderer's opaque black (their viewer's
-  // black sky rows). The data-image backdrop carries zero D (it reads
-  // the game's own star sprite — the NIGHT law, 2026-10-19), so it
-  // ships with the honest default
-  // render; the NOISE band stays OPT-IN below (VERIFIED.md §12's D-law:
-  // the placeholder ramp + the un-carve'd filler shape must not ship as
-  // default). Tests: the default-lane attach contract in
-  // tests/mapgen/world-gen.test.mjs (this thread runs the child with the
-  // SURFACE_* env stripped — the singleFork worker env is polluted by
-  // other suites).
-  // dig #132 (I32 p2b, the per-area background law): the AIR backdrop = the
-  // chunk biome's Topology background_image (hills =
-  // weather_gfx/background_cave_04_alt, coalmine = background_coalmine…),
-  // tiled in the chunk frame; defs with no bg art (the_sky = "") fall
-  // back to null = transparent air (the sky row's blue = the template
-  // lane's biome_color, landed later). The game's true parallax/layering
-  // = OPEN (tagged): this is the prototype tile law.
-  // dig #133 (I32 p2c, the SKY/Hell layer law) + dig #134 fix-3, AS
-  // CORRECTED BY THE NIGHT LAW (2026-10-19, I32 amended): the backdrop
-  // is split — `bgImageAt` = the VOID/bins-air path (the caller
-  // decides); `skyAt` = the pure sky (BLACK air + stars at every
-  // altitude — see the sky-law note at the top of this file), called
-  // for the world rows above the datum (the caller's ty < 62 = the sky
-  // band, to the Heaven end). The per-biome backgrounds (the C109 law)
-  // = the UNDERGROUND bands (ty >= 62).
+  // Sky/backdrop attach is unconditional, independent of the SURFACE_*
+  // gate: worldColorAt's sky band (ty < 62) falls through to
+  // `world.skyAt?.() ?? null` (C110 sky law); without it every sky / void /
+  // bin-less px renders opaque black. Tested by the default-lane attach
+  // contract in tests/mapgen/world-gen.test.mjs.
+  // AIR backdrop (I32) = the chunk biome's Topology background_image (hills
+  // = weather_gfx/background_cave_04_alt, coalmine = background_coalmine…),
+  // tiled in the chunk frame; defs with no bg art (the_sky = "") → null =
+  // transparent air. The game's true parallax/layering = OPEN; this is the
+  // prototype tile law.
+  // `bgImageAt` = the void/bins-air path (the caller decides); `skyAt` =
+  // the pure sky (black air + stars, see the sky note at the top of this
+  // file) for rows above the datum (ty < 62). Per-biome backgrounds (C109)
+  // = the underground bands (ty >= 62).
   const skyAt = (tx, ty, gx, gy) => {
-    // NIGHT law (2026-10-19): plain sky = null (transparent air — the
-    // renderer's black + C78 air in the capture's mask), stars =
-    // hash-placed sprite px composited over black. The old law sampled
-    // the parallax png's ROW by gy/31744 (its bottom = the warm horizon
-    // (254,206,108) = the user's "brown chunk" gold band) and gated the
-    // stars at t < 0.75, which excluded the whole scorable sky band
-    // (t >= 0.87): both removed. Hash + placement unchanged (C110).
+    // Plain sky = null (transparent air — the renderer's black + C78 air in
+    // the capture's mask); stars = hash-placed sprite px composited over
+    // black (C110).
     const sb = ensureSkyBackdrop(dataDir);
     if (!sb.star) return null;
     const cx = Math.floor(gx / 32), cy = Math.floor(gy / 32);
@@ -963,13 +789,9 @@ export function attachNoiseTerrain(world, dataDir, seed = 0) {
   world.skyAt = skyAt;
   world.bgImageAt = (tx, ty, gx, gy) => bgImageAtInner(tx, ty, gx, gy, false);
 
-  // OPT-IN (VERIFIED.md §12): with neither lane flag set the NOISE band
-  // never attaches and the procedural band renders as honest air (the
-  // art-scenes + wang areas carry the whole visible band) — the sky/
-  // backdrop attach above is unconditional (see the function head).
-  // dig #145 (I33c): surface the state ONCE to the operator — before this
-  // the opt-in gate was silent and env loss manifested as black chunks
-  // (I33's flags-OFF black).
+  // With both lanes disabled the noise band never attaches and the
+  // procedural band renders as air; warn once so the state is visible
+  // (I33c).
   if (!SURFACE_V2 && !SURFACE_V3) {
     console.warn("[noita-livemap] NOISE band detached (VERIFIED §12 opt-in): set SURFACE_V2=1 and/or SURFACE_V3=1 to render the procedural band");
     return world;
@@ -987,11 +809,10 @@ export function attachNoiseTerrain(world, dataDir, seed = 0) {
     cache.set(key, r);
     return r;
   };
-  // dig #31: the world-level probe the worldColorAt actually calls —
-  // without this the noise branch never runs (the pre-V3 wiring hole):
+  // The world-level probe worldColorAt calls:
   world.noiseSolidAt = (wx, wy) => noiseSolidAt(world, wx, wy);
-  // dig #130 (the surface-lane compositor): the per-cell MATERIAL probe —
-  // the caves-band chunk's classify-record index (255 = air/unclassified).
+  // Per-cell material probe — the chunk's classify-record index (255 =
+  // air/unclassified).
   world.noiseMatAt = (wx, wy) => {
     const tx = Math.floor(wx / CHUNK), ty = Math.floor(wy / CHUNK);
     const ch = world.noiseAt?.(tx, ty);
@@ -1013,14 +834,14 @@ export function noiseSolidAt(world, wx, wy) {
   const ch = world.noiseAt?.(tx, ty);
   if (!ch) return null;
   const lx = (wx - tx * CHUNK) / 10, ly = (wy - ty * CHUNK) / 10;
-  if (lx < 0 || ly < 0 || lx >= 52 || ly >= 52) return 0; // cell 51 = px 510..511 (was rejected: a 2-px air line on every noise chunk edge)
+  if (lx < 0 || ly < 0 || lx >= 52 || ly >= 52) return 0; // cell 51 = px 510..511
   return ch.mask[52 * Math.floor(ly) + Math.floor(lx)];
 }
 
-// dig #218 (I53, C187 in the MAIN band): the noise lane evaluated for an
-// ARBITRARY biome at one canvas pixel — the pixel's biome from GetBiomeAt
+// Noise lane evaluated for an arbitrary biome (I53, C187) at one canvas
+// pixel — the pixel's biome from GetBiomeAt
 // 0x909da0 (biomeAtPixel) may differ from its chunk's within 41 px of an
-// edge, and the field driver 0x908f40 then runs the kind-0 arm with THAT
+// edge, and the field driver 0x908f40 then runs the kind-0 arm with that
 // biome's config: surfaceField(config) → BiomeMaterials_Classify (X223).
 // Mirrors noiseChunkMask's V2 branch exactly (the 10-px cell centre, the
 // world-px field frame, classify-or-air), so an undisplaced pixel returns the

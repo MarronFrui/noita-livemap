@@ -1,8 +1,8 @@
-// caves-field.mjs contracts — the BitmapCaves cave-field port (SURFACE_V3,
-// the lib/caves-field.mjs byte-status ledger + CONSTANTS.md C44/C46/C48/
-// C50/C51, ABOUT_MATH 2026-09-21 (38)–(80)). Synthetic grids only; the
-// C48-oracle byte bar is the data-dependent describe at the bottom
-// (auto-skips without the extracted data / the gitignored oracle artifact).
+// caves-field.mjs contracts — the BitmapCaves cave-field port (SURFACE_V3;
+// see the lib/caves-field.mjs header and CONSTANTS.md C44/C46/C48/C50/C51).
+// Synthetic grids only; the C48-oracle byte bar is the data-dependent
+// describe at the bottom (auto-skips without the extracted data or the
+// gitignored oracle artifact).
 
 import fs from "node:fs";
 import path from "node:path";
@@ -39,7 +39,7 @@ describe("toucherValue — the fn C1 ×5·w toucher (C48)", () => {
   });
 });
 
-// ── the 0x8EE930 smoothstep LERP (dig #58, the ONLY lowering writer) ────────
+// ── the 0x8EE930 smoothstep LERP (the only lowering writer) ────────────────
 describe("stampBlendLerp — the smoothstep LERP stamp (true 0x8EE930)", () => {
   const w = 16, h = 16;
   const fresh = () => new Float32Array(w * h).fill(1.0);
@@ -55,7 +55,7 @@ describe("stampBlendLerp — the smoothstep LERP stamp (true 0x8EE930)", () => {
     const r = 4, vArg = 0.25;
     stampBlendLerp(g, w, h, 8, 8, r, vArg);
     // one cell 2 left of the center: d² = 4, r² = 16 → t = 12/16 = 0.75,
-    // w = t² = 0.5625 (the dig #120 byte law @0x8eea33, entry (120))
+    // w = t² = 0.5625 (byte law @0x8eea33)
     expect(g[8 * w + 6]).toBeCloseTo(1.0 + (vArg - 1.0) * 0.75 ** 2, 12);
   });
 
@@ -91,9 +91,8 @@ describe("stampBlendLerp — the smoothstep LERP stamp (true 0x8EE930)", () => {
   });
 });
 
-// ── the LEGACY (43)(a) min/max model (entry (122): retired from production;
-//    the true laws = setterStamp (flag=1: the CENTER-y q = y/25 eave, the
-//    lower-only carve); the record lane is draws-only since entry (123)) ─────
+// ── the legacy min/max model (no production caller; the production law is
+//    setterStamp: flag=1, center-y q = y/25 eave, lower-only carve) ──────────
 describe("carveCircle — the legacy (43)(a) min/max model (no production caller)", () => {
   const w = 32, h = 32;
   const fresh = () => new Float32Array(w * h).fill(1.0);
@@ -131,7 +130,7 @@ describe("carveCircle — the legacy (43)(a) min/max model (no production caller
   });
 });
 
-// ── the record lane = a PRNG-DRAW consumer (dig #123, I28 CLOSED) ────────────
+// ── the record lane = a PRNG-draw consumer (I28) ─────────────────────────────
 describe("caveRecordStamp — the record lane draws only (dig #123)", () => {
   // a counting stub: every next() consumes one stream draw (returning the
   // mid value 0.5 — the values are discarded, only the BUDGET is observable)
@@ -150,7 +149,7 @@ describe("caveRecordStamp — the record lane draws only (dig #123)", () => {
     // stub prng: always draws 0.0 → count = min + trunc(0·span) = min
     const lo = { next: () => 0.0 };
     expect(caveRecordStamp({ countMin: 2, countMax: 6 }, lo)).toBe(2);
-    // u → 1: count reaches MAX (the old down-from-max twin gave 6 at u = 0)
+    // u → 1: count reaches max (a down-from-max roll would give 6 at u = 0)
     const hi = { next: () => 0.999999 };
     expect(caveRecordStamp({ countMin: 2, countMax: 6 }, hi)).toBe(6);
   });
@@ -185,10 +184,8 @@ describe("caveRecordStamp — the record lane draws only (dig #123)", () => {
     expect(drawCount("bad_$[x].png")).toBe(1 + 4);
   });
 
-  // dig #135: the count slot's 0-arm (the `test %ecx,%ecx; jle 0x8f16f1`
-  // guard's lower twin) — count = 0 ⇒ the record writes nothing beyond the
-  // count roll; the port's record stamp stays byte-neutral until the
-  // grouped-class write port (dig #136), the dig-135 scope correction.
+  // the count slot's 0-arm (`test %ecx,%ecx; jle 0x8f16f1`): count = 0 ⇒
+  // the record draws nothing beyond the count roll.
   test("count 0 = the pure skip arm (only the count roll, no stamp draws)", () => {
     const s = counting();
     expect(caveRecordStamp({ countMin: 0, countMax: 0 }, s.stub)).toBe(0);
@@ -196,7 +193,7 @@ describe("caveRecordStamp — the record lane draws only (dig #123)", () => {
   });
 });
 
-// ── the scatter engine (true 0x8EEAD0, dig #56/#81) ──────────────────────────
+// ── the scatter engine (true 0x8EEAD0) ────────────────────────────────────
 describe("scatterEmptyGate — the < 0.5 empty-cell gate + the B-recorder", () => {
   const w = 8, h = 8;
   test("fires ONLY on a carved (< 0.5) cell; marks the byte lane", () => {
@@ -227,8 +224,8 @@ describe("scatterEmptyGate — the < 0.5 empty-cell gate + the B-recorder", () =
   });
 });
 
-// ── the byte-closed fnA walk (C81/C82: LOWER-only flag=1 stamps, plain box,
-//    in-walk cc — the I26 carve law, entry (122)) ─────────────────────────────
+// ── the byte-closed fnA walk (C81/C82: lower-only flag=1 stamps, plain box,
+//    in-walk cc — the I26 carve law) ─────────────────────────────────────────
 describe("walkChain — the byte-closed fnA walk (C82)", () => {
   const w = 512, h = 256;
   const mkWalk = () => ({ d0sq: 0.5, dy: 0.3, growth: 0.5, cc: { n: 2 } });
@@ -263,15 +260,12 @@ describe("walkChain — the byte-closed fnA walk (C82)", () => {
   });
 });
 
-// ── the carve EXIT-law + the lane-band-1 carry (I30, dig #127; C105(b)) ──────
-// The byte: exit the walk at the loop top when the PREVIOUS point's clamped
-// value v ≥ the cursor (comiss @0x8ef109, jae; AT&T comiss src,dst ⇒ Intel
-// dst,src ⇒ jae = dst ≥ src), and the t<0.2 lane band interpolates FROM the
-// carried v_prev, not from 0 (@0x8ef12b..0x8ef13d). Count-test rule: the
-// assertions here must FAIL under the old law (the no-exit, base-0 port) —
-// verified this dig: the pre-patch harness (git stash + run) gives the
-// low-cursor census median == the no-exit control median (32 == 32) and the
-// band-carry center value 0.8775 instead of 0.
+// ── the carve exit law + the lane-band-1 carry (I30; C105(b)) ────────────────
+// Exit the walk at the loop top when the previous point's clamped value
+// v ≥ the cursor (comiss @0x8ef109, jae; AT&T comiss src,dst ⇒ Intel
+// dst,src ⇒ jae = dst ≥ src); the t<0.2 lane band interpolates from the
+// carried v_prev, not from 0 (@0x8ef12b..0x8ef13d). A no-exit, base-0 port
+// gives low-cursor median 32 (= the control) and band-carry center 0.8775.
 describe("walkChain carve exit-law + band carry (I30, dig #127)", () => {
   const census = (N, cursor, budget) => {
     const w = 220, h = 300;
@@ -288,20 +282,19 @@ describe("walkChain carve exit-law + band carry (I30, dig #127)", () => {
   };
 
   test("walk-length census is BIMODAL byte-side: the low-cursor median collapses vs the no-exit control", () => {
-    // cursor 0.45 < ~0.75 ⇒ the byte's bulk of walks exit at ~1 stamp
-    // (~49.5% of runs have flagD2 = 0 ⇒ slot1 = 1 + 0.35u₁ − 0.25 ≥ 0.75
-    // ≥ cursor ⇒ the exit gate fires after the FIRST stamp); the control
-    // (cursor 8 > the walk's 1.0 value ceiling) can never exit and runs to
-    // budget = the old law's shape.
+    // cursor 0.45 < ~0.75 ⇒ most walks exit at ~1 stamp (~49.5% of runs
+    // have flagD2 = 0 ⇒ slot1 = 1 + 0.35u₁ − 0.25 ≥ 0.75 ≥ cursor ⇒ the
+    // exit gate fires after the first stamp); the control (cursor 8 > the
+    // walk's 1.0 value ceiling) never exits and runs to budget.
     const w = 220, h = 512; // silence the outer w/h shadow
     void w; void h;
     const lo = census(150, 0.45, 60);
     const ctrl = census(150, 8.0, 60);
     const med = (a) => [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)];
-    expect(med(lo)).toBe(1); // FAILS under the old law (the pre-patch median = 32)
+    expect(med(lo)).toBe(1); // a no-exit law gives 32
     expect(med(lo)).toBeLessThan(Math.floor(med(ctrl) / 2));
     const murmur = lo.filter((n) => n <= 10).length;
-    expect(murmur).toBeGreaterThanOrEqual(100); // 120/150 this dig; 8/150 pre-patch
+    expect(murmur).toBeGreaterThanOrEqual(100); // measured 120/150; no-exit law gives 8/150
   });
 
   test("band-1 carries v_prev: the 2nd stamp lerps FROM the previous clamped value, not 0", () => {
@@ -311,9 +304,9 @@ describe("walkChain carve exit-law + band carry (I30, dig #127)", () => {
     // x-law 0.5 (step 0.25 → same tx), cc.n = 0 (no child draw).
     // iter 1: lane = 0 (vPrev = 0, t = 0), slot = 1 − 0 + 0.35·0.5 − 0.25
     //   = 0.925 → v1 = 0.925 (radius = rA = 0 → single-cell stamp).
-    // iter 2: t = 0.01 < 0.2: NEW lane = 0.925 + (0.95 − 0.925)·0.05
+    // iter 2: t = 0.01 < 0.2: lane = 0.925 + (0.95 − 0.925)·0.05
     //   = 0.92625 ⇒ slot = 1 − 0.92625 − 0.075 → clamp01 = 0;
-    //   OLD lane = 0.95·0.05 = 0.0475 ⇒ slot = 1 − 0.0475 − 0.075 = 0.8775.
+    //   a base-0 lane = 0.95·0.05 = 0.0475 would give slot 0.8775.
     const w = 220, h = 512;
     const seq = [0.99, 0.1, 0, 0, 0, 0, 0.5, 0.99, 0.99, 0.5, 0.5, 0.99, 0.99, 0.5];
     let i = 0;
@@ -322,14 +315,14 @@ describe("walkChain carve exit-law + band carry (I30, dig #127)", () => {
     walkChain(field, w, h, prng, 60, 128, 0.95, 100,
       { d0sq: 0.5, dy: 0, growth: 0.5, cc: { n: 0 } });
     // the center cell: stamp 1 wrote v1 = 0.925, stamp 2 is lower-only so it
-    // lands whenever its value < 0.925 — both laws write; the VALUE differs:
-    expect(field[128 * w + 60]).toBe(0); // FAILS under the old law (0.8775)
+    // lands whenever its value < 0.925; the carry decides the value:
+    expect(field[128 * w + 60]).toBe(0); // base-0 lane gives 0.8775
   });
 
   test("the exit gate reads the PREVIOUS point's value (the first iteration never fires)", () => {
     // cursor 0.4 with budget 60: the first iter1 slot = 1 + 0.35u − 0.25 ≥ 0.75
-    // v1 ≥ 0.4 ⇒ iter 2 stops ⇒ the walk carves at most iter-1's stamp —
-    // but WITHOUT the gate the same run would carve the full 60-step path.
+    // v1 ≥ 0.4 ⇒ iter 2 stops ⇒ the walk carves at most iter-1's stamp;
+    // without the gate the same run would carve the full 60-step path.
     const w = 220, h = 512;
     const field = new Float32Array(w * h).fill(1.0);
     walkChain(field, w, h, new NollaPrng(42), 60, 128, 0.4, 60,
@@ -342,9 +335,9 @@ describe("walkChain carve exit-law + band carry (I30, dig #127)", () => {
 
 // ── the composed builder (fn C1 + the v5 fnB composition) ───────────────────
 describe("buildCavesField — fn C1 + the byte-cited composition order", () => {
-  // hills.xml's declared knob spans (data-verified on disk 2026-10-10,
-  // the LocalLow data dir: + mountain_size 1..10, do_beginning_down 1) —
-  // a synthetic def is enough: the parser output shape is the contract.
+  // hills.xml's declared knob spans (incl. mountain_size 1..10,
+  // do_beginning_down 1); a synthetic def suffices since the parser output
+  // shape is the contract.
   const hillsBC = {
     name: "bitmap_hills", sizeX: 512, sizeY: 256,
     blobCavesCountMin: 20, blobCavesCountMax: 55,
@@ -383,7 +376,7 @@ describe("buildCavesField — fn C1 + the byte-cited composition order", () => {
     const r = buildCavesField(null, mkDef(hillsBC), SEED);
     // loop B count = mountain_count (fnb @4eff36/4eff39); the hills spans
     // are pairwise disjoint (mountain 0..15 < blob 20..55 < cave 50..100),
-    // so a regression to the old cave-lane guess fails both bounds.
+    // so mapping loop B to the cave lane fails both bounds.
     expect(r.meta.blobPhase1).toBeGreaterThanOrEqual(hillsBC.mountainCountMin);
     expect(r.meta.blobPhase1).toBeLessThanOrEqual(hillsBC.mountainCountMax);
     expect(r.meta.blobPhase1).toBeLessThan(hillsBC.blobCavesCountMin);
@@ -394,8 +387,8 @@ describe("buildCavesField — fn C1 + the byte-cited composition order", () => {
 
   test("the L2/L3 chain call counts live in the byte ranges (dig #120)", () => {
     const r = buildCavesField(null, mkDef(hillsBC), SEED);
-    // L2 = exactly 2 passes × (120 + ⌊81u⌋) ∈ [240, 400] (entry (119);
-    // the passes are byte-confirmed @0x8f2585–0x8f2595)
+    // L2 = exactly 2 passes × (120 + ⌊81u⌋) ∈ [240, 400]
+    // (passes @0x8f2585–0x8f2595)
     expect(r.meta.l2Calls).toBeGreaterThanOrEqual(240);
     expect(r.meta.l2Calls).toBeLessThanOrEqual(400);
     // L3 = one chain of 120 + ⌊81u⌋ ∈ [120, 200], gated on the hills
@@ -489,7 +482,7 @@ test("CAVES_FIELD_VER is the v5 composition stamp", () => {
   expect(CAVES_FIELD_VER).toContain("v5 composition");
 });
 
-// ── the stream-trace instrument (C104, dig #125) ────────────────────────────
+// ── the stream-trace instrument (C104) ─────────────────────────────────────
 // Core invariant: the trace buckets PARTITION the stream (Σtrace == the raw
 // next() count). Plus: the phase order is deterministic per seed.
 describe.skipIf(!hasNoitaData())("buildCavesField streamTrace (dig #125, C104)", () => {

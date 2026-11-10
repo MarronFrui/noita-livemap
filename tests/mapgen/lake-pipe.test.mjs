@@ -1,14 +1,10 @@
-// dig #155 count tests — the lake pipe uid population (mapgen/lib/biomes.mjs
-// + noise-terrain.mjs uidFrom) vs the byte slot law (C126/C129 + the fresh
-// r-site arm reads, X115/X116).
-//
-// Every pin FAILS at the pre-fix HEAD (the parse map dropped the whole
-// mInside* non-Perlin family; uidFrom read `def.mInsideAddValue`/
-// `def.mInsideNoiseFBM`/`def.mInsideNoiseType` against undefined):
-//   lake-pipe pins   : mInsideAddValue undefined → uid.addValue 0 (byte: 5.0)
-//   kind pins        : mInsideNoiseType undefined → uid.noiseKind 5 (byte: 8)
-//   fbm pin          : mInsideNoiseFBM undefined  → uid.fbm = default-1 only
-//                      by accident (byte: attr "1" ⇒ same value, different law)
+// Count tests — the lake pipe uid population (mapgen/lib/biomes.mjs +
+// noise-terrain.mjs uidFrom) vs the byte slot law (C126/C129, X115/X116).
+// Each pin fails if the parse drops the mInside* non-Perlin family:
+//   lake-pipe pins   : mInsideAddValue → uid.addValue (byte: 5.0, not 0)
+//   kind pins        : mInsideNoiseType → uid.noiseKind (byte: 8, not 5)
+//   fbm pin          : mInsideNoiseFBM attr "1" (same value as the default,
+//                      read by a different law)
 // The data-dependent guard follows the repo pattern (skip without the
 // extracted data dir). The uid-value pins read the noise lane's own
 // SURFACE_LOG uid dump (noise-terrain.mjs:618) on two anchored tiles —
@@ -54,17 +50,12 @@ d("dig #155 — the lake pipe uid population (biomes.mjs parse + uidFrom)", () =
       const { loadBiomeConfig } = await import("../../mapgen/lib/biomes.mjs");
       const { noiseChunkMask, NOISE_NAME_KIND } = await import("../../mapgen/lib/noise-terrain.mjs");
       const cfg = loadBiomeConfig(findNoitaDataDir());
-      // lake tile (tx5, bty12 = canvas ty60): the lake's in-range band row —
-      // dig #205 re-scope: the bty14 chunk (canvas ty62) sits on the
-      // band-matrix's edge row and the surfaceField throws there (the I50b
-      // fix = the follow-up); the bty12 chunk = the lake's working surface
-      // band (the instrument's lake family = the same rows, 0.604 scored)
-      // dig #205 KNOWN-BROKEN (I50b): the lake's noise_type is ABSENT from
-      // lake.xml ⇒ the uid's kind = the ctor default 5 ⇒ the noiseDispatch
-      // throws (the unread core) ⇒ the chunk returns null and the log never
-      // writes. The test = skipped until I50b lands (the lake's default-arm
-      // port or the noise_type read). The uid pins below = the dig-#155
-      // laws, restored when the lane draws.
+      // lake tile (tx5, bty12 = canvas ty60): the lake's in-range band row
+      // (the bty14 chunk sits on the band-matrix's edge row, where
+      // surfaceField throws). KNOWN-BROKEN (I50b): lake.xml has no
+      // noise_type ⇒ the uid's kind = the ctor default 5 ⇒ noiseDispatch
+      // throws (unread core) ⇒ the chunk returns null and the log never
+      // writes. Skipped until I50b lands.
       const lakeRecs = readLog(() => noiseChunkMask(cfg, 5, 60, 78633191), process.env.SURFACE_LOG);
       expect(lakeRecs.length, "lake chunk logged (I50b pending — the noise_type-absent throw)").toBeGreaterThan(0);
       expect(lakeRecs[0].uid.addValue).toBe(5);

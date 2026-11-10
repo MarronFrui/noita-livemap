@@ -1,17 +1,16 @@
-// The tile worker pool (perf D, 2026-11-08) — direct-law tile renders spread
+// The tile worker pool — direct-law tile renders spread
 // over N worker threads (tile-worker.mjs), so the server stays responsive and
 // a viewport's tiles render in parallel.
 //
 // Scheduling:
-//   - two priorities: HIGH (a viewer request) before LOW (prewarm); a queued
-//     LOW task that a viewer then asks for is promoted (bump(key))
-//   - LOW tasks never take the last idle worker — an interactive request
+//   - two priorities: high (a viewer request) before low (prewarm); a queued
+//     low task that a viewer then asks for is promoted (bump(key))
+//   - low tasks never take the last idle worker — an interactive request
 //     always finds a free worker within one tile render
 //   - every worker builds a seed's world on its first task for it, in
 //     parallel (the gen-cache .bin writes are atomic — world-gen.mjs
-//     writeFileAtomic — so concurrent cold builds are safe; a one-warmer
-//     rule was measured to add a full serial build, ~5.5 s, to the first
-//     viewport)
+//     writeFileAtomic — so concurrent cold builds are safe; a single-warmer
+//     rule would add a full serial build, ~5.5 s, to the first viewport)
 //   - a worker that dies is replaced; its in-flight task fails (the tile
 //     service then answers 500 and the next ask retries)
 // Memory: each worker holds its own world (~0.6 GB at ready + its chunk

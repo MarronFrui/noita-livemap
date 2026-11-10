@@ -1,5 +1,5 @@
-// The capture-composite display layer (ISSUES A10) — moved out of
-// genmap-server.mjs (2026-11-08) so the tile workers share it.
+// The capture-composite display layer (ISSUES A10), shared by the server and
+// its tile workers.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -10,25 +10,21 @@ import { worldColorAt } from "../lib/world-gen.mjs";
 // ── capture-composite display layer (ISSUES A10) ───────────────────────────
 // The game's runtime-computed lanes (the splice/fixed-scene driver fills, the
 // deep fill bands) are only partially recovered — their cells currently show
-// approximations. At the CAPTURED seed the viewer can instead take those world
+// approximations. At the captured seed the viewer can instead take those world
 // px straight from the capture tiles (mapgen/out/ref = noita-mapcap's own
 // output for seed 78633191 = the game's true pixels, M-grade ground truth,
 // mapcap/README). Frame law: canvas px = world px + (17920, 31744) (C145),
 // so capture `X_Y.png` (the game chunk X−35, Y−14) = canvas chunk (X, Y+48),
 // 1:1 px (empirically pinned: our tile 40_63 lava-family count = 81,897 vs
 // the capture's 40_15 = 80,268, and 40_64 = 242,351 both).
-// Scope honesty: the fill pixels are SEED-DEPENDENT, so the layer is
-// registered at the captured seed only (the world-fixed landmark ART is
-// seed-independent — I9 — but its driver fill is not). Display-only by
-// construction: it wraps worldColorAt here in the server; the lib lanes and
-// the E1/E2 instruments read the generator directly and are unaffected.
-// Default OFF (user call 2026-10-21): the layer only ever shows the
-// noitamap capture of seed 78633191 — a world that is never the live
-// run's — so it is pointless at any other seed and a per-px lookup cost
-// at this one. CAPTURE_LAYER=1 re-enables it globally (benchmark use at
-// the demo seed); the viewer overrides per request with ?c=0 / ?c=1 on
-// the tile URL. It dies when the field's noise law + the scene fill
-// laws compose at the demo seed (the dig #177+ lane work).
+// The fill pixels are seed-dependent, so the layer applies at the captured
+// seed only (the world-fixed landmark art is seed-independent — I9 — but
+// its driver fill is not). Display-only: it wraps worldColorAt in the
+// server; the lib lanes and the instruments read the generator directly.
+// Default off (the capture is never the live run's world); CAPTURE_LAYER=1
+// enables it globally, and the viewer overrides per request with ?c=0 /
+// ?c=1 on the tile URL. Stand-in (A10): removed once the field noise law +
+// scene fill laws compose at the demo seed.
 export const CAPTURE_SEED = 78633191;
 const CAPTURE_DIR = path.join(repoRoot, "mapgen/out/ref");
 export const CAPTURE_DEFAULT = process.env.CAPTURE_LAYER === "1";

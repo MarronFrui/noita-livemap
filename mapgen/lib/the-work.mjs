@@ -1,6 +1,6 @@
-// The Work (Heaven / Hell) — the y-wrap law (dig #215, CONSTANTS C186).
+// The Work (Heaven / Hell) — the y-wrap law (C186).
 //
-// BYTES (noita_dev.exe, sha256 d2f7dbef…0285; REA/Ghidra reads this dig):
+// BYTES (noita_dev.exe, sha256 d2f7dbef…0285):
 // - ProceduralTerrain::Init 0x905fb0 builds ONE world wang material image P
 //   (`push 0xb8; new; call 0x8f9470` @0x907323..0x907346 → [ebp−0x294]) sized
 //   to the BIOME MAP only: grid ctor 0x8f95c0(P, floor(W·512/10),
@@ -30,15 +30,13 @@
 //   (white = 1.0); a material colour = explicit material (field ±1, id 1 =
 //   air ⇒ −1); script colours set no field (stay 0 ⇒ air).
 //
-// CONSEQUENCE (capture-verified, E1, seed 78633191): the rows above and below
+// CONSEQUENCE (capture-verified, seed 78633191): the rows above and below
 // the 48-row biome map read the MAIN band's wang content at y mod 24570 px,
 // and the chunk biome there is the vmap clamp of biome-map row 0 / row 47 —
 // the_sky / the_end on cols 27..41 — whose <Materials> re-classify every
 // placeholder cell (Heaven = cloud, Hell = skullrock); explicit materials
 // (sand, water…) pass through. Holy-mountain / noise rows have no P content
-// ⇒ air gaps. The layout match: per-chunk hole-mask IoU Heaven~Hell 0.604,
-// Heaven~main 0.642, Hell~main 0.634 vs a 1-column-shifted control 0.285
-// (chance 0.25) — mapgen/experiments/2026-11-08-work-layout-match.mjs.
+// ⇒ air gaps. Layout match: mapgen/experiments/2026-11-08-work-layout-match.mjs.
 
 import { latticeVal2d, simplex2d } from "./noise-proto.mjs";
 import { classify } from "./surface-level.mjs";

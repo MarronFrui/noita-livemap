@@ -5,8 +5,8 @@
 //                                      one per chunk), z+1 halves resolution
 //   GET /gen/tile/:seed/:z/:x/:y.png?c=0|1     override the capture-composite
 //                                      display layer for this request
-//                                      (ISSUES A10; default OFF since
-//                                      2026-10-21, fires at seed 78633191)
+//                                      (ISSUES A10; default off, applies
+//                                      only at seed 78633191)
 //   GET /gen/status/:seed              generation progress JSON (includes `epoch`
 //                                      + the `capture` layer state)
 //   GET|POST /gen/clear/:seed          dev: drop one seed's disk cache + memory,
@@ -43,12 +43,11 @@ const dataDir = findNoitaDataDir();
 const cacheDir = GEN_CACHE_DIR;
 
 const worlds = new Map(); // seed -> { world, progress, ready }
-// A world was ~4.6 GB RSS when the template planes rendered eagerly; with the
-// lazy chunk store (chunk-store.mjs, 2026-11-08) it is ~0.6 GB at ready and
+// A world is ~0.6 GB RSS at ready (lazy chunk store, chunk-store.mjs) and
 // bounded by the chunk cache (MAPGEN_CHUNK_CACHE) after browsing. Keep only
 // the most recently used seeds resident; in-flight requests keep their entry.
 const MAX_WORLDS = Math.max(1, Number(process.env.GENMAP_MAX_WORLDS ?? 3));
-// The tile revision (perf C, 2026-11-08): a hash of the generator + tile-law
+// The tile revision: a hash of the generator + tile-law
 // sources, the gen-cache rev and the paint-affecting env flags. Tiles persist
 // on disk under it (mapgen/out/tile-cache/<rev>/…), so a restart keeps every
 // valid tile and a code change can never serve a stale one. The viewer's
@@ -96,7 +95,7 @@ function getWorld(seed) {
   return entry;
 }
 
-// Direct-law tiles render on the worker pool (perf D, tile-pool.mjs):
+// Direct-law tiles render on the worker pool (tile-pool.mjs):
 // GENMAP_WORKERS threads (default 4), each with its own lazy world and a
 // GENMAP_WORKER_CHUNKS chunk cache (default 192 ≈ 150 MB).
 const pool = new TilePool({
@@ -118,7 +117,7 @@ const tiles = new TileService({
   log: (m) => console.log(m),
 });
 
-// Prewarm (perf D): the first touch of a seed queues, at LOW priority, the
+// Prewarm: the first touch of a seed queues, at low priority, the
 // opening view (z1 around spawn), then the whole z4 level (every zoomed-out
 // view is then a cheap pyramid of cached tiles), then z2 around spawn. The
 // tiles land in the disk cache, so each seed prewarms once per revision.

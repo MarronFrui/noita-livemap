@@ -1,20 +1,17 @@
-// tests/mapgen/composed-content.test.mjs — dig #144 (THE COMPOSED-CONTENT
-// LAW, I34/I33) count pins: (1) the caves filler's PER-CHUNK re-anchor
-// (the mask/mat grid hash equality across H/V/distant pairs — 0/1/N counts
-// that FAIL under a world-anchored re-frame); (2) the caves material census
-// (rock_static majority — FAILS under the old "limit caps always gate"
-// arithmetic that would paint idx-255 band shade everywhere); (3) the
-// limit_y FLAG law (the desert's ungated rock_static/sand_static comps
-// paint at ANY depth; FAILS if limit_y parsing ever regresses to
-// cap-by-default); (4) I33's kind-0 restoration (dig #145): the filler
-// chunks are TEXTURED (0 < solids < 2704 — FAILS under the dig-#142
-// all-air arithmetic that pinned 0), the kind-1 pockets stop throwing
-// (FAILS under the kind=-1 throw law), and the kind-0 field is WORLD-
-// anchored (same-def pairs differ — FAILS under the all-air/pre-fix
-// identity and under any per-chunk re-anchor).
-// Data-dependent: skips without the game data. Lane flags are module-load
-// consts — set the env BEFORE the dynamic imports (surface-compositor
-// convention).
+// tests/mapgen/composed-content.test.mjs — composed-content law count pins
+// (I34/I33):
+// (1) the caves filler re-anchors per chunk (mask/mat grid hashes equal
+//     across H/V/distant pairs; a world-anchored re-frame would differ);
+// (2) caves material census (rock_static majority; limit caps gating every
+//     comp would paint idx-255 band shade everywhere);
+// (3) the limit_y flag law (desert's ungated rock_static/sand_static comps
+//     paint at any depth);
+// (4) kind-0 filler: kind-1 pockets compute (no throw), and the kind-0
+//     field is world-anchored (textured same-def pairs differ);
+// (5) the field0 law, the record-lane byte plane, and the classify-or-air
+//     cell law (world-y limits).
+// Data-dependent: skips without game data. Lane flags are module-load
+// consts — set the env before the dynamic imports.
 import fs from "node:fs";
 import crypto from "node:crypto";
 import { describe, expect, test } from "vitest";
@@ -37,11 +34,9 @@ describe.skipIf(!hasData)("composed-content laws (dig #144, I34/I33)", () => {
     for (const seed of [SEED, SEED_B]) {
       // desert caves filler at the mines band: base (45,63); H neighbor;
       // V neighbor; distant (dx=17, dy=26). The BitmapCaves 512/256 mod-wrap
-      // => all THREE comparisons identical. A world-anchored re-frame (the
-      // naive "continuity fix") makes every neighbor DIFFER — this test
-      // fails under that arithmetic. dig #208: the caves-lane = the
-      // UNDERGROUND's rows only (the attach's row-gate = the ty ≥ 63), so
-      // the law's chunks live at the row 63+ (the row 62 = the noise lane).
+      // makes all three identical; a world-anchored re-frame would make
+      // every neighbor differ. The caves lane covers underground rows only
+      // (row gate ty >= 63); row 62 is the noise lane.
       const base = noiseChunkMask(cfg, 45, 63, seed);
       expect(base).not.toBeNull();
       expect(base.def.filename).toContain("desert.xml");
@@ -56,8 +51,8 @@ describe.skipIf(!hasData)("composed-content laws (dig #144, I34/I33)", () => {
         expect(n).not.toBeNull();
         expect(maskHash(n.mask)).toBe(h); // 0-diff count: identical
       }
-      // the per-biome parameterization (I34's must-not-break clause): a
-      // different-def caves chunk does NOT share the desert mask.
+      // per-biome parameterization (I34): a different-def caves chunk does
+      // not share the desert mask.
       const winter = noiseChunkMask(cfg, 11, 62, seed);
       expect(maskHash(winter.mask)).not.toBe(h);
     }
@@ -81,20 +76,16 @@ describe.skipIf(!hasData)("composed-content laws (dig #144, I34/I33)", () => {
     };
     const d = census(noiseChunkMask(cfg, 45, 63, SEED));
     // desert: 2642-2664 solids of 2704, rock_static ~97-98%, idx255 <= 9.
-    // FAILS under the old arithmetic where limit_max_y caps gate every comp
-    // (all comps rejected at y>=7168 => idx255 = thousands of cells).
-    // dig #208: the row 63 = the UNDERGROUND's (the caves-lane's row-gate) —
-    // the row 62 = the surface-band's noise lane (the classify's windows).
+    // If limit_max_y caps gated every comp, all would be rejected at
+    // y>=7168 (idx255 = thousands of cells). Row 63 = caves lane.
     expect(d.solids).toBeGreaterThan(2000);
     expect(d.solids).toBeLessThanOrEqual(2704);
     expect(d.counts.get("rock_static") ?? 0).toBeGreaterThan(0.9 * d.solids);
     expect(d.counts.get("(idx255)") ?? 0).toBeLessThan(50);
     const w = census(noiseChunkMask(cfg, 11, 62, SEED));
-    // winter: the deep band = all-solid; with the WORLD-y limits live
-    // (dig #208) the snow's window [0.35, 0.9) takes the low-v pockets
-    // (411 snow_static + 2293 snowrock_static at this seed) — the old
-    // "snowrock = EVERY solid" pin tracked the map-y feed where the limits
-    // never matched. idx255 stays 0 (no unclassified cells).
+    // winter: the deep band is all-solid; with world-y limits the snow's
+    // window [0.35, 0.9) takes the low-v pockets (411 snow_static + 2293
+    // snowrock_static at this seed). idx255 = 0 (no unclassified cells).
     expect(w.solids).toBe(2704);
     expect(w.counts.get("snowrock_static") ?? 0).toBeGreaterThan(2000);
     expect(w.counts.get("snow_static") ?? 0).toBeGreaterThan(100);
@@ -108,17 +99,16 @@ describe.skipIf(!hasData)("composed-content laws (dig #144, I34/I33)", () => {
     expect(blocks.length).toBe(8);
     const comps = blocks.map((b) => componentFromXml(b));
     const names = comps.map((c) => c.material_name);
-    // the flag split (fresh read 2026-10-15): the SURFACE sand family +
-    // copper carry limit_y="1" (gate live, y-window never reaches 7168);
-    // sand_static x2 + rock_static x2 carry limit_y="0" (caps inert).
+    // the surface sand family + copper carry limit_y="1" (gate live,
+    // y-window never reaches 7168); sand_static x2 + rock_static x2 carry
+    // limit_y="0" (caps inert).
     const gated = comps.map((c, i) => [c.limit_y, names[i]]).filter(([g]) => g === true).map(([, n]) => n);
     const ungated = comps.map((c, i) => [c.limit_y, names[i]]).filter(([g]) => g === false).map(([, n]) => n);
     expect(gated).toEqual(["sand_surface", "sandstone_surface", "sand_static_bright", "copper"]);
     expect(ungated.sort()).toEqual(["rock_static", "rock_static", "sand_static", "sand_static"]);
     // classify at the mines-band y (7173 = row 62 cell 0): v=1.2 -> the first
     // ungated rock_static ([0.9,3.5) window); v=0.8 -> ungated sand_static
-    // ([0.72,0.95)). FAILS if limit_y parsing regresses to cap-by-default
-    // (both would return null => idx-255 band shade).
+    // ([0.72,0.95)). With cap-by-default parsing both would return null.
     const records = comps.map((c, i) => ({ i, name: c.material_name }));
     const table = buildMaterialsTable(comps, { min: 0, max: 0 }, records);
     const rec12 = classify(table, 23005, 7173, 1.2);
@@ -133,14 +123,9 @@ describe.skipIf(!hasData)("composed-content laws (dig #144, I34/I33)", () => {
     const { noiseChunkMask } = await import("../../mapgen/lib/noise-terrain.mjs");
     const { loadBiomeConfig, biomeAt } = await import("../../mapgen/lib/biomes.mjs");
     const cfg = loadBiomeConfig(DATA_DIR);
-    // empty(15,62): **THE GAME'S OWN ALL-AIR PAINTER (dig #208 re-pin)** —
-    // empty.xml's <Materials> contains NO MaterialComponent (the
-    // VegetationComponent only, read fresh this dig) ⇒ the classify's
-    // component walk has nothing to match ⇒ the miss-exit 0x8F574C returns
-    // null for EVERY cell ⇒ the walk paints nothing ⇒ the untouched zeroed
-    // grid = ALL-AIR. The dig-#145-era pins (2059/1996 "textured") were the
-    // old v > 0.5 mask's artifact — the mask no longer decides, the
-    // component windows do, and this biome has none. The name was the law.
+    // empty(15,62): empty.xml's <Materials> has no MaterialComponent (only a
+    // VegetationComponent), so classify's miss-exit 0x8F574C returns null
+    // for every cell and the zeroed grid stays all-air.
     for (const seed of [SEED, SEED_B]) {
       const r = noiseChunkMask(cfg, 15, 62, seed);
       expect(r).not.toBeNull();
@@ -148,15 +133,11 @@ describe.skipIf(!hasData)("composed-content laws (dig #144, I34/I33)", () => {
       const solids = [...r.mask].filter((v) => v).length;
       expect(solids, "the empty biome = the game's own all-air (zero MaterialComponents)").toBe(0);
     }
-    // lake/lake_statue (the dig-#208 re-pin): the lake(4,62) chunk is the
-    // flat water pool — the water's window v ∈ [−1, 0.5) with the limit_y
-    // [225, 512000] in the WORLD-y frame = the wy ≥ 225 rows painted water
-    // (1560/2704 = 57.7%; the capture's fR = 0.568 — the law reproduced).
-    // lake_statue(6,62) = the SAME water law (its slope-window's field ≤
-    // 0.2 rides INSIDE the water's window [−1, 0.5)) = 1560 — which is the
-    // CAPTURE'S OWN reading (ref (6,14): fR 0.605, the statue island in the
-    // pool, IoU 0.994). The dig-#145-era "0 is the byte law" pin tracked
-    // the old v > 0.5 mask; the classifier's windows decide now.
+    // lake(4,62) is a flat water pool: water's window v ∈ [−1, 0.5) with
+    // limit_y [225, 512000] in world-y paints the wy >= 225 rows
+    // (1560/2704 = 57.7%; capture fR 0.568). lake_statue(6,62) follows the
+    // same water law (its slope-window field <= 0.2 lies inside the water
+    // window) = 1560.
     {
       const rL = noiseChunkMask(cfg, 4, 62, SEED);
       expect(rL).not.toBeNull();
@@ -168,9 +149,8 @@ describe.skipIf(!hasData)("composed-content laws (dig #144, I34/I33)", () => {
       expect(rS.def.filename).toContain("lake_statue.xml");
       expect([...rS.mask].filter((v) => v).length).toBe(1560);
     }
-    // the lake FAMILY's texture census (the M3 instrument's law): across
-    // every lake ground cell (tx 4..10, rows 62/63) at least one chunk is
-    // textured — pre-fix ALL were 0 (the NOISE→AIR collapse).
+    // lake family texture census: across every lake ground cell (tx 4..10,
+    // rows 62/63) at least one chunk is textured.
     {
       const at = (tx, ty) => biomeAt(cfg, tx, ty - 48);
       let textured = 0;
@@ -194,14 +174,12 @@ describe.skipIf(!hasData)("composed-content laws (dig #144, I34/I33)", () => {
     const { noiseChunkMask } = await import("../../mapgen/lib/noise-terrain.mjs");
     const { loadBiomeConfig, biomeAt } = await import("../../mapgen/lib/biomes.mjs");
     const cfg = loadBiomeConfig(DATA_DIR);
-    // Pre-fix every non-template cell of these defs fell through (threw
-    // `noiseDispatch: core kind=-1 UNREAD` — noiseKind sourced from the
-    // noise_type presence). Post-fix noiseKind = the [+0x224] ctor default
-    // 5 ⇒ no throw ⇒ non-null. FAILS under the kind=-1 law.
-    // Scan window: rows 62..100 (the pockets live underground — layout read
-    // this session: solid_wall 834 cells, hidden_cavern 4, friend_1/friend_4/
-    // teleroom 1 each); solid_wall capped at 12 samples (the probe measures
-    // all 841). Anti-vacuity: EVERY one of the 5 defs must be found.
+    // noiseKind = the [+0x224] ctor default 5 (not derived from noise_type
+    // presence, which would give kind -1 and throw), so every non-template
+    // cell of these defs returns non-null.
+    // Scan window: rows 62..100 (the pockets live underground: solid_wall
+    // 834 cells, hidden_cavern 4, friend_1/friend_4/teleroom 1 each);
+    // solid_wall capped at 12 samples. Anti-vacuity: all 5 defs must be found.
     for (const seed of [SEED, SEED_B]) {
       const defCells = new Map();
       for (const fn of ["solid_wall_hidden_cavern.xml", "teleroom.xml", "friend_1.xml", "friend_4.xml", "solid_wall.xml"]) {
@@ -228,26 +206,18 @@ describe.skipIf(!hasData)("composed-content laws (dig #144, I34/I33)", () => {
     const { noiseChunkMask } = await import("../../mapgen/lib/noise-terrain.mjs");
     const { loadBiomeConfig, biomeAt } = await import("../../mapgen/lib/biomes.mjs");
     const cfg = loadBiomeConfig(DATA_DIR);
-    // Dig #144 could not measure the kind-0 anchor law (all-air masks ⇒
-    // every pair identical). Post-fix the field is a pure function of
-    // world px ⇒ same-def pairs with ≥1 TEXTURED member DIFFER. Pairs where
-    // BOTH masks are all-air are skipped — a constant-0 mask hashes equal by
-    // construction and carries no anchor information (run 2: lake_statue's
-    // 3 row-62 cells + 2 lake air rows; the 12 informative lake pairs all
-    // differ). FAILS under any per-chunk re-anchor (identical textured hashes).
-    // Anti-vacuity: ≥2 informative pairs must exist per seed.
-    // **dig #208: the lake family (lake.xml + lake_statue.xml) = DROPPED
-    // from the anchor set** — its cell-law = the classify's windows with
-    // the water's limit_y = [225, 512000] (the WORLD-y frame): the pool =
-    // the FLAT y-cut band (the wy ≥ 225 rows) whose v-variation never
-    // reaches the mask — the adjacent same-def pairs = IDENTICAL = the
-    // game's own flat-water law, NOT a re-anchor signal (the capture's
-    // (4,14)/(5,14) = the same flat pool). The anchor law rides the
-    // winter's noise pairs.
+    // The kind-0 field is a pure function of world px, so textured same-def
+    // pairs differ; a per-chunk re-anchor would make them identical.
+    // Constant masks (all-air or all-solid) hash equal by construction and
+    // carry no anchor information, so they are skipped. Anti-vacuity: >= 2
+    // informative pairs per seed.
+    // The lake family is excluded: its pool is a flat world-y cut (water
+    // limit_y [225, 512000]), so adjacent same-def pairs are legitimately
+    // identical. The anchor law is measured on winter's noise pairs.
     for (const seed of [SEED, SEED_B]) {
       let informative = 0;
-      // the winter's informative pairs live at ty 61 (the map row 13 = the
-      // snow-band = the wave's texture); ty 62 = the deep band (flat-full)
+      // winter's informative pairs live at ty 61 (map row 13, the snow band);
+      // ty 62 is the deep band (flat-full)
       for (const fn of ["winter.xml"]) {
         const cells = [];
         for (let tx = 0; tx <= 70; tx++) {
@@ -270,9 +240,8 @@ describe.skipIf(!hasData)("composed-content laws (dig #144, I34/I33)", () => {
         }
         pairs.push([cells[0], cells[cells.length - 1]]); // the far pair
         for (const [a, b] of pairs) {
-          // informative = TEXTURED both ends: the constant masks (0 or 2704
-          // = the all-air / the flat-full like the deep band and the water
-          // pools) hash equal by construction and carry no anchor info
+          // informative = textured at both ends (constant masks, 0 or 2704,
+          // carry no anchor info)
           if (!(a.s > 0 && a.s < 2704 && b.s > 0 && b.s < 2704)) continue;
           informative++;
           expect(a.h, `${fn} (${a.tx},${a.ty})≡(${b.tx},${b.ty}) seed ${seed} [${a.s}/${b.s} solids]`).not.toBe(b.h);
@@ -282,21 +251,14 @@ describe.skipIf(!hasData)("composed-content laws (dig #144, I34/I33)", () => {
     }
   });
 
-  // dig #146 — THE FIELD0 LAW (C122, entry (146)): count-pinned chunks on the
-  // live server's seed (500412504), gates:
-  // (1) lavalake (41,66): 0/2704 (old floor-0.5 law) → 414/2704 (field≡1)
-  //     — FAILS under the old law's arithmetic (the floor kept rp ≤ 0.5 in
-  //     every cell ⇒ ALL-AIR); (2) solid_wall (1,70): 1367/2704 → 1367/2704
-  //     (byte-stable — the deep-row ramp-saturation byte argument holds
-  //     exactly); (3) temple_wall (31,67): 398/2704 field-lane solids — the
-  //     mask is classify-INDEPENDENT (the #146-era "NULL" was the throw of
-  //     an un-parseable phantom comp; retracted dig #148). The classify
-  //     lane contributes ZERO material hits: temple_wall's shipped
-  //     <Materials> are 100% commented out ⇒ the game's table is EMPTY ⇒
-  //     no overrides (the wall renders from the template lanes). Under the
-  //     #147 raw-text regex the commented-out rock_hard_border diamonds
-  //     painted 155 matIdx cells — the ZERO-material bar below FAILS
-  //     under that law (the phantom discriminator).
+  // The field0 law (C122): count-pinned chunks on seed 500412504.
+  // (1) lavalake (41,66): field≡1 gives a textured chunk (a floor-0.5 law
+  //     keeps rp <= 0.5 everywhere = all-air);
+  // (2) solid_wall (1,70): the wall biome paints every cell;
+  // (3) temple_wall (31,67): its shipped <Materials> are entirely commented
+  //     out, so the game's table is empty and classify paints nothing — the
+  //     walls come from the pixel-scene lane. A raw-text regex would pick up
+  //     the commented-out rock_hard_border comps (155 matIdx cells).
   test("THE FIELD0 LAW count (dig #146): lavalake 0→414 (FAILS old law: 0), solid_wall 1367→1367 (byte-stable), temple_wall 0→NULL (fails old law: 0)", async () => {
     const { noiseChunkMask } = await import("../../mapgen/lib/noise-terrain.mjs");
     const { loadBiomeConfig } = await import("../../mapgen/lib/biomes.mjs");
@@ -323,9 +285,6 @@ describe.skipIf(!hasData)("composed-content laws (dig #144, I34/I33)", () => {
       }
       return mat;
     };
-    // dig #208 RE-PIN: the classify-or-air cell-law (the windows decide)
-    // re-banded the lavalake count 401 → 375. The pin FAILS under both the
-    // old hash AND the old mask law.
     expect(solids(41, 66), "lavalake kind-0 — THE FIELD0 discrimination").toBe(375);
     expect(solids(1, 70), "solid_wall deep — #208 re-pin 1361→2704 (the classify's windows: the wall biome paints every cell)").toBe(2704);
     expect(solids(31, 67),
@@ -335,25 +294,19 @@ describe.skipIf(!hasData)("composed-content laws (dig #144, I34/I33)", () => {
       .toEqual([]);
   });
 
-  // dig #164 (entry (164), the byte-plane WRITER falsification): the record
-  // lane's stamps now write the [P+0x58] byte plane (the dig-#162 chain:
-  // image_file → recordTemplate → the fn950 stencil). METER E1 pins:
-  //   (1) the nonzero-byte coverage MUST grow off the old constant-zero
-  //       plane (0.00%) for the record-carrying defs — FAILS under the
-  //       draws-only port arithmetic (the old law's exact number);
-  //   (2) desert — ZERO CaveStructure records in its XML (census this dig)
-  //       — keeps 0.00% ⇒ the record lane CANNOT be the plane's (sole)
-  //       writer (the capture shows 65.19% solid there = the dig-#165
-  //       writer-hunt's opening evidence);
-  //   (3) FIELD PARITY: the record lane is field-inert — the dig-#160 pins
-  //       (90.07/98.57/89.9%) hold to ±0.05 ⇒ the write lane cannot shift
-  //       the field (the dig-#163 spawn-scatter claim is also out:
-  //       spawn_percent="0" across all 55 biomes).
+  // Record-lane byte plane: the record lane's stamps write the [P+0x58]
+  // byte plane (image_file → recordTemplate → the fn950 stencil). E1 pins:
+  //   (1) record-carrying defs have nonzero-byte coverage (> 0.5%);
+  //   (2) desert has zero CaveStructure records and keeps 0.00%, so the
+  //       record lane is not the plane's sole writer (the capture shows
+  //       65.19% solid there);
+  //   (3) field parity: the record lane is field-inert (spawn_percent="0"
+  //       across all 55 biomes).
   test("dig #164 byte-plane count: the record lane stamps nonzero bytes (FAILS old 0.00%), desert 0-records stays 0 (the writer-hunt evidence), field parity holds", async () => {
     const { buildCavesField } = await import("../../mapgen/lib/caves-field.mjs");
     const { loadBiomeConfig } = await import("../../mapgen/lib/biomes.mjs");
     const cfg = loadBiomeConfig(DATA_DIR);
-    // dig #204 re-pin (the MINSTD engine swap, C177): the NollaPrng-era values (90.07/98.57/89.9) = the old engine's; the measured = the game's seed lane
+    // field-solid % under the MINSTD seed lane (C177)
     const pins = { _EMPTY_: 94.29, desert: 98.07, winter: 94.29 };
     const coverage = { _EMPTY_: NaN, desert: 0, winter: NaN }; // desert's XML census: 0 records
     for (const defName of Object.keys(pins)) {
@@ -368,10 +321,9 @@ describe.skipIf(!hasData)("composed-content laws (dig #144, I34/I33)", () => {
       }
       const pct = 100 * nz / N;
       if (defName === "desert") {
-        // the falsification anchor: ZERO <CaveStructure> elements in
-        // desert.xml (grep census this dig) ⇒ the record lane writes
-        // nothing ⇒ 0.00%. The capture still shows 65.19% solid ⇒ the
-        // plane's writer lane lives elsewhere (dig #165).
+        // desert.xml has no <CaveStructure> elements, so the record lane
+        // writes nothing (0.00%); the capture's 65.19% solid comes from
+        // another writer.
         expect((def.bitmapCaves.structures ?? []).length, "desert record census").toBe(0);
         expect(cf.bytes.every((v) => v === 0), "desert byte plane untouched").toBe(true);
         coverage.desert = pct;
@@ -387,16 +339,12 @@ describe.skipIf(!hasData)("composed-content laws (dig #144, I34/I33)", () => {
     // pinned by tests/mapgen/api-surface.test.mjs).
   });
 
-  // dig #208 — THE CELL-LAW = THE CLASSIFY-OR-AIR (X215): the walk
-  // 0x792580's post-classify arm @0x7930D8 paints a cell iff classify
-  // returns celldata (the miss-exit 0x8F574C = xor eax,eax = null = the
-  // untouched zeroed grid = AIR); the classify's y = the WALK-Y = the WORLD
-  // px (the limits' semantics: the soil [−1024, 424.229], the water
-  // [225, 512000] = the world-y bands). The dig-#178 `v > 0.5` mask + the
-  // C76 map-y (−24576) = the flagged stand-ins (A11) — RETIRED. Every pin
-  // below FAILS under the old law (the water/soil/snow = unpaintable there:
-  // the water's window tops at 0.5 = the old mask-air; the map-y feed =
-  // the limits never matched).
+  // The cell law = classify-or-air (X215): the walk 0x792580's
+  // post-classify arm @0x7930D8 paints a cell iff classify returns celldata
+  // (miss-exit 0x8F574C = xor eax,eax = null leaves the zeroed grid = air).
+  // classify's y is the walk y = world px (soil [−1024, 424.229], water
+  // [225, 512000] are world-y bands). A `v > 0.5` mask or a map-y feed
+  // would leave water/soil/snow unpaintable.
   describe.skipIf(!hasData)("dig #208 — the classify-or-air cell-law (world-y limits)", () => {
     test("the lake's water paints: tile (4,14) is a water pool at the capture's share (old law: 0 water cells)", async () => {
       const { noiseChunkMask } = await import("../../mapgen/lib/noise-terrain.mjs");
@@ -404,9 +352,8 @@ describe.skipIf(!hasData)("composed-content laws (dig #144, I34/I33)", () => {
       const cfg208 = loadBiomeConfig(DATA_DIR);
       const r = noiseChunkMask(cfg208, 4, 62, SEED);
       const solid = [...r.mask].reduce((a, b) => a + b, 0);
-      // the game's law: the water = v ∈ [−1, 0.5) ∧ the wy ≥ 225 → the
-      // tile's bottom (512−225)/512 = 56.1% = the water-top band; the
-      // capture's fR = 0.568.
+      // water = v ∈ [−1, 0.5) ∧ wy >= 225 → the tile's bottom
+      // (512−225)/512 = 56.1%; capture fR = 0.568.
       expect(solid, "lake (4,14) solid ≥ the water-band law").toBeGreaterThanOrEqual(1500);
       const water = r.matIdx.reduce((a, mi, i) => {
         const name = r.matNames?.[mi];
@@ -420,8 +367,8 @@ describe.skipIf(!hasData)("composed-content laws (dig #144, I34/I33)", () => {
       const cfg208 = loadBiomeConfig(DATA_DIR);
       const r = noiseChunkMask(cfg208, 19, 61, SEED);
       const solid = [...r.mask].reduce((a, b) => a + b, 0);
-      // the snow window's floor v ≥ 0.35 → r = 0.402 → the surface ≈ wy −200
-      // = the capture's implied level (the dig-#207's A18 arithmetic)
+      // the snow window's floor v >= 0.35 → r = 0.402 → surface ≈ wy −200,
+      // the capture's implied level (A18)
       expect(solid, "winter (19,13) solid — FAILS under the v>0.5 mask (old: 0 at bty13)").toBeGreaterThanOrEqual(1000);
     });
     test("the hills' soil layer paints at its world-y window (old law: never — the map-y fed the limits garbage)", async () => {

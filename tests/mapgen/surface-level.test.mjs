@@ -1,9 +1,7 @@
-// surface-level.mjs (dig #96): ctor defaults, band builder, classifier gate
-// order, and the rarePolka ramp — port contracts + byte-exact f32 pins.
-// Byte cites live in the module header (CONSTANTS C74/C75); this file pins
-// BEHAVIOR: every expected value is either a literal from the hills.xml
-// fixture (read this session), an f32 identity, or the independent chain
-// oracle below (regression pin for the ramp math).
+// surface-level.mjs: ctor defaults, band builder, classifier gate order and
+// the rarePolka ramp — port contracts + byte-exact f32 pins. Byte cites live
+// in the module header (C74/C75); expected values are hills.xml literals, f32
+// identities, or the independent chain oracle below.
 //
 // Float bars: toBe(Math.fround(x)) = exact f32 slot pin (authoritative);
 // toBeCloseTo(x, 7) where the f32 half-ulp fits under 5e-8 (small fractions),
@@ -30,7 +28,7 @@ const f32 = Math.fround;
 // (rarePolka 0x8fbe60 → hashes 0x8f9200/0x8f92f0) used as the expected-value
 // source for gate-boundary + fixture pins. `skipProbGate` exposes the full
 // path past the r1 ≥ prob check (needed to contrast the jae-at-equality).
-// Constants PE-verified this session: Q 0x11df8f4, K9200 0x11df8ac,
+// Constants (PE-verified): Q 0x11df8f4, K9200 0x11df8ac,
 // K92F0 0x11df8b0→0x13476e4, K1 imm 0x3acbdc41→0x13476e8, K2 imm
 // 0x3aa32fcf→0x13476ec, bases 26 0x11e01f8 / 161 0x11e031c / 71 0x11e02b8.
 const Q = 0.014084506779909134; // 0x11df8f4
@@ -364,8 +362,8 @@ describe("classify (0x8f5030 gate order, byte-cited)", () => {
       'is_polygon="1"',
     ];
     const { table } = build([poly], { min: 0, max: 1 }, [{ id: "p" }]);
-    // dig #147 port: an empty polygon component (is_polygon=1 but no
-    // <Vec2> children) raises the line-280 assert in the game itself.
+    // An empty polygon component (is_polygon=1, no <Vec2> children) raises
+    // the game's line-280 assert.
     expect(() => classify(table, 0, 0, 0.5)).toThrow(/polygon\.size\(\) >= 3/);
     expect(() => classify(table, 0, 0, 0.5)).toThrow(/line 280/);
     const { table: named } = build([poly], { min: 0, max: 1 }, null);
@@ -694,12 +692,10 @@ describe("rarePolka (0x8fbe60 ramp)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// dig #148 — the mod-512 FLOOR law (caller window X107, 0x8f54f4..0x8f550c:
-// and 0x800001ff / jns / dec / OR 0xfffffe00 / inc / jns / add 0x200 ⇒ the
-// result is always in [0, 511]). Dig #147 shipped `and` where the byte has
-// `or` — every negative input collapsed to ±0x80000000-family garbage
-// (−1 → −2147483135, ×1/512 → −4194303.0). Both tests below FAIL under the
-// old law (the replacement-test rule).
+// The mod-512 floor law (X107, 0x8f54f4..0x8f550c: and 0x800001ff / jns /
+// dec / OR 0xfffffe00 / inc / jns / add 0x200 ⇒ result in [0, 511]). An
+// `and` in place of the `or` sends negative inputs to ±0x80000000-family
+// garbage; both tests below fail under that reading.
 describe("dig #148 — modSigned512 floor law (X107) + negative-coord classify", () => {
   test("negative+positive sweep: modSigned512Float(n) ≡ floor-mod(n,512)/512 ∈ [0,1)", () => {
     for (let n = -2050; n <= 2050; n++) {
@@ -724,8 +720,8 @@ describe("dig #148 — modSigned512 floor law (X107) + negative-coord classify",
 
   test("classify's polygon arm consumes the WRAPPED point for negative cells", () => {
     // right-half square [0.5,1]×[0,1]; cell (−1,−1) wraps to (511/512, 511/512)
-    // = INSIDE under the byte law. Under the #147 `and`-slip the point sat at
-    // ±4194303 ⇒ always outside ⇒ these pins fail (the discriminator).
+    // = inside. Under the `and` reading the point sits at ±4194303 ⇒ always
+    // outside ⇒ these pins discriminate.
     const comp = componentFromXml(
       `<MaterialComponent material_name="p" material_min="-100" material_max="100" is_polygon="1">
         <polygon>
@@ -745,8 +741,8 @@ describe("dig #148 — modSigned512 floor law (X107) + negative-coord classify",
   });
 });
 // ---------------------------------------------------------------------------
-// hills.xml fixture — real P1 component data (read this session: 6 blocks,
-// material_name lines 196/218/240/262/284/306, band seed {0,0} → [0, 3.5]).
+// hills.xml fixture — real P1 component data (6 blocks, band seed {0,0} →
+// [0, 3.5]).
 describe.skipIf(!hasNoitaData())("hills.xml fixture (data-gated)", () => {
   const readComps = () => {
     const xmlSrc = fs.readFileSync(path.join(dataDir, "biome", "hills.xml"), "utf-8");

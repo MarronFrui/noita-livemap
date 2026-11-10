@@ -1,6 +1,6 @@
-// tests/mapgen/surface-contour.test.mjs — dig #217: THE HILLS SURFACE = THE
-// r = 0.51 CONTOUR OF THE BAND RAMP, and the Phase-S xBase stream goldens
-// for the three current-build capture seeds.
+// tests/mapgen/surface-contour.test.mjs — the hills surface = the r = 0.51
+// contour of the band ramp, and the Phase-S xBase stream goldens for the
+// three current-build capture seeds.
 //
 // Law (surfaceField, noise-proto.mjs; bytes C77/C120/C125): while the band
 // ramp r ≤ 0.51 the gradW·per lane is off (the 0.51 gate), so
@@ -20,9 +20,7 @@ import { loadBiomeConfig, biomeAt } from "../../mapgen/lib/biomes.mjs";
 import { dataDir, hasNoitaData } from "../helpers/data.mjs";
 
 describe("dig #217 — Phase-S xBase goldens (the three capture seeds)", () => {
-  // The rank test (experiments/2026-11-09-dig217-surface-phase.mjs) put the
-  // computed xBase at the 0.7 % / 3.0 % rank of 401 phases for seeds
-  // …191 / …193; these pin the stream so a regression is visible.
+  // Stream goldens: a regression in the xBase draw is visible here.
   test("78633191 → 24155.7109375 (the C120 golden, unchanged)", () => {
     expect(phaseSXBase(78633191).xBase).toBe(24155.7109375);
   });
