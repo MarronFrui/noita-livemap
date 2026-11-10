@@ -120,6 +120,8 @@ The byte side of every dig reads `noita_dev.exe` through the REA MCP server
 | `mapcap/` | Capture-based ground truth: noita-mapcap slicing, seed-differential analysis, predetermined zones (`mapcap/README.md`) |
 | `mods/noita-live-map/` | Noita Lua telemetry mod (`init.lua`, `files/telemetry.lua`) |
 | `src/main.ts`, `src/style.css` | Vite frontend; embeds noitamap iframe |
+| `src/live-link.mjs` | The telemetry-bridge link state machine (off/connecting/waiting/live/stale/retrying), shared by `src/main.ts` and `public/genmap.html`; pure `transition()` + `describe()` (the only status text) — `tests/live-link.test.mjs` |
+| `src/genmap-viewer.mjs` | The genmap viewer's tile-entry (retry), status-poll (one loop) and status-line machines — `tests/genmap-viewer.test.mjs`; served with live-link by the genmap server |
 | `index.html` | Vite entry point |
 | `scripts/copy-noitamap.mjs` | Copies built noitamap assets into `public/noitamap/` |
 | `scripts/rea-mcp.sh`, `scripts/rea-target.mjs`, `scripts/rea-lib.mjs` | REA MCP launcher, target pin + seed check, shared helpers |
