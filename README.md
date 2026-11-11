@@ -43,13 +43,9 @@ npm run dev:bridge
 npm run dev
 ```
 
-Then open `http://localhost:5173/` in your browser.
-
-## Controls
-
-- **Live Telemetry panel** — shows current seed, biome, and position; click `−` to collapse.
-- **Center on player** — pans the map to your position.
-- **Follow player** — re-centers the map every 2 seconds while enabled.
+Then open `http://localhost:5173/` in your browser: the map fills the page and
+the live player marker follows telemetry; the player position is driven by the
+bridge, there are no manual controls.
 
 ## Project structure
 
