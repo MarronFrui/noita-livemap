@@ -31,6 +31,14 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+
+      # public/js/main.js is a build artifact of the noitamap submodule and is
+      # gitignored there, so a fresh CI checkout does not have it: build the
+      # submodule first, then copy-noitamap.mjs picks its public/ output up.
+      - name: Build the noitamap viewer submodule
+        working-directory: vendor/noitamap
+        run: npm ci && npm run build
+
       # CI=true makes vite.config.ts emit the /noita-livemap/ base path.
       - run: npm run build
         env:
