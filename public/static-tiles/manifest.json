@@ -1,0 +1,18 @@
+{
+  "seed": 78633191,
+  "rev": "2f37cb891dae",
+  "bakedAt": "2026-11-11T22:36:29.074Z",
+  "world": {
+    "chunksW": 71,
+    "chunksH": 144
+  },
+  "region": {
+    "x0": 35,
+    "x1": 46,
+    "y0": 58,
+    "y1": 76
+  },
+  "nativeMaxZ": 2,
+  "coarseMinZ": 3,
+  "maxZ": 7
+}

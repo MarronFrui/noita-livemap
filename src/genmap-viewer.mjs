@@ -77,6 +77,7 @@ export function createTileCache({ makeImage, onSettle = () => {}, now = () => Da
       return e;
     },
     peek: (key) => entries.get(key),
+    peekAll: () => [...entries],
     clear() { entries = new Map(); },
     get size() { return entries.size; },
   };

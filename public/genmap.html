@@ -54,8 +54,8 @@
       // State machines: the bridge link = /live-link.mjs (src/live-link.mjs);
       // tile entries, the status poll and the status line = /genmap-viewer.mjs
       // (src/genmap-viewer.mjs). Both are tested in tests/; this page renders.
-      import { createLiveLink, describe as describeLink } from "/live-link.mjs";
-      import { createTileCache, createStatusPoller, composeStatus, notice as makeNotice } from "/genmap-viewer.mjs";
+      import { createLiveLink, describe as describeLink } from "./live-link.mjs";
+      import { createTileCache, createStatusPoller, composeStatus, notice as makeNotice } from "./genmap-viewer.mjs";
 
       // canvas px = virtual-map px * 512; chunk (0,0) = biome px (0,-48) = world (-17920,-31744)
       // 71x144 chunks = clamped virtual map (48 sky rows + 70x48 band + 48 deep rows + 1 east col)
@@ -67,6 +67,37 @@
       const status = document.getElementById("status");
 
       const params = new URLSearchParams(location.search);
+      // static demo (GitHub Pages): the pyramid for one seed is pre-rendered
+      // by mapgen/server/bake-static.mjs into static-tiles/ — no genmap
+      // server, no bridge. Tiles outside the baked set are air (black).
+      const STATIC_DEMO = params.get("static") === "1";
+      const AIR_PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4AWMAgv8AAQQBAP8H9UQAAAAASUVORK5CYII=";
+      let staticRev = null, staticSeed = null, staticBakedAt = null;
+      // The Image element cannot tell a 404 (not baked = air) from a network
+      // failure, and the tile cache would retry "air" forever — so the static
+      // loader fetches first: 200 → blob URL, 404 → the 1×1 air tile. The
+      // fetch logic rides a src setter ON the Image instance (the viewer
+      // hands e.img straight to ctx.drawImage); the FINAL assignment goes
+      // through the native setter, otherwise setting the blob URL would
+      // re-enter this setter and fetch the blob URL forever.
+      const NATIVE_IMG_SRC = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, "src").set;
+      function makeStaticImage() {
+        const img = new Image();
+        Object.defineProperty(img, "src", {
+          configurable: true,
+          set(url) {
+            fetch(url).then((r) => {
+              if (r.ok) {
+                return r.blob().then((b) => NATIVE_IMG_SRC.call(img, URL.createObjectURL(b)));
+              }
+              if (r.status === 404) { NATIVE_IMG_SRC.call(img, AIR_PNG); return; }
+              throw new Error(`HTTP ${r.status}`);
+            }).catch(() => { if (img.onerror) img.onerror(new Event("error")); });
+          },
+          get() { return img.getAttribute("src"); },
+        });
+        return img;
+      }
       const seedInput = document.getElementById("seed");
       seedInput.value = params.get("seed") ?? "78633191";
 
@@ -100,7 +131,7 @@
         if (zF !== zFtarget) zFanim = requestAnimationFrame(zoomStep);
         else { zFanim = null; zAnchor = null; }
       }
-      const tiles = createTileCache({ makeImage: () => new Image(), onSettle: () => draw() });
+      const tiles = createTileCache({ makeImage: STATIC_DEMO ? makeStaticImage : () => new Image(), onSettle: () => draw() });
       let gen = null; // latest /gen/status for `seed`
       let unreachable = null; // { retryAt } while the status poll fails
       let notice = null; // transient status message { text, until }
@@ -134,6 +165,7 @@
 
       const TONE_COLORS = { ok: "#7ce38b", warn: "#ffd479", error: "#ff8f8f", muted: "#8a9aaa" };
       function updateTelemetryBox() {
+        if (STATIC_DEMO) return; // the boot wrote the static demo text; keep it
         const { text, tone } = describeLink(link.model);
         tlInfo.textContent = "";
         const head = document.createElement("div");
@@ -195,15 +227,20 @@
       function loadSeed(s) {
         const v = parseInt(String(s), 10);
         if (Number.isNaN(v)) return;
+        if (STATIC_DEMO && staticSeed != null && (v >>> 0) !== staticSeed) {
+          setNotice(`static demo: only seed ${staticSeed} is baked`);
+          seedInput.value = String(staticSeed);
+          return;
+        }
         seed = v >>> 0;
         tiles.clear();
-        gen = null;
+        gen = STATIC_DEMO ? { ready: true, done: 1, total: 1, errors: [] } : null;
         unreachable = null;
         zones = null;
         if (showZones) loadZones();
         seedInput.value = String(seed);
-        history.replaceState(null, "", `?seed=${seed}`);
-        poller.follow(seed); // supersedes the previous seed's poll loop
+        history.replaceState(null, "", `?seed=${seed}${STATIC_DEMO ? "&static=1" : ""}`);
+        if (!STATIC_DEMO) poller.follow(seed); // supersedes the previous seed's poll loop
         updateTelemetryBox();
         draw();
       }
@@ -219,7 +256,10 @@
       function resize() { cv.width = innerWidth; cv.height = innerHeight; ctx.imageSmoothingEnabled = false; draw(); }
       addEventListener("resize", resize);
 
-      function tileUrl(tx, ty, tz) { return `/gen/tile/${seed}/${tz}/${tx}/${ty}.png?e=${epoch}&c=${captureOn ? 1 : 0}`; }
+      function tileUrl(tx, ty, tz) {
+        if (STATIC_DEMO) return `static-tiles/${staticSeed}/${tz}/${tx}_${ty}.png?v=${staticRev ?? "0"}`;
+        return `/gen/tile/${seed}/${tz}/${tx}/${ty}.png?e=${epoch}&c=${captureOn ? 1 : 0}`;
+      }
       const fetchTile = (tx, ty, tz) => tiles.request(`${seed}/${tz}/${tx}/${ty}`, tileUrl(tx, ty, tz));
 
       function draw() {
@@ -404,7 +444,31 @@
 
       resize();
       load(); // auto-load the seed from the URL
-      setLive(true); // try the telemetry bridge (genmap shows the live run when Noita is open)
+      if (STATIC_DEMO) {
+        // the static demo: manifest picks the baked seed + revision, the
+        // server-side features (live bridge, zones, regen) stay hidden
+        fetch("static-tiles/manifest.json").then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        }).then((m) => {
+          staticRev = m.rev;
+          staticSeed = m.seed;
+          staticBakedAt = m.bakedAt;
+          for (const id of ["live", "zones", "capture", "regen", "center"]) {
+            const el = document.getElementById(id);
+            if (el) el.style.display = "none";
+          }
+          const followLabel = document.getElementById("follow")?.parentElement;
+          if (followLabel) followLabel.style.display = "none";
+          document.getElementById("tl-info").innerHTML =
+            `<b style="color:#7fd97f">static demo</b> — pre-rendered by the generator<br>seed ${m.seed} · baked ${String(m.bakedAt).slice(0, 10)}`;
+          document.getElementById("seed").disabled = true;
+          setNotice(`static demo — pre-rendered seed ${m.seed}`);
+          loadSeed(m.seed);
+        }).catch(() => setNotice("static tiles manifest missing — is this the Pages deployment?"));
+      } else {
+        setLive(true); // try the telemetry bridge (genmap shows the live run when Noita is open)
+      }
     </script>
   </body>
 </html>
